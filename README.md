@@ -3,6 +3,9 @@
 Client-side [Fabric](https://fabricmc.net/) utility mod for the **Telos Realms** Minecraft server, with a fully
 animated ClickGUI, movable HUD elements and dungeon/stash tools.
 
+
+Discord: https://discord.gg/dqjD94x3Ra
+
 ## Features
 
 | Category | Feature | What it does |
