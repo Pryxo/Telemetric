@@ -20,6 +20,10 @@ public abstract class VoxyWorldIdentifierMixin {
     @Inject(method = "of(Lnet/minecraft/world/level/Level;)Lme/cortex/voxy/commonImpl/WorldIdentifier;",
             at = @At("HEAD"), cancellable = true, require = 0)
     private static void telemetric$stableDungeonId(Level level, CallbackInfoReturnable<Object> cir) {
+        if (VoxyAdapter.held(level)) { // store not decided yet: no renderer, no ingest (see VoxyAdapter#held)
+            cir.setReturnValue(null);
+            return;
+        }
         Object id = VoxyAdapter.override(level);
         if (id != null) cir.setReturnValue(id);
     }

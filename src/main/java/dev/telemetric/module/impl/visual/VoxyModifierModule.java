@@ -31,6 +31,8 @@ public final class VoxyModifierModule extends Module {
     private static final int SETTLE_TICKS = 60;
     /** Ticks the HUD name must stay the same before it is used. */
     private static final int STABLE_TICKS = 40;
+    /** Ticks a HUD name that differs from the previous place must stay the same (fast path). */
+    private static final int FRESH_STABLE_TICKS = 5;
 
     private final MultiChoiceSetting whitelist = add(new MultiChoiceSetting("Whitelist",
             "Dungeons with a fixed layout whose LODs are shared between instances (all others are left alone)",
@@ -41,6 +43,13 @@ public final class VoxyModifierModule extends Module {
     private final BooleanSetting downloadMaps = add(new BooleanSetting("Download Maps",
             "Fetch prebuilt LODs for whitelisted dungeons from the Telemetric-Data repo (never replaces your own)", true));
 
+    private final BooleanSetting realmAndHub = add(new BooleanSetting("Realm & Hub",
+            "Keep one LOD save for the realm and hub (other non-dungeon Telos worlds too), even when the server's seed or instance number changes",
+            true));
+
+    private final BooleanSetting lockLods = add(new BooleanSetting("Lock LODs",
+            "Never update saved LODs on Telos (Voxy only shows what is already saved; downloads still install)", false));
+
     /** Keys whose shared map was checked this session (only before Voxy first opens that store). */
     private final Map<String, CompletableFuture<Boolean>> prepared = new HashMap<>();
 
@@ -48,12 +57,18 @@ public final class VoxyModifierModule extends Module {
     private int levelTicks;
     private String lastName;
     private int stableTicks;
+    private String placeName; // last settled HUD name (any level)
+    private String staleName; // placeName when this level started
+
+    /** Longest renderer hold on a new level (map download, slow HUD) before Voxy's own store is used. */
+    private static final int HOLD_MAX_TICKS = 600;
 
     public VoxyModifierModule() {
         super("Voxy Modifier",
-                "Voxy: all instances of a whitelisted dungeon share one LOD save (telos:<dungeon name>)",
+                "Voxy tweaks: one save folder for all Telos regions, shared LODs per dungeon/realm/hub",
                 Category.VISUAL);
         VoxyAdapter.setSharedPathEnabled(this::isEnabled);
+        VoxyAdapter.setLockLods(() -> isEnabled() && lockLods.get());
     }
 
     @Override
@@ -63,13 +78,22 @@ public final class VoxyModifierModule extends Module {
         if (token != levelToken) {
             levelToken = token;
             levelTicks = 0;
+            staleName = placeName; // what the HUD box showed on the old level
             lastName = null;
             stableTicks = 0;
-            VoxyAdapter.clear(); // old level is gone: only drops the stale override
+            VoxyAdapter.forget(); // old level is gone: only drops the stale override (keeps the new level's hold)
         }
         levelTicks++;
+        if (levelTicks > SETTLE_TICKS && DungeonAdapter.hudLocation() != null) placeName = DungeonAdapter.dungeonName();
+        VoxyAdapter.tick();
+        if (levelTicks > HOLD_MAX_TICKS && VoxyAdapter.holding()) VoxyAdapter.release(); // never hide LODs for long
+        if (levelTicks % 20 == 1 && VoxyAdapter.syncBasePath()) {
+            Toasts.info("Voxy: now saving to the shared Telos folder");
+        }
         if (!DungeonAdapter.isInDungeon()) {
-            VoxyAdapter.clear();
+            String key = realmAndHub.get() ? worldKey(DungeonAdapter.dimensionId()) : null;
+            if (key == null) VoxyAdapter.clear();
+            else if (!key.equals(VoxyAdapter.activeKey()) && sharedMapReady(key)) VoxyAdapter.apply(key);
             return;
         }
         String name = DungeonAdapter.hudLocation() == null ? null : DungeonAdapter.dungeonName();
@@ -79,7 +103,15 @@ public final class VoxyModifierModule extends Module {
         } else {
             stableTicks++;
         }
-        if (name == null || levelTicks < SETTLE_TICKS || stableTicks < STABLE_TICKS) return;
+        if (name == null) return;
+        // Fast path: the HUD box may still show the previous place right after the teleport — a name that differs
+        // from it is the new dungeon, so a short check is enough. The same name as before keeps the slow wait.
+        boolean fresh = !name.equals(staleName) && stableTicks >= FRESH_STABLE_TICKS;
+        if (!fresh && (levelTicks < SETTLE_TICKS || stableTicks < STABLE_TICKS)) return;
+        applyDungeon(name);
+    }
+
+    private void applyDungeon(String name) {
         String key = isWhitelisted(name) ? VoxyAdapter.stableKey(name) : null;
         if (key == null) {
             VoxyAdapter.clear();
@@ -104,9 +136,25 @@ public final class VoxyModifierModule extends Module {
         return true;
     }
 
+    /**
+     * Stable key for a non-dungeon Telos world (realm, hub): the dimension id without its instance number
+     * ({@code telos:realm}, {@code telos:hub/2} → {@code telos:hub}); null outside Telos dimensions.
+     */
+    static String worldKey(String dimensionId) {
+        if (dimensionId == null || !dimensionId.startsWith("telos:")) return null;
+        String key = dimensionId.replaceFirst("/\\d+$", "");
+        return key.length() > "telos:".length() ? key : null;
+    }
+
+    @Override
+    protected void onEnable() {
+        levelToken = null; // re-run the folder check + overrides on the next tick
+    }
+
     @Override
     protected void onDisable() {
         VoxyAdapter.clear();
+        VoxyAdapter.syncBasePath(); // back to Voxy's own per-address folder, no rejoin
         levelToken = null;
     }
 
