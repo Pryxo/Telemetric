@@ -2,6 +2,7 @@ package dev.telemetric;
 
 import dev.telemetric.addon.TelemetricAddon;
 import dev.telemetric.config.ConfigManager;
+import dev.telemetric.game.ChatAdapter;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.ServerGate;
 import dev.telemetric.game.StashAdapter;
@@ -69,6 +70,7 @@ public final class Telemetric implements ClientModInitializer {
         HudOverlay.register();
         WorldRenderAdapter.register();
         DungeonAdapter.register();
+        ChatAdapter.register();
         StashAdapter.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);

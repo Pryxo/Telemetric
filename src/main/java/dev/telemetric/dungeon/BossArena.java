@@ -68,10 +68,10 @@ public final class BossArena {
      * not be one free fall (Treasure Cave: ledges / chambers on the way): everything open between the drop
      * and the arena floor is part of this air.
      */
-    public static LongOpenHashSet floodFromAnchor(DungeonMap map, long anchor, int mainY) {
+    public static LongOpenHashSet floodFromAnchor(DungeonMap map, long anchor, int level) {
         if (anchor == Long.MIN_VALUE) return new LongOpenHashSet();
         int ax = Cell.x(anchor), ay = Cell.y(anchor), az = Cell.z(anchor);
-        int top = mainY == Integer.MIN_VALUE ? ay + 48 : mainY - 2;
+        int top = level == Integer.MIN_VALUE ? ay + 48 : level - 2;
         if (ay > top) return new LongOpenHashSet(); // anchor on the main level: no arena under the rooms
         // a feet cell inside a low block (slab / carpet) is not open: seed the cell above
         long seed = map.isOpen(ax, ay, az) ? anchor : Cell.pack(ax, ay + 1, az);
@@ -107,9 +107,9 @@ public final class BossArena {
     }
 
     /** Fallback before any boss anchor was seen: the best drop whose rim is on the main level, or null. */
-    public static Hole pickMainLevelDrop(List<Hole> holes, int mainY) {
-        if (mainY == Integer.MIN_VALUE) return null;
-        for (Hole h : holes) if (h.y() >= mainY - MAIN_BAND) return h;
+    public static Hole pickMainLevelDrop(List<Hole> holes, int level) {
+        if (level == Integer.MIN_VALUE) return null;
+        for (Hole h : holes) if (h.y() >= level - MAIN_BAND) return h;
         return null;
     }
 
@@ -117,12 +117,12 @@ public final class BossArena {
      * Fallback flood (no boss anchor): open-air cells under {@code drop}, seeded where its columns land at
      * least {@code minDepth} down (empty if it lands nowhere).
      *
-     * @param mainY    main floor level (median top floor stand)
+     * @param level    dungeon level ({@link RoomLayout#level})
      * @param minDepth minimum drop depth (landings shallower than this are not the arena)
      */
-    public static LongOpenHashSet flood(DungeonMap map, Hole drop, int mainY, int minDepth) {
+    public static LongOpenHashSet flood(DungeonMap map, Hole drop, int level, int minDepth) {
         if (drop == null) return new LongOpenHashSet();
-        int top = Math.min(mainY, drop.y()) - 2;
+        int top = Math.min(level, drop.y()) - 2;
         LongArrayFIFOQueue seeds = new LongArrayFIFOQueue();
         int lowest = Integer.MAX_VALUE;
         for (int x = drop.minX(); x <= drop.maxX(); x++) {

@@ -47,6 +47,8 @@ public final class DungeonAdapter {
 
     private static final String DUNGEON_NAMESPACE = "telos";
     private static final String DUNGEON_PREFIX = "dungeon/";
+    /** Named instance worlds that are dungeons too (dimension path prefixes under {@code telos:}). */
+    private static final List<String> INSTANCE_PREFIXES = List.of("neo_eden/");
 
     private static final LinkedHashSet<Long> PENDING = new LinkedHashSet<>();
     private static final Map<BlockState, Byte> CLASS_CACHE = new IdentityHashMap<>();
@@ -82,12 +84,40 @@ public final class DungeonAdapter {
         return level == null ? null : level.dimension().identifier().toString();
     }
 
-    /** True inside a Telos dungeon instance ({@code telos:dungeon/<n>}). */
+    /**
+     * True inside a Telos dungeon instance: {@code telos:dungeon/<n>}, or a named instance world in
+     * {@link #INSTANCE_PREFIXES} ({@code telos:neo_eden/<n>}).
+     */
     public static boolean isInDungeon() {
         ClientLevel level = level();
         if (level == null || Minecraft.getInstance().player == null) return false;
         Identifier id = level.dimension().identifier();
-        return DUNGEON_NAMESPACE.equals(id.getNamespace()) && id.getPath().startsWith(DUNGEON_PREFIX);
+        if (!DUNGEON_NAMESPACE.equals(id.getNamespace())) return false;
+        String path = id.getPath();
+        if (path.startsWith(DUNGEON_PREFIX)) return true;
+        for (String prefix : INSTANCE_PREFIXES) {
+            if (path.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Plain custom names of visible-named armor stands within {@code range} blocks of the player (server
+     * nameplates like the renown count "(75/110)"). Empty outside a world.
+     */
+    public static List<String> nameplates(double range) {
+        ClientLevel level = level();
+        LocalPlayer self = Minecraft.getInstance().player;
+        List<String> out = new ArrayList<>();
+        if (level == null || self == null) return out;
+        double r2 = range * range;
+        for (Entity e : level.entitiesForRendering()) {
+            if (!(e instanceof net.minecraft.world.entity.decoration.ArmorStand stand) || stand.isRemoved()) continue;
+            if (!stand.isCustomNameVisible() || stand.getCustomName() == null) continue;
+            if (stand.distanceToSqr(self) > r2) continue;
+            out.add(stand.getCustomName().getString());
+        }
+        return out;
     }
 
     /** Opaque token that changes whenever a new world/instance is joined (even with the same dimension id). */
@@ -112,6 +142,32 @@ public final class DungeonAdapter {
     public static Point playerPos() {
         LocalPlayer p = Minecraft.getInstance().player;
         return p == null ? null : new Point(p.getX(), p.getY(), p.getZ());
+    }
+
+    /**
+     * The dungeon's return portal (where every Telos dungeon starts), or null if none is loaded. Its anchor is an
+     * invisible evoker wearing orange stained glass, standing still on the portal (verified in Midnight Stronghold,
+     * 2026-11-14: at the spawn (8, 100, 8) together with a parrot; the fire models around the player are the
+     * player's own effects and follow them). The one nearest the player wins.
+     */
+    public static Point returnPortalPos() {
+        ClientLevel level = level();
+        LocalPlayer self = Minecraft.getInstance().player;
+        if (level == null || self == null) return null;
+        Entity best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (Entity e : level.entitiesForRendering()) {
+            if (e.isRemoved() || e.getType() != net.minecraft.world.entity.EntityType.EVOKER || !e.isInvisible()) continue;
+            if (!(e instanceof net.minecraft.world.entity.LivingEntity living)) continue;
+            if (!living.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD)
+                    .is(net.minecraft.world.item.Items.ORANGE_STAINED_GLASS)) continue;
+            double d = e.distanceToSqr(self);
+            if (d < bestDist) {
+                bestDist = d;
+                best = e;
+            }
+        }
+        return best == null ? null : new Point(best.getX(), best.getY(), best.getZ());
     }
 
     // ------------------------------------------------------------------ scanning

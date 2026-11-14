@@ -59,7 +59,8 @@ public final class FreeformRooms {
      * @param floors column key → room-level floor stand (boss level and, if the rule is on, outdoor floor removed);
      *               the caller's map, not modified
      */
-    static RoomLayout detect(DungeonMap map, LongPredicate floor, LongSet reachable, Long2IntOpenHashMap floors) {
+    static RoomLayout detect(DungeonMap map, LongPredicate floor, LongSet reachable, Long2IntOpenHashMap floors,
+                             int dungeonLevel, RoomLayout.Hint hint) {
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
         for (long c : floors.keySet()) {
             int x = Cell.columnX(c), z = Cell.columnZ(c);
@@ -188,7 +189,7 @@ public final class FreeformRooms {
                 return false;
             }
         };
-        List<long[]> links = RoomLayout.linkRooms(map, floor, reachable, floors, rooms, index);
+        List<long[]> links = RoomLayout.linkRooms(map, floor, reachable, floors, rooms, index, dungeonLevel, hint);
         owners.values().removeIf(r -> !rooms.containsKey(Cell.columnKey(r.gx(), r.gz())));
         return new RoomLayout(new int[0], new int[0], 1, Collections.unmodifiableMap(rooms), List.copyOf(links), 0, 0,
                 Collections.unmodifiableMap(owners));

@@ -118,6 +118,8 @@ public final class WayfinderModule extends Module {
     private record Route(List<Point> sharp, List<Point> clean, Point target, boolean boss, Hole hole, boolean complete) {}
 
     private volatile Route route;
+    /** A target (treasure / boss drop not reached yet) exists; see {@link #isTracking()}. */
+    private boolean tracking;
     private Future<?> job;
     private boolean acquired;
     private long lastPlanMs;
@@ -128,6 +130,8 @@ public final class WayfinderModule extends Module {
     private int bossGeneration = Integer.MIN_VALUE;
     /** You have been in the boss drop segment this run: the boss route stays hidden. */
     private boolean bossReached;
+    /** The boss drop {@link #bossReached} was latched for. */
+    private Hole bossReachedHole;
     /** Last boss drop seen this run (shown while the analysis has none). */
     private Hole lastHole;
 
@@ -176,6 +180,7 @@ public final class WayfinderModule extends Module {
         if (generation0 != bossGeneration) { // new dungeon run: forget the last drop and the "reached" latch
             bossGeneration = generation0;
             bossReached = false;
+            bossReachedHole = null;
             lastHole = null;
         }
         Hole hole = tracker.analysis().bossDrop();
@@ -184,7 +189,13 @@ public final class WayfinderModule extends Module {
         // the route stays until you have really been in the boss drop segment (fell into its shaft, or stand on
         // the boss level); only then is it hidden for the rest of the run. Being low somewhere else (a sunken
         // room, a ledge) no longer hides it
-        if (hole != null && !bossReached && inBossSegment(tracker, hole, player)) bossReached = true;
+        // the latch belongs to the drop that set it: a re-analysis that moves the drop (an early wrong one
+        // detected right where you loaded in) clears it again
+        if (hole != null && bossReached && !sameDrop(hole, bossReachedHole)) bossReached = false;
+        if (hole != null && !bossReached && inBossSegment(tracker, hole, player)) {
+            bossReached = true;
+            bossReachedHole = hole;
+        }
         if (bossReached) hole = null;
         Target mode = target.get();
         String key = mode + "|" + targetsKey(treasures) + "|" + (hole == null ? "-" : hole.minX() + "," + hole.minZ() + "," + hole.y());
@@ -193,6 +204,7 @@ public final class WayfinderModule extends Module {
             plannedKey = key;
             return;
         }
+        tracking = true;
 
         long now = System.currentTimeMillis();
         long since = now - lastPlanMs;
@@ -243,6 +255,12 @@ public final class WayfinderModule extends Module {
         return inside && Math.abs(y - levelY) <= ROOM_LEVEL_MARGIN;
     }
 
+    /** Same boss drop, allowing a few blocks of drift between re-analyses. */
+    private static boolean sameDrop(Hole a, Hole b) {
+        return b != null && Math.abs(a.centerX() - b.centerX()) <= 4 && Math.abs(a.centerZ() - b.centerZ()) <= 4
+                && Math.abs(a.y() - b.y()) <= 3;
+    }
+
     private static Route plan(DungeonMap map, long start, Target mode, List<Point> treasures, Hole hole,
                               java.util.function.BooleanSupplier cancelled) {
         // treasure first; a treasure you cannot walk to yet still gets a partial route (unless the boss
@@ -285,16 +303,15 @@ public final class WayfinderModule extends Module {
     }
 
     /**
-     * Walking route first; if no goal can be walked to, a free route that may also go through open air
-     * (jump pads, launchers, high walls) — never through blocks. Partial walking route if neither arrives.
+     * Player-move route only (walk, 1-up jumps, 1-3 wide gap jumps, drops, ladders, jump pads). If no goal
+     * is reachable the route ends at the reachable cell closest to it.
      */
     private static PathFinder.Result search(DungeonMap map, long start, LongOpenHashSet goals,
                                             List<PathFinder.Anchor> anchors, java.util.function.BooleanSupplier cancelled) {
         PathFinder.Result walk = PathFinder.find(map, start, goals, anchors, MAX_NODES, cancelled);
-        if (walk == null || walk.complete()) return walk;
-        PathFinder.Result free = PathFinder.findFree(map, start, goals, anchors, MAX_NODES, cancelled);
-        if (free == null && cancelled.getAsBoolean()) return null;
-        return free != null && free.complete() ? free : walk;
+        if (walk == null || walk.complete() || !walk.capped()) return walk;
+        // ran out of nodes, not out of floor: one bigger try (still player moves only)
+        return PathFinder.find(map, start, goals, anchors, MAX_NODES * 3, cancelled);
     }
 
     private static long nearestCell(long[] cells, long to) {
@@ -373,7 +390,16 @@ public final class WayfinderModule extends Module {
         return sb.toString();
     }
 
+    /**
+     * True while the Wayfinder has something to guide you to this run (a treasure, or the boss drop before you
+     * reached it) — the Dungeon Map stays shown then, wherever you stand.
+     */
+    public boolean isTracking() {
+        return isEnabled() && tracking;
+    }
+
     private void clearRoute() {
+        tracking = false;
         route = null;
         plannedKey = "";
         plannedMapVersion = -1;
@@ -550,9 +576,9 @@ public final class WayfinderModule extends Module {
         if (layout.rooms().isEmpty() || p == null) return;
         Hole boss = tracker.analysis().bossDrop();
         List<Point> treasures = tracker.treasures();
-        // visual only: draw every room and link on one height (main floor level) so the grid reads flat
-        int mainY = tracker.analysis().mainY();
-        double flatY = mainY != Integer.MIN_VALUE ? mainY : layout.rooms().values().iterator().next().floorY();
+        // visual only: draw every room and link on one height so the grid reads flat — the dungeon level
+        int level = tracker.analysis().level();
+        double flatY = level != Integer.MIN_VALUE ? level : layout.rooms().values().iterator().next().floorY();
         RoomLayout.Room bossRoom = bossRoom(layout, boss);
         for (RoomLayout.Room room : layout.rooms().values()) {
             if (Math.abs(room.centerX() - p.x()) > ROOM_DEBUG_RANGE || Math.abs(room.centerZ() - p.z()) > ROOM_DEBUG_RANGE) continue;

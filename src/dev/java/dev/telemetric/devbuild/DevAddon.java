@@ -15,5 +15,6 @@ public final class DevAddon implements TelemetricAddon {
         ThemeManager.registerFixedPalette(DevCategory.DEV, DevPalette.RED_BLACK);
         // Dev modules: modules.register(new MyDevModule());  (category DevCategory.DEV)
         modules.register(new LocationLogModule()); // TEMP: location / biome data collector
+        modules.register(new PacketLogModule());   // TEMP: received-packet dump (puzzle research)
     }
 }

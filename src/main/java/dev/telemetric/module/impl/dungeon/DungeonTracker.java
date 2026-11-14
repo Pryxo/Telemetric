@@ -1,6 +1,10 @@
 package dev.telemetric.module.impl.dungeon;
 
 import dev.telemetric.Telemetric;
+import dev.telemetric.chat.ChatBus;
+import dev.telemetric.dungeon.rules.ChatCounter;
+import dev.telemetric.dungeon.rules.ChatPuzzles;
+import dev.telemetric.dungeon.PuzzleBoard;
 import dev.telemetric.config.PieceSizeTable;
 import dev.telemetric.dungeon.Cell;
 import dev.telemetric.dungeon.DungeonAnalysis;
@@ -81,8 +85,14 @@ public final class DungeonTracker {
     private volatile RoomLayout.Hint hint = RoomLayout.Hint.NONE;
     /** This dungeon's rules ({@link DungeonRulebook}); DEFAULT outside dungeons. */
     private DungeonRules rules = DungeonRules.DEFAULT;
-    /** Where the player entered the dungeon (the spawn room); null outside a dungeon. */
+    /** Where the dungeon starts (its return portal, else where the player entered); null outside a dungeon. */
     private volatile Point spawn;
+    /** Whether {@link #spawn} is the return portal ({@link DungeonAdapter#returnPortalPos}). */
+    private boolean portalFound;
+    /** Piece size from the size table for this dungeon (0 = unknown). */
+    private int tableSize;
+    /** The room hint changed (start room moved onto the portal): analyse again even if the map did not change. */
+    private volatile boolean hintChanged;
     /** Goal ("clear") mob name of this dungeon, normalised ({@link DungeonRules#goalMob()}); null = none. */
     private String goalMob;
     /** Goal mob nameplates currently loaded: entity id → position. */
@@ -93,6 +103,17 @@ public final class DungeonTracker {
     private final List<Point> goalKills = new ArrayList<>();
     private volatile List<Point> goals = List.of();
     private volatile int goalKilled, goalTotal;
+    /** This dungeon's chat objective ({@link DungeonRules#chatCounter()}), its subscription and progress. */
+    private ChatCounter counter;
+    private ChatBus.Subscription counterSub, counterTotalSub;
+    /** Count nameplates are read every few ticks within this many blocks of the player. */
+    private static final double NAMEPLATE_RANGE = 16;
+    private static final int NAMEPLATE_INTERVAL_TICKS = 4;
+    private volatile int counterValue, counterTotal;
+    /** This dungeon's puzzle rooms ({@link DungeonRules#chatPuzzles()}), their subscriptions and state. */
+    private ChatPuzzles puzzleRule;
+    private final List<ChatBus.Subscription> puzzleSubs = new ArrayList<>();
+    private volatile PuzzleBoard puzzles;
 
     /** A plate showing up this close (blocks, squared) to a known goal mob is that same mob, not a new one. */
     private static final double GOAL_SAME_SQ = 8 * 8;
@@ -143,19 +164,30 @@ public final class DungeonTracker {
             dungeonName = DungeonAdapter.dungeonName();
             lastHudLocation = dungeonName; // a direct hop to the next dungeon waits for a new name again
             if (dungeonName != null) seenDungeons.add(dungeonName);
-            // the player arrives in the spawn room, where the Telos builder starts the piece grid
-            Point spawn = DungeonAdapter.playerPos();
-            this.spawn = spawn;
-            int tableSize = dungeonName == null ? 0 : PieceSizeTable.get().size(dungeonName);
+            tableSize = dungeonName == null ? 0 : PieceSizeTable.get().size(dungeonName);
             rules = DungeonRulebook.rulesFor(dungeonName);
             goalMob = rules.goalMob() == null ? null : DungeonAdapter.normalizeName(rules.goalMob());
-            hint = spawn == null ? new RoomLayout.Hint(tableSize, false, 0, 0, Integer.MIN_VALUE, rules)
-                    : new RoomLayout.Hint(tableSize, true, (int) Math.floor(spawn.x()), (int) Math.floor(spawn.z()),
-                    (int) Math.floor(spawn.y() + 0.01), rules);
-            Telemetric.debug("Dungeon entered: dimension={} name={} table size={} spawn={} rules=[{}]",
-                    DungeonAdapter.dimensionId(), dungeonName, tableSize, spawn, rules);
+            startCounter(rules.chatCounter());
+            startPuzzles(rules.chatPuzzles());
+            // the dungeon starts at its return portal, where the Telos builder starts the piece grid. The player
+            // arrives on it, but may have walked off by the time the HUD names the dungeon: the portal is exact
+            Point portal = DungeonAdapter.returnPortalPos();
+            portalFound = portal != null;
+            setSpawn(portal != null ? portal : DungeonAdapter.playerPos());
+            Telemetric.debug("Dungeon entered: dimension={} name={} table size={} spawn={} (portal {}) rules=[{}]",
+                    DungeonAdapter.dimensionId(), dungeonName, tableSize, spawn, portalFound, rules);
+        }
+        // portal not loaded yet on entry: keep looking, then move the start room onto it
+        if (!portalFound && ticks % TREASURE_INTERVAL_TICKS == 0) {
+            Point portal = DungeonAdapter.returnPortalPos();
+            if (portal != null) {
+                portalFound = true;
+                setSpawn(portal);
+                Telemetric.debug("Dungeon return portal found later: {}", portal);
+            }
         }
         ticks++;
+        if (ticks % NAMEPLATE_INTERVAL_TICKS == 0) readCounterNameplates();
         if (!rules.mapped()) { // no Wayfinder / map here: skip the block scan and room analysis
             if (ticks % TREASURE_INTERVAL_TICKS == 0) {
                 treasures = dedupe(DungeonAdapter.yellowGlowingEntities());
@@ -191,10 +223,19 @@ public final class DungeonTracker {
         scheduleAnalysis();
     }
 
+    /** Sets the start point and the room grid hint anchored on it (null = unknown). */
+    private void setSpawn(Point spawn) {
+        this.spawn = spawn;
+        hint = spawn == null ? new RoomLayout.Hint(tableSize, false, 0, 0, Integer.MIN_VALUE, rules)
+                : new RoomLayout.Hint(tableSize, true, (int) Math.floor(spawn.x()), (int) Math.floor(spawn.z()),
+                (int) Math.floor(spawn.y() + 0.01), rules);
+        hintChanged = true;
+    }
+
     private void scheduleAnalysis() {
         if (analysisJob != null && !analysisJob.isDone()) return;
         long version = map.version();
-        boolean depthChanged = analysisDropDepth != minDropDepth || analysisBossAnchor != bossAnchor;
+        boolean depthChanged = analysisDropDepth != minDropDepth || analysisBossAnchor != bossAnchor || hintChanged;
         Point player = DungeonAdapter.playerPos();
         long start = player == null ? Long.MIN_VALUE : PathFinder.startCell(map, player);
         // standing somewhere the last flood did not reach (dropped into an arena, a door opened...)
@@ -210,6 +251,7 @@ public final class DungeonTracker {
         Point bossAt = bossAnchor;
         analysisDropDepth = depth;
         analysisBossAnchor = bossAt;
+        hintChanged = false;
         analysisJob = worker.submit(() -> {
             try {
                 DungeonAnalysis result = DungeonAnalysis.compute(map, depth, start, union, roomHint, bossAt);
@@ -319,6 +361,9 @@ public final class DungeonTracker {
         hint = RoomLayout.Hint.NONE;
         rules = DungeonRules.DEFAULT;
         spawn = null;
+        portalFound = false;
+        tableSize = 0;
+        hintChanged = false;
         inDungeon = false;
         levelToken = null;
         dungeonName = null;
@@ -330,6 +375,8 @@ public final class DungeonTracker {
         goals = List.of();
         goalKilled = 0;
         goalTotal = 0;
+        startCounter(null);
+        startPuzzles(null);
         bossAnchor = null;
         analysisBossAnchor = null;
         if (analysisJob != null) analysisJob.cancel(false);
@@ -416,6 +463,90 @@ public final class DungeonTracker {
     /** Goal mobs seen this run (alive + killed). */
     public int goalTotal() {
         return goalTotal;
+    }
+
+    /** Listens for this dungeon's objective message (null = none); drops the previous subscription and progress. */
+    private void startCounter(ChatCounter next) {
+        if (counterSub != null) counterSub.cancel();
+        if (counterTotalSub != null) counterTotalSub.cancel();
+        counterSub = null;
+        counterTotalSub = null;
+        counter = next;
+        counterValue = 0;
+        counterTotal = next == null ? 0 : next.total();
+        if (next == null) return;
+        counterSub = ChatBus.on(next.pattern(), m -> {
+            int n = parseCount(m.group("n"));
+            int total = parseCount(m.group("total"));
+            if (total <= 0 || n < 0 || n > total) return;
+            counterTotal = total;
+            counterValue = Math.max(counterValue, n);
+        });
+        if (next.totalPattern() != null) {
+            counterTotalSub = ChatBus.on(next.totalPattern(), m -> {
+                int total = parseCount(m.group("total"));
+                if (total > 0) counterTotal = total;
+            });
+        }
+    }
+
+    /** Raises the objective count from the server's count nameplates (e.g. "(75/110)" after a renown pick-up). */
+    private void readCounterNameplates() {
+        ChatCounter c = counter;
+        if (c == null || c.nameplate() == null) return;
+        for (String name : DungeonAdapter.nameplates(NAMEPLATE_RANGE)) {
+            java.util.regex.Matcher m = c.nameplate().matcher(name);
+            if (!m.matches()) continue;
+            int n = parseCount(m.group("n"));
+            if (n > counterValue) counterValue = n;
+        }
+    }
+
+    /** Parses a count group; -1 when it is too long for an int. */
+    private static int parseCount(String s) {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /** Listens for this dungeon's puzzle messages (null = none); drops the previous subscriptions and state. */
+    private void startPuzzles(ChatPuzzles next) {
+        for (ChatBus.Subscription s : puzzleSubs) s.cancel();
+        puzzleSubs.clear();
+        puzzleRule = next;
+        puzzles = next == null ? null : new PuzzleBoard(next.slots());
+        if (next == null) return;
+        PuzzleBoard board = puzzles;
+        puzzleSubs.add(ChatBus.on(next.attempt(), m -> board.attempt(m.group("player"), m.group("room"))));
+        puzzleSubs.add(ChatBus.on(next.complete(), m -> board.complete(m.group("room"))));
+        puzzleSubs.add(ChatBus.on(next.reset(), m -> board.reset(m.group("room"))));
+    }
+
+    /** This dungeon's puzzle rule ({@link DungeonRules#chatPuzzles()}), or null. */
+    public ChatPuzzles puzzleRule() {
+        return puzzleRule;
+    }
+
+    /** Puzzle room state this run, or null when the dungeon has no puzzle rule. */
+    public PuzzleBoard puzzles() {
+        return puzzles;
+    }
+
+    /** This dungeon's chat objective ({@link DungeonRules#chatCounter()}), or null. */
+    public ChatCounter counter() {
+        return counter;
+    }
+
+    /** Objective progress so far this run (count from the last matching message). */
+    public int counterValue() {
+        return counterValue;
+    }
+
+    /** Objective total (from the message, else the rule's expected total). */
+    public int counterTotal() {
+        return counterTotal;
     }
 
     public ExecutorService worker() {

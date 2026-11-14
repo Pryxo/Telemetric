@@ -20,6 +20,9 @@ public final class PathGeometry {
     public static final double LIFT = 0.06;
     private static final double SAMPLE = 0.3;
     private static final double CLEARANCE = 0.3;
+    /** Walk-leg width check: half a player (0.3) was too strict next to walls. */
+    private static final double WALK_CLEARANCE = 0.2;
+    private static final int MAX_LOOKAHEAD = 96;
     private static final double CORNER_RADIUS = 1.4;
     private static final int CORNER_STEPS = 8;
 
@@ -39,9 +42,15 @@ public final class PathGeometry {
         while (i < cells.length - 1) {
             int k = i + 1;
             int y = Cell.y(cells[i]);
-            while (k + 1 < cells.length && Cell.y(cells[k + 1]) == y && Cell.y(cells[k]) == y
-                    && straightWalkable(map, cells[i], cells[k + 1])) {
-                k++;
+            // farthest cell on this level with a clear straight line (not just the first break), so a
+            // single kink in the grid path no longer splits a straight walk into many short legs
+            int run = i;
+            while (run + 1 < cells.length && run - i < MAX_LOOKAHEAD && Cell.y(cells[run + 1]) == y) run++;
+            for (int j = run; j > i + 1; j--) {
+                if (straightWalkable(map, cells[i], cells[j])) {
+                    k = j;
+                    break;
+                }
             }
             boolean air = false;
             if (k == i + 1 && (isAir(map, cells[i]) || isAir(map, cells[k]))) {
@@ -93,7 +102,7 @@ public final class PathGeometry {
         double dx = bx - ax, dz = bz - az;
         double len = Math.sqrt(dx * dx + dz * dz);
         if (len < 1e-6) return true;
-        double px = -dz / len * CLEARANCE, pz = dx / len * CLEARANCE; // perpendicular offset
+        double px = -dz / len * WALK_CLEARANCE, pz = dx / len * WALK_CLEARANCE; // perpendicular offset
         int steps = (int) Math.ceil(len / SAMPLE);
         for (int s = 0; s <= steps; s++) {
             double t = (double) s / steps;

@@ -85,7 +85,8 @@ public final class DungeonMapHud extends HudModule {
     public boolean hasData() {
         DungeonTracker tracker = DungeonTracker.get();
         return tracker.isInDungeon() && tracker.isMapped() && !tracker.analysis().rooms().rooms().isEmpty()
-                && nearRooms(tracker.analysis().rooms());
+                && (nearRooms(tracker.analysis().rooms())
+                    || Telemetric.get().modules().get(WayfinderModule.class).isTracking());
     }
 
     /** Horizontal / vertical slack around a room for "the player is in the mapped dungeon". */

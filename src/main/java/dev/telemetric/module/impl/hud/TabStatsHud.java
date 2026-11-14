@@ -68,9 +68,12 @@ public class TabStatsHud extends LinesHudModule {
                 String biome = PlayerAdapter.locationName();
                 if (biome == null && preview) biome = "Plains";
                 if (biome != null) {
-                    // not a Tab stat: borrow a sibling stat's server colours so the row matches the others
+                    // not a Tab stat: value in the HUD box's own server colour; else borrow a sibling stat's
                     int[] c = siblingColors();
-                    out.add(new Line(label, biome, c[0], c[1], List.of(), TelosIcons.resolve(label, "", null), TelosIcons.tinted(label)));
+                    int boxColor = dev.telemetric.game.BossBarAdapter.hudLocationColor();
+                    int vc = numberColor();
+                    if (vc == 0) vc = boxColor != 0 && !isGrey(boxColor) ? boxColor : c[1];
+                    out.add(new Line(label, biome, c[0], vc, List.of(), TelosIcons.resolve(label, "", null), TelosIcons.tinted(label)));
                 }
                 continue;
             }
@@ -97,12 +100,32 @@ public class TabStatsHud extends LinesHudModule {
             if (s.isEmpty()) continue;
             int lc = s.get().labelColor();
             int vc = s.get().valueColor();
+            // prefer the first coloured run (Server "[test, realm-1]" → the pink of "test", not the grey bracket)
+            for (TextRun r : s.get().valueRuns()) if (r.color() != 0 && !isGrey(r.color())) { vc = r.color(); break; }
             if (vc == 0) {
                 for (TextRun r : s.get().valueRuns()) if (r.color() != 0) { vc = r.color(); break; }
             }
             if (lc != 0 || vc != 0) return new int[] {lc, vc};
         }
         return new int[] {0, 0};
+    }
+
+    /** Value colour (the green) of Soul Points, Glory or Mastery from Tab, first one found; 0 = none. */
+    private static int numberColor() {
+        for (String label : List.of("Soul Points", "Glory", "Mastery")) {
+            Optional<TabStat> s = ServerInfoAdapter.tabStat(label);
+            if (s.isEmpty()) continue;
+            int vc = s.get().valueColor();
+            for (TextRun r : s.get().valueRuns()) if (r.color() != 0 && !isGrey(r.color())) { vc = r.color(); break; }
+            if (vc != 0 && !isGrey(vc)) return vc;
+        }
+        return 0;
+    }
+
+    /** Grey / white / black (all channels within 24 of each other). */
+    private static boolean isGrey(int rgb) {
+        int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+        return Math.max(r, Math.max(g, b)) - Math.min(r, Math.min(g, b)) < 24;
     }
 
     private static boolean isFragment(String label) {

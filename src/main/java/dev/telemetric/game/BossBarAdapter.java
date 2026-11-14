@@ -105,6 +105,18 @@ public final class BossBarAdapter {
      * {@code mythichud:…/rotmc2-hud-biome/biome-text} font (verified in Resounding Ruins, 2026-11-14).
      */
     public static String hudLocation() {
+        Component part = hudLocationPart();
+        return part == null ? null : part.getString().strip();
+    }
+
+    /** Colour (0xRRGGBB) the server gives the HUD-box location text, or 0 when none / no box. */
+    public static int hudLocationColor() {
+        Component part = hudLocationPart();
+        if (part == null || part.getStyle().getColor() == null) return 0;
+        return part.getStyle().getColor().getValue() & 0xFFFFFF;
+    }
+
+    private static Component hudLocationPart() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gui == null) return null;
         Map<UUID, LerpingBossEvent> events = ((BossHealthOverlayAccessor) mc.gui.getBossOverlay()).telemetric$getEvents();
@@ -115,8 +127,7 @@ public final class BossBarAdapter {
                 if (!(part.getStyle().getFont() instanceof FontDescription.Resource r)) continue;
                 String path = r.id().getPath();
                 if (!path.contains("hud-biome") && !path.endsWith("biome-text")) continue;
-                String text = part.getString().strip();
-                if (!text.isEmpty()) return text;
+                if (!part.getString().strip().isEmpty()) return part;
             }
         }
         return null;

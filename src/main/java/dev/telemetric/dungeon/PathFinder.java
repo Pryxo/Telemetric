@@ -13,33 +13,22 @@ import java.util.function.BooleanSupplier;
  * thread. Moves: 8 directions, walk, step/jump up 1, drop down up to {@link #MAX_FALL} blocks, and
  * climb up/down ladders and vines, and ride known <b>jump pads</b> ({@link #lifts}: straight up the pad's
  * shaft until a block — barrier ceilings included — stops it, then sideways onto a ledge).
- * Diagonals may not cut corners. Cost ≈ distance walked (+ small penalties for jumps and falls), so the
- * result is the shortest walkable route, not the straight line.
- * <p>
- * <b>Free mode</b> ({@link #findFree}): Telos dungeons have jump pads, launchers and high walls you get
- * over somehow, so when no walking route exists the router may also move through open air (up, down,
- * sideways) — still never through a solid block, a hazard, or out above the roof. Air moves cost more
- * than walking, so the route stays on the floor wherever it can.
+ * Also sprint-jumps straight across 1..{@link #MAX_GAP} wide gaps ({@link #gapJumps}).
+ * Diagonals may not cut corners. Cost ≈ distance walked (+ penalties for jumps and falls). Only real
+ * player moves — no flying through air; unreachable goals give a partial route to the closest cell.
  */
 public final class PathFinder {
 
     /** Highest drop the router takes on purpose (the boss hole is deeper and is only ever a goal). */
     public static final int MAX_FALL = 6;
     private static final double DIAG = Math.sqrt(2);
-    private static final double JUMP_COST = 0.4;
-    private static final double FALL_COST = 0.3;
+    /** Hops/drops cost about a short detour, so walking around a bump beats hopping over it. */
+    private static final double JUMP_COST = 1.5;
+    private static final double FALL_COST = 0.8;
     /** Extra cost per block of fall damage (falls over 3 blocks hurt). */
     private static final double FALL_DAMAGE_COST = 0.6;
     /** Ladders are ~half walking speed. */
     private static final double CLIMB_COST = 1.8;
-    /** Free mode: cost per block flown sideways / up / down through open air. */
-    private static final double AIR_SIDE_COST = 2.0;
-    private static final double AIR_UP_COST = 2.5;
-    private static final double AIR_DOWN_COST = 1.0;
-    /** Free mode explores a 3D volume: weighted A* (slightly suboptimal, far fewer nodes). */
-    private static final double FREE_HEURISTIC_WEIGHT = 1.5;
-    private static final int[][] AIR_DIRS = {{1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, -1, 0},
-            {1, 0, 1}, {1, 0, -1}, {-1, 0, 1}, {-1, 0, -1}};
     private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
     /** Highest a jump pad counts as throwing the player (blocks above the pad's feet height). */
     static final int MAX_LIFT = 16;
@@ -59,7 +48,8 @@ public final class PathFinder {
      * A found path. {@code complete} = it ends on a goal; otherwise no goal is reachable from the start
      * (sealed section, unexplored chunks) and the path ends at the reachable cell closest to the goals.
      */
-    public record Result(long[] cells, boolean complete) {}
+    /** {@code capped}: the search stopped at its node limit (the goal may still be walkable). */
+    public record Result(long[] cells, boolean complete, boolean capped) {}
 
     private static final class Node {
         final long cell;
@@ -80,19 +70,8 @@ public final class PathFinder {
      */
     public static Result find(DungeonMap map, long start, LongSet goals, List<Anchor> anchors, int maxNodes,
                               BooleanSupplier cancelled) {
-        return search(map, start, goals, anchors, maxNodes, cancelled, false);
-    }
-
-    /** Like {@link #find}, but may also fly through open air (jump pads, launchers, high walls). */
-    public static Result findFree(DungeonMap map, long start, LongSet goals, List<Anchor> anchors, int maxNodes,
-                                  BooleanSupplier cancelled) {
-        return search(map, start, goals, anchors, maxNodes, cancelled, true);
-    }
-
-    private static Result search(DungeonMap map, long start, LongSet goals, List<Anchor> anchors, int maxNodes,
-                                 BooleanSupplier cancelled, boolean free) {
         if (goals.isEmpty()) return null;
-        double weight = free ? FREE_HEURISTIC_WEIGHT : 1;
+        double weight = 1;
         Long2ObjectOpenHashMap<Node> nodes = new Long2ObjectOpenHashMap<>();
         PriorityQueue<Node> open = new PriorityQueue<>((a, b) -> Double.compare(a.f, b.f));
         Node first = new Node(start);
@@ -102,23 +81,35 @@ public final class PathFinder {
         Node best = first;
         double bestH = first.f;
         int expanded = 0;
-        long[] neighbour = new long[NEIGHBOURS + AIR_DIRS.length];
-        double[] cost = new double[NEIGHBOURS + AIR_DIRS.length];
+        boolean capped = false;
+        long[] neighbour = new long[NEIGHBOURS + 4];
+        double[] cost = new double[NEIGHBOURS + 4];
+        long[] longFall = new long[4];
 
         while (!open.isEmpty()) {
             Node current = open.poll();
             if (current.closed) continue;
             current.closed = true;
-            if (goals.contains(current.cell)) return new Result(reconstruct(current), true);
+            if (goals.contains(current.cell)) return new Result(reconstruct(current), true, false);
             double h = current.f - current.g;
             if (h < bestH - 1e-9 || (Math.abs(h - bestH) <= 1e-9 && current.g < best.g)) {
                 best = current;
                 bestH = h;
             }
-            if (++expanded > maxNodes) break;
+            if (++expanded > maxNodes) {
+                capped = true;
+                break;
+            }
             if ((expanded & 1023) == 0 && cancelled.getAsBoolean()) return null;
 
-            int n = free ? freeNeighbours(map, current.cell, neighbour, cost) : neighbours(map, current.cell, neighbour, cost);
+            int n = neighbours(map, current.cell, neighbour, cost);
+            // the deep drops Reachability (minimap) counts as reachable: same move set, just expensive
+            int deep = Reachability.longFalls(map, current.cell, longFall);
+            for (int i = 0; i < deep; i++) {
+                int fall = Cell.y(current.cell) - Cell.y(longFall[i]);
+                neighbour[n] = longFall[i];
+                cost[n++] = 1 + fall * FALL_COST + (fall - 3) * FALL_DAMAGE_COST;
+            }
             for (int i = 0; i < n; i++) {
                 double g = current.g + cost[i];
                 Node next = nodes.get(neighbour[i]);
@@ -134,11 +125,15 @@ public final class PathFinder {
                 open.add(next); // lazy decrease-key: stale entries are skipped via `closed`
             }
         }
-        return new Result(reconstruct(best), false);
+        return new Result(reconstruct(best), false, capped);
     }
 
     /** Array size for {@link #neighbours}. */
-    static final int NEIGHBOURS = 10 + MAX_LANDINGS;
+    static final int NEIGHBOURS = 14 + MAX_LANDINGS;
+    /** Widest gap the router sprint-jumps across. */
+    static final int MAX_GAP = 3;
+    private static final double GAP_JUMP_COST = 2.0;
+    private static final double GAP_WIDTH_COST = 0.5;
 
     /**
      * Cell the player stands on (or just above, while jumping), or {@link Long#MIN_VALUE} when there is
@@ -201,7 +196,36 @@ public final class PathFinder {
             cost[count] = base + extra;
             count++;
         }
+        if (headroom) count = gapJumps(map, x, y, z, out, cost, count);
         return lifts(map, x, y, z, out, cost, count);
+    }
+
+    /**
+     * Sprint jumps straight across a 1..{@link #MAX_GAP} wide gap (4 axis directions, shortest gap only),
+     * landing on the same level or 1 lower. The arc (feet..head+1) over the gap must be open.
+     */
+    private static int gapJumps(DungeonMap map, int x, int y, int z, long[] out, double[] cost, int count) {
+        for (int dir = 0; dir < 4; dir++) {
+            int dx = DIRS[dir][0], dz = DIRS[dir][1];
+            for (int w = 1; w <= MAX_GAP; w++) {
+                int gx = x + dx * w, gz = z + dz * w;
+                if (!map.isKnown(gx, gz)) break;
+                if (!map.isOpen(gx, y, gz) || !map.isOpen(gx, y + 1, gz) || !map.isOpen(gx, y + 2, gz)) break;
+                if (map.isStand(gx, y, gz)) break; // floor, not a gap: walking covers it
+                int below = map.landingY(gx, gz, y);
+                if (below != Integer.MIN_VALUE && y - below <= 1) break; // shallow dip: just walk through
+                int lx = gx + dx, lz = gz + dz;
+                if (!map.isKnown(lx, lz)) break;
+                int ty;
+                if (map.isStand(lx, y, lz)) ty = y;
+                else if (map.isStand(lx, y - 1, lz) && map.isOpen(lx, y + 1, lz)) ty = y - 1;
+                else continue; // gap goes on: try one wider
+                out[count] = Cell.pack(lx, ty, lz);
+                cost[count++] = (w + 1) + GAP_JUMP_COST + w * GAP_WIDTH_COST;
+                break;
+            }
+        }
+        return count;
     }
 
     /**
@@ -256,31 +280,6 @@ public final class PathFinder {
             pz = cz;
         }
         return true;
-    }
-
-    /**
-     * Free mode: the walking moves (from standable cells) plus moves through open air into any cell a
-     * player fits in (feet + head open, under the roof). Never into solid blocks or hazards.
-     */
-    static int freeNeighbours(DungeonMap map, long cell, long[] out, double[] cost) {
-        int x = Cell.x(cell), y = Cell.y(cell), z = Cell.z(cell);
-        int count = map.isStand(x, y, z) ? neighbours(map, cell, out, cost) : 0;
-        for (int[] d : AIR_DIRS) {
-            int nx = x + d[0], ny = y + d[1], nz = z + d[2];
-            if (!fits(map, nx, ny, nz)) continue;
-            if (d[0] != 0 && d[2] != 0 && (!fits(map, nx, y, z) || !fits(map, x, y, nz))) continue; // no corner cutting
-            double c = d[1] > 0 ? AIR_UP_COST : d[1] < 0 ? AIR_DOWN_COST : (d[0] != 0 && d[2] != 0 ? DIAG : 1) * AIR_SIDE_COST;
-            long next = Cell.pack(nx, ny, nz);
-            if (map.isStand(nx, ny, nz) && d[1] <= 0) c = Math.min(c, d[1] < 0 ? 1 : (d[0] != 0 && d[2] != 0 ? DIAG : 1));
-            out[count] = next;
-            cost[count++] = c;
-        }
-        return count;
-    }
-
-    /** A player fits with feet in this block: feet + head open, known column, a roof somewhere above. */
-    private static boolean fits(DungeonMap map, int x, int y, int z) {
-        return map.isKnown(x, z) && map.isOpen(x, y, z) && map.isOpen(x, y + 1, z) && !map.isSkyExposed(x, y + 1, z);
     }
 
     private static boolean passable(DungeonMap map, int x, int y, int z) {

@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -104,6 +105,14 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
     private static final int NICHE_MAX = 16;
     /** Share of non-void columns a room side may have and still be clipped off as void (stray blocks). */
     private static final double VOID_STRAY = 0.1;
+    /** {@link #roomFloorY}: a floor band this share of the biggest (and ≥ {@link #LEVEL_MIN_COLUMNS}) may be the level. */
+    private static final double LEVEL_SHARE = 1 / 3.0;
+    private static final int LEVEL_MIN_COLUMNS = 16;
+    /**
+     * A room no link reaches is still kept when this many cells of its own level are reachable and it sits on the
+     * dungeon level (±{@link #LINK_DROP}): you can walk there, so it is a room (only reached by a fall, a pad, ...).
+     */
+    private static final int KEEP_REACHED = 48;
 
     /**
      * One dungeon piece. Bounds are inclusive block coordinates (the wall line on the low side belongs to it).
@@ -199,12 +208,13 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
         if (all.size() < 64) return EMPTY;
         // dungeon rule: outdoor ground / arcades under it are scenery, not rooms
         if (hint.rules().indoorRoomsOnly()) {
-            all = IndoorFloors.roofed(map, all, hint.spawnY() != Integer.MIN_VALUE ? hint.spawnY() : mainLevel(all));
+            all = IndoorFloors.roofed(map, all, level(hint, all));
             if (all.size() < 64) return EMPTY;
         }
 
-        // 1) drop the boss level (far below the main floor; fallback when no boss drop is known)
-        int cutoff = mainLevel(all) - BOSS_LEVEL_GAP;
+        // 1) drop the boss level (far below the dungeon level; fallback when no boss drop is known)
+        int level = level(hint, all);
+        int cutoff = level == Integer.MIN_VALUE ? Integer.MIN_VALUE : level - BOSS_LEVEL_GAP;
         Long2IntOpenHashMap floors = new Long2IntOpenHashMap();
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
         for (var e : all.long2IntEntrySet()) {
@@ -218,7 +228,7 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
         if (floors.size() < 64) return EMPTY;
         // dungeon rule: rooms of any size instead of the piece grid
         if (hint.rules().roomShape() == dev.telemetric.dungeon.rules.DungeonRules.RoomShape.FREEFORM) {
-            return FreeformRooms.detect(map, floor, reachable, floors);
+            return FreeformRooms.detect(map, floor, reachable, floors, level, hint);
         }
         long[] cols = floors.keySet().toLongArray();
 
@@ -268,18 +278,23 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
                 while (z1 > z0 && voidLine(map, floors, z1, x0, x1, false)) z1--;
                 if (x1 < x0 || z1 < z0) continue;
                 int walkable = 0;
-                Long2IntOpenHashMap counts = new Long2IntOpenHashMap();
+                Long2IntOpenHashMap counts = new Long2IntOpenHashMap(), reachedCounts = new Long2IntOpenHashMap();
                 for (int x = x0; x <= x1; x++) {
                     for (int z = z0; z <= z1; z++) {
                         long key = Cell.columnKey(x, z);
                         if (!floors.containsKey(key)) continue;
                         walkable++;
-                        counts.addTo(floors.get(key), 1);
+                        int y = floors.get(key);
+                        counts.addTo(y, 1);
+                        if (reachable.contains(Cell.pack(x, y, z))) reachedCounts.addTo(y, 1);
                     }
                 }
                 int area = (x1 - x0 + 1) * (z1 - z0 + 1);
                 if (walkable < Math.max(4, (int) (area * 0.06))) continue;
-                int floorY = roomFloorY(counts);
+                // the floor you can walk to decides the level: sealed hollows under the roof around a round room
+                // (Midnight Stronghold spawn: cell corners at y 91–95, 301 columns vs 245 at the room's y 100)
+                // outnumbered the real floor, the room got y 92, nothing linked to it and it was dropped
+                int floorY = roomFloorY(reachedCounts.isEmpty() ? counts : reachedCounts, level);
                 rooms.put(Cell.columnKey(i, j), new Room(i, j, x0, z0, x1, z1, walkable, floorY));
             }
         }
@@ -304,7 +319,7 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
                 return true;
             }
         };
-        List<long[]> links = linkRooms(map, floor, reachable, floors, rooms, index);
+        List<long[]> links = linkRooms(map, floor, reachable, floors, rooms, index, level, hint);
         return new RoomLayout(xs, zs, confidence, Collections.unmodifiableMap(rooms), List.copyOf(links), size,
                 measured, null);
     }
@@ -314,16 +329,28 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
      * floor columns. A plain "most common height" picks hill tops on uneven ground: Illarius' Hideout's pond room
      * spreads its ground over y 98–112 (pond, slopes) while the hills along its walls all stop under the ceiling
      * at 123–125 (80 columns at 124 vs 63 at 100), so the room's level became the hill tops, nothing linked to it
-     * and the room was dropped. Ties: more columns at the exact height, then the lower height.
+     * and the room was dropped. Of the bands holding at least {@link #LEVEL_SHARE} of the biggest one, the one
+     * nearest the dungeon {@code level} wins (MIN_VALUE = unknown: the biggest band). Ties: the bigger band, more
+     * columns at the exact height, then the lower height.
      */
-    static int roomFloorY(Long2IntOpenHashMap counts) {
-        int floorY = 0, bestBand = -1, bestExact = -1;
+    static int roomFloorY(Long2IntOpenHashMap counts, int level) {
+        int maxBand = 0;
+        for (var h : counts.long2IntEntrySet()) maxBand = Math.max(maxBand, band(counts, (int) h.getLongKey()));
+        // a strong band nearest the dungeon level wins over the biggest one: a sunken pit / lower courtyard
+        // reached by a 9–12 block fall (Frozen Ruins: 242 columns at y 88–93 vs 213 at the doorways' y 100) must not
+        // become the room's level, or the doorways are off its level, nothing links and the room is dropped
+        int minBand = level == Integer.MIN_VALUE ? maxBand : Math.max(1, Math.min(maxBand, Math.max(LEVEL_MIN_COLUMNS,
+                (int) Math.ceil(maxBand * LEVEL_SHARE))));
+        int floorY = 0, bestDist = Integer.MAX_VALUE, bestBand = -1, bestExact = -1;
         for (var h : counts.long2IntEntrySet()) {
             int y = (int) h.getLongKey();
-            int band = 0;
-            for (int d = -LINK_DROP; d <= LINK_DROP; d++) band += counts.get(y + d);
+            int band = band(counts, y);
+            if (band < minBand) continue;
+            int dist = level == Integer.MIN_VALUE ? 0 : Math.abs(y - level);
             int exact = h.getIntValue();
-            if (band > bestBand || band == bestBand && (exact > bestExact || exact == bestExact && y < floorY)) {
+            if (dist < bestDist || dist == bestDist && (band > bestBand || band == bestBand
+                    && (exact > bestExact || exact == bestExact && y < floorY))) {
+                bestDist = dist;
                 bestBand = band;
                 bestExact = exact;
                 floorY = y;
@@ -341,13 +368,23 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
         return floorY;
     }
 
+    /** Floor columns within ±{@link #LINK_DROP} of {@code y}. */
+    private static int band(Long2IntOpenHashMap counts, int y) {
+        int band = 0;
+        for (int d = -LINK_DROP; d <= LINK_DROP; d++) band += counts.get(y + d);
+        return band;
+    }
+
     /**
      * Links between rooms you can walk between (Wayfinder moves across a room edge, or a jump pad lift whose pad
-     * and landing lie in two rooms), then drops every room nothing links to (sealed pockets, ledges, roof scraps).
+     * and landing lie in two rooms), then drops every room nothing links to (sealed pockets, ledges, roof scraps) —
+     * except the start room and rooms you can reach on the dungeon level ({@link #KEEP_REACHED}).
      * Shared by the grid and {@link FreeformRooms}; {@code rooms} is modified.
+     *
+     * @param dungeonLevel the dungeon level ({@link #level}), MIN_VALUE if unknown
      */
     static List<long[]> linkRooms(DungeonMap map, LongPredicate floor, LongSet reachable, Long2IntOpenHashMap floors,
-                                  Map<Long, Room> rooms, RoomIndex index) {
+                                  Map<Long, Room> rooms, RoomIndex index, int dungeonLevel, Hint hint) {
         Long2ObjectOpenHashMap<long[]> padLifts = padLifts(map);
         LongOpenHashSet level = roomLevels(map, floor, reachable, floors, rooms, index, padLifts);
         LongOpenHashSet seen = new LongOpenHashSet();
@@ -369,13 +406,31 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
                 addLink(a, b, seen, links);
             }
         }
-        // a room nothing connects to is not part of the dungeon (sealed pocket, ledge, roof scrap): drop it
-        LongOpenHashSet linked = new LongOpenHashSet();
+        // a room nothing connects to is not part of the dungeon (sealed pocket, ledge, roof scrap): drop it.
+        // Kept anyway: the start room, and a room on the dungeon level whose own level you can reach — you walk
+        // there, so a missed link (a fall in, a pad, an odd doorway) must not wipe it off the map
+        LongOpenHashSet keep = new LongOpenHashSet();
         for (long[] l : links) {
-            linked.add(l[0]);
-            linked.add(l[1]);
+            keep.add(l[0]);
+            keep.add(l[1]);
         }
-        rooms.keySet().removeIf(k -> !linked.contains(k.longValue()));
+        Room start = hint.hasSpawn() ? index.at(hint.spawnX(), hint.spawnZ()) : null;
+        if (start != null) keep.add(Cell.columnKey(start.gx(), start.gz()));
+        if (dungeonLevel != Integer.MIN_VALUE && !reachable.isEmpty()) {
+            Object2IntOpenHashMap<Room> reached = new Object2IntOpenHashMap<>();
+            for (long c : level) {
+                if (!reachable.contains(c)) continue;
+                Room r = index.at(Cell.x(c), Cell.z(c));
+                if (r != null) reached.addTo(r, 1);
+            }
+            for (var e : reached.object2IntEntrySet()) {
+                Room r = e.getKey();
+                if (e.getIntValue() >= KEEP_REACHED && Math.abs(r.floorY() - dungeonLevel) <= LINK_DROP) {
+                    keep.add(Cell.columnKey(r.gx(), r.gz()));
+                }
+            }
+        }
+        rooms.keySet().removeIf(k -> !keep.contains(k.longValue()));
         return links;
     }
 
@@ -727,7 +782,15 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
         return all;
     }
 
-    /** Main floor level: median of {@link #topFloors}, or MIN_VALUE when too little is scanned. */
+    /**
+     * The dungeon level, the one height every "main level" check uses: the start room's feet Y
+     * ({@link Hint#spawnY}, the return portal), else {@link #mainLevel} (median floor).
+     */
+    public static int level(Hint hint, Long2IntOpenHashMap topFloors) {
+        return hint.spawnY() != Integer.MIN_VALUE ? hint.spawnY() : mainLevel(topFloors);
+    }
+
+    /** Median floor height of {@link #topFloors}, or MIN_VALUE when too little is scanned. Fallback of {@link #level}. */
     public static int mainLevel(Long2IntOpenHashMap topFloors) {
         if (topFloors.size() < 64) return Integer.MIN_VALUE;
         int[] heights = topFloors.values().toIntArray();
@@ -736,11 +799,12 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
     }
 
     /**
-     * Each room's own level: floor cells walkable (steps / drops ≤ {@link #LINK_DROP} / ladders, the
-     * {@link PathFinder} moves) from the room's main floor ({@code floorY}) without leaving the room. Excludes
-     * what lies under the room's floor — a boss arena's ledges, reachable only by the deep boss drop.
+     * Each room's own level: the room's floor split into walk-connected parts (steps / drops ≤ {@link #LINK_DROP},
+     * ladders, pad lifts — the {@link PathFinder} moves — plus falls of 7–16 blocks into a pit, without leaving
+     * the room). The part(s) at {@code floorY} are flooded first, so a pit you drop into belongs to them.
+     * Deeper falls (a boss arena's ledges under the floor slab, ~30+ down) stay apart.
      * <p>
-     * Only the room's real space counts: the floor at {@code floorY} can fall apart into separate parts (in
+     * Only the room's real space counts: the floor can fall apart into separate parts (in
      * Thornwood Wargrove the octagonal rooms leave sealed corner pockets between their walls, open ground
      * under the barrier ceiling, which touch the next room's pocket across the edge). Kept: every part the
      * player can reach; if the player reached none of them yet (unexplored / sealed room), the biggest part.
@@ -760,12 +824,16 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
         for (Room room : rooms.values()) {
             LongOpenHashSet seen = new LongOpenHashSet();
             List<LongOpenHashSet> parts = new ArrayList<>();
+            // seeds: the room's floorY columns first (that part also takes the pits it drops into), then every other
+            // floor column — a room whose floor spans several levels (cave slopes, a ledge over a pit, a courtyard
+            // 10 below the doorways) keeps all of them as parts instead of only what one height can walk to
+            for (int pass = 0; pass < 2; pass++)
             for (int x = room.minX(); x <= room.maxX(); x++) {
                 for (int z = room.minZ(); z <= room.maxZ(); z++) {
                     long key = Cell.columnKey(x, z);
-                    if (!floors.containsKey(key) || floors.get(key) != room.floorY()) continue;
+                    if (!floors.containsKey(key) || (floors.get(key) == room.floorY()) != (pass == 0)) continue;
                     if (index.at(x, z) != room) continue;
-                    long seed = Cell.pack(x, room.floorY(), z);
+                    long seed = Cell.pack(x, floors.get(key), z);
                     if (!seen.add(seed)) continue;
                     // flood one connected part from this seed
                     LongOpenHashSet part = new LongOpenHashSet();
@@ -784,6 +852,15 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
                             boolean lift = i >= n || Cell.y(c) - y >= 2; // only pad lifts rise 2+ to another column
                             if (!climb && !lift && Math.abs(Cell.y(c) - y) > LINK_DROP) continue;
                             if (seen.contains(c) || !floor.test(c) || index.at(cx, cz) != room) continue;
+                            seen.add(c);
+                            part.add(c);
+                            queue.enqueue(c);
+                        }
+                        // a pit / lower courtyard you drop into (7–16 blocks, Reachability) is this room too
+                        int nf = Reachability.longFalls(map, cell, next);
+                        for (int i = 0; i < nf; i++) {
+                            long c = next[i];
+                            if (seen.contains(c) || !floor.test(c) || index.at(Cell.x(c), Cell.z(c)) != room) continue;
                             seen.add(c);
                             part.add(c);
                             queue.enqueue(c);
