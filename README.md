@@ -3,8 +3,6 @@
 Client-side [Fabric](https://fabricmc.net/) utility mod for the **Telos Realms** Minecraft server, with a fully
 animated ClickGUI, movable HUD elements and dungeon/stash tools.
 
-![Theme dropdown](docs/preview/theme-dropdown.png)
-
 ## Features
 
 | Category | Feature | What it does |
@@ -48,11 +46,6 @@ The jar lands in `build/libs/telemetric-<version>.jar`. Needs JDK 25 (`JAVA_HOME
 | Fabric API | 0.155.3+26.1.2 |
 | Loom | 1.19.4 |
 | Gradle | 9.9.1 (wrapper) |
-
-## Project docs
-
-Developer documentation lives in [`docs/`](docs) — start with [`docs/architecture.md`](docs/architecture.md).
-Version history: [`docs/changelog.md`](docs/changelog.md).
 
 ## License
 
