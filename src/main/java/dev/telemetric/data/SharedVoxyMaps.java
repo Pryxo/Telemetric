@@ -26,10 +26,10 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * Prebuilt Voxy LOD stores from the shared data repo (Pryxo/Telemetric-Data, {@code voxy/index.json}).
+ * Prebuilt Voxy LOD stores from the shared data repo (Pryxo/Telemetric-Data, {@code LODs/index.json}).
  * <p>
  * Index format:
- * <pre>{"version": 1, "maps": {"telos:goblin_lair": {"file": "voxy/goblin_lair.zip", "version": 1,
+ * <pre>{"version": 1, "maps": {"telos:goblin_lair": {"file": "LODs/goblin_lair.zip", "version": 1,
  *  "sha256": "&lt;hex of the zip&gt;", "size": 12345}}}</pre>
  * The zip holds the content of one Voxy world folder ({@code storage/…}). It is unpacked into that folder, which
  * then gets a {@value #MARKER} file with the map version. A folder is only replaced when it is missing or carries an
@@ -38,7 +38,7 @@ import java.util.zip.ZipInputStream;
 public final class SharedVoxyMaps {
 
     public static final String BASE_URL = "https://raw.githubusercontent.com/Pryxo/Telemetric-Data/main/";
-    static final String INDEX = "voxy/index.json";
+    static final String INDEX = "LODs/index.json";
     static final String MARKER = "telemetric-map.json";
     private static final long MAX_ZIP = 300L << 20, MAX_UNPACKED = 2L << 30;
 
