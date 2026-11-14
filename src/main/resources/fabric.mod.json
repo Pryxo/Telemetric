@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"id": "telemetric",
+	"version": "${version}",
+	"name": "Telemetric",
+	"description": "Client-side utility mod for Telos Realms with a fully animated ClickGUI.",
+	"authors": ["Pryxo"],
+	"contact": {},
+	"license": "All-Rights-Reserved",
+	"icon": "assets/telemetric/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["dev.telemetric.Telemetric"]
+	},
+	"mixins": ["telemetric.mixins.json"],
+	"depends": {
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

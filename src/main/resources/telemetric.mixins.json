@@ -1,0 +1,22 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "dev.telemetric.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"AbstractContainerScreenAccessor",
+		"BossHealthOverlayAccessor",
+		"ClientPacketListenerMixin",
+		"GuiGraphicsExtractorAccessor",
+		"LivingEntityAccessor",
+		"MultiPlayerGameModeMixin",
+		"RenderPipelinesAccessor",
+		"RenderTypeInvoker",
+		"StashBackgroundMixin",
+		"StashScreenMixin",
+		"TextDisplayAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
