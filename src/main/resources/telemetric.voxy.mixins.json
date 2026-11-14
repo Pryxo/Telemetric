@@ -1,0 +1,13 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"package": "dev.telemetric.mixin.voxy",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"VoxyBasePathMixin",
+		"VoxyWorldIdentifierMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

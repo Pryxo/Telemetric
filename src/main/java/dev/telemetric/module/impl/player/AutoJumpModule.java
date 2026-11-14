@@ -15,7 +15,7 @@ import dev.telemetric.module.Module;
 public final class AutoJumpModule extends Module {
 
     public AutoJumpModule() {
-        super("Auto Jump", "Hold jump to jump again the instant you land (removes the vanilla jump delay)",
+        super("No Jump Delay", "Hold jump to jump again the instant you land (removes the vanilla jump delay)",
                 Category.PLAYER);
     }
 

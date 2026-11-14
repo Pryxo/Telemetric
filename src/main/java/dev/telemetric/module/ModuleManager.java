@@ -16,6 +16,7 @@ import dev.telemetric.module.impl.misc.InterfaceModule;
 import dev.telemetric.module.impl.misc.ThemeModule;
 import dev.telemetric.module.impl.player.AutoJumpModule;
 import dev.telemetric.module.impl.visual.StashOverlayModule;
+import dev.telemetric.module.impl.visual.VoxyModifierModule;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,6 +45,7 @@ public final class ModuleManager {
 
         // Visual
         register(new StashOverlayModule());
+        register(new VoxyModifierModule());
 
         // Dungeon (active only in telos:dungeon/<n>)
         register(new WayfinderModule());

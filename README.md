@@ -10,7 +10,7 @@ Discord: https://discord.gg/dqjD94x3Ra
 
 | Category | Feature | What it does |
 |---|---|---|
-| Player | **Auto Jump** | Hold jump to jump again the instant you land (no vanilla jump delay) |
+| Player | **No Jump Delay** | Hold jump to jump again the instant you land (no vanilla jump delay) |
 | Visual | **Stash Overlay** | Replaces the stash with all saved pages + your inventory: search, rename pages, move items across pages |
 | Dungeon | **Wayfinder** | Shows the shortest way to treasure rooms and the boss drop |
 | Dungeon | **Dungeon Map** | Minimap of the dungeon rooms (spawn, boss drop, treasure) and players |
