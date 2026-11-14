@@ -109,7 +109,7 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
      * One dungeon piece. Bounds are inclusive block coordinates (the wall line on the low side belongs to it).
      *
      * @param walkable walkable block columns inside the room
-     * @param floorY   most common floor height (for drawing at the right level)
+     * @param floorY   the room's floor height ({@link #roomFloorY}; for drawing at the right level)
      */
     public record Room(int gx, int gz, int minX, int minZ, int maxX, int maxZ, int walkable, int floorY) {
         public boolean contains(int x, int z) {
@@ -279,13 +279,7 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
                 }
                 int area = (x1 - x0 + 1) * (z1 - z0 + 1);
                 if (walkable < Math.max(4, (int) (area * 0.06))) continue;
-                int floorY = 0, best = -1;
-                for (var h : counts.long2IntEntrySet()) {
-                    if (h.getIntValue() > best) {
-                        best = h.getIntValue();
-                        floorY = (int) h.getLongKey();
-                    }
-                }
+                int floorY = roomFloorY(counts);
                 rooms.put(Cell.columnKey(i, j), new Room(i, j, x0, z0, x1, z1, walkable, floorY));
             }
         }
@@ -313,6 +307,38 @@ public record RoomLayout(int[] xs, int[] zs, double confidence, Map<Long, Room> 
         List<long[]> links = linkRooms(map, floor, reachable, floors, rooms, index);
         return new RoomLayout(xs, zs, confidence, Collections.unmodifiableMap(rooms), List.copyOf(links), size,
                 measured, null);
+    }
+
+    /**
+     * A room's floor height: the most common height inside the band (±{@link #LINK_DROP}) that holds the most
+     * floor columns. A plain "most common height" picks hill tops on uneven ground: Illarius' Hideout's pond room
+     * spreads its ground over y 98–112 (pond, slopes) while the hills along its walls all stop under the ceiling
+     * at 123–125 (80 columns at 124 vs 63 at 100), so the room's level became the hill tops, nothing linked to it
+     * and the room was dropped. Ties: more columns at the exact height, then the lower height.
+     */
+    static int roomFloorY(Long2IntOpenHashMap counts) {
+        int floorY = 0, bestBand = -1, bestExact = -1;
+        for (var h : counts.long2IntEntrySet()) {
+            int y = (int) h.getLongKey();
+            int band = 0;
+            for (int d = -LINK_DROP; d <= LINK_DROP; d++) band += counts.get(y + d);
+            int exact = h.getIntValue();
+            if (band > bestBand || band == bestBand && (exact > bestExact || exact == bestExact && y < floorY)) {
+                bestBand = band;
+                bestExact = exact;
+                floorY = y;
+            }
+        }
+        // the band's centre need not be its most common height: take that one (the level most of it stands on)
+        int best = -1, centre = floorY;
+        for (int d = -LINK_DROP; d <= LINK_DROP; d++) {
+            int c = counts.get(centre + d);
+            if (c > best) {
+                best = c;
+                floorY = centre + d;
+            }
+        }
+        return floorY;
     }
 
     /**

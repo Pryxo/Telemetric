@@ -305,7 +305,7 @@ public final class StashAdapter {
         if (screen == null || screen instanceof AbstractContainerScreen<?>) return false;
         boolean log = loggedPopup != screen;
         loggedPopup = screen;
-        if (log) Telemetric.LOGGER.info("Stash: mode-switch pop-up {} '{}'", screen.getClass().getName(),
+        if (log) Telemetric.debug("Stash: mode-switch pop-up {} '{}'", screen.getClass().getName(),
                 screen.getTitle().getString());
 
         List<AbstractButton> buttons = new ArrayList<>();
@@ -314,7 +314,7 @@ public final class StashAdapter {
         int bestScore = 0;
         for (AbstractButton b : buttons) {
             String text = b.getMessage().getString().toLowerCase(Locale.ROOT);
-            if (log) Telemetric.LOGGER.info("Stash:   button '{}'", text);
+            if (log) Telemetric.debug("Stash:   button '{}'", text);
             if (!b.visible || !b.isActive()) continue;
             int score = score(text);
             if (score > bestScore) {
@@ -323,7 +323,7 @@ public final class StashAdapter {
             }
         }
         if (best == null) return false;
-        Telemetric.LOGGER.info("Stash: confirming mode switch with button '{}'", best.getMessage().getString());
+        Telemetric.debug("Stash: confirming mode switch with button '{}'", best.getMessage().getString());
         best.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0));
         return true;
     }

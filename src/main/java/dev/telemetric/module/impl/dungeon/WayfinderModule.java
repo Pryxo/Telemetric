@@ -67,14 +67,7 @@ public final class WayfinderModule extends Module {
     }
 
     /** Telos dungeons (from the server resource pack's portal list) — blacklist options before you visit them. */
-    static final List<String> KNOWN_DUNGEONS = List.of(
-            "Abyss of Demons", "Anubis Lair", "Aurora Sanctum", "Aviary", "Celestials Province",
-            "Corsairs Conductorium", "Corvus Crypt", "Cultists Hideout", "Depths of Purgatory", "Desert Temple",
-            "Dreadwood Thicket", "Dwarven Frostkeep", "Freddys Pizzeria", "Frozen Ruins", "Fungal Cavern",
-            "Goblin Lair", "Ice Cave", "Illarius Hideout", "Kobolds Den", "Midnight Stronghold",
-            "Omnipotents Citadel", "Onyxs Castle", "Peaks of Purgatory", "Resounding Ruins", "Sakura Shrine",
-            "Secluded Woodland", "Shatters", "Skull Cavern", "Tartarus", "Thornwood Wargrove",
-            "Tomb of Shadows", "Treasure Cave", "Undead Lair");
+    static final List<String> KNOWN_DUNGEONS = dev.telemetric.game.TelosLocations.DUNGEONS;
 
     private static final int MAX_NODES = 400_000;
     private static final long REPLAN_MIN_MS = 400;

@@ -8,6 +8,7 @@ import net.minecraft.client.gui.components.LerpingBossEvent;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -96,6 +97,29 @@ public final class BossBarAdapter {
             if (text != null && hasBossGlyph(text.getString())) best = e;
         }
         return best == null ? null : new Point(best.getX(), best.getY(), best.getZ());
+    }
+
+    /**
+     * The location shown in Telos's bottom-right HUD box ("Resounding Ruins", "Treasure Cave", …), or null.
+     * That box is a boss-bar HUD widget; the location is the bar-name part drawn in the
+     * {@code mythichud:…/rotmc2-hud-biome/biome-text} font (verified in Resounding Ruins, 2026-11-14).
+     */
+    public static String hudLocation() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gui == null) return null;
+        Map<UUID, LerpingBossEvent> events = ((BossHealthOverlayAccessor) mc.gui.getBossOverlay()).telemetric$getEvents();
+        for (LerpingBossEvent e : events.values()) {
+            Component name = e.getName();
+            if (name == null) continue;
+            for (Component part : name.toFlatList()) {
+                if (!(part.getStyle().getFont() instanceof FontDescription.Resource r)) continue;
+                String path = r.id().getPath();
+                if (!path.contains("hud-biome") && !path.endsWith("biome-text")) continue;
+                String text = part.getString().strip();
+                if (!text.isEmpty()) return text;
+            }
+        }
+        return null;
     }
 
     /** Boss nameplate glyph range (Telos custom font, private-use plane-1 code points). */

@@ -38,6 +38,21 @@ public final class PlayerAdapter {
         return p == null ? 0 : ((LivingEntityAccessor) p).telemetric$getNoJumpDelay();
     }
 
+    /** Registered id of the biome the player stands in ("minecraft:warped_forest"), or null outside a world. */
+    public static String biomeId() {
+        LocalPlayer p = player();
+        return p == null ? null : p.level().getBiome(p.blockPosition()).getRegisteredName();
+    }
+
+    /**
+     * Where the player is: the Telos location name ({@link TelosLocations#resolve} — HUD box, made part-specific
+     * by the biome), else the biome name. Null outside a world.
+     */
+    public static String locationName() {
+        String location = TelosLocations.resolve(BossBarAdapter.hudLocation(), biomeId());
+        return location != null ? location : biomeName();
+    }
+
     /**
      * Readable name of the biome the player stands in ("Dark Forest", not "minecraft:dark_forest"):
      * the biome's language entry when the game/resource pack has one, otherwise the id path title-cased.

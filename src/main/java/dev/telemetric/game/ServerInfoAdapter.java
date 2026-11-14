@@ -187,7 +187,7 @@ public final class ServerInfoAdapter {
 
         TabStat stat = new TabStat(labelText, plain.toString().trim(), labelColor, valueColor, toRuns(value), icon);
         if (LOGGED_LABELS.add(stat.label().toLowerCase(Locale.ROOT))) {
-            Telemetric.LOGGER.info("Tab stat '{}': {}", stat.label(), describe(component));
+            Telemetric.debug("Tab stat '{}': {}", stat.label(), describe(component));
         }
         return stat;
     }

@@ -31,6 +31,13 @@ public final class Telemetric implements ClientModInitializer {
     public static final String MOD_ID = "telemetric";
     public static final String NAME = "Telemetric";
     public static final Logger LOGGER = LoggerFactory.getLogger(NAME);
+    /** Diagnostic logging (dungeon analysis, Tab stats, stash pop-ups). Off: nothing goes to latest.log. */
+    public static boolean debugLog = false;
+
+    /** Logs at info level only while {@link #debugLog} is on. */
+    public static void debug(String format, Object... args) {
+        if (debugLog) LOGGER.info(format, args);
+    }
 
     private static Telemetric instance;
 

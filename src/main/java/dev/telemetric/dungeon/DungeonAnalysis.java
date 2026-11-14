@@ -59,10 +59,21 @@ public record DungeonAnalysis(long mapVersion, LongSet reachable, List<Hole> hol
         // only drops you can walk to: an unreachable floor under a ceiling (the crawl space on top of a boss
         // dome, a sealed ledge) still counts as floor for rooms, but a "hole" there is a fall you can never take
         List<Hole> holes = reachableOnly(DropDetector.detect(map, minDropDepth, floor), snapshot);
+        // dungeon rule: no boss level (the goal is the clear mobs). No boss air and no boss drop — a deep fall
+        // here is scenery (Illarius' Hideout: hill tops 10 above the ground were picked as the "boss drop")
+        if (!hint.rules().bossLevel()) {
+            return new DungeonAnalysis(version, snapshot, holes, RoomLayout.detect(map, floor, snapshot, hint), mainY,
+                    Integer.MIN_VALUE, null);
+        }
         boolean anchored = bossAnchor != null;
+        // the boss air stops 2 below the room level. Uneven ground (Illarius' Hideout: hills, ponds) puts the
+        // median floor above the rooms' real floor (mainY 102, rooms at 100), so a room you had not walked yet
+        // was swallowed by the boss air and lost all its floor: cap at the spawn feet Y, which is on the room level
+        int arenaRef = hint.spawnY() != Integer.MIN_VALUE && mainY != Integer.MIN_VALUE
+                ? Math.min(mainY, hint.spawnY()) : mainY;
         LongOpenHashSet arena = anchored
-                ? BossArena.floodFromAnchor(map, BossArena.anchorCell(map, bossAnchor), mainY)
-                : BossArena.flood(map, BossArena.pickMainLevelDrop(holes, mainY), mainY, minDropDepth);
+                ? BossArena.floodFromAnchor(map, BossArena.anchorCell(map, bossAnchor), arenaRef)
+                : BossArena.flood(map, BossArena.pickMainLevelDrop(holes, mainY), arenaRef, minDropDepth);
         int bossY = Integer.MIN_VALUE;
         if (!arena.isEmpty()) {
             bossY = Integer.MAX_VALUE;

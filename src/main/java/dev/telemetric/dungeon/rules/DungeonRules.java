@@ -14,11 +14,15 @@ package dev.telemetric.dungeon.rules;
  *                         Dungeon Info, their rooms coloured on the Dungeon Map ({@code DungeonTracker#goals()})
  * @param mapped           false = no block scan / room analysis: Wayfinder and Dungeon Map stay off here
  *                         (Dungeon Info still works)
+ * @param bossLevel        false = the dungeon has no boss drop / boss level (the goal is its clear mobs): no boss
+ *                         anchor, boss air or boss drop, so no drop room on the map and no boss-drop route
+ *                         ({@code DungeonAnalysis#compute})
  */
-public record DungeonRules(RoomShape roomShape, boolean indoorRoomsOnly, String goalMob, boolean mapped) {
+public record DungeonRules(RoomShape roomShape, boolean indoorRoomsOnly, String goalMob, boolean mapped,
+                           boolean bossLevel) {
 
-    /** What every dungeon without an entry gets: the piece grid, outdoor floor allowed, no goal mob, mapped. */
-    public static final DungeonRules DEFAULT = new DungeonRules(RoomShape.GRID, false, null, true);
+    /** What every dungeon without an entry gets: the piece grid, outdoor floor allowed, no goal mob, mapped, boss drop. */
+    public static final DungeonRules DEFAULT = new DungeonRules(RoomShape.GRID, false, null, true, true);
 
     /** How room segments are detected. */
     public enum RoomShape {
@@ -35,24 +39,28 @@ public record DungeonRules(RoomShape roomShape, boolean indoorRoomsOnly, String 
     }
 
     public DungeonRules withRoomShape(RoomShape shape) {
-        return new DungeonRules(shape, indoorRoomsOnly, goalMob, mapped);
+        return new DungeonRules(shape, indoorRoomsOnly, goalMob, mapped, bossLevel);
     }
 
     public DungeonRules withIndoorRoomsOnly(boolean on) {
-        return new DungeonRules(roomShape, on, goalMob, mapped);
+        return new DungeonRules(roomShape, on, goalMob, mapped, bossLevel);
     }
 
     public DungeonRules withGoalMob(String name) {
-        return new DungeonRules(roomShape, indoorRoomsOnly, name, mapped);
+        return new DungeonRules(roomShape, indoorRoomsOnly, name, mapped, bossLevel);
     }
 
     public DungeonRules withMapped(boolean on) {
-        return new DungeonRules(roomShape, indoorRoomsOnly, goalMob, on);
+        return new DungeonRules(roomShape, indoorRoomsOnly, goalMob, on, bossLevel);
+    }
+
+    public DungeonRules withBossLevel(boolean on) {
+        return new DungeonRules(roomShape, indoorRoomsOnly, goalMob, mapped, on);
     }
 
     @Override
     public String toString() {
         return "rooms=" + roomShape + (indoorRoomsOnly ? " indoor-only" : "")
-                + (goalMob != null ? " goal=\"" + goalMob + "\"" : "") + (mapped ? "" : " unmapped");
+                + (goalMob != null ? " goal=\"" + goalMob + "\"" : "") + (mapped ? "" : " unmapped") + (bossLevel ? "" : " no-boss");
     }
 }

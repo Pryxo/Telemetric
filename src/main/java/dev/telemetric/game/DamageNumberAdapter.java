@@ -258,7 +258,7 @@ public final class DamageNumberAdapter {
         } catch (Exception e) {
             Telemetric.LOGGER.warn("DPS: could not read {}: {}", FONT_JSON, e.toString());
         }
-        if (!map.isEmpty()) Telemetric.LOGGER.info("DPS: mapped {} damage-number glyphs from {}", map.size(), FONT_JSON);
+        if (!map.isEmpty()) Telemetric.debug("DPS: mapped {} damage-number glyphs from {}", map.size(), FONT_JSON);
         return map;
     }
 

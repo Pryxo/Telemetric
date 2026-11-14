@@ -95,9 +95,17 @@ public final class DungeonAdapter {
         return level();
     }
 
-    /** Readable name of the current dungeon (its biome name, e.g. "Treasure Cave"), or null. */
+    /**
+     * Readable name of the current dungeon, or null: the location name ({@link PlayerAdapter#locationName()} —
+     * HUD box made part-specific by {@link TelosLocations}, else the biome name).
+     */
     public static String dungeonName() {
-        return PlayerAdapter.biomeName();
+        return PlayerAdapter.locationName();
+    }
+
+    /** The HUD box location right now (may still be the previous place for a moment after a teleport), or null. */
+    public static String hudLocation() {
+        return BossBarAdapter.hudLocation();
     }
 
     /** Player feet position, or null. */

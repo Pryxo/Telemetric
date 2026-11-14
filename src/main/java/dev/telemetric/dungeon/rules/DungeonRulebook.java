@@ -21,12 +21,16 @@ public final class DungeonRulebook {
                 .withIndoorRoomsOnly(true));
         // clear mobs: two "Keeper of Dusk" (verified in game, 2026-11-14)
         rule("Midnight Stronghold", DungeonRules.DEFAULT.withGoalMob("Keeper of Dusk"));
-        // no Wayfinder / Dungeon Map (user request, 2026-11-14); both spellings where the in-game name is unsure
+        // clear mobs: "Dyerftum Overlord" (nameplate read in game, 2026-11-14). No boss drop: spawn + 2 clear mobs
+        // (user, 2026-11-14); its boss bar ("The Creator") sits on a mob at y 30 under the spawn, not a boss level
+        rule("Illarius' Hideout", DungeonRules.DEFAULT.withGoalMob("Dyerftum Overlord").withBossLevel(false));
+        // no Wayfinder / Dungeon Map (user request, 2026-11-14). Names are location names (game/TelosLocations:
+        // HUD box + biome part). Celestial's Province parts share one biome, so the base name covers both.
         for (String name : new String[]{
                 "Omnipotent's Citadel", "Fungal Cavern", "Tartarus", "Raphael's Castle", "Aurora Sanctum",
-                "The Aviary", "Aviary", "Raph's Chamber", "Raph's Champer",
-                "Rustborn Kingdom: Part I", "Rustborn Kingdom: Part II", "Rustborn Kingdom: Part III",
-                "Resounding Ruins", "Celestial's Province: Part I", "Celestial's Province: Part II",
+                "The Aviary", "Raphael's Chamber",
+                "Rustborn Kingdom", "Rustborn Kingdom: Part I", "Rustborn Kingdom: Part II", "Rustborn Kingdom: Part III",
+                "Resounding Ruins", "Celestial's Province", "Celestial's Province: Part I", "Celestial's Province: Part II",
                 "Seraph's Domain", "Dawn of Creation", "Neo Eden", "Tenebris"}) {
             rule(name, DungeonRules.DEFAULT.withMapped(false));
         }

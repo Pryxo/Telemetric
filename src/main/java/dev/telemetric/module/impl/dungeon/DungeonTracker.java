@@ -58,6 +58,10 @@ public final class DungeonTracker {
     private boolean inDungeon;
     private Object levelToken;
     private String dungeonName;
+    /** HUD-box location seen before entering, and ticks spent waiting for it to change. */
+    private String lastHudLocation;
+    private int nameWait;
+    private static final int NAME_WAIT_TICKS = 40;
     private long ticks;
     private List<Point> treasures = List.of();
     private volatile DungeonAnalysis analysis = DungeonAnalysis.EMPTY;
@@ -120,17 +124,24 @@ public final class DungeonTracker {
         if (users == 0) return;
         if (!DungeonAdapter.isInDungeon()) {
             if (inDungeon || map.size() > 0) reset();
+            lastHudLocation = DungeonAdapter.hudLocation();
+            nameWait = 0;
             return;
         }
         Object token = DungeonAdapter.levelToken();
         if (token != levelToken) {
             reset();
             levelToken = token;
+            nameWait = 0;
         }
         if (!inDungeon) {
+            // the HUD box may still show the previous place for a moment: wait for it to change (max ~2 s)
+            String hud = DungeonAdapter.hudLocation();
+            if ((hud == null || hud.equals(lastHudLocation)) && ++nameWait < NAME_WAIT_TICKS) return;
             inDungeon = true;
             DungeonAdapter.setActive(true);
             dungeonName = DungeonAdapter.dungeonName();
+            lastHudLocation = dungeonName; // a direct hop to the next dungeon waits for a new name again
             if (dungeonName != null) seenDungeons.add(dungeonName);
             // the player arrives in the spawn room, where the Telos builder starts the piece grid
             Point spawn = DungeonAdapter.playerPos();
@@ -141,7 +152,7 @@ public final class DungeonTracker {
             hint = spawn == null ? new RoomLayout.Hint(tableSize, false, 0, 0, Integer.MIN_VALUE, rules)
                     : new RoomLayout.Hint(tableSize, true, (int) Math.floor(spawn.x()), (int) Math.floor(spawn.z()),
                     (int) Math.floor(spawn.y() + 0.01), rules);
-            Telemetric.LOGGER.info("Dungeon entered: dimension={} name={} table size={} spawn={} rules=[{}]",
+            Telemetric.debug("Dungeon entered: dimension={} name={} table size={} spawn={} rules=[{}]",
                     DungeonAdapter.dimensionId(), dungeonName, tableSize, spawn, rules);
         }
         ticks++;
@@ -157,23 +168,24 @@ public final class DungeonTracker {
         // jump pads (yellow dust fountains): routes and room links may ride them
         for (long pad : DungeonAdapter.drainJumpPads()) {
             if (map.addPad(Cell.x(pad), Cell.y(pad), Cell.z(pad))) {
-                Telemetric.LOGGER.info("Dungeon jump pad at {} {} {}", Cell.x(pad), Cell.y(pad), Cell.z(pad));
+                Telemetric.debug("Dungeon jump pad at {} {} {}", Cell.x(pad), Cell.y(pad), Cell.z(pad));
             }
         }
         if (ticks % TREASURE_INTERVAL_TICKS == 0) {
             treasures = dedupe(DungeonAdapter.yellowGlowingEntities());
             updateGoals();
-            // the boss mob is often invisible / not sent until the fight: its nameplate marks the arena
-            Point boss = BossBarAdapter.bossMobPos();
+            // the boss mob is often invisible / not sent until the fight: its nameplate marks the arena.
+            // No boss level here (dungeon rule): a boss bar mob is not an arena anchor
+            Point boss = rules.bossLevel() ? BossBarAdapter.bossMobPos() : null;
             String source = "boss-bar mob";
-            if (boss == null) {
+            if (boss == null && rules.bossLevel()) {
                 boss = BossBarAdapter.bossMarkerPos();
                 source = "boss nameplate";
             }
             // keep the last anchor once the boss goes out of range; ignore it moving by a block or two
             if (boss != null && (bossAnchor == null || farApart(boss, bossAnchor))) {
                 bossAnchor = boss;
-                Telemetric.LOGGER.info("Dungeon boss anchor ({}): {}", source, boss);
+                Telemetric.debug("Dungeon boss anchor ({}): {}", source, boss);
             }
         }
         scheduleAnalysis();
@@ -208,14 +220,14 @@ public final class DungeonTracker {
                     int count = result.rooms().rooms().size();
                     if (-count - 1 != loggedPieceSize) { // negative keys: free-form room count
                         loggedPieceSize = -count - 1;
-                        Telemetric.LOGGER.info("Dungeon rooms: free-form rooms={} links={}", count,
+                        Telemetric.debug("Dungeon rooms: free-form rooms={} links={}", count,
                                 result.rooms().links().size());
                     }
                 }
                 int logKey = size * 1000 + measured;
                 if (size > 0 && logKey != loggedPieceSize) {
                     loggedPieceSize = logKey;
-                    Telemetric.LOGGER.info("Dungeon rooms: piece size={} (measured {}) rooms={}", size, measured,
+                    Telemetric.debug("Dungeon rooms: piece size={} (measured {}) rooms={}", size, measured,
                             result.rooms().rooms().size());
                 }
             } catch (RuntimeException e) {
@@ -242,7 +254,7 @@ public final class DungeonTracker {
             if (goalAlive.put(plate.id(), plate.pos()) != null) continue;
             // a newly seen plate: an away mob coming back in range, or the plate of a mob already counted as killed
             if (!removeNear(goalAway, plate.pos()) && removeNear(goalKills, plate.pos())) {
-                Telemetric.LOGGER.info("Dungeon goal mob at {} is still alive (kill undone)", plate.pos());
+                Telemetric.debug("Dungeon goal mob at {} is still alive (kill undone)", plate.pos());
             }
         }
         for (Iterator<Map.Entry<Integer, Point>> it = goalAlive.entrySet().iterator(); it.hasNext(); ) {
@@ -252,7 +264,7 @@ public final class DungeonTracker {
             Point p = e.getValue();
             if (DungeonAdapter.isLoaded(p.x(), p.z()) && horizontalSq(player, p) <= GOAL_KILL_RANGE_SQ) {
                 goalKills.add(p);
-                Telemetric.LOGGER.info("Dungeon goal mob killed at {}", p);
+                Telemetric.debug("Dungeon goal mob killed at {}", p);
             } else {
                 goalAway.add(p);
             }
@@ -268,7 +280,7 @@ public final class DungeonTracker {
             if (plateNear) continue;
             it.remove();
             goalKills.add(p);
-            Telemetric.LOGGER.info("Dungeon goal mob killed while away at {}", p);
+            Telemetric.debug("Dungeon goal mob killed while away at {}", p);
         }
         List<Point> live = new ArrayList<>(goalAlive.values());
         live.addAll(goalAway);
@@ -419,8 +431,9 @@ public final class DungeonTracker {
         this.minDropDepth = Math.max(3, depth);
     }
 
-    /** Lower-case letters/digits only, so "Kobold's Den" matches "Kobolds Den". */
+    /** Lower-case letters/digits only, leading "The " dropped: "Kobold's Den" = "Kobolds Den", "The Aviary" = "Aviary". */
     public static String normalize(String name) {
-        return name == null ? "" : name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        return name == null ? "" : name.toLowerCase(Locale.ROOT).replaceFirst("^\\s*the\\s+", "")
+                .replaceAll("[^a-z0-9]", "");
     }
 }

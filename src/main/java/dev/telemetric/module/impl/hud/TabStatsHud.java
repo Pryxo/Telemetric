@@ -23,7 +23,7 @@ import java.util.Optional;
  */
 public class TabStatsHud extends LinesHudModule {
 
-    /** Not a Tab-list stat: the player's current biome, read from the world. */
+    /** Not a Tab-list stat: the location from Telos's bottom-right HUD box (biome name as fallback). */
     static final String LOCATION = "Location";
 
     private final String title;
@@ -65,7 +65,7 @@ public class TabStatsHud extends LinesHudModule {
             String label = s.getName();
             Optional<TabStat> stat = ServerInfoAdapter.tabStat(label);
             if (label.equals(LOCATION)) {
-                String biome = PlayerAdapter.biomeName();
+                String biome = PlayerAdapter.locationName();
                 if (biome == null && preview) biome = "Plains";
                 if (biome != null) {
                     // not a Tab stat: borrow a sibling stat's server colours so the row matches the others
@@ -180,7 +180,7 @@ public class TabStatsHud extends LinesHudModule {
     // (anonymous subclasses: ModuleManager keys modules by class)
 
     public static TabStatsHud generalInfo() {
-        return new TabStatsHud("General Info", "Server, Location (biome), Soul Points, Glory, Mastery and Guild",
+        return new TabStatsHud("General Info", "Server, Location,Soul Points, Glory, Mastery and Guild",
                 "General Info", List.of("Server", LOCATION, "Soul Points", "Glory", "Mastery", "Guild"), 0.0, 0.40, true) {};
     }
 

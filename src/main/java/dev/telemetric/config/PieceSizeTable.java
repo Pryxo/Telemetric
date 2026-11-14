@@ -104,7 +104,7 @@ public final class PieceSizeTable {
                 }
             }
             if (best != e.size) {
-                Telemetric.LOGGER.info("Dungeon sizes: {} piece size {} -> {} ({} runs)", dungeon, e.size, best,
+                Telemetric.debug("Dungeon sizes: {} piece size {} -> {} ({} runs)", dungeon, e.size, best,
                         bestVotes);
                 e.size = best;
             }
