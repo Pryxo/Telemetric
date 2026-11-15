@@ -9,6 +9,8 @@ public final class Layout {
     public static final int OPTION_HEIGHT = 12;
     public static final int PAD = 6;
     public static final int SETTINGS_INDENT = 3;
+    /** Extra indent per level for children of a group toggle. */
+    public static final int GROUP_INDENT = 6;
     /** Width of the drag grip at the left edge of movable setting rows. */
     public static final int GRIP_WIDTH = 6;
     public static final int PANEL_GAP = 10;

@@ -163,8 +163,10 @@ public class ModuleComponent extends UIComponent {
             for (SettingComponent<?> c : settings) {
                 int ch = c.getHeight();
                 layoutY.put(c, cy);
-                c.setBounds(innerX, cy + slideOffset(c, cy), innerW, ch);
+                int indent = c.getSetting().groupDepth() * Layout.GROUP_INDENT;
+                c.setBounds(innerX + indent, cy + slideOffset(c, cy), innerW - indent, ch);
                 if (ch > 0 && c.getY() < areaY + areaH) {
+                    if (indent > 0) r.rect(innerX + indent - 3, c.getY(), 1, ch, ColorUtil.fade(p.accent(), 0.3));
                     if (c == dragging) {
                         int gh = groupHeight(c);
                         r.rect(c.getX(), c.getY(), innerW, gh, ColorUtil.fade(p.accent(), 0.14));

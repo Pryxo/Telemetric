@@ -34,6 +34,7 @@ public abstract class Setting<T> {
     private boolean persistent = true;
     private boolean movable;
     private Setting<?> attachedTo;
+    private Setting<?> group;
     private final List<Consumer<T>> listeners = new ArrayList<>();
 
     protected Setting(String name, String description, T defaultValue) {
@@ -81,7 +82,29 @@ public abstract class Setting<T> {
     }
 
     public boolean isVisible() {
-        return visibility.getAsBoolean();
+        return visibility.getAsBoolean() && (group == null || group.showsChildren());
+    }
+
+    /** Only group settings (see {@code GroupToggleSetting}) show children; they override this. */
+    protected boolean showsChildren() {
+        return false;
+    }
+
+    /** The group toggle this setting is a child of, or {@code null}. */
+    public Setting<?> getGroup() {
+        return group;
+    }
+
+    /** Nesting depth under group toggles (0 = top level). */
+    public int groupDepth() {
+        int d = 0;
+        for (Setting<?> g = group; g != null; g = g.group) d++;
+        return d;
+    }
+
+    /** Used by {@code GroupToggleSetting#child}: this setting is shown only while the group is open. */
+    public void setGroup(Setting<?> group) {
+        this.group = group;
     }
 
     /** Whether this setting is written to / read from profiles. Actions and session-only values are not. */

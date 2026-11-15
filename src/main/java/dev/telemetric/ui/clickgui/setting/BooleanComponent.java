@@ -14,7 +14,7 @@ import dev.telemetric.ui.theme.Theme;
 /** Label + animated switch. Click anywhere on the row toggles. */
 public class BooleanComponent extends SettingComponent<BooleanSetting> {
 
-    private static final int TRACK_W = 16, TRACK_H = 8;
+    protected static final int TRACK_W = 16, TRACK_H = 8;
 
     private final Animation state;
 
@@ -33,7 +33,7 @@ public class BooleanComponent extends SettingComponent<BooleanSetting> {
         state.animateTo(setting.get() ? 1 : 0);
         double t = state.get();
 
-        r.text(r.trim(setting.getName(), width - TRACK_W - Layout.PAD * 3), left(), labelY(), textColor(p));
+        r.text(r.trim(setting.getName(), width - TRACK_W - Layout.PAD * 3 - labelReserve()), left(), labelY(), textColor(p));
 
         int tx = right() - TRACK_W;
         int ty = y + (Layout.SETTING_HEIGHT - TRACK_H) / 2;
@@ -41,6 +41,11 @@ public class BooleanComponent extends SettingComponent<BooleanSetting> {
         double knobR = TRACK_H / 2.0 - 1;
         double knobX = tx + 1 + knobR + (TRACK_W - 2 - knobR * 2) * t;
         r.circle(knobX, ty + TRACK_H / 2.0, knobR, ColorUtil.lerp(p.textMuted(), 0xFFFFFFFF, t));
+    }
+
+    /** Extra space kept free left of the switch (subclasses draw icons there). */
+    protected int labelReserve() {
+        return 0;
     }
 
     @Override
