@@ -298,7 +298,7 @@ public class HudEditorScreen extends Screen {
                 return true;
             }
             if (key == InputUtil.KEY_DELETE || key == InputUtil.KEY_BACKSPACE) {
-                selected.setEnabled(false);
+                selected.hide();
                 selected = null;
                 return true;
             }

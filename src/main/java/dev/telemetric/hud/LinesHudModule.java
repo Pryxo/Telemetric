@@ -1,6 +1,7 @@
 package dev.telemetric.hud;
 
 import dev.telemetric.Telemetric;
+import dev.telemetric.module.Category;
 import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.ui.render.ColorUtil;
@@ -56,6 +57,12 @@ public abstract class LinesHudModule extends HudModule {
         super(name, description, defaultX, defaultY, enabledByDefault);
     }
 
+    /** Row element listed in another panel (e.g. Combat → Assassin Stacks). */
+    protected LinesHudModule(String name, String description, Category category, double defaultX, double defaultY,
+                             boolean enabledByDefault) {
+        super(name, description, category, defaultX, defaultY, enabledByDefault);
+    }
+
     /**
      * Adds the "Use Server Color" toggle (on by default): rows without their own server colour are drawn in
      * {@link #SERVER_LABEL}/{@link #SERVER_VALUE}; off = theme colours (and Tab-list row colours are ignored).
@@ -63,6 +70,11 @@ public abstract class LinesHudModule extends HudModule {
     protected final BooleanSetting addUseServerColor() {
         useServerColor = add(new BooleanSetting("Use Server Color",
                 "Draw this element in the server's colours (yellow labels, green values) instead of the theme", true));
+        return useServerColor;
+    }
+
+    /** The "Use Server Color" toggle this element follows (null = none); split-off parts return their owner's. */
+    protected BooleanSetting serverColorToggle() {
         return useServerColor;
     }
 
@@ -160,6 +172,7 @@ public abstract class LinesHudModule extends HudModule {
             }
         }
 
+        BooleanSetting useServerColor = serverColorToggle();
         boolean serverPalette = useServerColor != null && useServerColor.get();
         boolean serverColors = style.serverColors.get() && (useServerColor == null || serverPalette);
         int defaultLabel = serverPalette ? SERVER_LABEL : p.accent();

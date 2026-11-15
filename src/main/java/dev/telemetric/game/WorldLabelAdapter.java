@@ -4,7 +4,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import dev.telemetric.Telemetric;
 import dev.telemetric.ui.render.BadgeText;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -52,7 +51,6 @@ public final class WorldLabelAdapter {
     private static final float GLYPH_PX = 8f;
     private static final List<Source> SOURCES = new CopyOnWriteArrayList<>();
     private static final Map<BadgeText.Style, Style> FONTS = new EnumMap<>(BadgeText.Style.class);
-    private static boolean registered;
 
     static {
         for (BadgeText.Style s : BadgeText.Style.values()) {
@@ -65,12 +63,10 @@ public final class WorldLabelAdapter {
 
     public static void addSource(Source source) {
         SOURCES.add(source);
-        if (registered) return;
-        registered = true;
-        LevelRenderEvents.BEFORE_GIZMOS.register(WorldLabelAdapter::render);
     }
 
-    private static void render(LevelRenderContext ctx) {
+    /** Called by {@link WorldRenderAdapter} right after the world shapes, so labels sit on top of filled shapes. */
+    static void render(LevelRenderContext ctx) {
         Minecraft mc = Minecraft.getInstance();
         if (SOURCES.isEmpty() || mc.level == null || mc.options.hideGui) return;
         CameraRenderState cam = ctx.levelState().cameraRenderState;

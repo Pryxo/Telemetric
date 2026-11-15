@@ -43,7 +43,7 @@ public class TextComponent extends SettingComponent<TextSetting> {
         boolean focused = ctx.isFocused(this);
         focus.animateTo(focused ? 1 : 0);
 
-        r.text(setting.getName(), left(), y + 3, textColor(p));
+        r.text(setting.getLabel(), left(), y + 3, textColor(p));
 
         int bx = left(), by = y + 13, bw = right() - left();
         r.roundedRect(bx, by, bw, BOX_H, 2, p.control());

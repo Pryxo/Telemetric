@@ -45,7 +45,7 @@ public class KeybindComponent extends SettingComponent<KeybindSetting> {
         int cw = (int) Math.round(chipWidth.get());
         int cx = right() - cw, cy = y + 2, ch = Layout.SETTING_HEIGHT - 4;
 
-        r.text(r.trim(setting.getName(), width - cw - Layout.PAD * 3), left(), labelY(), textColor(p));
+        r.text(r.trim(setting.getLabel(), width - cw - Layout.PAD * 3), left(), labelY(), textColor(p));
 
         // pulsing border while listening
         double pulse = listening ? 0.55 + 0.45 * Math.sin(System.currentTimeMillis() / 160.0) : 0;

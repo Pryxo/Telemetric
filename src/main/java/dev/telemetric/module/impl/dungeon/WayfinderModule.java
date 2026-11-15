@@ -16,6 +16,7 @@ import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.EnumSetting;
+import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.MultiChoiceSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.notification.Toasts;
@@ -83,6 +84,8 @@ public final class WayfinderModule extends Module {
     private static final int ROOM_LEVEL_MARGIN = 4;
     /** Without a room grid: blocks around the drop that count as its room. */
     private static final int NO_ROOM_PAD = 8;
+    /** How far a hole must drop to count as the boss drop (was the "Drop Depth" slider). */
+    private static final int DROP_DEPTH = 10;
 
     private final EnumSetting<Target> target = add(new EnumSetting<>("Target",
             "Auto: nearest treasure room, then the boss drop once no treasure is left", Target.AUTO));
@@ -98,17 +101,16 @@ public final class WayfinderModule extends Module {
             "Route colour towards a treasure room", 0xFFFFC83D));
     private final ColorSetting bossColor = add(new ColorSetting("Boss Color",
             "Route colour towards the boss drop", 0xFFFF5A4E));
-    private final NumberSetting dropDepth = add(new NumberSetting("Drop Depth",
-            "How far a hole must drop to count as the boss drop", 10, 4, 40, 1).withSuffix(" blocks"));
     private final MultiChoiceSetting blacklist = add(new MultiChoiceSetting("Blacklist",
             "Dungeons where the Wayfinder stays off", this::blacklistOptions));
     private final ActionSetting blacklistCurrent = add(new ActionSetting("Blacklist Current",
             "Add or remove the dungeon you are in", this::toggleCurrentDungeon));
-    private final BooleanSetting showRooms = add(new BooleanSetting("Show Rooms",
-            "Debug: outline the detected room grid and connections (minimap preview)", false));
-    private final BooleanSetting showPads = add(new BooleanSetting("Show Jump Pads",
+    private final GroupSetting debug = add(new GroupSetting("Debug", "Debug views of the room / jump pad detection"));
+    private final BooleanSetting showRooms = add(debug.child(new BooleanSetting("Show Rooms",
+            "Debug: outline the detected room grid and connections (minimap preview)", false)));
+    private final BooleanSetting showPads = add(debug.child(new BooleanSetting("Show Jump Pads",
             "Debug: mark every detected jump pad (green box = used for routing, red = no floor found under it)",
-            false));
+            false)));
 
     /**
      * A planned route. Complete: points include the final leg onto the target. Not complete: the target is
@@ -162,7 +164,7 @@ public final class WayfinderModule extends Module {
     @Override
     public void onTick() {
         DungeonTracker tracker = DungeonTracker.get();
-        tracker.setMinDropDepth((int) Math.round(dropDepth.get()));
+        tracker.setMinDropDepth(DROP_DEPTH);
         if (!tracker.isInDungeon() || !tracker.isMapped() || isBlacklisted(tracker.dungeonName())) {
             clearRoute();
             return;

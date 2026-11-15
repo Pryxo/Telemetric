@@ -27,6 +27,12 @@ public class Panel extends UIComponent {
     private final Category category;
     private final GuiLayout.PanelState state;
     private final List<ModuleComponent> modules = new ArrayList<>();
+    /** Modules listed right now (all of them unless the ClickGUI search filters). */
+    private final List<ModuleComponent> shown = new ArrayList<>();
+    /** Fades the whole panel out while a search has no match in it. */
+    private final Animation searchFade = new Animation(Durations.STANDARD, Easing.OUT_CUBIC, 1);
+    private boolean searching;
+    private double scrollBeforeSearch;
 
     private final Animation expand;
     private final Animation appear = new Animation(Durations.SCREEN, Easing.OUT_CUBIC, 0);
@@ -51,14 +57,34 @@ public class Panel extends UIComponent {
             String name = module.getName();
             modules.add(new ModuleComponent(ctx, module, state.isModuleOpen(name), state.openSettingsOf(name)));
         }
+        shown.addAll(modules);
         // restore scroll; clamped against the real content height on the first frame
         this.scrollTarget = state.scroll;
         this.scroll.snapTo(state.scroll);
     }
 
+    /**
+     * Applies the ClickGUI search: only matching modules stay (see {@link ModuleComponent#applySearch}); a panel
+     * without a match fades out. The scroll offset from before the search comes back when it is cleared.
+     */
+    public void setSearch(String query) {
+        boolean was = searching;
+        searching = !query.isBlank();
+        if (searching && !was) scrollBeforeSearch = scrollTarget;
+        shown.clear();
+        for (ModuleComponent m : modules) if (m.applySearch(query)) shown.add(m);
+        if (searching) scrollTarget = 0;
+        else if (was) scrollTarget = scrollBeforeSearch;
+        searchFade.animateTo(hiddenBySearch() ? 0 : 1);
+    }
+
+    private boolean hiddenBySearch() {
+        return searching && shown.isEmpty();
+    }
+
     /** Writes open accordions/dropdowns and scroll offset back into the persistent {@link GuiLayout.PanelState}. */
     public void saveState() {
-        state.scroll = (int) Math.round(scrollTarget);
+        state.scroll = (int) Math.round(searching ? scrollBeforeSearch : scrollTarget);
         for (ModuleComponent m : modules) {
             state.setModuleState(m.getModule().getName(), m.isExpanded(), m.openSettingNames());
         }
@@ -85,11 +111,15 @@ public class Panel extends UIComponent {
 
     /** Renders the panel. {@code screenW/H} are in ClickGUI units. */
     public void render(Render2D r, int mouseX, int mouseY, float delta, int screenW, int screenH) {
+        double fade = searchFade.get();
+        if (fade <= 0.001) return;
         Theme fixed = ctx.themes().fixedPalette(category);
         Theme previous = ctx.overridePalette(fixed); // null = follow the theme
+        r.pushAlpha(fade);
         try {
             renderPanel(r, mouseX, mouseY, delta, screenW, screenH);
         } finally {
+            r.popAlpha();
             ctx.overridePalette(previous);
         }
     }
@@ -115,7 +145,7 @@ public class Panel extends UIComponent {
         expand.animateTo(state.collapsed ? 0 : 1);
         double ex = expand.get();
         int content = 0;
-        for (ModuleComponent m : modules) content += m.getHeight();
+        for (ModuleComponent m : shown) content += m.getHeight();
         int maxBody = Math.max(Layout.MODULE_HEIGHT * 2,
                 (int) (screenH * ctx.ui().maxPanelHeight.get() / 100.0) - Layout.HEADER_HEIGHT - Layout.PANEL_FOOTER - state.y);
         int visibleBody = Math.min(content, maxBody);
@@ -132,7 +162,7 @@ public class Panel extends UIComponent {
 
         // ---- frame
         if (ctx.themes().shadows()) r.shadow(x, y, width, height, radius, p.shadow(), Layout.SHADOW_SIZE);
-        r.roundedRect(x, y, width, height, radius, p.panel());
+        drawFrame(r, radius, p.panel());
 
         boolean overHeader = isOverHeader(mouseX, mouseY);
         headerHover.animateTo(overHeader || dragging ? 1 : 0);
@@ -149,7 +179,7 @@ public class Panel extends UIComponent {
         // title + count + chevron
         int ty = y + Layout.textY(Layout.HEADER_HEIGHT);
         r.text(category.getName(), x + Layout.PAD + 1, ty, p.text());
-        String count = String.valueOf(modules.size());
+        String count = String.valueOf(shown.size());
         r.textRight(count, x + width - Layout.PAD - 10, ty, p.textMuted());
         Icons.chevron(r, x + width - Layout.PAD - 3, y + Layout.HEADER_HEIGHT / 2, ex, p.textMuted());
 
@@ -159,7 +189,7 @@ public class Panel extends UIComponent {
             boolean mouseInBody = ctx.hasCapture() || (mouseX >= x && mouseX < x + width && mouseY >= bodyY && mouseY < bodyY + bodyH);
             int childMouseY = mouseInBody ? mouseY : Integer.MIN_VALUE / 2;
             int cy = bodyY - (int) Math.round(scroll.get());
-            for (ModuleComponent m : modules) {
+            for (ModuleComponent m : shown) {
                 int mh = m.getHeight();
                 m.setBounds(x, cy, width, mh);
                 if (cy + mh > bodyY && cy < bodyY + bodyH) m.render(r, mouseX, childMouseY, delta);
@@ -181,12 +211,43 @@ public class Panel extends UIComponent {
         r.popAlpha();
     }
 
+    /**
+     * Panel background, skipping open module settings areas (they draw their own translucent background).
+     * Drawn as horizontal bands of the full rounded rect so the corners stay round.
+     */
+    private void drawFrame(Render2D r, int radius, int color) {
+        int top = y;
+        int bodyEnd = bodyY + bodyH;
+        int cy = bodyY - (int) Math.round(scroll.get());
+        for (ModuleComponent m : shown) {
+            int holeY = Math.max(cy + Layout.MODULE_HEIGHT, bodyY);
+            int holeEnd = Math.min(cy + m.getHeight(), bodyEnd);
+            cy += m.getHeight();
+            if (holeEnd <= holeY) continue;
+            band(r, top, holeY, radius, color);
+            top = holeEnd;
+        }
+        band(r, top, y + height, radius, color);
+    }
+
+    private void band(Render2D r, int from, int to, int radius, int color) {
+        if (to <= from) return;
+        r.pushClip(x, from, width, to - from);
+        r.roundedRect(x, y, width, height, radius, color);
+        r.popClip();
+    }
+
     @Override
     public void render(Render2D r, int mouseX, int mouseY, float delta) {
         throw new UnsupportedOperationException("Use render(r, mx, my, delta, screenW, screenH)");
     }
 
     // ================================================================== input
+
+    @Override
+    public boolean isHovered(double mouseX, double mouseY) {
+        return !hiddenBySearch() && super.isHovered(mouseX, mouseY);
+    }
 
     private boolean isOverHeader(double mouseX, double mouseY) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + Layout.HEADER_HEIGHT;
@@ -198,6 +259,7 @@ public class Panel extends UIComponent {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (hiddenBySearch()) return false;
         if (isOverHeader(mouseX, mouseY)) {
             if (button == MouseButton.LEFT) {
                 dragging = true;
@@ -213,7 +275,7 @@ public class Panel extends UIComponent {
         }
         if (isOverBody(mouseX, mouseY)) {
             if (expand.get() > 0.95) {
-                for (ModuleComponent m : modules) {
+                for (ModuleComponent m : shown) {
                     if (m.isHovered(mouseX, mouseY) && m.mouseClicked(mouseX, mouseY, button)) return true;
                 }
             }

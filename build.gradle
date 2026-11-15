@@ -32,6 +32,12 @@ processResources {
 	filesMatching("fabric.mod.json") {
 		expand props
 	}
+
+	// Shared data tables (data/ submodule) bundled as the offline fallback — see docs/data.md.
+	from("data") {
+		include "telos/**/*.json"
+		into "assets/telemetric/data"
+	}
 }
 
 tasks.withType(JavaCompile).configureEach {

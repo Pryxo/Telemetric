@@ -18,8 +18,17 @@ public final class ServerGate {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getConnection() == null || mc.isLocalServer()) return false;
         ServerData server = mc.getCurrentServer();
-        return server != null && isTelosAddress(server.ip);
+        if (server == null) return false;
+        String ip = server.ip;
+        if (ip != lastIp) { // cheap per-entity / per-frame use: the address is parsed once per server
+            lastIp = ip;
+            lastResult = isTelosAddress(ip);
+        }
+        return lastResult;
     }
+
+    private static String lastIp;
+    private static boolean lastResult;
 
     /** True if {@code address} (host, optional {@code :port}) has a {@code telosrealms} label before the TLD. */
     static boolean isTelosAddress(String address) {

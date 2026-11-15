@@ -1,5 +1,6 @@
 package dev.telemetric.game;
 
+import dev.telemetric.data.TelosData;
 import dev.telemetric.dungeon.Point;
 import dev.telemetric.mixin.BossHealthOverlayAccessor;
 import dev.telemetric.mixin.TextDisplayAccessor;
@@ -185,6 +186,31 @@ public final class BossBarAdapter {
             if (longS.contains(shortS) && shortS.length() * 5 >= longS.length() * 3) return true;
         }
         return false;
+    }
+
+    // ------------------------------------------------------------------ boss bar scale
+
+    private static volatile float barScale = 1f;
+    private static Component lastName;
+    private static boolean lastIsBoss;
+
+    /** Boss Bar Scale: size of a known boss's bar (1 = vanilla). Read by {@code BossHealthOverlayMixin}. */
+    public static void setBossBarScale(float scale) {
+        barScale = Math.clamp(scale, 0.1f, 1f);
+    }
+
+    /**
+     * Scale for the bar with this name this frame: the Boss Bar Scale size for a known boss
+     * ({@code telos/bosses.json}: name hash or label), 1 for everything else (HUD widget bars, the dungeon name).
+     */
+    public static float scaleFor(Component name) {
+        float s = barScale;
+        if (s >= 1f || name == null || !ServerGate.onTelos()) return 1f;
+        if (name != lastName) { // a bar keeps its name object until the server renames it
+            lastName = name;
+            lastIsBoss = TelosData.BOSSES.get().isBossBar(name.hashCode(), letters(name));
+        }
+        return lastIsBoss ? s : 1f;
     }
 
     /** Lower-case Latin letters only: drops colour codes, HP numbers, levels and custom-font glyphs. */

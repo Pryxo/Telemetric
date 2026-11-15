@@ -32,10 +32,17 @@ public final class Durations {
     /** Hard ceiling. */
     public static final int MAX = 500;
 
+    /** One pass of a looping ambient effect (neon sweep on enabled modules). Not a transition: not capped by MAX. */
+    public static final int AMBIENT_LOOP = 1600;
+
     /** Delay before a tooltip starts to appear (not a transition, a dwell time). */
     public static final int TOOLTIP_DELAY = 400;
     /** Stagger between panels during the open sequence. */
     public static final int STAGGER = 35;
+    /** Half period of a blinking text caret (on, then off for as long). */
+    public static final int CARET_BLINK = 530;
+    /** Half period of a flashing warning (Low Health Warning text: bright, then normal for as long). */
+    public static final int ALERT_FLASH = 250;
 
     private static double speed = 1.0;
     private static boolean enabled = true;
@@ -49,6 +56,12 @@ public final class Durations {
     public static int scaled(int baseMs) {
         if (!enabled || baseMs <= 0) return 0;
         return (int) Math.min(MAX, Math.round(baseMs / speed));
+    }
+
+    /** Period of a looping ambient effect, speed-scaled but not capped; 0 when animations are disabled. */
+    public static int loop(int baseMs) {
+        if (!enabled || baseMs <= 0) return 0;
+        return (int) Math.round(baseMs / speed);
     }
 
     public static void setSpeed(double multiplier) {

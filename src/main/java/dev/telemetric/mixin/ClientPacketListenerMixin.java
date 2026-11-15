@@ -1,9 +1,11 @@
 package dev.telemetric.mixin;
 
+import dev.telemetric.game.CombatAdapter;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.StashAdapter;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
+import net.minecraft.network.protocol.game.ClientboundCooldownPacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -13,8 +15,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * MC ADAPTER (mixin) — hands server particle packets to {@link DungeonAdapter#onParticles} (Telos jump pads
- * are only visible as a yellow dust fountain). Injected right after {@code ensureRunningOnSameThread}: on
- * the network thread that call throws (re-queues the packet), so this only ever runs on the client thread.
+ * are only visible as a yellow dust fountain) and {@link CombatAdapter#onParticles} (Assassin stacks), and item
+ * cooldown packets to {@link CombatAdapter#onCooldownPacket}. Injected right after {@code ensureRunningOnSameThread}:
+ * on the network thread that call throws (re-queues the packet), so this only ever runs on the client thread.
  * <p>
  * Container content / slot packets go to {@link StashAdapter#onContainerPacket} at {@code RETURN} (after the
  * menu was updated; the network-thread pass throws before reaching it).
@@ -27,6 +30,14 @@ public abstract class ClientPacketListenerMixin {
             shift = At.Shift.AFTER))
     private void telemetric$onParticles(ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
         DungeonAdapter.onParticles(packet.getParticle(), packet.getX(), packet.getY(), packet.getZ());
+        CombatAdapter.onParticles(packet.getParticle(), packet.getX(), packet.getY(), packet.getZ());
+    }
+
+    @Inject(method = "handleItemCooldown", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
+            shift = At.Shift.AFTER))
+    private void telemetric$onItemCooldown(ClientboundCooldownPacket packet, CallbackInfo ci) {
+        CombatAdapter.onCooldownPacket(packet.cooldownGroup(), packet.duration());
     }
 
     @Inject(method = "handleContainerContent", at = @At("RETURN"))

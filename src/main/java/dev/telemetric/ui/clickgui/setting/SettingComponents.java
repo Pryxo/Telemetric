@@ -6,6 +6,7 @@ import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.ChoiceSetting;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
+import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.KeybindSetting;
 import dev.telemetric.setting.impl.MultiChoiceSetting;
 import dev.telemetric.setting.impl.NumberSetting;
@@ -36,6 +37,7 @@ public final class SettingComponents {
         register(ChoiceSetting.class, SettingComponents::choice);
         register(MultiChoiceSetting.class, MultiChoiceComponent::new);
         register(GroupToggleSetting.class, GroupToggleComponent::new);
+        register(GroupSetting.class, GroupComponent::new);
     }
 
     private SettingComponents() {}

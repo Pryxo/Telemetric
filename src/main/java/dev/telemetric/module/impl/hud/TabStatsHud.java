@@ -9,6 +9,7 @@ import dev.telemetric.hud.LinesHudModule;
 import dev.telemetric.hud.TextRun;
 import dev.telemetric.setting.Setting;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.GroupToggleSetting;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -40,12 +41,16 @@ public class TabStatsHud extends LinesHudModule {
         this.showTitle = add(new BooleanSetting("Show Title", "Show the \"" + title + "\" heading", true));
         if (serverColorToggle) addUseServerColor();
         for (String label : labels) {
-            BooleanSetting shown = add(new BooleanSetting(label, "Show " + label + " from the Tab list", true).movable());
-            stats.put(label, shown);
+            String desc = "Show " + label + " from the Tab list";
             if (StatFormulas.supported(label)) {
-                real.put(label, add(new BooleanSetting(label + " Real %",
+                // stat with a formula: dropdown toggle holding its "Show Real %" (key stays "<label> Real %")
+                GroupToggleSetting shown = add(new GroupToggleSetting(label, desc, true).movable());
+                stats.put(label, shown);
+                real.put(label, add(shown.child(new BooleanSetting(label + " Real %",
                         "Show what " + label + " actually does (wiki formula) after the value", true)
-                        .visibleWhen(shown::get).attachedTo(shown)));
+                        .withLabel("Show Real %").attachedTo(shown))));
+            } else {
+                stats.put(label, add(new BooleanSetting(label, desc, true).movable()));
             }
         }
     }

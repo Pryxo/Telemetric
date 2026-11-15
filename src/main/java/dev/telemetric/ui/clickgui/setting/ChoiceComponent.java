@@ -45,7 +45,7 @@ public class ChoiceComponent<T> extends SettingComponent<ChoiceSetting<T>> {
         // header
         String current = setting.display(setting.get());
         int valueW = r.textWidth(current);
-        r.text(r.trim(setting.getName(), width - valueW - Layout.PAD * 3 - 6), left(), labelY(), textColor(p));
+        r.text(r.trim(setting.getLabel(), width - valueW - Layout.PAD * 3 - 6), left(), labelY(), textColor(p));
         r.textRight(current, right() - 7, labelY(), ColorUtil.lerp(p.textMuted(), p.accent(), arrow.get()));
         Icons.chevron(r, right() - 4, y + Layout.SETTING_HEIGHT / 2, arrow.get(), p.textMuted());
 

@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.telemetric.config.JsonSerializable;
 import dev.telemetric.setting.Setting;
+import dev.telemetric.setting.SettingBundle;
 import dev.telemetric.setting.impl.KeybindSetting;
 
 import java.util.ArrayList;
@@ -70,6 +71,12 @@ public abstract class Module implements JsonSerializable {
         settings.add(setting);
         if (setting.isMovable()) order.add(setting);
         return setting;
+    }
+
+    /** Registers every setting of a reusable {@link SettingBundle} (e.g. a sound picker) and returns the bundle. */
+    protected <B extends SettingBundle> B addBundle(B bundle) {
+        for (Setting<?> setting : bundle.settings()) add(setting);
+        return bundle;
     }
 
     public List<Setting<?>> getSettings() {
@@ -155,6 +162,19 @@ public abstract class Module implements JsonSerializable {
         this.enabled = enabled;
         if (enabled) onEnable();
         else onDisable();
+        for (Runnable sync : syncs) sync.run();
+    }
+
+    private final List<Runnable> syncs = new ArrayList<>();
+
+    /**
+     * Runs {@code sync} whenever the module is turned on or off and whenever one of {@code watched} changes — for
+     * modules that only push their settings into an adapter. {@code sync} reads {@link #isEnabled()} itself:
+     * <pre>{@code syncOn(() -> ViewAdapter.setFullbright(isEnabled() ? strength.getFloat() : 0), strength);}</pre>
+     */
+    protected final void syncOn(Runnable sync, Setting<?>... watched) {
+        syncs.add(sync);
+        for (Setting<?> s : watched) s.onChange(v -> sync.run());
     }
 
     public void toggle() {

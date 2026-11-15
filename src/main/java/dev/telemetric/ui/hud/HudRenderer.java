@@ -14,11 +14,11 @@ public final class HudRenderer {
 
     private HudRenderer() {}
 
-    /** Enabled HUD elements in registration order. */
+    /** Shown HUD elements in registration order. */
     public static List<HudModule> activeElements() {
         List<HudModule> list = new ArrayList<>();
         for (Module module : Telemetric.get().modules().getModules()) { // HUD elements may live in any panel
-            if (module instanceof HudModule hud && hud.isEnabled()) list.add(hud);
+            if (module instanceof HudModule hud && hud.isShown()) list.add(hud);
         }
         return list;
     }

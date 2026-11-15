@@ -1,21 +1,36 @@
 package dev.telemetric.module;
 
 import dev.telemetric.Telemetric;
+import dev.telemetric.module.impl.combat.ArmorCooldownsHud;
+import dev.telemetric.module.impl.combat.AssassinStacksHud;
+import dev.telemetric.module.impl.combat.AutoClickerModule;
+import dev.telemetric.module.impl.combat.LowHealthWarningHud;
+import dev.telemetric.module.impl.combat.HeldCooldownHud;
+import dev.telemetric.module.impl.combat.ItemRangeModule;
+import dev.telemetric.module.impl.combat.ReadyAlertsHud;
 import dev.telemetric.module.impl.dungeon.DungeonMapHud;
 import dev.telemetric.module.impl.dungeon.WayfinderModule;
 import dev.telemetric.module.impl.hud.DpsMeterHud;
 import dev.telemetric.module.impl.hud.DungeonInfoHud;
-import dev.telemetric.module.impl.hud.FpsHud;
-import dev.telemetric.module.impl.hud.PingHud;
 import dev.telemetric.module.impl.hud.TabStatsHud;
-import dev.telemetric.module.impl.hud.TpsHud;
+import dev.telemetric.module.impl.hud.PerformanceHud;
 import dev.telemetric.module.impl.hud.WatermarkHud;
 import dev.telemetric.module.impl.misc.ConfigModule;
 import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.module.impl.misc.InterfaceModule;
 import dev.telemetric.module.impl.misc.ThemeModule;
 import dev.telemetric.module.impl.player.AutoJumpModule;
+import dev.telemetric.module.impl.player.AutoSprintModule;
+import dev.telemetric.module.impl.visual.BossBarScaleModule;
 import dev.telemetric.module.impl.visual.BossStageTrackerModule;
+import dev.telemetric.module.impl.visual.CameraModule;
+import dev.telemetric.module.impl.visual.CustomBagsModule;
+import dev.telemetric.module.impl.visual.FullbrightModule;
+import dev.telemetric.module.impl.visual.HealthBarModule;
+import dev.telemetric.module.impl.visual.HideArmorModule;
+import dev.telemetric.module.impl.visual.HitboxesModule;
+import dev.telemetric.module.impl.visual.ItemRarityModule;
+import dev.telemetric.module.impl.visual.PlayerSizeModule;
 import dev.telemetric.module.impl.visual.StashOverlayModule;
 import dev.telemetric.module.impl.visual.VoxyModifierModule;
 
@@ -43,11 +58,33 @@ public final class ModuleManager {
         // ---- Features, grouped by category ----
         // Player
         register(new AutoJumpModule());
+        register(new AutoSprintModule());
+
+        // Combat (cooldowns come from the shared CooldownTracker; HUD elements listed in the Combat panel)
+        register(HeldCooldownHud.weapon());
+        register(HeldCooldownHud.ability());
+        register(new ArmorCooldownsHud());
+        register(new ReadyAlertsHud());
+        ItemRangeModule abilityRange = ItemRangeModule.ability();
+        register(ItemRangeModule.weapon(abilityRange));
+        register(abilityRange);
+        register(new AssassinStacksHud());
+        register(new LowHealthWarningHud());
+        register(new AutoClickerModule());
 
         // Visual
         register(new StashOverlayModule());
         register(new VoxyModifierModule());
         register(new BossStageTrackerModule());
+        register(new FullbrightModule());
+        register(new CameraModule());
+        register(new BossBarScaleModule());
+        register(new HitboxesModule());
+        register(new PlayerSizeModule());
+        register(new HideArmorModule());
+        register(new ItemRarityModule());
+        register(new HealthBarModule());
+        register(new CustomBagsModule());
 
         // Dungeon (active only in telos:dungeon/<n>)
         register(new WayfinderModule());
@@ -55,9 +92,8 @@ public final class ModuleManager {
 
         // HUD (elements drawn in-game; layout edited via Misc → HUD → Edit HUD)
         register(new WatermarkHud());
-        register(new FpsHud());
-        register(new PingHud());
-        register(new TpsHud());
+        PerformanceHud performance = register(new PerformanceHud());
+        performance.parts().forEach(this::register);
         register(TabStatsHud.generalInfo());
         register(TabStatsHud.characterInfo());
         register(TabStatsHud.statsInfo());
@@ -66,15 +102,16 @@ public final class ModuleManager {
     }
 
     public <M extends Module> M register(M module) {
-        if (byClass.containsKey(module.getClass())) {
-            throw new IllegalStateException("Module registered twice: " + module.getName());
-        }
         for (Module existing : modules) {
+            if (existing == module) {
+                throw new IllegalStateException("Module registered twice: " + module.getName());
+            }
             if (existing.getName().equalsIgnoreCase(module.getName())) {
                 throw new IllegalStateException("Duplicate module name: " + module.getName());
             }
         }
-        byClass.put(module.getClass(), module);
+        // several instances of one class are allowed (e.g. Performance HUD parts); lookup by class gets the first
+        byClass.putIfAbsent(module.getClass(), module);
         modules.add(module);
         return module;
     }

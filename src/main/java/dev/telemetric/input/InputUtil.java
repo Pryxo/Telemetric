@@ -22,6 +22,21 @@ public final class InputUtil {
     public static final int KEY_DOWN = InputConstants.KEY_DOWN;
     public static final int KEY_LSHIFT = InputConstants.KEY_LSHIFT;
     public static final int KEY_RSHIFT = InputConstants.KEY_RSHIFT;
+    public static final int KEY_A = InputConstants.KEY_A;
+    public static final int KEY_C = InputConstants.KEY_C;
+    public static final int KEY_F = InputConstants.KEY_F;
+    public static final int KEY_V = InputConstants.KEY_V;
+    public static final int KEY_X = InputConstants.KEY_X;
+
+    /** System clipboard text ("" when empty / unavailable). */
+    public static String getClipboard() {
+        String s = Minecraft.getInstance().keyboardHandler.getClipboard();
+        return s == null ? "" : s;
+    }
+
+    public static void setClipboard(String text) {
+        Minecraft.getInstance().keyboardHandler.setClipboard(text);
+    }
 
     public static boolean isShiftDown() {
         return isKeyDown(KEY_LSHIFT) || isKeyDown(KEY_RSHIFT);

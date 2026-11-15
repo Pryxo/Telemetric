@@ -2,13 +2,20 @@ package dev.telemetric.input;
 
 import dev.telemetric.module.Module;
 import dev.telemetric.module.ModuleManager;
+import dev.telemetric.setting.Setting;
+import dev.telemetric.setting.impl.KeybindSetting;
 
 import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Toggles modules on the rising edge of their bound key. Polled once per client tick and only while
- * no screen is open, so typing in chat never toggles modules.
+ * Fires keys on their rising edge, polled once per client tick and only while no screen is open (typing in chat
+ * never triggers anything):
+ * <ul>
+ *   <li>a module's {@code Bind} toggles the module;</li>
+ *   <li>an <b>action key</b> ({@link KeybindSetting#onPress}) runs its action while its module is enabled
+ *       (e.g. Hide Armor → Toggle Hiding).</li>
+ * </ul>
  */
 public final class ModuleKeyHandler {
 
@@ -26,14 +33,26 @@ public final class ModuleKeyHandler {
         }
         Set<Integer> heldNow = new HashSet<>();
         for (Module module : modules.getModules()) {
-            if (!module.isToggleable() || !module.getBind().isBound()) continue;
-            int key = module.getBind().get();
-            boolean down = heldNow.contains(key) || InputUtil.isKeyDown(key);
-            if (!down) continue;
-            heldNow.add(key);
-            if (!heldLastTick.contains(key)) module.toggle();
+            if (module.isToggleable() && module.getBind().isBound()) {
+                if (pressed(module.getBind().get(), heldNow)) module.toggle();
+            }
+            if (!module.isEnabled()) continue;
+            for (Setting<?> s : module.getSettings()) {
+                if (s instanceof KeybindSetting key && key.getPressAction() != null && key.isBound()
+                        && pressed(key.get(), heldNow)) {
+                    key.getPressAction().run();
+                }
+            }
         }
         heldLastTick.clear();
         heldLastTick.addAll(heldNow);
+    }
+
+    /** True on the tick {@code key} goes down (a key shared by several binds fires all of them). */
+    private boolean pressed(int key, Set<Integer> heldNow) {
+        boolean down = heldNow.contains(key) || InputUtil.isKeyDown(key);
+        if (!down) return false;
+        heldNow.add(key);
+        return !heldLastTick.contains(key);
     }
 }

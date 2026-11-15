@@ -14,6 +14,22 @@ public class KeybindSetting extends Setting<Integer> {
         super(name, description, defaultKey);
     }
 
+    private Runnable pressAction;
+
+    /**
+     * Makes this an <b>action key</b>: {@code action} runs on the key's rising edge while the owning module is enabled
+     * and no screen is open (polled by {@code ModuleKeyHandler}, like module binds).
+     */
+    public KeybindSetting onPress(Runnable action) {
+        this.pressAction = action;
+        return this;
+    }
+
+    /** The action of an action key, or null for a plain key value (e.g. a module's toggle bind). */
+    public Runnable getPressAction() {
+        return pressAction;
+    }
+
     public boolean isBound() {
         return get() != NONE;
     }

@@ -2,6 +2,7 @@ package dev.telemetric.ui.clickgui;
 
 import dev.telemetric.Telemetric;
 import dev.telemetric.config.GuiLayout;
+import dev.telemetric.input.InputUtil;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.module.impl.misc.ConfigModule;
@@ -47,11 +48,13 @@ public class ClickGuiScreen extends Screen {
     private final List<Panel> categoryOrder = new ArrayList<>();
     private final TooltipRenderer tooltip;
     private final ToastRenderer toasts;
+    private final SearchBar search;
 
     private final Animation open = new Animation(Durations.SCREEN, Easing.OUT_CUBIC, 0);
     private final Animation close = new Animation(Durations.MODAL, Easing.IN_CUBIC, 1);
     private boolean closing;
     private boolean finished;
+    private static final int CTRL_MASK = 0x0002;
 
     public ClickGuiScreen() {
         super(Component.literal(Telemetric.NAME));
@@ -72,6 +75,8 @@ public class ClickGuiScreen extends Screen {
         open.animateTo(1);
         for (int i = 0; i < panels.size(); i++) panels.get(i).playAppear(i * Durations.STAGGER);
         restoreZOrder(layout.getZOrder());
+        this.search = new SearchBar(ctx, query -> panels.forEach(panel -> panel.setSearch(query)));
+        search.playAppear(panels.size() * Durations.STAGGER);
     }
 
     /** Re-stacks panels as they were when the GUI was last closed (panels not listed stay at the bottom). */
@@ -81,12 +86,21 @@ public class ClickGuiScreen extends Screen {
 
     // ================================================================== helpers
 
+    private float appliedScale;
+    private int heldButtons; // bitmask of mouse buttons currently pressed inside this screen
+
     private InterfaceModule ui() {
         return ctx.ui();
     }
 
+    /**
+     * Scale actually applied to the GUI. Frozen while a mouse button is held: the UI Scale slider maps the mouse
+     * in scaled coordinates, so rescaling live mid-drag would feed back into the slider and make it jump.
+     * The new value is applied on release.
+     */
     private float scale() {
-        return ui().uiScale.getFloat();
+        if (heldButtons == 0 || appliedScale <= 0) appliedScale = ui().uiScale.getFloat();
+        return appliedScale;
     }
 
     private int scaledWidth() {
@@ -173,6 +187,9 @@ public class ClickGuiScreen extends Screen {
         }
 
         r.nextLayer();
+        search.render(r, mx, my, delta, sw, sh);
+
+        r.nextLayer();
         tooltip.render(r, mx, my, sw, sh);
         toasts.render(r, sw, sh);
         WatermarkHud hudWatermark = Telemetric.get().modules().get(WatermarkHud.class);
@@ -235,6 +252,7 @@ public class ClickGuiScreen extends Screen {
     private void persist() {
         if (finished) return;
         finished = true;
+        search.onClose();
         panels.forEach(UIComponent::onClose); // panels write open/scroll state into GuiLayout here
         Telemetric.get().config().getLayout().setZOrder(panels.stream().map(Panel::getId).toList());
         Telemetric.get().config().onGuiClosed();
@@ -247,10 +265,12 @@ public class ClickGuiScreen extends Screen {
         if (closing) return true;
         double mx = event.x() / scale(), my = event.y() / scale();
         int button = event.button();
+        if (button >= 0 && button < 31) heldButtons |= 1 << button;
 
         UIComponent focused = ctx.getFocused();
         if (focused != null && !focused.isHovered(mx, my)) ctx.clearFocus();
 
+        if (search.mouseClicked(mx, my, button)) return true; // drawn above the panels → gets input first
         for (int i = panels.size() - 1; i >= 0; i--) {
             Panel panel = panels.get(i);
             if (panel.mouseClicked(mx, my, button)) {
@@ -266,6 +286,8 @@ public class ClickGuiScreen extends Screen {
         double mx = event.x() / scale(), my = event.y() / scale();
         boolean handled = false;
         for (Panel panel : panels) handled |= panel.mouseReleased(mx, my, event.button());
+        int button = event.button();
+        if (button >= 0 && button < 31) heldButtons &= ~(1 << button);
         return handled;
     }
 
@@ -285,6 +307,10 @@ public class ClickGuiScreen extends Screen {
         if (closing) return true;
         UIComponent focused = ctx.getFocused();
         if (focused != null && focused.keyPressed(event.key(), event.scancode(), event.modifiers())) return true;
+        if (focused == null && event.key() == InputUtil.KEY_F && (event.modifiers() & CTRL_MASK) != 0) {
+            search.focus(); // Ctrl+F
+            return true;
+        }
         return super.keyPressed(event); // Esc → onClose()
     }
 
@@ -292,6 +318,11 @@ public class ClickGuiScreen extends Screen {
     public boolean charTyped(CharacterEvent event) {
         UIComponent focused = ctx.getFocused();
         if (focused != null && focused.charTyped(event.codepoint(), 0)) return true;
+        // typing with nothing focused starts a search
+        if (focused == null && !closing && !Character.isWhitespace(event.codepoint()) && !Character.isISOControl(event.codepoint())) {
+            search.focus();
+            return search.charTyped(event.codepoint(), 0);
+        }
         return super.charTyped(event);
     }
 }

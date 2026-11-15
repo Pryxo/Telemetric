@@ -11,6 +11,8 @@ import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
+import java.util.function.BooleanSupplier;
+
 /**
  * Base for the UI of one {@link Setting}. Handles the shared behaviour so subclasses only draw
  * their control and react to input:
@@ -27,6 +29,7 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
     protected final S setting;
     protected final Animation visibility;
     protected final Animation hover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
+    private BooleanSupplier searchVisibility;
 
     protected SettingComponent(GuiContext ctx, S setting) {
         super(ctx);
@@ -52,12 +55,29 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
 
     /** Called by the parent before layout so height is current this frame. */
     public void updateVisibility() {
-        visibility.animateTo(setting.isVisible() ? 1 : 0);
+        visibility.animateTo(visibleNow() ? 1 : 0);
+    }
+
+    /**
+     * ClickGUI search override: {@code null} = normal visibility ({@link Setting#isVisible()}), otherwise this rule
+     * decides (e.g. a matching child shows even while its group toggle is closed).
+     */
+    public void setSearchVisibility(BooleanSupplier rule) {
+        this.searchVisibility = rule;
+    }
+
+    private boolean visibleNow() {
+        return searchVisibility != null ? searchVisibility.getAsBoolean() : setting.isVisible();
+    }
+
+    /** Show/hide progress (0 = hidden, 1 = fully shown), e.g. to fade decorations drawn by the parent. */
+    public double shown() {
+        return visibility.get();
     }
 
     /** Only fully visible settings take input. */
     protected boolean isActive() {
-        return setting.isVisible() && visibility.get() > 0.9;
+        return visibleNow() && visibility.get() > 0.9;
     }
 
     @Override

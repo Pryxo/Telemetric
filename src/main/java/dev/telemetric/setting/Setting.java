@@ -73,8 +73,23 @@ public abstract class Setting<T> {
 
     // ------------------------------------------------------------------ meta
 
+    /** Unique key inside the module (config files, GUI memory). See {@link #getLabel()} for the shown text. */
     public String getName() {
         return name;
+    }
+
+    private String label;
+
+    /** Text shown in the ClickGUI; defaults to {@link #getName()}. Lets several settings share one label. */
+    public String getLabel() {
+        return label != null ? label : name;
+    }
+
+    /** Shows {@code label} instead of the name (the name stays the config key). */
+    @SuppressWarnings("unchecked")
+    public <S extends Setting<T>> S withLabel(String label) {
+        this.label = label;
+        return (S) this;
     }
 
     public String getDescription() {
@@ -88,6 +103,27 @@ public abstract class Setting<T> {
     /** Only group settings (see {@code GroupToggleSetting}) show children; they override this. */
     protected boolean showsChildren() {
         return false;
+    }
+
+    /** Whether this is an open group toggle (children unfolded), ignoring visibility. */
+    protected boolean isGroupOpen() {
+        return false;
+    }
+
+    /** Own visibility rules up the group chain, ignoring whether the groups are open (ClickGUI search). */
+    public boolean isVisibleIgnoringGroups() {
+        return visibility.getAsBoolean() && (group == null || group.isVisibleIgnoringGroups());
+    }
+
+    /**
+     * Visibility below {@code root} (one of this setting's group ancestors): every group between them must be open,
+     * {@code root} itself only needs its own rules (ClickGUI search keeps a matching group shown while closed).
+     */
+    public boolean isVisibleUnder(Setting<?> root) {
+        for (Setting<?> s = this; s != root; s = s.group) {
+            if (s == null || !s.visibility.getAsBoolean() || s.group == null || !s.group.isGroupOpen()) return false;
+        }
+        return root.isVisibleIgnoringGroups();
     }
 
     /** The group toggle this setting is a child of, or {@code null}. */

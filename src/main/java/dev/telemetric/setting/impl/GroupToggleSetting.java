@@ -41,6 +41,11 @@ public class GroupToggleSetting extends BooleanSetting {
     }
 
     @Override
+    protected boolean isGroupOpen() {
+        return open;
+    }
+
+    @Override
     protected boolean showsChildren() {
         return open && isVisible();
     }

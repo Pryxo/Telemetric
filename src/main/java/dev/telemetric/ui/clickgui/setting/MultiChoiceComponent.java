@@ -51,7 +51,7 @@ public class MultiChoiceComponent extends SettingComponent<MultiChoiceSetting> {
         int maxValueW = width / 2;
         summary = r.trim(summary, maxValueW);
         int valueW = r.textWidth(summary);
-        r.text(r.trim(setting.getName(), width - valueW - Layout.PAD * 3 - 6), left(), labelY(), textColor(p));
+        r.text(r.trim(setting.getLabel(), width - valueW - Layout.PAD * 3 - 6), left(), labelY(), textColor(p));
         r.textRight(summary, right() - 7, labelY(), ColorUtil.lerp(p.textMuted(), p.accent(), arrow.get()));
         Icons.chevron(r, right() - 4, y + Layout.SETTING_HEIGHT / 2, arrow.get(), p.textMuted());
 

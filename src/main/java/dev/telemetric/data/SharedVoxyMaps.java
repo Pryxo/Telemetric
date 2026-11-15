@@ -6,8 +6,6 @@ import dev.telemetric.Telemetric;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -37,13 +35,10 @@ import java.util.zip.ZipInputStream;
  */
 public final class SharedVoxyMaps {
 
-    public static final String BASE_URL = "https://raw.githubusercontent.com/Pryxo/Telemetric-Data/main/";
     static final String INDEX = "LODs/index.json";
     static final String MARKER = "telemetric-map.json";
     private static final long MAX_ZIP = 300L << 20, MAX_UNPACKED = 2L << 30;
 
-    private static final HttpClient HTTP = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NORMAL).build();
     private static CompletableFuture<JsonObject> index;
 
     private SharedVoxyMaps() {}
@@ -66,7 +61,7 @@ public final class SharedVoxyMaps {
     /** The index, fetched once per game session (null JSON on failure — retried next session). */
     private static synchronized CompletableFuture<JsonObject> index() {
         if (index == null) {
-            index = HTTP.sendAsync(get(INDEX), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+            index = DataRepo.HTTP.sendAsync(get(INDEX), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
                     .thenApply(r -> r.statusCode() == 200 ? JsonParser.parseString(r.body()).getAsJsonObject() : null)
                     .exceptionally(e -> {
                         Telemetric.LOGGER.warn("Shared Voxy map index not loaded: {}", e.toString());
@@ -122,7 +117,7 @@ public final class SharedVoxyMaps {
     private static void download(String file, Path to, String sha) throws IOException {
         HttpResponse<InputStream> r;
         try {
-            r = HTTP.send(get(file), HttpResponse.BodyHandlers.ofInputStream());
+            r = DataRepo.HTTP.send(get(file), HttpResponse.BodyHandlers.ofInputStream());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("interrupted", e);
@@ -185,7 +180,6 @@ public final class SharedVoxyMaps {
     }
 
     private static HttpRequest get(String path) {
-        return HttpRequest.newBuilder(URI.create(BASE_URL + path)).timeout(Duration.ofSeconds(60))
-                .header("User-Agent", "Telemetric").GET().build();
+        return DataRepo.get(path, Duration.ofSeconds(60));
     }
 }

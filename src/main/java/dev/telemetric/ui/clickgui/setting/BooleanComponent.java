@@ -33,7 +33,7 @@ public class BooleanComponent extends SettingComponent<BooleanSetting> {
         state.animateTo(setting.get() ? 1 : 0);
         double t = state.get();
 
-        r.text(r.trim(setting.getName(), width - TRACK_W - Layout.PAD * 3 - labelReserve()), left(), labelY(), textColor(p));
+        r.text(r.trim(setting.getLabel(), width - TRACK_W - Layout.PAD * 3 - labelReserve()), left(), labelY(), textColor(p));
 
         int tx = right() - TRACK_W;
         int ty = y + (Layout.SETTING_HEIGHT - TRACK_H) / 2;

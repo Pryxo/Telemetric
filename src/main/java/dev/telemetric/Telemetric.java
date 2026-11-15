@@ -7,6 +7,7 @@ import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.ServerGate;
 import dev.telemetric.game.StashAdapter;
 import dev.telemetric.game.WorldRenderAdapter;
+import dev.telemetric.module.impl.combat.CooldownTracker;
 import dev.telemetric.module.impl.dungeon.DungeonTracker;
 import dev.telemetric.ui.hud.HudEditorScreen;
 import dev.telemetric.input.Keybinds;
@@ -92,6 +93,11 @@ public final class Telemetric implements ClientModInitializer {
         }
         moduleKeyHandler.tick();
         DungeonTracker.get().tick();
+        try {
+            CooldownTracker.get().tick();
+        } catch (RuntimeException e) {
+            LOGGER.error("Cooldown tracker tick failed", e);
+        }
         moduleManager.tick();
     }
 

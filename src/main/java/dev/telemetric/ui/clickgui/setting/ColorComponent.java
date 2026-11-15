@@ -1,5 +1,6 @@
 package dev.telemetric.ui.clickgui.setting;
 
+import dev.telemetric.input.InputUtil;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
@@ -15,10 +16,14 @@ import dev.telemetric.ui.theme.Theme;
  * Colour swatch that expands (accordion) into an HSV picker:
  * saturation/value square, hue bar and optional alpha bar. Right-click header resets to default.
  * HSV is kept locally so hue isn't lost when saturation/value hit 0.
+ * Under the name sits an editable hex field: click to type, Ctrl+C / Ctrl+X / Ctrl+V copy, cut & paste,
+ * Ctrl+A select all, Enter or clicking elsewhere closes it, Esc reverts. A complete value (6 digits, or 8 with
+ * alpha) applies live.
  */
 public class ColorComponent extends SettingComponent<ColorSetting> {
 
-    private static final int SV_H = 46, BAR_H = 6, GAP = 4, SWATCH_W = 14, SWATCH_H = 8;
+    private static final int SV_H = 46, BAR_H = 6, GAP = 4, SWATCH_W = 14, SWATCH_H = 8, HEX_ROW = 12;
+    private static final int CTRL_MASK = 0x0002;
 
     private enum Drag { NONE, SV, HUE, ALPHA }
 
@@ -29,6 +34,14 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
     private float hue, sat, val;
     private int alpha;
     private int lastSynced;
+
+    // hex field
+    private final Animation focus = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
+    private String hexBuffer = "";
+    private boolean selectAll;
+    private int beforeEdit;
+    private long focusTime;
+    private int hexBoxW = 50;
 
     public ColorComponent(GuiContext ctx, ColorSetting setting) {
         super(ctx, setting);
@@ -52,7 +65,7 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
     }
 
     private int pickerHeight() {
-        return GAP + SV_H + GAP + BAR_H + (setting.allowsAlpha() ? GAP + BAR_H : 0) + GAP;
+        return HEX_ROW + GAP + SV_H + GAP + BAR_H + (setting.allowsAlpha() ? GAP + BAR_H : 0) + GAP;
     }
 
     @Override
@@ -65,15 +78,9 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         if (setting.get() != lastSynced && drag == Drag.NONE) syncFromSetting();
         open.animateTo(expanded ? 1 : 0);
 
-        // header: name, hex (when open), swatch
+        // header: name, swatch (the hex field sits under the name while open)
         int sx = right() - SWATCH_W, sy = y + (Layout.SETTING_HEIGHT - SWATCH_H) / 2;
-        r.text(r.trim(setting.getName(), width - SWATCH_W - Layout.PAD * 3), left(), labelY(), textColor(p));
-        if (open.get() > 0.01) {
-            r.pushAlpha(open.get());
-            String hex = setting.toHex().substring(setting.allowsAlpha() ? 1 : 3);
-            r.textRight(hex, sx - 4, labelY(), p.textMuted());
-            r.popAlpha();
-        }
+        r.text(r.trim(setting.getLabel(), sx - 4 - left()), left(), labelY(), textColor(p));
         drawChecker(r, sx, sy, SWATCH_W, SWATCH_H);
         r.roundedRect(sx, sy, SWATCH_W, SWATCH_H, 2, setting.get());
         r.outline(sx, sy, SWATCH_W, SWATCH_H, ColorUtil.fade(p.border(), 0.8));
@@ -86,8 +93,10 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         r.pushClip(x, top, width, getHeight() - Layout.SETTING_HEIGHT);
         r.pushAlpha(o);
 
+        renderHexField(r, top, p);
+
         // drag handling (immediate mode)
-        int svY = top + GAP;
+        int svY = top + HEX_ROW + GAP;
         int hueY = svY + SV_H + GAP;
         int alphaY = hueY + BAR_H + GAP;
         if (drag != Drag.NONE) {
@@ -130,6 +139,126 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         r.popClip();
     }
 
+    // ------------------------------------------------------------------ hex field
+
+    private int hexDigits() {
+        return setting.allowsAlpha() ? 8 : 6;
+    }
+
+    private String currentHex() {
+        return setting.toHex().substring(setting.allowsAlpha() ? 1 : 3);
+    }
+
+    private void renderHexField(Render2D r, int top, Theme p) {
+        boolean focused = ctx.isFocused(this);
+        focus.animateTo(focused ? 1 : 0);
+        int bx = left();
+        hexBoxW = r.textWidth("#" + "D".repeat(hexDigits())) + 8;
+        int bw = hexBoxW;
+        r.roundedRect(bx, top, bw, HEX_ROW, 2, p.control());
+        int lineW = (int) Math.round(bw * focus.get());
+        if (lineW > 0) r.rect(bx + (bw - lineW) / 2, top + HEX_ROW - 1, lineW, 1, p.accent());
+        String shown = "#" + (focused ? hexBuffer : currentHex());
+        int tx = bx + 4, ty = top + 2;
+        if (focused && selectAll && !hexBuffer.isEmpty())
+            r.rect(tx + r.textWidth("#") - 1, ty - 1, r.textWidth(hexBuffer) + 2, 10, ColorUtil.fade(p.accent(), 0.45));
+        r.text(shown, tx, ty, focused ? p.text() : p.textMuted());
+        boolean caretOn = focused && !selectAll && ((System.currentTimeMillis() - focusTime) / 530) % 2 == 0;
+        if (caretOn) r.rect(tx + r.textWidth(shown), ty, 1, 8, p.accent());
+    }
+
+    /** Applies the buffer when it is a complete colour (6 digits, or 8 with alpha). */
+    private boolean applyBuffer() {
+        int len = hexBuffer.length();
+        if (len != 6 && !(len == 8 && setting.allowsAlpha())) return false;
+        long v = Long.parseLong(hexBuffer, 16);
+        if (len == 6) v |= ((long) (setting.allowsAlpha() ? alpha : 255)) << 24;
+        setting.set((int) v);
+        syncFromSetting();
+        return true;
+    }
+
+    /** Hex digits only ('#', "0x" and other characters dropped), at most the field's length. */
+    private String cleanHex(String raw) {
+        String t = raw.trim();
+        if (t.startsWith("0x") || t.startsWith("0X")) t = t.substring(2);
+        StringBuilder b = new StringBuilder();
+        for (char ch : t.toCharArray()) if (Character.digit(ch, 16) >= 0) b.append(Character.toUpperCase(ch));
+        String hex = b.toString();
+        // "#AARRGGBB" pasted into a colour without alpha: keep RRGGBB
+        if (!setting.allowsAlpha() && hex.length() == 8) hex = hex.substring(2);
+        return hex.length() > hexDigits() ? hex.substring(0, hexDigits()) : hex;
+    }
+
+    private void startEdit() {
+        if (!ctx.isFocused(this)) {
+            beforeEdit = setting.get();
+            hexBuffer = currentHex();
+            ctx.focus(this);
+        }
+        selectAll = true;
+        focusTime = System.currentTimeMillis();
+    }
+
+    @Override
+    public boolean keyPressed(int key, int scancode, int modifiers) {
+        if (!ctx.isFocused(this)) return false;
+        focusTime = System.currentTimeMillis();
+        boolean ctrl = (modifiers & CTRL_MASK) != 0;
+        if (key == InputUtil.KEY_ENTER) {
+            ctx.clearFocus();
+        } else if (key == InputUtil.KEY_ESCAPE) {
+            setting.set(beforeEdit);
+            syncFromSetting();
+            hexBuffer = currentHex();
+            ctx.clearFocus();
+        } else if (ctrl && key == InputUtil.KEY_A) {
+            selectAll = true;
+        } else if (ctrl && (key == InputUtil.KEY_C || key == InputUtil.KEY_X)) {
+            InputUtil.setClipboard("#" + (hexBuffer.isEmpty() ? currentHex() : hexBuffer));
+            if (key == InputUtil.KEY_X) {
+                hexBuffer = "";
+                selectAll = false;
+            }
+        } else if (ctrl && key == InputUtil.KEY_V) {
+            String pasted = cleanHex(InputUtil.getClipboard());
+            if (!pasted.isEmpty()) {
+                hexBuffer = selectAll ? pasted : cleanHex(hexBuffer + pasted);
+                selectAll = false;
+                applyBuffer();
+            }
+        } else if (key == InputUtil.KEY_BACKSPACE) {
+            if (selectAll || ctrl) hexBuffer = "";
+            else if (!hexBuffer.isEmpty()) hexBuffer = hexBuffer.substring(0, hexBuffer.length() - 1);
+            selectAll = false;
+        }
+        // swallow every other key so typing never triggers game / GUI shortcuts
+        return true;
+    }
+
+    @Override
+    public boolean charTyped(int codepoint, int modifiers) {
+        if (!ctx.isFocused(this)) return false;
+        if (Character.digit(codepoint, 16) < 0) return true;
+        if (selectAll) {
+            hexBuffer = "";
+            selectAll = false;
+        }
+        if (hexBuffer.length() < hexDigits()) {
+            hexBuffer += Character.toUpperCase((char) codepoint);
+            applyBuffer();
+        }
+        focusTime = System.currentTimeMillis();
+        return true;
+    }
+
+    @Override
+    public void onFocusLost() {
+        focus.animateTo(0);
+        selectAll = false;
+        hexBuffer = currentHex();
+    }
+
     private static void drawHandle(Render2D r, int hx, int barY, Theme p) {
         r.rect(hx - 1, barY - 1, 3, BAR_H + 2, 0xFFFFFFFF);
         r.rect(hx, barY, 1, BAR_H, p.panel());
@@ -156,7 +285,11 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
             return true;
         }
         if (!expanded || button != MouseButton.LEFT || open.get() < 0.9) return expanded;
-        int svY = top + GAP, hueY = svY + SV_H + GAP, alphaY = hueY + BAR_H + GAP;
+        if (mouseY < top + HEX_ROW) {
+            if (mouseX >= left() && mouseX < left() + hexBoxW) startEdit();
+            return true;
+        }
+        int svY = top + HEX_ROW + GAP, hueY = svY + SV_H + GAP, alphaY = hueY + BAR_H + GAP;
         if (mouseY >= svY && mouseY < svY + SV_H) drag = Drag.SV;
         else if (mouseY >= hueY - 1 && mouseY < hueY + BAR_H + 1) drag = Drag.HUE;
         else if (setting.allowsAlpha() && mouseY >= alphaY - 1 && mouseY < alphaY + BAR_H + 1) drag = Drag.ALPHA;
@@ -197,6 +330,7 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
     public void onClose() {
         drag = Drag.NONE;
         ctx.releaseCapture(this);
+        ctx.releaseFocus(this);
         expanded = false;
     }
 }

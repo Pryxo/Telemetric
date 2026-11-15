@@ -10,6 +10,7 @@ import dev.telemetric.module.Category;
 import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.ColorSetting;
+import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
@@ -30,16 +31,17 @@ public final class DungeonMapHud extends HudModule {
 
     private final NumberSetting size = add(new NumberSetting("Map Size",
             "Width and height of the map", 100, 50, 220, 2).withSuffix("px"));
-    private final ColorSetting roomColor = add(new ColorSetting("Room Color",
-            "Normal rooms and connections", 0xFF7A5230));
-    private final ColorSetting spawnColor = add(new ColorSetting("Spawn Color",
-            "The room you entered the dungeon in", 0xFF3FAE4A));
-    private final ColorSetting bossColor = add(new ColorSetting("Boss Drop Color",
-            "The room with the drop down to the boss", 0xFFE0332B));
-    private final ColorSetting treasureColor = add(new ColorSetting("Treasure Color",
-            "Rooms that still hold a treasure", 0xFFE8C93A));
-    private final ColorSetting goalColor = add(new ColorSetting("Dungeon Goal Color",
-            "Rooms with a clear mob still alive (dungeons that have them, e.g. Midnight Stronghold)", 0xFF9B4DDB));
+    private final GroupSetting colors = add(new GroupSetting("Colors", "Colours of the map's rooms"));
+    private final ColorSetting roomColor = add(colors.child(new ColorSetting("Room Color",
+            "Normal rooms and connections", 0xFF7A5230)));
+    private final ColorSetting spawnColor = add(colors.child(new ColorSetting("Spawn Color",
+            "The room you entered the dungeon in", 0xFF3FAE4A)));
+    private final ColorSetting bossColor = add(colors.child(new ColorSetting("Boss Drop Color",
+            "The room with the drop down to the boss", 0xFFE0332B)));
+    private final ColorSetting treasureColor = add(colors.child(new ColorSetting("Treasure Color",
+            "Rooms that still hold a treasure", 0xFFE8C93A)));
+    private final ColorSetting goalColor = add(colors.child(new ColorSetting("Dungeon Goal Color",
+            "Rooms with a clear mob still alive (dungeons that have them, e.g. Midnight Stronghold)", 0xFF9B4DDB)));
     private final BooleanSetting showBackground = add(new BooleanSetting("Background",
             "Draw the dark backdrop behind the map (off: only the rooms)", true));
     private final BooleanSetting showLinks = add(new BooleanSetting("Show Connections",

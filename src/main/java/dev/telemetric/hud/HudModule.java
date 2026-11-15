@@ -37,6 +37,12 @@ public abstract class HudModule extends Module {
     /** HUD element listed in another panel (e.g. the Dungeon minimap); still drawn / edited like every HUD element. */
     protected HudModule(String name, String description, Category category, double defaultX, double defaultY,
                         boolean enabledByDefault) {
+        this(name, description, category, defaultX, defaultY, enabledByDefault, 1.0);
+    }
+
+    /** Like above, with a default {@code Scale} other than 1× (e.g. large alert text). */
+    protected HudModule(String name, String description, Category category, double defaultX, double defaultY,
+                        boolean enabledByDefault, double defaultScale) {
         super(name, description, category);
         this.enabledByDefault = enabledByDefault;
         this.posX = add(new NumberSetting("X", "Horizontal position (0 = left, 1 = right)", defaultX, 0, 1, 0.0001)
@@ -44,7 +50,7 @@ public abstract class HudModule extends Module {
         this.posY = add(new NumberSetting("Y", "Vertical position (0 = top, 1 = bottom)", defaultY, 0, 1, 0.0001)
                 .visibleWhen(() -> false));
         this.scale = add(new NumberSetting("Scale", "Size of this element (also: HUD editor resize handle)",
-                1.0, MIN_SCALE, MAX_SCALE, 0.05).withSuffix("x"));
+                Math.clamp(defaultScale, MIN_SCALE, MAX_SCALE), MIN_SCALE, MAX_SCALE, 0.05).withSuffix("x"));
         this.mirror = add(new BooleanSetting("Mirror", "Mirrored text layout (HUD editor: M)", defaultX > 0.66)
                 .visibleWhen(() -> false));
     }
@@ -63,6 +69,16 @@ public abstract class HudModule extends Module {
     @Override
     protected boolean isEnabledByDefault() {
         return enabledByDefault;
+    }
+
+    /** Drawn in-game / in the HUD editor (default: enabled). Split elements (Performance HUD parts) override this. */
+    public boolean isShown() {
+        return isEnabled();
+    }
+
+    /** HUD editor "Del": hides the element (default: turns the module off). */
+    public void hide() {
+        setEnabled(false);
     }
 
     // ================================================================== content

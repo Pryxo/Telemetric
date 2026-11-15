@@ -18,6 +18,7 @@ public final class Category {
 
     // ---- registered categories -------------------------------------------------------------
     public static final Category PLAYER = register("Player", 10);
+    public static final Category COMBAT = register("Combat", 11);
     public static final Category VISUAL = register("Visual", 12);
     public static final Category DUNGEON = register("Dungeon", 15);
     public static final Category HUD = register("HUD", 20);

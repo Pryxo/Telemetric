@@ -45,7 +45,7 @@ public class NumberComponent extends SettingComponent<NumberSetting> {
         fill.animateTo(setting.getNormalized());
 
         String value = setting.format();
-        r.text(r.trim(setting.getName(), trackW - r.textWidth(value) - 4), left(), y + 3, textColor(p));
+        r.text(r.trim(setting.getLabel(), trackW - r.textWidth(value) - 4), left(), y + 3, textColor(p));
         r.textRight(value, right(), y + 3, dragging ? p.accent() : p.textMuted());
 
         int trackY = y + HEIGHT - 6;

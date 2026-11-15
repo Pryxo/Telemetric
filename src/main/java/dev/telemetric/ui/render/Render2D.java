@@ -320,6 +320,11 @@ public final class Render2D {
         g.itemDecorations(font, item.stack(), x, y);
     }
 
+    /** Draws only the item model (no count, durability or vanilla cooldown overlay) at 16x16 GUI units. */
+    public void itemIcon(GameItem item, int x, int y) {
+        if (item != null) g.item(item.stack(), x, y);
+    }
+
     /** Shows the item's normal (server-styled) tooltip at the mouse, drawn on top at the end of the frame. */
     public void itemTooltip(GameItem item, int mouseX, int mouseY) {
         if (item != null) g.setTooltipForNextFrame(font, item.stack(), mouseX, mouseY);
