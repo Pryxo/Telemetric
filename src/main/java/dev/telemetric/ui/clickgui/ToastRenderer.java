@@ -7,22 +7,30 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 import java.util.List;
+import java.util.function.Supplier;
 
-/** Draws {@link Toasts} bottom-right: slide + fade in (drawer timing), reflow smoothly, fade out. */
+/**
+ * Draws {@link Toasts} bottom-right: slide + fade in (drawer timing), reflow smoothly, fade out.
+ * Used by the ClickGUI and, while it is closed, by the in-game HUD layer ({@code HudOverlay}).
+ */
 public final class ToastRenderer {
 
     private static final int HEIGHT = 18, GAP = 4, MARGIN = 8;
     private static final int SUCCESS = 0xFF4ADE80, ERROR = 0xFFF87171;
 
-    private final GuiContext ctx;
+    private final Supplier<Theme> palette;
 
     public ToastRenderer(GuiContext ctx) {
-        this.ctx = ctx;
+        this(ctx::palette);
+    }
+
+    public ToastRenderer(Supplier<Theme> palette) {
+        this.palette = palette;
     }
 
     public void render(Render2D r, int screenW, int screenH) {
         List<Toasts.Toast> toasts = Toasts.tick();
-        Theme p = ctx.palette();
+        Theme p = palette.get();
         int count = toasts.size();
         for (int i = 0; i < count; i++) {
             Toasts.Toast toast = toasts.get(i);

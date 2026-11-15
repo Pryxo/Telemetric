@@ -93,6 +93,20 @@ public final class ConfigManager {
 
     // ================================================================== profiles
 
+    /**
+     * Copies entries of modules that are not registered right now (e.g. an add-on that isn't installed this
+     * session) from the existing profile file into {@code moduleJson}, so saving never wipes their settings.
+     */
+    private void keepUnloadedModules(Path file, JsonObject moduleJson) {
+        if (!Files.exists(file)) return;
+        readJson(file).ifPresent(old -> {
+            if (!old.has("modules") || !old.get("modules").isJsonObject()) return;
+            old.getAsJsonObject("modules").entrySet().forEach(e -> {
+                if (!moduleJson.has(e.getKey())) moduleJson.add(e.getKey(), e.getValue());
+            });
+        });
+    }
+
     public boolean saveProfile(String name) {
         String profile = sanitizeName(name);
         if (profile == null) return false;
@@ -107,6 +121,7 @@ public final class ConfigManager {
                 Telemetric.LOGGER.error("Failed to serialise module {}", module.getName(), e);
             }
         }
+        keepUnloadedModules(profileFile(profile), moduleJson);
         json.add("modules", moduleJson);
         boolean ok = writeJson(profileFile(profile), json);
         if (ok) setActiveProfile(profile);

@@ -15,6 +15,7 @@ import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.module.impl.misc.InterfaceModule;
 import dev.telemetric.module.impl.misc.ThemeModule;
 import dev.telemetric.module.impl.player.AutoJumpModule;
+import dev.telemetric.module.impl.visual.BossStageTrackerModule;
 import dev.telemetric.module.impl.visual.StashOverlayModule;
 import dev.telemetric.module.impl.visual.VoxyModifierModule;
 
@@ -46,6 +47,7 @@ public final class ModuleManager {
         // Visual
         register(new StashOverlayModule());
         register(new VoxyModifierModule());
+        register(new BossStageTrackerModule());
 
         // Dungeon (active only in telos:dungeon/<n>)
         register(new WayfinderModule());

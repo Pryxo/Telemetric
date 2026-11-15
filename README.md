@@ -50,8 +50,15 @@ The jar lands in `build/libs/telemetric-<version>.jar`. Needs JDK 25 (`JAVA_HOME
 | Loom | 1.19.4 |
 | Gradle | 9.9.1 (wrapper) |
 
+## Credits
+
+- **[Melinoe](https://github.com/House-Hades/Melinoe)** (NoWayItzJoey, Willow, Magnetite, Nyxie) — the badge font
+  textures `assets/telemetric/textures/font/pill.png` and `ribbon.png`, and the bitmap-font badge technique used for
+  floating world labels. Melinoe is licensed under
+  [LGPL-3.0](https://www.gnu.org/licenses/lgpl-3.0.html); those two textures remain under that license.
+
 ## License
 
-All rights reserved.
+All rights reserved, except third-party assets listed under [Credits](#credits).
 
 *Telemetric is a fan-made mod and is not affiliated with Telos Realms or Mojang.*
