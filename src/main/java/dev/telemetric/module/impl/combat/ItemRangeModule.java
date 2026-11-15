@@ -3,6 +3,7 @@ package dev.telemetric.module.impl.combat;
 import dev.telemetric.game.CombatAdapter;
 import dev.telemetric.game.CombatAdapter.ItemInfo;
 import dev.telemetric.game.CombatAdapter.Kind;
+import dev.telemetric.game.EntityVisualsAdapter;
 import dev.telemetric.game.PlayerAdapter;
 import dev.telemetric.game.ServerGate;
 import dev.telemetric.game.WorldRenderAdapter;
@@ -12,7 +13,9 @@ import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.EnumSetting;
+import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.render.ColorUtil;
 
 /**
@@ -22,6 +25,10 @@ import dev.telemetric.ui.render.ColorUtil;
  * <p>
  * One class, two instances ({@link #ability()}, {@link #weapon(ItemRangeModule)}). When both show the same circle,
  * the weapon one steps aside so the lines do not overlap.
+ * <p>
+ * Drawn as one clean edge line with a soft band fading inward on the ground. With Target Highlight on, the colour
+ * eases to the target colour while a hittable mob ({@link EntityVisualsAdapter#forEachHittableBox}) is inside the
+ * drawn area.
  */
 public final class ItemRangeModule extends Module {
 
@@ -35,10 +42,12 @@ public final class ItemRangeModule extends Module {
     /** Where and how big one range is. */
     private record Area(double range, double offset, TelosItemRules.Marker marker, boolean drawRange) {}
 
-    private static final int CIRCLE_SEGMENTS = 64, ARC_SEGMENTS = 32, LINE_STEPS = 8;
-    private static final double ARC_HALF_ANGLE = Math.PI / 8; // 45° wide arc
-    private static final double ARC_HEIGHT = 0.2, ARC_FADE = 0.2; // ribbon height, faded share of each end
-    private static final int ARC_LAYERS = 3;
+    private static final int CIRCLE_SEGMENTS = 72, ARC_SEGMENTS = 40, LINE_STEPS = 10;
+    private static final double ARC_FADE = 0.18; // faded share of each arc end
+    /** Ground bands inside the edge: {inner offset, outer offset, alpha share of the line colour}. */
+    private static final double[][] BANDS = {{0.45, 0.0, 0.30}, {1.1, 0.45, 0.10}};
+    private static final double LINE_HIT_SLACK = 0.4; // blocks either side of the aim line that count as a hit
+    private static final double BODY_HEIGHT = 1.8;
 
     private final Kind kind;
     private final ItemRangeModule yieldTo;
@@ -46,10 +55,18 @@ public final class ItemRangeModule extends Module {
 
     private final ColorSetting color;
     private final EnumSetting<Shape> shape;
+    private final NumberSetting arcWidth;
+    private final BooleanSetting fill;
     private final BooleanSetting aimLine;
     private final NumberSetting width;
     private final BooleanSetting throughWalls;
+    private final GroupToggleSetting highlight;
+    private final ColorSetting targetColor;
     private final BooleanSetting emblem; // weapon only
+
+    /** 0 = range colour, 1 = target colour; eased over time. */
+    private double hot;
+    private long lastFrame;
 
     public static ItemRangeModule ability() {
         return new ItemRangeModule(Kind.ABILITY, "Ability Range", 0xE08A3FC0, 0.04, null);
@@ -66,12 +83,22 @@ public final class ItemRangeModule extends Module {
         this.kind = kind;
         this.lift = lift;
         this.yieldTo = yieldTo;
-        this.color = add(new ColorSetting("Color", "Colour of the range lines", defaultColor, true));
+        this.color = add(new ColorSetting("Color", "Colour of the range", defaultColor, true));
         this.shape = add(new EnumSetting<>("Shape", "How the range is drawn", Shape.ARC));
+        this.arcWidth = add(new NumberSetting("Arc Width", "How wide the arc in front of you is", 70, 20, 180, 5)
+                .withSuffix("°").visibleWhen(() -> shape.get() == Shape.ARC));
+        this.fill = add(new BooleanSetting("Ground Fill", "Soft band on the ground inside the edge", true)
+                .visibleWhen(() -> shape.get() != Shape.LINE));
         this.aimLine = add(new BooleanSetting("Aim Line", "Also draw a line from you to the edge of the range", false)
                 .visibleWhen(() -> shape.get() != Shape.LINE));
-        this.width = add(new NumberSetting("Line Width", "Thickness in pixels", 2.5, 1, 6, 0.5).withSuffix("px"));
+        this.width = add(new NumberSetting("Line Width", "Thickness in pixels", 2, 1, 6, 0.5).withSuffix("px"));
         this.throughWalls = add(new BooleanSetting("Through Walls", "Keep the range visible behind blocks", false));
+        this.highlight = add(new GroupToggleSetting("Target Highlight",
+                "Change colour while a hittable mob is inside the range (not invisible or static hitboxes)", false));
+        ColorSetting tc = new ColorSetting("Target Color", "Colour while a mob is in range", 0xE04ADE80, true);
+        tc.withLabel("Color");
+        this.targetColor = tc;
+        add(highlight.child(tc));
         this.emblem = kind == Kind.WEAPON
                 ? add(new BooleanSetting("Emblem Bonus", "Add +1 range for an emblem buff", false)) : null;
         WorldRenderAdapter.addDrawer(this::draw);
@@ -101,54 +128,99 @@ public final class ItemRangeModule extends Module {
         double fx = -Math.sin(yaw), fz = Math.cos(yaw); // MC yaw 0 = south (+Z)
         double y = pose.y() + lift;
         double cx = pose.x() + fx * area.offset(), cz = pose.z() + fz * area.offset();
-        int argb = color.get();
+        Shape s = shape.get();
+        double half = Math.toRadians(arcWidth.get()) / 2;
+
+        boolean target = highlight.get() && area.drawRange()
+                && targetInside(s, pose.x(), pose.y(), pose.z(), cx, cz, fx, fz, area.range(), half);
+        int argb = ColorUtil.lerp(color.get(), targetColor.get(), ease(target));
         float w = width.getFloat();
         boolean walls = throughWalls.get();
 
         if (area.drawRange()) {
-            Shape s = shape.get();
             if (s == Shape.LINE || aimLine.get()) {
                 fadingLine(sink, pose.x(), y, pose.z(), cx + fx * area.range(), cz + fz * area.range(), argb, w, walls);
             }
-            if (s == Shape.CIRCLE) circle(sink, cx, y, cz, area.range(), CIRCLE_SEGMENTS, argb, w, walls);
-            if (s == Shape.ARC) arc(sink, cx, y, cz, area.range(), yaw, argb, w, walls);
+            if (s == Shape.CIRCLE) ring(sink, cx, y, cz, area.range(), 0, Math.PI, 0, CIRCLE_SEGMENTS, argb, w, walls);
+            if (s == Shape.ARC) ring(sink, cx, y, cz, area.range(), yaw, half, ARC_FADE, ARC_SEGMENTS, argb, w, walls);
         }
         if (area.offset() != 0) {
             if (area.marker() == TelosItemRules.Marker.SQUARE) square(sink, cx, y, cz, 0.5, yaw, argb, w, walls);
-            else circle(sink, cx, y, cz, 0.15, 8, argb, w, walls);
+            else ring(sink, cx, y, cz, 0.3, 0, Math.PI, 0, 24, argb, w, walls);
         }
     }
 
-    private static void circle(LineSink sink, double cx, double y, double cz, double r, int segments, int argb,
-                               float w, boolean walls) {
-        double px = cx + r, pz = cz;
-        for (int i = 1; i <= segments; i++) {
-            double a = Math.PI * 2 * i / segments;
-            double x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
-            sink.line(px, y, pz, x, y, z, argb, w, walls);
+    /** Eases {@link #hot} toward the target state; returns the blend for this frame. */
+    private double ease(boolean target) {
+        long now = System.nanoTime();
+        double dt = lastFrame == 0 ? 0 : (now - lastFrame) / 1e6;
+        lastFrame = now;
+        int ms = Durations.scaled(Durations.HOVER);
+        double step = ms <= 0 ? 1 : Math.min(1, dt / ms);
+        hot = target ? Math.min(1, hot + step) : Math.max(0, hot - step);
+        return hot * hot * (3 - 2 * hot); // smoothstep
+    }
+
+    /** Whether a hittable mob's hitbox overlaps the drawn area. */
+    private static boolean targetInside(Shape s, double px, double py, double pz, double cx, double cz, double fx,
+                                        double fz, double range, double half) {
+        boolean[] hit = {false};
+        EntityVisualsAdapter.forEachHittableBox(range + 4, (k, x0, y0, z0, x1, y1, z1) -> {
+            if (hit[0]) return;
+            double gy = Math.max(0, Math.max(y0 - (py + BODY_HEIGHT), py - y1)); // vertical gap to your body
+            double r = Math.max(x1 - x0, z1 - z0) / 2;
+            if (s == Shape.LINE) {
+                double bx = (x0 + x1) / 2 - px, bz = (z0 + z1) / 2 - pz;
+                double along = bx * fx + bz * fz, side = Math.abs(bx * fz - bz * fx);
+                hit[0] = along >= -r && along <= range + r && side <= r + LINE_HIT_SLACK && gy <= range;
+                return;
+            }
+            // nearest point of the box to the centre, on the ground plane
+            double nx = Math.clamp(cx, x0, x1) - cx, nz = Math.clamp(cz, z0, z1) - cz;
+            if (Math.sqrt(nx * nx + nz * nz + gy * gy) > range) return;
+            if (s == Shape.CIRCLE || (nx == 0 && nz == 0)) {
+                hit[0] = true;
+                return;
+            }
+            double bx = (x0 + x1) / 2 - cx, bz = (z0 + z1) / 2 - cz;
+            double dist = Math.max(1e-3, Math.sqrt(bx * bx + bz * bz));
+            double angle = Math.abs(Math.atan2(bx * fz - bz * fx, bx * fx + bz * fz));
+            hit[0] = angle <= half + Math.atan(r / dist);
+        });
+        return hit[0];
+    }
+
+    /**
+     * Ground ring of radius {@code r} centred on {@code yaw} spanning +-{@code half} (pi = full circle): one edge
+     * line plus, with Ground Fill, translucent bands fading inward. {@code fade} = faded share of each end.
+     */
+    private void ring(LineSink sink, double cx, double y, double cz, double r, double yaw, double half, double fade,
+                      int segments, int argb, float w, boolean walls) {
+        boolean bands = fill.get() && r > 1;
+        double px = 0, pz = 0, pa = 0;
+        for (int i = 0; i <= segments; i++) {
+            double t = i / (double) segments;
+            double a = yaw - half + 2 * half * t;
+            double sin = -Math.sin(a), cos = Math.cos(a);
+            double x = cx + sin * r, z = cz + cos * r;
+            if (i > 0) {
+                double edge = Math.abs(t - 0.5 / segments - 0.5) * 2; // 0 = middle, 1 = end
+                double f = fade > 0 && edge > 1 - fade ? (1 - edge) / fade : 1;
+                int c = ColorUtil.fade(argb, f);
+                sink.line(px, y, pz, x, y, z, c, w, walls);
+                if (bands) {
+                    double ps = -Math.sin(pa), pc = Math.cos(pa);
+                    for (double[] b : BANDS) {
+                        double ri = Math.max(0, r - b[0]), ro = r - b[1];
+                        sink.quad(cx + ps * ri, y, cz + pc * ri, cx + ps * ro, y, cz + pc * ro,
+                                cx + sin * ro, y, cz + cos * ro, cx + sin * ri, y, cz + cos * ri,
+                                ColorUtil.fade(c, b[2]), walls);
+                    }
+                }
+            }
             px = x;
             pz = z;
-        }
-    }
-
-    /** Short ribbon in front of the player: stacked arcs whose ends fade out. */
-    private static void arc(LineSink sink, double cx, double y, double cz, double r, double yaw, int argb, float w,
-                            boolean walls) {
-        for (int layer = 0; layer < ARC_LAYERS; layer++) {
-            double ly = y + ARC_HEIGHT * layer / (ARC_LAYERS - 1);
-            double px = 0, pz = 0;
-            for (int i = 0; i <= ARC_SEGMENTS; i++) {
-                double t = i / (double) ARC_SEGMENTS;
-                double a = yaw - ARC_HALF_ANGLE + 2 * ARC_HALF_ANGLE * t;
-                double x = cx - Math.sin(a) * r, z = cz + Math.cos(a) * r;
-                if (i > 0) {
-                    double edge = Math.abs(t - 0.5) * 2; // 0 = middle, 1 = end
-                    double fade = edge > 1 - ARC_FADE ? (1 - edge) / ARC_FADE : 1;
-                    sink.line(px, ly, pz, x, ly, z, ColorUtil.fade(argb, fade), w, walls);
-                }
-                px = x;
-                pz = z;
-            }
+            pa = a;
         }
     }
 

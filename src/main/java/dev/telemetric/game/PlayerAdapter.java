@@ -168,6 +168,14 @@ public final class PlayerAdapter {
         return Minecraft.getInstance().level;
     }
 
+    /** Interpolated position of the player's feet this frame, or null. */
+    public static Point feet(float partialTick) {
+        LocalPlayer p = player();
+        if (p == null) return null;
+        return new Point(Mth.lerp(partialTick, p.xo, p.getX()), Mth.lerp(partialTick, p.yo, p.getY()),
+                Mth.lerp(partialTick, p.zo, p.getZ()));
+    }
+
     /** Interpolated position of the top of the player's head this frame, or null. */
     public static Point headTop(float partialTick) {
         LocalPlayer p = player();

@@ -13,7 +13,7 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 /**
- * Single-line text field (label above, input below). Click to focus; Enter/Esc or clicking elsewhere
+ * Single-line text field (label above, input below). Click to focus; Enter (runs the setting's submit action)/Esc or clicking elsewhere
  * unfocuses. Backspace deletes, Ctrl+Backspace clears. Caret always at the end (simple & robust).
  */
 public class TextComponent extends SettingComponent<TextSetting> {
@@ -83,6 +83,7 @@ public class TextComponent extends SettingComponent<TextSetting> {
             return true;
         }
         if (key == InputUtil.KEY_ENTER || key == InputUtil.KEY_ESCAPE) {
+            if (key == InputUtil.KEY_ENTER) setting.submit();
             ctx.clearFocus();
             return true;
         }

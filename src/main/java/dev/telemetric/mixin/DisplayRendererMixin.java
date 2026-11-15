@@ -19,9 +19,10 @@ public abstract class DisplayRendererMixin {
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Display;Lnet/minecraft/client/renderer/entity/state/DisplayEntityRenderState;F)V",
             at = @At("RETURN"))
     private void telemetric$markNametag(Display display, DisplayEntityRenderState state, float partialTick, CallbackInfo ci) {
-        boolean scaled = display instanceof Display.TextDisplay text && EntityVisualsAdapter.shouldScaleNametag(text);
-        if (scaled || state.getData(EntityVisualsAdapter.SCALED_TAG) != null) {
-            state.setData(EntityVisualsAdapter.SCALED_TAG, scaled);
+        EntityVisualsAdapter.Scale scale = display instanceof Display.TextDisplay text
+                ? EntityVisualsAdapter.nametagScale(text) : null;
+        if (scale != null || state.getData(EntityVisualsAdapter.SCALED_TAG) != null) {
+            state.setData(EntityVisualsAdapter.SCALED_TAG, scale != null ? scale : EntityVisualsAdapter.Scale.NONE);
         }
     }
 
@@ -30,6 +31,6 @@ public abstract class DisplayRendererMixin {
     private void telemetric$scaleNametag(DisplayEntityRenderState state, PoseStack pose, SubmitNodeCollector collector,
                                          CameraRenderState camera, CallbackInfo ci) {
         // The dispatcher pushes/pops the pose around each entity, so this transform ends with the entity.
-        if (Boolean.TRUE.equals(state.getData(EntityVisualsAdapter.SCALED_TAG))) EntityVisualsAdapter.scaleNametag(pose);
+        EntityVisualsAdapter.scaleNametag(pose, state.getData(EntityVisualsAdapter.SCALED_TAG));
     }
 }

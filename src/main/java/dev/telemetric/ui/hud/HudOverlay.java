@@ -15,6 +15,9 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.resources.Identifier;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 /**
  * MC ADAPTER — draws enabled HUD elements in-game through Fabric's {@link HudElementRegistry}
  * (layer placed just below chat, so chat stays readable on top).
@@ -31,7 +34,20 @@ public final class HudOverlay {
     private static final java.util.Set<String> FAILED = new java.util.HashSet<>();
     private static final ToastRenderer TOASTS = new ToastRenderer(() -> Telemetric.get().theme().palette());
 
+    /** Free-form drawing in the HUD layer (e.g. a bar projected onto the player), after the HUD elements. */
+    @FunctionalInterface
+    public interface ScreenDrawer {
+        void draw(Render2D r, int screenWidth, int screenHeight);
+    }
+
+    private static final List<ScreenDrawer> DRAWERS = new CopyOnWriteArrayList<>();
+
     private HudOverlay() {}
+
+    /** Same gates as HUD elements: Telos only, not with F1 or in the HUD editor. */
+    public static void addScreenDrawer(ScreenDrawer drawer) {
+        DRAWERS.add(drawer);
+    }
 
     public static void register() {
         HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT,
@@ -62,6 +78,13 @@ public final class HudOverlay {
                     if (FAILED.add(element.getName())) { // log once per element, not every frame
                         Telemetric.LOGGER.error("HUD element {} failed to render", element.getName(), e);
                     }
+                }
+            }
+            for (ScreenDrawer drawer : DRAWERS) {
+                try {
+                    drawer.draw(R, sw, sh);
+                } catch (RuntimeException e) {
+                    if (FAILED.add("drawer:" + drawer.getClass().getName())) Telemetric.LOGGER.error("HUD drawer failed", e);
                 }
             }
         } finally {

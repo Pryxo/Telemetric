@@ -12,6 +12,7 @@
 		"ClientPacketListenerMixin",
 		"ContainerSlotMixin",
 		"DisplayRendererMixin",
+		"EntityRenderDispatcherMixin",
 		"EquipmentAssetManagerMixin",
 		"GameRendererMixin",
 		"GuiGraphicsExtractorAccessor",

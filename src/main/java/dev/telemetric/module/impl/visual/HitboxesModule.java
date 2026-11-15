@@ -40,7 +40,7 @@ public final class HitboxesModule extends Module {
         kind(BoxKind.MOB, "Mobs", "mob hitboxes", true, 0xFFE5484D);
         kind(BoxKind.ARMOR_STAND, "Armor Stands", "armor stand hitboxes (Telos uses many as markers)", false, 0xFFA1A1AA);
         kind(BoxKind.ITEM, "Items", "dropped item hitboxes", true, 0xFF2DD4BF);
-        WorldRenderAdapter.addDrawer(this::draw);
+        WorldRenderAdapter.addUnderDrawer(this::draw);
     }
 
     private void kind(BoxKind kind, String name, String what, boolean on, int color) {

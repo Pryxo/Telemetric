@@ -1,0 +1,43 @@
+package dev.telemetric.game;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+
+import java.util.function.Predicate;
+
+/**
+ * MC ADAPTER — which entities are not drawn at all. Hide Players skips other players' models and everything riding
+ * them; Telos name tags are decided by {@link NametagAdapter} (the Nametags module). Hook: {@link #skipRender} from
+ * {@code EntityRenderDispatcherMixin} ({@code shouldRender}). Only real accounts (UUID v4) count as players, so
+ * NPC player entities stay visible. Everything is off away from Telos.
+ */
+public final class PlayerVisibilityAdapter {
+
+    private PlayerVisibilityAdapter() {}
+
+    /** Takes a username, true = hide that player. Null = hide nobody. */
+    private static volatile Predicate<String> hiddenPlayers;
+
+    public static void setHiddenPlayers(Predicate<String> rule) {
+        hiddenPlayers = rule;
+    }
+
+    /** True when {@code player} is another real player that the Hide Players rule hides. */
+    public static boolean isHidden(Player player) {
+        Predicate<String> rule = hiddenPlayers;
+        return rule != null && ServerGate.onTelos() && player != Minecraft.getInstance().player
+                && player.getUUID().version() == 4 && rule.test(player.getScoreboardName());
+    }
+
+    /** Render hook: true = do not draw this entity this frame. */
+    public static boolean skipRender(Entity entity) {
+        if (!ServerGate.onTelos()) return false;
+        if (entity instanceof Player player) return isHidden(player);
+        if (entity instanceof Display.TextDisplay text && NametagAdapter.isNametag(text)) {
+            return NametagAdapter.hidden(text);
+        }
+        return entity.getRootVehicle() instanceof Player rider && isHidden(rider);
+    }
+}

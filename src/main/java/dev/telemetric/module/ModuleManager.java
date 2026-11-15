@@ -28,6 +28,8 @@ import dev.telemetric.module.impl.visual.CustomBagsModule;
 import dev.telemetric.module.impl.visual.FullbrightModule;
 import dev.telemetric.module.impl.visual.HealthBarModule;
 import dev.telemetric.module.impl.visual.HideArmorModule;
+import dev.telemetric.module.impl.visual.HidePlayersModule;
+import dev.telemetric.module.impl.visual.NametagsModule;
 import dev.telemetric.module.impl.visual.HitboxesModule;
 import dev.telemetric.module.impl.visual.ItemRarityModule;
 import dev.telemetric.module.impl.visual.PlayerSizeModule;
@@ -82,6 +84,8 @@ public final class ModuleManager {
         register(new HitboxesModule());
         register(new PlayerSizeModule());
         register(new HideArmorModule());
+        register(new NametagsModule());
+        register(new HidePlayersModule());
         register(new ItemRarityModule());
         register(new HealthBarModule());
         register(new CustomBagsModule());

@@ -33,11 +33,32 @@ public final class WorldLabelAdapter {
      * empty text draws a small blank badge.
      */
     public record Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
-                        boolean throughWalls, boolean shadow, boolean bold, boolean underline) {
+                        boolean throughWalls, boolean shadow, boolean bold, boolean underline,
+                        double sideOffset, float align, boolean outline) {
+
+        public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
+                     boolean throughWalls, boolean shadow, boolean bold, boolean underline) {
+            this(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, 0, 0.5f, false);
+        }
 
         public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                      boolean throughWalls) {
             this(x, y, z, text, style, height, argb, throughWalls, true, false, false);
+        }
+
+        /**
+         * Moves the anchor {@code sideOffset} blocks to the camera's right (negative = left) and aligns the text on
+         * it: {@code align} 0 = text starts there, 0.5 = centred, 1 = text ends there.
+         */
+        public Label aligned(double sideOffset, float align) {
+            return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
+                    align, outline);
+        }
+
+        /** Shadow off / on, or a black outline instead (outline wins). */
+        public Label look(boolean shadow, boolean outline) {
+            return new Label(x, y, z, text, style, height, argb, throughWalls, shadow && !outline, bold, underline,
+                    sideOffset, align, outline);
         }
     }
 
@@ -95,10 +116,29 @@ public final class WorldLabelAdapter {
                 pose.pushPose();
                 pose.translate(l.x() - cam.pos.x, l.y() - cam.pos.y, l.z() - cam.pos.z);
                 pose.mulPose(facing);
+                if (l.sideOffset() != 0) pose.translate(l.sideOffset(), 0, 0);
                 pose.scale(unit, -unit, unit);
-                font.drawInBatch(text, -font.width(text) / 2f, -GLYPH_PX, argb, l.shadow(), pose.last().pose(),
-                        buffers, l.throughWalls() ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL,
-                        0, FULL_BRIGHT);
+                float tx = -font.width(text) * l.align();
+                if (l.outline() && l.throughWalls()) {
+                    // drawInBatch8xOutline is always depth-tested, so build the outline from 8 see-through copies.
+                    int black = argb & 0xFF000000;
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dy = -1; dy <= 1; dy++) {
+                            if (dx == 0 && dy == 0) continue;
+                            font.drawInBatch(text, tx + dx, -GLYPH_PX + dy, black, false, pose.last().pose(),
+                                    buffers, Font.DisplayMode.SEE_THROUGH, 0, FULL_BRIGHT);
+                        }
+                    }
+                    font.drawInBatch(text, tx, -GLYPH_PX, argb, false, pose.last().pose(), buffers,
+                            Font.DisplayMode.SEE_THROUGH, 0, FULL_BRIGHT);
+                } else if (l.outline()) {
+                    font.drawInBatch8xOutline(text.getVisualOrderText(), tx, -GLYPH_PX, argb, argb & 0xFF000000,
+                            pose.last().pose(), buffers, FULL_BRIGHT);
+                } else {
+                    font.drawInBatch(text, tx, -GLYPH_PX, argb, l.shadow(), pose.last().pose(),
+                            buffers, l.throughWalls() ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL,
+                            0, FULL_BRIGHT);
+                }
                 pose.popPose();
                 drew = true;
             }

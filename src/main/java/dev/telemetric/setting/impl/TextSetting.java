@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 import dev.telemetric.setting.Setting;
 
+import java.util.function.Consumer;
 import java.util.function.IntPredicate;
 
 /** Free text input with an optional character filter and max length. */
@@ -11,6 +12,7 @@ public class TextSetting extends Setting<String> {
 
     private final int maxLength;
     private IntPredicate allowedChars = c -> c >= 32 && c != 127;
+    private Consumer<String> submitAction;
 
     public TextSetting(String name, String description, String defaultValue, int maxLength) {
         super(name, description, defaultValue);
@@ -21,6 +23,17 @@ public class TextSetting extends Setting<String> {
     public TextSetting filter(IntPredicate allowed) {
         this.allowedChars = allowed;
         return this;
+    }
+
+    /** Runs {@code action} with the current text when Enter is pressed in the field (e.g. "add to list"). */
+    public TextSetting onSubmit(Consumer<String> action) {
+        this.submitAction = action;
+        return this;
+    }
+
+    /** Called by the text field on Enter. */
+    public void submit() {
+        if (submitAction != null) submitAction.accept(get());
     }
 
     public boolean accepts(int codepoint) {

@@ -9,13 +9,14 @@ import net.minecraft.client.resources.model.EquipmentAssetManager;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -26,9 +27,9 @@ import net.minecraft.world.item.equipment.EquipmentAssets;
 import net.minecraft.world.item.equipment.Equippable;
 import net.minecraft.world.phys.AABB;
 
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
-import java.util.WeakHashMap;
 
 /**
  * MC ADAPTER — how entities are drawn: Player Size (scale players and their Telos nametags), Hide Armor (skip worn
@@ -51,13 +52,23 @@ public final class EntityVisualsAdapter {
 
     // ================================================================== player size
 
-    /** @param x,y,z scale per axis (negative y = upside down) */
-    public record PlayerSize(Target target, float x, float y, float z) {}
+    /** Scale per axis (negative y = upside down). */
+    public record Scale(float x, float y, float z) {
+        /** Render-state marker for "not scaled" (render-state data cannot be cleared to null). */
+        public static final Scale NONE = new Scale(1, 1, 1);
+    }
 
-    /** Set on each player's / nametag's render state: true = draw it scaled this frame. */
-    public static final RenderStateDataKey<Boolean> SCALED = RenderStateDataKey.create(() -> "telemetric:scaled");
-    /** Set on a Telos nametag's render state when its player is scaled. */
-    public static final RenderStateDataKey<Boolean> SCALED_TAG = RenderStateDataKey.create(() -> "telemetric:scaled_tag");
+    /** Separate sizes for you and for other players; a null side keeps its vanilla size. */
+    public record PlayerSize(Scale self, Scale others) {
+        Scale of(boolean isSelf) {
+            return isSelf ? self : others;
+        }
+    }
+
+    /** Each player's / nametag's scale this frame ({@link Scale#NONE} = vanilla size). */
+    public static final RenderStateDataKey<Scale> SCALED = RenderStateDataKey.create(() -> "telemetric:scaled");
+    /** Set on a Telos nametag's render state: the scale of its player. */
+    public static final RenderStateDataKey<Scale> SCALED_TAG = RenderStateDataKey.create(() -> "telemetric:scaled_tag");
 
     private static volatile PlayerSize playerSize;
 
@@ -66,67 +77,34 @@ public final class EntityVisualsAdapter {
         playerSize = size;
     }
 
-    /** Extract hook for a player: should it be drawn scaled? */
-    public static boolean shouldScalePlayer(Entity player) {
+    /** Extract hook for a player: its scale, or null for vanilla size. */
+    public static Scale playerScale(Entity player) {
         PlayerSize size = playerSize;
-        return size != null && ServerGate.onTelos() && size.target().matches(isSelf(player));
+        return size != null && ServerGate.onTelos() ? size.of(isSelf(player)) : null;
     }
 
-    /** Extract hook for a text display: is it the Telos nametag ("… HP: …") of a player that is scaled? */
-    public static boolean shouldScaleNametag(Display.TextDisplay display) {
+    /** Extract hook for a text display: the scale of the player whose Telos nametag ("… HP: …") it is, or null. */
+    public static Scale nametagScale(Display.TextDisplay display) {
         PlayerSize size = playerSize;
-        if (size == null || !ServerGate.onTelos() || !isNametag(display)) return false;
-        Player owner = nametagOwner(display);
-        if (owner == null) return false;
-        if (isSelf(owner) && !ViewAdapter.isThirdPerson()) return false;
-        return size.target().matches(isSelf(owner));
+        if (size == null || !ServerGate.onTelos() || !NametagAdapter.isNametag(display)) return null;
+        Player owner = NametagAdapter.owner(display);
+        if (owner == null) return null;
+        if (isSelf(owner) && !ViewAdapter.isThirdPerson()) return null;
+        return size.of(isSelf(owner));
     }
 
-    /** Scales a player's model (call where vanilla applies the model scale). */
-    public static void scalePlayer(PoseStack pose) {
-        PlayerSize size = playerSize;
-        if (size == null) return;
+    /** Scales a player's model (call where vanilla applies the model scale); null / NONE = no-op. */
+    public static void scalePlayer(PoseStack pose, Scale size) {
+        if (size == null || size == Scale.NONE) return;
         if (size.y() < 0) pose.translate(0, size.y() * 2, 0); // flipped: keep the feet on the ground
         pose.scale(size.x(), size.y(), size.z());
     }
 
     /** Moves a nametag up/down with the scaled player's head and scales it the same way. */
-    public static void scaleNametag(PoseStack pose) {
-        PlayerSize size = playerSize;
-        if (size == null) return;
+    public static void scaleNametag(PoseStack pose, Scale size) {
+        if (size == null || size == Scale.NONE) return;
         pose.translate(0, 1.8 * (size.y() - 1), 0);
-        scalePlayer(pose);
-    }
-
-    private static final Map<Display.TextDisplay, Object[]> TAG_CACHE = new WeakHashMap<>();
-
-    /** Telos draws player names as text displays with the health in them; checked once per text change. */
-    private static boolean isNametag(Display.TextDisplay display) {
-        Component text = display.getText();
-        if (text == null) return false;
-        Object[] cached = TAG_CACHE.get(display);
-        if (cached != null && cached[0] == text) return (Boolean) cached[1];
-        boolean tag = text.getString().contains("HP:");
-        TAG_CACHE.put(display, new Object[]{text, tag});
-        return tag;
-    }
-
-    /** The player a nametag belongs to: the one it rides, else the nearest player under it. */
-    private static Player nametagOwner(Display.TextDisplay tag) {
-        if (tag.getRootVehicle() instanceof Player p) return p;
-        ClientLevel level = Minecraft.getInstance().level;
-        if (level == null) return null;
-        Player best = null;
-        double bestD = 1.5 * 1.5;
-        for (Player p : level.players()) {
-            double dx = p.getX() - tag.getX(), dz = p.getZ() - tag.getZ();
-            double d = dx * dx + dz * dz;
-            if (d < bestD && tag.getY() >= p.getY()) {
-                bestD = d;
-                best = p;
-            }
-        }
-        return best;
+        scalePlayer(pose, size);
     }
 
     // ================================================================== hide armor
@@ -251,7 +229,9 @@ public final class EntityVisualsAdapter {
 
     /**
      * Interpolated bounding boxes of the entities within {@code range} blocks (your own only in third person).
-     * Paper-thin boxes (interaction / display entities) are skipped.
+     * Telos mobs / dummies ({@link Interaction} hitbox with a model and an HP stack, see
+     * {@link #forEachHittableBox}) count as {@link BoxKind#MOB}; other interaction and paper-thin display boxes are
+     * skipped.
      */
     public static void forEachBox(double range, BoxConsumer out) {
         Minecraft mc = Minecraft.getInstance();
@@ -260,6 +240,7 @@ public final class EntityVisualsAdapter {
         if (level == null || self == null || !ServerGate.onTelos()) return;
         float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double r2 = range * range;
+        List<Display.TextDisplay> tags = hpTags(level, self, range);
         for (Entity e : level.entitiesForRendering()) {
             BoxKind kind;
             if (e == self) {
@@ -269,13 +250,81 @@ public final class EntityVisualsAdapter {
             else if (e instanceof ArmorStand) kind = BoxKind.ARMOR_STAND;
             else if (e instanceof LivingEntity) kind = BoxKind.MOB;
             else if (e instanceof ItemEntity) kind = BoxKind.ITEM;
-            else continue;
+            else if (e instanceof Interaction h && e.distanceToSqr(self) <= r2 && hasModel(h) && hasHpTag(h, tags)) {
+                kind = BoxKind.MOB;
+            } else continue;
             if (e != self && e.distanceToSqr(self) > r2) continue;
             AABB b = e.getBoundingBox();
             if (b.getXsize() < 0.01 || b.getYsize() < 0.01 || b.getZsize() < 0.01) continue;
             double dx = (e.xo - e.getX()) * (1 - pt), dy = (e.yo - e.getY()) * (1 - pt), dz = (e.zo - e.getZ()) * (1 - pt);
             out.box(kind, b.minX + dx, b.minY + dy, b.minZ + dz, b.maxX + dx, b.maxY + dy, b.maxZ + dz);
         }
+    }
+
+    /** How far (blocks) a Telos HP text stack may sit beside / above its mob's hitbox top. */
+    private static final double HP_TAG_SIDE = 0.75, HP_TAG_ABOVE = 2.5;
+
+    /**
+     * Interpolated boxes of the mobs you can actually hit within {@code range} blocks.
+     * <p>
+     * Telos mobs (and training dummies) are not vanilla mobs: an {@link Interaction} hitbox riding a carrier
+     * entity next to its {@link Display.ItemDisplay} model, plus a stack of text displays (the HP bar) just above.
+     * Such a hitbox counts when it has a model (not invisible) and an HP stack (static props / NPC hitboxes have
+     * none). Vanilla mobs count when alive, visible and AI-driven. Players and armor stands never count.
+     */
+    public static void forEachHittableBox(double range, BoxConsumer out) {
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        LocalPlayer self = mc.player;
+        if (level == null || self == null || !ServerGate.onTelos()) return;
+        float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        double r2 = range * range;
+        List<Display.TextDisplay> tags = hpTags(level, self, range);
+        for (Entity e : level.entitiesForRendering()) {
+            if (e.distanceToSqr(self) > r2) continue;
+            if (e instanceof Interaction hitbox) {
+                if (!hasModel(hitbox) || !hasHpTag(hitbox, tags)) continue;
+            } else if (!(e instanceof Mob mob) || !mob.isAlive() || mob.getHealth() <= 0 || mob.isInvisible()
+                    || mob.isNoAi() || !mob.isPickable() || !mob.isAttackable()) {
+                continue;
+            }
+            AABB b = e.getBoundingBox();
+            if (b.getXsize() < 0.01 || b.getYsize() < 0.01 || b.getZsize() < 0.01) continue;
+            double dx = (e.xo - e.getX()) * (1 - pt), dy = (e.yo - e.getY()) * (1 - pt), dz = (e.zo - e.getZ()) * (1 - pt);
+            out.box(BoxKind.MOB, b.minX + dx, b.minY + dy, b.minZ + dz, b.maxX + dx, b.maxY + dy, b.maxZ + dz);
+        }
+    }
+
+    /** Text displays near enough to be the HP stack of a hitbox within {@code range}. */
+    private static List<Display.TextDisplay> hpTags(ClientLevel level, LocalPlayer self, double range) {
+        double r = range + HP_TAG_ABOVE + 2, r2 = r * r;
+        List<Display.TextDisplay> tags = new ArrayList<>();
+        for (Entity e : level.entitiesForRendering()) {
+            if (e instanceof Display.TextDisplay t && t.distanceToSqr(self) <= r2) tags.add(t);
+        }
+        return tags;
+    }
+
+    /** The hitbox shares its carrier with an item-display model. */
+    private static boolean hasModel(Interaction hitbox) {
+        Entity carrier = hitbox.getVehicle();
+        if (carrier == null) return false;
+        for (Entity p : carrier.getPassengers()) {
+            if (p instanceof Display.ItemDisplay && !p.isInvisible()) return true;
+        }
+        return false;
+    }
+
+    /** A text display (HP bar) floats right above the hitbox. */
+    private static boolean hasHpTag(Interaction hitbox, List<Display.TextDisplay> tags) {
+        AABB b = hitbox.getBoundingBox();
+        double cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+        for (Display.TextDisplay t : tags) {
+            double dx = t.getX() - cx, dz = t.getZ() - cz;
+            if (dx * dx + dz * dz > HP_TAG_SIDE * HP_TAG_SIDE) continue;
+            if (t.getY() >= b.minY && t.getY() <= b.maxY + HP_TAG_ABOVE) return true;
+        }
+        return false;
     }
 
     // ================================================================== helpers

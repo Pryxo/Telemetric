@@ -247,6 +247,23 @@ public final class Render2D {
         g.text(font, s, x, y, c(color), textShadow);
     }
 
+    /** Text look chosen by a feature instead of the theme's shadow setting. */
+    public enum TextLook { NONE, SHADOW, OUTLINE }
+
+    /** Text with an explicit look: plain, drop shadow, or a 1 px black outline. */
+    public void text(String s, int x, int y, int color, TextLook look) {
+        if (s == null || s.isEmpty() || ColorUtil.alpha(c(color)) < 5) return;
+        int col = c(color);
+        if (look == TextLook.OUTLINE) {
+            int outline = col & 0xFF000000;
+            g.text(font, s, x - 1, y, outline, false);
+            g.text(font, s, x + 1, y, outline, false);
+            g.text(font, s, x, y - 1, outline, false);
+            g.text(font, s, x, y + 1, outline, false);
+        }
+        g.text(font, s, x, y, col, look == TextLook.SHADOW);
+    }
+
     public void textCentered(String s, int centerX, int y, int color) {
         text(s, centerX - textWidth(s) / 2, y, color);
     }

@@ -19,14 +19,16 @@ public abstract class AvatarRendererMixin {
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
             at = @At("HEAD"))
     private void telemetric$markScaled(Avatar avatar, AvatarRenderState state, float partialTick, CallbackInfo ci) {
-        boolean scaled = EntityVisualsAdapter.shouldScalePlayer(avatar);
-        if (scaled || state.getData(EntityVisualsAdapter.SCALED) != null) state.setData(EntityVisualsAdapter.SCALED, scaled);
+        EntityVisualsAdapter.Scale scale = EntityVisualsAdapter.playerScale(avatar);
+        if (scale != null || state.getData(EntityVisualsAdapter.SCALED) != null) {
+            state.setData(EntityVisualsAdapter.SCALED, scale != null ? scale : EntityVisualsAdapter.Scale.NONE);
+        }
     }
 
     @Inject(method = "scale(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V",
             at = @At("HEAD"))
     private void telemetric$scaleModel(AvatarRenderState state, PoseStack pose, CallbackInfo ci) {
-        if (Boolean.TRUE.equals(state.getData(EntityVisualsAdapter.SCALED))) EntityVisualsAdapter.scalePlayer(pose);
+        EntityVisualsAdapter.scalePlayer(pose, state.getData(EntityVisualsAdapter.SCALED));
     }
 
     @Inject(method = "submitNameDisplay(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
@@ -34,6 +36,6 @@ public abstract class AvatarRendererMixin {
             require = 0)
     private void telemetric$scaleNameTag(AvatarRenderState state, PoseStack pose, SubmitNodeCollector collector,
                                          CameraRenderState camera, CallbackInfo ci) {
-        if (Boolean.TRUE.equals(state.getData(EntityVisualsAdapter.SCALED))) EntityVisualsAdapter.scalePlayer(pose);
+        EntityVisualsAdapter.scalePlayer(pose, state.getData(EntityVisualsAdapter.SCALED));
     }
 }

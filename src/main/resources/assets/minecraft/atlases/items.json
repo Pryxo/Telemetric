@@ -1,6 +1,0 @@
-{
-  "sources": [
-    { "type": "minecraft:single", "resource": "telemetric:mob/bags/image" },
-    { "type": "minecraft:single", "resource": "telemetric:mob/bags/companion_totem" }
-  ]
-}

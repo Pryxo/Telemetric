@@ -24,8 +24,12 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
+import com.mojang.blaze3d.platform.Window;
+import net.minecraft.client.Minecraft;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,8 +40,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * MC ADAPTER — the only place that draws shapes in the 3D world. Features register a {@link Drawer} and emit plain
  * world-space shapes through a {@link LineSink}: line segments, filled quads, and the helpers built on them (box
  * outline / fill, camera-facing rectangles). Everything is batched into four render types once per frame:
- * lines / quads, each depth-tested or see-through (no depth test). {@link WorldLabelAdapter} labels are drawn
- * right after, from the same hook.
+ * lines / quads, each depth-tested or see-through (no depth test). Drawers added with {@link #addUnderDrawer}
+ * (e.g. Hitboxes) form a separate layer that is drawn first and never writes depth, so everything else (health
+ * bars, ranges) stays on top of it. {@link WorldLabelAdapter} labels are drawn right after, from the same hook.
  */
 public final class WorldRenderAdapter {
 
@@ -95,11 +100,27 @@ public final class WorldRenderAdapter {
 
     private record Quad(float[] xyz, int argb) {}
 
-    private static final List<Drawer> DRAWERS = new CopyOnWriteArrayList<>();
-    private static final List<Segment> DEPTH = new ArrayList<>(), SEE_THROUGH = new ArrayList<>();
-    private static final List<Quad> QUADS_DEPTH = new ArrayList<>(), QUADS_SEE_THROUGH = new ArrayList<>();
-    private static RenderType seeThroughLines, quadsDepth, quadsSeeThrough;
-    private static boolean seeThroughFailed, quadsFailed;
+    /** One layer's shapes for this frame. */
+    private static final class Batch {
+        final List<Segment> depth = new ArrayList<>(), seeThrough = new ArrayList<>();
+        final List<Quad> quadsDepth = new ArrayList<>(), quadsSeeThrough = new ArrayList<>();
+
+        void clear() {
+            depth.clear();
+            seeThrough.clear();
+            quadsDepth.clear();
+            quadsSeeThrough.clear();
+        }
+
+        boolean isEmpty() {
+            return depth.isEmpty() && seeThrough.isEmpty() && quadsDepth.isEmpty() && quadsSeeThrough.isEmpty();
+        }
+    }
+
+    private static final List<Drawer> DRAWERS = new CopyOnWriteArrayList<>(), UNDER_DRAWERS = new CopyOnWriteArrayList<>();
+    private static final Batch MAIN = new Batch(), UNDER = new Batch();
+    private static RenderType seeThroughLines, underLines, quadsDepth, quadsSeeThrough;
+    private static boolean seeThroughFailed, underFailed, quadsFailed;
     private static boolean registered;
 
     private WorldRenderAdapter() {}
@@ -114,43 +135,103 @@ public final class WorldRenderAdapter {
         DRAWERS.add(drawer);
     }
 
+    /** Drawer for the bottom layer: drawn before all others and without writing depth, so it never covers them. */
+    public static void addUnderDrawer(Drawer drawer) {
+        UNDER_DRAWERS.add(drawer);
+    }
+
     private static void render(LevelRenderContext ctx) {
+        captureView(ctx.levelState().cameraRenderState);
         renderShapes(ctx);
         WorldLabelAdapter.render(ctx);
     }
 
+    // ------------------------------------------------------------------ world → screen
+
+    private static final Matrix4f VIEW_PROJ = new Matrix4f();
+    private static Vec3 viewCam;
+    private static float viewYaw, viewPitch;
+    private static long viewAt;
+
+    /** Remembers this frame's camera so HUD code can project world points ({@link #toScreen}). */
+    private static void captureView(CameraRenderState cam) {
+        if (cam == null || cam.pos == null || cam.projectionMatrix == null || cam.viewRotationMatrix == null) return;
+        VIEW_PROJ.set(cam.projectionMatrix).mul(cam.viewRotationMatrix);
+        viewCam = cam.pos;
+        viewYaw = cam.yRot;
+        viewPitch = cam.xRot;
+        viewAt = System.nanoTime();
+    }
+
+    /** Camera yaw of the last world frame (degrees, vanilla convention; 0 = south). Set before drawers run. */
+    public static float cameraYaw() {
+        return viewYaw;
+    }
+
+    /** Camera pitch of the last world frame (degrees; −90 = up, 90 = down). Set before drawers run. */
+    public static float cameraPitch() {
+        return viewPitch;
+    }
+
+    /**
+     * Where a world point appears on screen this frame, in GUI units {x, y}; null when it is behind the camera or
+     * no world frame was drawn recently. Call from HUD rendering (after the world of the same frame).
+     */
+    public static double[] toScreen(double x, double y, double z) {
+        Vec3 cam = viewCam;
+        if (cam == null || System.nanoTime() - viewAt > 250_000_000L) return null;
+        Vector4f v = VIEW_PROJ.transform(new Vector4f((float) (x - cam.x), (float) (y - cam.y), (float) (z - cam.z), 1f));
+        if (v.w <= 0.05f) return null;
+        Window window = Minecraft.getInstance().getWindow();
+        return new double[]{(v.x / v.w + 1) * 0.5 * window.getGuiScaledWidth(),
+                (1 - v.y / v.w) * 0.5 * window.getGuiScaledHeight()};
+    }
+
     private static void renderShapes(LevelRenderContext ctx) {
-        if (DRAWERS.isEmpty()) return;
+        if (DRAWERS.isEmpty() && UNDER_DRAWERS.isEmpty()) return;
         CameraRenderState camState = ctx.levelState().cameraRenderState;
         Vec3 cam = camState.pos;
         if (cam == null) return;
-        DEPTH.clear();
-        SEE_THROUGH.clear();
-        QUADS_DEPTH.clear();
-        QUADS_SEE_THROUGH.clear();
+        MAIN.clear();
+        UNDER.clear();
         Sink sink = new Sink(cam, camState.yRot, camState.xRot);
-        for (Drawer d : DRAWERS) {
+        collect(sink, UNDER_DRAWERS, UNDER);
+        collect(sink, DRAWERS, MAIN);
+        if (MAIN.isEmpty() && UNDER.isEmpty()) return;
+
+        MultiBufferSource.BufferSource buffers = ctx.bufferSource();
+        PoseStack.Pose pose = ctx.poseStack().last();
+        if (!UNDER.isEmpty()) {
+            RenderType lines = underLines();
+            emitBatch(buffers, pose, UNDER, lines != null ? lines : RenderTypes.linesTranslucent());
+        }
+        if (!MAIN.isEmpty()) emitBatch(buffers, pose, MAIN, RenderTypes.linesTranslucent());
+    }
+
+    private static void collect(Sink sink, List<Drawer> drawers, Batch batch) {
+        sink.batch = batch;
+        for (Drawer d : drawers) {
             try {
                 d.draw(sink);
             } catch (RuntimeException e) {
                 Telemetric.LOGGER.error("World drawer failed", e);
             }
         }
-        if (DEPTH.isEmpty() && SEE_THROUGH.isEmpty() && QUADS_DEPTH.isEmpty() && QUADS_SEE_THROUGH.isEmpty()) return;
+    }
 
-        MultiBufferSource.BufferSource buffers = ctx.bufferSource();
-        PoseStack.Pose pose = ctx.poseStack().last();
-        // Fills first so outlines drawn on the same box stay on top.
-        if (!QUADS_DEPTH.isEmpty() || !QUADS_SEE_THROUGH.isEmpty()) buildQuadTypes();
-        if (!QUADS_DEPTH.isEmpty() && quadsDepth != null) emitQuads(buffers, quadsDepth, pose, QUADS_DEPTH);
-        if (!QUADS_SEE_THROUGH.isEmpty()) {
+    /** One layer: fills first so outlines drawn on the same box stay on top. */
+    private static void emitBatch(MultiBufferSource.BufferSource buffers, PoseStack.Pose pose, Batch b,
+                                  RenderType depthLines) {
+        if (!b.quadsDepth.isEmpty() || !b.quadsSeeThrough.isEmpty()) buildQuadTypes();
+        if (!b.quadsDepth.isEmpty() && quadsDepth != null) emitQuads(buffers, quadsDepth, pose, b.quadsDepth);
+        if (!b.quadsSeeThrough.isEmpty()) {
             RenderType type = quadsSeeThrough != null ? quadsSeeThrough : quadsDepth;
-            if (type != null) emitQuads(buffers, type, pose, QUADS_SEE_THROUGH);
+            if (type != null) emitQuads(buffers, type, pose, b.quadsSeeThrough);
         }
-        if (!DEPTH.isEmpty()) emit(buffers, RenderTypes.linesTranslucent(), pose, DEPTH);
-        if (!SEE_THROUGH.isEmpty()) {
+        if (!b.depth.isEmpty()) emit(buffers, depthLines, pose, b.depth);
+        if (!b.seeThrough.isEmpty()) {
             RenderType type = seeThroughLines();
-            emit(buffers, type != null ? type : RenderTypes.linesTranslucent(), pose, SEE_THROUGH);
+            emit(buffers, type != null ? type : RenderTypes.linesTranslucent(), pose, b.seeThrough);
         }
     }
 
@@ -158,6 +239,7 @@ public final class WorldRenderAdapter {
     private static final class Sink implements LineSink {
         private final Vec3 cam;
         private final Vector3f right, up;
+        Batch batch = MAIN;
 
         Sink(Vec3 cam, float yRot, float xRot) {
             this.cam = cam;
@@ -170,7 +252,7 @@ public final class WorldRenderAdapter {
         @Override
         public void line(double x1, double y1, double z1, double x2, double y2, double z2, int argb, float width,
                          boolean throughWalls) {
-            (throughWalls ? SEE_THROUGH : DEPTH).add(new Segment((float) (x1 - cam.x), (float) (y1 - cam.y),
+            (throughWalls ? batch.seeThrough : batch.depth).add(new Segment((float) (x1 - cam.x), (float) (y1 - cam.y),
                     (float) (z1 - cam.z), (float) (x2 - cam.x), (float) (y2 - cam.y), (float) (z2 - cam.z), argb, width));
         }
 
@@ -184,7 +266,7 @@ public final class WorldRenderAdapter {
                     (float) (x2 - cam.x), (float) (y2 - cam.y), (float) (z2 - cam.z),
                     (float) (x3 - cam.x), (float) (y3 - cam.y), (float) (z3 - cam.z),
                     (float) (x4 - cam.x), (float) (y4 - cam.y), (float) (z4 - cam.z)};
-            (throughWalls ? QUADS_SEE_THROUGH : QUADS_DEPTH).add(new Quad(p, argb));
+            (throughWalls ? batch.quadsSeeThrough : batch.quadsDepth).add(new Quad(p, argb));
         }
 
         @Override
@@ -238,6 +320,22 @@ public final class WorldRenderAdapter {
             Telemetric.LOGGER.error("See-through line render type unavailable, using depth-tested lines", e);
         }
         return seeThroughLines;
+    }
+
+    /** Vanilla's line pipeline, depth-tested but not writing depth (bottom layer), built once. Null if that fails. */
+    private static RenderType underLines() {
+        if (underLines != null || underFailed) return underLines;
+        try {
+            RenderPipeline pipeline = RenderPipeline.builder(RenderPipelinesAccessor.telemetric$linesSnippet())
+                    .withLocation(Identifier.fromNamespaceAndPath(Telemetric.MOD_ID, "pipeline/lines_under"))
+                    .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                    .build();
+            underLines = renderType("lines_under", pipeline);
+        } catch (RuntimeException | LinkageError e) {
+            underFailed = true;
+            Telemetric.LOGGER.error("Bottom-layer line render type unavailable, using depth-tested lines", e);
+        }
+        return underLines;
     }
 
     /** Translucent position-colour quads (vanilla's debug-fill shaders), depth-tested and see-through, built once. */

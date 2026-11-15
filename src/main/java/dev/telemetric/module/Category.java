@@ -17,10 +17,11 @@ public final class Category {
     private static final List<Category> VALUES = new ArrayList<>();
 
     // ---- registered categories -------------------------------------------------------------
-    public static final Category PLAYER = register("Player", 10);
-    public static final Category COMBAT = register("Combat", 11);
-    public static final Category VISUAL = register("Visual", 12);
-    public static final Category DUNGEON = register("Dungeon", 15);
+    public static final Category COMBAT = register("Combat", 10);
+    public static final Category VISUAL = register("Visual", 11);
+    public static final Category PLAYER = register("Player", 12);
+    public static final Category DUNGEON = register("Dungeon", 13);
+    public static final Category TEXTURE_PACK = register("Texture Pack", 15);
     public static final Category HUD = register("HUD", 20);
     public static final Category MISC = register("Misc", 1000);
     // Extra categories are registered by add-ons (see TelemetricAddon), never here.
