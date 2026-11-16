@@ -2,6 +2,7 @@ package dev.telemetric.input;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
+import org.lwjgl.glfw.GLFW;
 
 /**
  * MC ADAPTER — the only place that queries raw key state / key names.
@@ -45,15 +46,35 @@ public final class InputUtil {
 
     private InputUtil() {}
 
+    /**
+     * Bind codes at or above this are mouse buttons ({@code MOUSE_OFFSET + button}); below it are keyboard key codes.
+     * Keyboard codes never reach it (highest GLFW key is 348).
+     */
+    public static final int MOUSE_OFFSET = 1000;
+
+    /** Bind code for a mouse button (0 = left, 1 = right, 2 = middle, 3/4 = side buttons, …). */
+    public static int mouseCode(int button) {
+        return MOUSE_OFFSET + button;
+    }
+
+    public static boolean isMouseCode(int key) {
+        return key >= MOUSE_OFFSET;
+    }
+
+    /** True while the key or mouse button behind a bind code is held. */
     public static boolean isKeyDown(int key) {
         if (key < 0) return false;
         Minecraft mc = Minecraft.getInstance();
+        if (isMouseCode(key)) {
+            return GLFW.glfwGetMouseButton(mc.getWindow().handle(), key - MOUSE_OFFSET) == GLFW.GLFW_PRESS;
+        }
         return InputConstants.isKeyDown(mc.getWindow(), key);
     }
 
     public static String keyName(int key) {
         if (key < 0) return "None";
         try {
+            if (isMouseCode(key)) return InputConstants.Type.MOUSE.getOrCreate(key - MOUSE_OFFSET).getDisplayName().getString();
             return InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
         } catch (RuntimeException e) {
             return "Key " + key;

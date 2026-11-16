@@ -20,7 +20,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * State of the realm's bosses for the Boss Tracker (Melinoe's Tracker tab, own implementation). Fed by:
+ * State of the realm's bosses for the Boss Tracker. Fed by:
  * <ul>
  *   <li>the {@code /bosses} menu ({@code » [Anubis] «} items, lore "alive" / "defeated" / "not spawned", Raphael's
  *       {@code (n/m)}) — read whenever it closes, or automatically on realm entry ({@link #scanMenu});</li>

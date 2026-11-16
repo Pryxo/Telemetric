@@ -13,8 +13,8 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 /**
- * Key binder. Left-click → listening (takes keyboard focus). Next key press binds it;
- * Esc cancels; Backspace/Delete unbinds. Right-click unbinds directly.
+ * Key binder. Left-click → listening (takes keyboard focus). Next key press or mouse button (middle, side buttons, …)
+ * binds it; left-click on the chip again / Esc cancels; Backspace/Delete unbinds. Right-click unbinds directly.
  */
 public class KeybindComponent extends SettingComponent<KeybindSetting> {
 
@@ -54,6 +54,15 @@ public class KeybindComponent extends SettingComponent<KeybindSetting> {
         if (listen.get() > 0.01) r.outline(cx, cy, cw, ch, ColorUtil.fade(p.accent(), listen.get() * (0.5 + pulse * 0.5)));
         int textColor = ColorUtil.lerp(setting.isBound() ? p.text() : p.textMuted(), p.accent(), listen.get());
         r.textCentered(label, cx + cw / 2, labelY(), textColor);
+    }
+
+    /** While listening, any mouse button except left/right binds, wherever the mouse is. */
+    @Override
+    public boolean focusedMouseButton(int button) {
+        if (!listening() || button == MouseButton.LEFT || button == MouseButton.RIGHT) return false;
+        setting.set(InputUtil.mouseCode(button));
+        ctx.clearFocus();
+        return true;
     }
 
     @Override

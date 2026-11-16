@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 
 /**
  * Boss / portal call-outs in player chat — the format Telemetric sends and the one it reads, in one place so both
- * stay in sync (compatible with Melinoe's call-outs):
+ * stay in sync:
  * <ul>
  *   <li>{@code Teleport for <boss> - <hp>% HP} / {@code Teleport for <portal> - <n>s left} (realm),</li>
  *   <li>{@code <boss> is at <hp>% HP - <phase or area>} / {@code <a> & <b> are at <x>%/<y>% HP - …} (dungeon),</li>
@@ -88,6 +88,15 @@ public final class Callouts {
         m = DUNGEON.matcher(content);
         if (m.find()) return new Call(line, m.group(1).trim(), -1);
         return null;
+    }
+
+    /** The realm call-out ({@code Teleport for <boss | portal> - …}) in {@code plain}, or null. */
+    public static Call parseTeleport(String plain) {
+        Line line = line(plain);
+        if (line == null) return null;
+        Matcher m = TELEPORT.matcher(plain.substring(line.contentStart()));
+        if (!m.find()) return null;
+        return new Call(line, m.group(1), m.group(2) == null ? -1 : Integer.parseInt(m.group(2)));
     }
 
     public static boolean isCallout(String plain) {

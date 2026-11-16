@@ -2,7 +2,6 @@ package dev.telemetric.ui.clickgui;
 
 import dev.telemetric.Telemetric;
 import dev.telemetric.config.GuiLayout;
-import dev.telemetric.input.InputUtil;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.module.impl.misc.ConfigModule;
@@ -54,7 +53,6 @@ public class ClickGuiScreen extends Screen {
     private final Animation close = new Animation(Durations.MODAL, Easing.IN_CUBIC, 1);
     private boolean closing;
     private boolean finished;
-    private static final int CTRL_MASK = 0x0002;
 
     public ClickGuiScreen() {
         super(Component.literal(Telemetric.NAME));
@@ -99,8 +97,20 @@ public class ClickGuiScreen extends Screen {
      * The new value is applied on release.
      */
     private float scale() {
-        if (heldButtons == 0 || appliedScale <= 0) appliedScale = ui().uiScale.getFloat();
+        if (heldButtons == 0 || appliedScale <= 0) appliedScale = ui().uiScale.getFloat() * fitFactor();
         return appliedScale;
+    }
+
+    /**
+     * Reference canvas for "Fit to Screen": 4K at GUI scale 3 (1280×720 GUI pixels). Any other resolution /
+     * GUI scale is scaled so the ClickGUI covers the same share of the screen, and saved panel positions
+     * (stored in canvas pixels) land in the same place.
+     */
+    private static final float REF_WIDTH = 1280f, REF_HEIGHT = 720f;
+
+    private float fitFactor() {
+        if (!ui().fitToScreen.get() || this.width <= 0 || this.height <= 0) return 1f;
+        return Math.min(this.width / REF_WIDTH, this.height / REF_HEIGHT);
     }
 
     private int scaledWidth() {
@@ -268,6 +278,8 @@ public class ClickGuiScreen extends Screen {
         if (button >= 0 && button < 31) heldButtons |= 1 << button;
 
         UIComponent focused = ctx.getFocused();
+        // a listening key binder takes middle / side buttons wherever the mouse is
+        if (focused != null && focused.focusedMouseButton(button)) return true;
         if (focused != null && !focused.isHovered(mx, my)) ctx.clearFocus();
 
         if (search.mouseClicked(mx, my, button)) return true; // drawn above the panels → gets input first
@@ -307,10 +319,6 @@ public class ClickGuiScreen extends Screen {
         if (closing) return true;
         UIComponent focused = ctx.getFocused();
         if (focused != null && focused.keyPressed(event.key(), event.scancode(), event.modifiers())) return true;
-        if (focused == null && event.key() == InputUtil.KEY_F && (event.modifiers() & CTRL_MASK) != 0) {
-            search.focus(); // Ctrl+F
-            return true;
-        }
         return super.keyPressed(event); // Esc → onClose()
     }
 
@@ -318,11 +326,6 @@ public class ClickGuiScreen extends Screen {
     public boolean charTyped(CharacterEvent event) {
         UIComponent focused = ctx.getFocused();
         if (focused != null && focused.charTyped(event.codepoint(), 0)) return true;
-        // typing with nothing focused starts a search
-        if (focused == null && !closing && !Character.isWhitespace(event.codepoint()) && !Character.isISOControl(event.codepoint())) {
-            search.focus();
-            return search.charTyped(event.codepoint(), 0);
-        }
         return super.charTyped(event);
     }
 }

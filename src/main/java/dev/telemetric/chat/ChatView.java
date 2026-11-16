@@ -14,4 +14,18 @@ public interface ChatView {
 
     /** Characters of the line to keep before "…" (censored), or -1 to show it whole. */
     int censorAt(String plain, String category);
+
+    /**
+     * True while the chat shows the full archive ("All Chat"): every line since the game started, hidden ones
+     * included, never trimmed by the history limit or cleared.
+     */
+    default boolean archive() {
+        return false;
+    }
+
+    /**
+     * A new line arrived (once per line, not on re-layouts). {@code hidden} = a server line kept out of the chat
+     * (Hide Utility Messages), only in the archive. Client lines are not reported.
+     */
+    default void onNewLine(String plain, String category, boolean hidden) {}
 }

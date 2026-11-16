@@ -352,7 +352,7 @@ public final class HealthBarModule extends HudModule {
     }
 
     /**
-     * Bottom-centre of the bar this frame (world). Y ≥ 0: Y blocks above your head. Y < 0 (Melinoe): |Y| blocks
+     * Bottom-centre of the bar this frame (world). Y ≥ 0: Y blocks above your head. Y < 0: |Y| blocks
      * from your feet on an arc toward the camera — straight below when looking level, behind / in front of you when
      * looking down / up — with the bar centred on that point ({@code barHeight} in blocks, 0 for HUD Projection).
      */

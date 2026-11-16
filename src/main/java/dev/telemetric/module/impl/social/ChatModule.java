@@ -6,13 +6,18 @@ import dev.telemetric.chat.ChatChannels;
 import dev.telemetric.chat.ChatPattern;
 import dev.telemetric.chat.ChatTabs;
 import dev.telemetric.chat.ChatView;
+import dev.telemetric.data.BossTable;
+import dev.telemetric.data.Names;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.game.ChatHudAdapter;
 import dev.telemetric.game.ClientCommandAdapter;
+import dev.telemetric.game.NotificationSoundAdapter;
 import dev.telemetric.game.PlayerAdapter;
+import dev.telemetric.game.TelosLocations;
 import dev.telemetric.input.InputUtil;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
+import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
@@ -22,12 +27,15 @@ import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.notification.Toasts;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 
 /**
- * Social → Chat (Melinoe's Chat tab, own implementation): chat tabs sorted by {@code manual/chat.json}, hidden
+ * Social → Chat: chat tabs sorted by {@code manual/chat.json}, hidden
  * utility lines, censored guild / group lines, right-click copy, longer history and chat-mode keys. The tab bar is
  * {@code ui/chat/ChatScreenHooks}; lines are filtered through {@link ChatView} on {@code game/ChatHudAdapter}, so a
  * tab switch never loses lines. Server chat mode + {@code /ac /gc /grc}: {@link #channels()}.
@@ -43,6 +51,8 @@ public class ChatModule extends Module implements ChatView {
     private final MultiChoiceSetting shownTabs = add(tabsGroup.child(new MultiChoiceSetting("Shown Tabs",
             "Tabs in the bar ('All' is always there)", () -> TelosData.CHAT.get().tabNames(),
             TelosData.CHAT.get().defaultShown())));
+    private final BooleanSetting allChatTab = add(tabsGroup.child(new BooleanSetting("All Chat Tab",
+            "'All' tab shows every message since the game started (hidden utility lines too) — never trimmed or cleared", true)));
 
     private final BooleanSetting hideUtility = add(new BooleanSetting("Hide Utility Messages",
             "Hides auction updates, auto-sell earnings and fame gains", true));
@@ -67,6 +77,29 @@ public class ChatModule extends Module implements ChatView {
     private final KeybindSetting groupKey = add(modeKeys.child(new KeybindSetting("Toggle Group Chat",
             "Group chat on / back to default", KeybindSetting.NONE).onPress(() -> toggleMode("group"))));
 
+    private final GroupToggleSetting notifyGroup = add(new GroupToggleSetting("Notifications",
+            "Plays your sound when someone calls out a boss or portal you picked", false));
+    private final MultiChoiceSetting notifyTargets = add(notifyGroup.child(new MultiChoiceSetting("Bosses & Portals",
+            "Call-outs ('Teleport for …') that play the sound", ChatModule::notifyOptions)));
+    private final ActionSetting uploadSound = add(notifyGroup.child(new ActionSetting("Upload Sound",
+            "Pick an OGG or WAV file (max 10 s played)", () -> NotificationSoundAdapter.pick(err -> {
+                if (err != null) Toasts.error(err);
+                else {
+                    Toasts.success("Notification sound set");
+                    playNotification();
+                }
+            }))));
+    private final ActionSetting testSound = add(notifyGroup.child(new ActionSetting("Test Sound",
+            "Plays the uploaded sound", () -> {
+                if (!playNotification()) Toasts.error("No sound uploaded yet");
+            })));
+    private final NumberSetting notifyVolume = add(notifyGroup.child(new NumberSetting("Volume",
+            "Notification sound volume (%)", 100, 0, 100, 5)));
+
+    /** Same target called again within this time plays no second sound. */
+    private static final long NOTIFY_COOLDOWN_MS = 10_000L;
+    private final Map<String, Long> lastNotified = new HashMap<>();
+
     private final ChatTabs tabs = new ChatTabs(Callouts::isCallout);
     private final ChatChannels channels = new ChatChannels(new ChatChannels.Server() {
         @Override public void command(String command) { PlayerAdapter.sendCommand(command); }
@@ -87,7 +120,7 @@ public class ChatModule extends Module implements ChatView {
         }
         TelosData.CHAT.onChange(rules -> rebuildUtility());
         rebuildUtility();
-        syncOn(this::sync, tabsGroup, shownTabs, history, censorGuild, censorGroupChat);
+        syncOn(this::sync, tabsGroup, shownTabs, allChatTab, history, censorGuild, censorGroupChat);
     }
 
     // ------------------------------------------------------------------ state
@@ -96,7 +129,8 @@ public class ChatModule extends Module implements ChatView {
         boolean on = isEnabled();
         ChatHudAdapter.setHistory(on ? history.getInt() : ChatHudAdapter.VANILLA_HISTORY);
         String channelBefore = tabs.channelOf(tabs.active());
-        if (tabs.setShown(on && tabsGroup.get() ? shownTabs.get() : Set.of()) && !channelBefore.isEmpty()) {
+        boolean bar = on && tabsGroup.get();
+        if (tabs.setShown(bar ? shownTabs.get() : Set.of(), bar && allChatTab.get()) && !channelBefore.isEmpty()) {
             channels.switchTo(ChatChannels.DEFAULT, now()); // the open channel tab went away
         }
         ChatHudAdapter.setView(on ? this : null);
@@ -181,10 +215,63 @@ public class ChatModule extends Module implements ChatView {
 
     @Override
     public int censorAt(String plain, String category) {
+        if (tabs.isArchive()) return -1; // All Chat shows everything as it came
         boolean censor = ("guild".equals(category) && censorGuild.get()) || ("group".equals(category) && censorGroupChat.get());
         if (!censor) return -1;
         Callouts.Line line = Callouts.line(plain);
         return line == null ? -1 : line.contentStart();
+    }
+
+    @Override
+    public boolean archive() {
+        return tabs.isArchive();
+    }
+
+    @Override
+    public void onNewLine(String plain, String category, boolean hidden) {
+        if (showsTabBar() && plain.codePoints().anyMatch(Character::isLetterOrDigit)) tabs.countNew(category, hidden); // no spacer lines
+        if (!hidden && notifyGroup.get()) notify(plain);
+    }
+
+    // ------------------------------------------------------------------ notifications
+
+    /** Realm bosses, then dungeon portals (Telos tables). */
+    private static List<String> notifyOptions() {
+        Set<String> out = new LinkedHashSet<>();
+        List<String> bosses = new ArrayList<>();
+        for (BossTable.Boss b : TelosData.BOSSES.get().all()) if (!b.isDungeonBoss() && !b.name().isBlank()) bosses.add(b.name());
+        bosses.sort(String.CASE_INSENSITIVE_ORDER);
+        out.addAll(bosses);
+        List<String> portals = new ArrayList<>(TelosLocations.DUNGEONS);
+        portals.sort(String.CASE_INSENSITIVE_ORDER);
+        out.addAll(portals);
+        return List.copyOf(out);
+    }
+
+    /**
+     * A {@code Teleport for <boss | portal>} call-out of a picked target plays the sound (display only: nothing is
+     * sent). Own call-outs and repeats within 10 s are skipped.
+     */
+    private void notify(String plain) {
+        if (notifyTargets.get().isEmpty()) return;
+        Callouts.Call call = Callouts.parseTeleport(plain);
+        if (call == null || call.line().player().equalsIgnoreCase(String.valueOf(PlayerAdapter.name()))) return;
+        for (String part : call.target().split(" & ")) {
+            String key = Names.placeKey(part);
+            for (String picked : notifyTargets.get()) {
+                if (key.isEmpty() || !key.equals(Names.placeKey(picked))) continue;
+                long now = now();
+                Long last = lastNotified.get(key);
+                if (last != null && now - last < NOTIFY_COOLDOWN_MS) return;
+                lastNotified.put(key, now);
+                playNotification();
+                return;
+            }
+        }
+    }
+
+    private boolean playNotification() {
+        return NotificationSoundAdapter.play(notifyVolume.getFloat() / 100f);
     }
 
     // ------------------------------------------------------------------ copy / utility

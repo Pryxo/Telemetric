@@ -11,7 +11,7 @@ import java.util.List;
  * <p>
  * Feed every spark / dust with {@link #accept} (position relative to the player's feet); a stack counts once both
  * particles were seen at one spot within {@value #LIFETIME_MS} ms. No particle for {@value #TIMEOUT_MS} ms = 0.
- * Algorithm from Melinoe (House-Hades); the ring-wrap spacing check and layer pick are Telemetric's.
+ * The ring-wrap spacing check and layer pick are Telemetric's.
  */
 final class AssassinStackCounter {
 

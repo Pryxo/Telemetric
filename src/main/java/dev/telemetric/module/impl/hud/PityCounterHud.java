@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Pity Counter (Melinoe's Tracker tab, own implementation): kills since each drop of the boss you are at — the
+ * Pity Counter: kills since each drop of the boss you are at — the
  * dungeon you are in, the boss whose bar is up, or the nearest realm boss. Counting happens in {@link LootTracker}
  * (always on); this module shows it and writes the chat lines: your drop with its pity (+ share button) and a pity
  * summary after each kill leaderboard.

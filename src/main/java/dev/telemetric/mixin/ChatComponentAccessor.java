@@ -23,4 +23,7 @@ public interface ChatComponentAccessor {
 
     @Invoker("getWidth")
     int telemetric$getWidth();
+
+    @Invoker("addMessageToDisplayQueue")
+    void telemetric$addToDisplay(GuiMessage message);
 }

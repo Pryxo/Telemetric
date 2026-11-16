@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Session Stats (Melinoe's Session Manager, own implementation): time played this session — in total, in the
+ * Session Stats: time played this session — in total, in the
  * Nexus, in dungeons, in the realm — and fame gained (Tab list "Fame", only increases count). Counts while this
  * element is on and you are on Telos; resets on game start or with Reset Session.
  */

@@ -23,7 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Pity and loot counting (Melinoe's Tracker tab, own implementation). Always on while on Telos — the Pity Counter,
+ * Pity and loot counting. Always on while on Telos — the Pity Counter,
  * Lifetime Stats and drop messages only <i>show</i> what is counted here, so nothing is missed while they are off.
  * <ul>
  *   <li><b>Boss kill</b> — the kill leaderboard (multi-line server message; {@code Defeated <boss> in <time>} in

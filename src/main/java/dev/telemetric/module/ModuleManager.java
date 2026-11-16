@@ -47,6 +47,7 @@ import dev.telemetric.module.impl.visual.VoxyModifierModule;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -166,9 +167,11 @@ public final class ModuleManager {
         return Collections.unmodifiableList(modules);
     }
 
+    /** Modules of one category, sorted alphabetically by name (the ClickGUI panel order). */
     public List<Module> getByCategory(Category category) {
         List<Module> list = new ArrayList<>();
         for (Module module : modules) if (module.getCategory() == category) list.add(module);
+        list.sort(Comparator.comparing(Module::getName, String.CASE_INSENSITIVE_ORDER));
         return list;
     }
 

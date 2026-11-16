@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Social → Callouts (Melinoe's boss / portal call-out key and click-to-teleport, own implementation):
+ * Social → Callouts:
  * <ul>
  *   <li><b>Callout Key</b>: sends the boss you fight ({@code Teleport for X - 42% HP}, in dungeons with its phase from
  *       {@code manual/callouts.json}), the portal next to you ({@code … - 12s left}) or {@code Currently in <area>};

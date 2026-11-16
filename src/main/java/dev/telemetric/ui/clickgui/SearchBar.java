@@ -14,8 +14,7 @@ import dev.telemetric.ui.theme.Theme;
 import java.util.function.Consumer;
 
 /**
- * ClickGUI search field, centred at the bottom of the screen. Typing anywhere in the ClickGUI (nothing else focused)
- * or Ctrl+F focuses it. Every change calls the listener, which filters the panels (see {@link Panel#setSearch}).
+ * ClickGUI search field, centred at the bottom of the screen. Only takes input after it is clicked. Every change calls the listener, which filters the panels (see {@link Panel#setSearch}).
  * Backspace deletes, Ctrl+Backspace / the × clears, Ctrl+V pastes, Enter keeps the filter and unfocuses,
  * Esc clears and unfocuses. Not persisted: every ClickGUI opens unfiltered.
  */

@@ -44,7 +44,9 @@ public final class ChatAdapter {
     private static boolean allow(Component component, boolean overlay) {
         if (!ServerGate.onTelos() || !ChatBus.hasHideRules()) return true;
         ChatMessage message = convert(component, overlay);
-        return message.segments().isEmpty() || !ChatBus.shouldHide(message);
+        if (message.segments().isEmpty() || !ChatBus.shouldHide(message)) return true;
+        if (!overlay) ChatHudAdapter.onHidden(component); // All Chat still keeps it
+        return false;
     }
 
     private static void onSystemMessage(Component component, boolean overlay) {

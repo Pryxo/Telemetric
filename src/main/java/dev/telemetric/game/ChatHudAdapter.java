@@ -22,8 +22,10 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +51,9 @@ public final class ChatHudAdapter {
     public static final int VANILLA_HISTORY = 100;
     private static final String LINK_PATH = "link/";
     private static final int MAX_LINKS = 4096;
+    /** Messages All Chat keeps (newest first), hidden server lines included; never cleared. */
+    public static final int ARCHIVE_MAX = 20_000;
+    private static final ArrayDeque<GuiMessage> ARCHIVE = new ArrayDeque<>();
 
     private static final List<Function<String, List<ChatLink>>> LINKERS = new CopyOnWriteArrayList<>();
     /** Link id → link; oldest dropped first (their lines left the history long ago). */
@@ -255,9 +260,68 @@ public final class ChatHudAdapter {
         history = Math.max(VANILLA_HISTORY, lines);
     }
 
-    /** {@code mixin/ChatComponentMixin}: replaces vanilla's 100-line limits. */
+    /** {@code mixin/ChatComponentMixin}: replaces vanilla's 100-message history limit. */
     public static int history() {
         return history;
+    }
+
+    /** {@code mixin/ChatComponentMixin}: wrapped lines shown (the history, or the whole archive in All Chat). */
+    public static int displayLimit() {
+        ChatView v = view;
+        return v != null && v.archive() ? ARCHIVE_MAX * 4 : history;
+    }
+
+    // ------------------------------------------------------------------ All Chat archive
+
+    /** {@code mixin/ChatComponentMixin}: a new line entered the history (once; re-layouts do not come here). */
+    public static void onStored(GuiMessage message) {
+        if (message == null || !ServerGate.onTelos()) return;
+        archive(message);
+        ChatView v = view;
+        if (v == null || message.source() == GuiMessageSource.SYSTEM_CLIENT) return;
+        try {
+            v.onNewLine(message.content().getString(), categoryOf(message, v), false);
+        } catch (RuntimeException e) {
+            Telemetric.LOGGER.error("Chat view failed", e);
+        }
+    }
+
+    /** {@code game/ChatAdapter}: a server line a hide rule kept out of the chat — only All Chat shows it. */
+    public static void onHidden(Component content) {
+        Minecraft mc = Minecraft.getInstance();
+        if (content == null || mc.gui == null || !ServerGate.onTelos()) return;
+        GuiMessage message = new GuiMessage(mc.gui.getGuiTicks(), content, null, GuiMessageSource.SYSTEM_SERVER, null);
+        archive(message);
+        ChatView v = view;
+        if (v == null) return;
+        try {
+            v.onNewLine(content.getString(), categoryOf(message, v), true);
+            if (v.archive()) ((ChatComponentAccessor) mc.gui.getChat()).telemetric$addToDisplay(message);
+        } catch (RuntimeException e) {
+            Telemetric.LOGGER.error("Chat view failed", e);
+        }
+    }
+
+    private static void archive(GuiMessage message) {
+        ARCHIVE.addFirst(message);
+        while (ARCHIVE.size() > ARCHIVE_MAX) ARCHIVE.removeLast();
+    }
+
+    /** {@code mixin/ChatComponentMixin} ({@code refreshTrimmedMessages}): true = rebuilt from the archive. */
+    public static boolean refreshFromArchive(ChatComponent chat) {
+        ChatView v = view;
+        if (v == null || !ServerGate.onTelos() || !v.archive()) return false;
+        ChatComponentAccessor a = (ChatComponentAccessor) chat;
+        a.telemetric$getTrimmedMessages().clear();
+        Iterator<GuiMessage> oldestFirst = ARCHIVE.descendingIterator();
+        while (oldestFirst.hasNext()) a.telemetric$addToDisplay(oldestFirst.next());
+        return true;
+    }
+
+    /** {@code mixin/ChatComponentMixin}: vanilla cleared the chat; All Chat re-shows the archive. */
+    public static void afterClear() {
+        ChatView v = view;
+        if (v != null && v.archive()) refresh();
     }
 
     // ------------------------------------------------------------------ under the mouse (chat open)

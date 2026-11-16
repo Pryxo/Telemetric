@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Social → Discord RPC (Melinoe's Discord RPC, own implementation): your Telos status as Discord Rich Presence —
+ * Social → Discord RPC: your Telos status as Discord Rich Presence —
  * server + location, what you fight, your character. Application id, art keys, texts and area lines come from
  * {@code manual/discord.json}; the connection is {@link DiscordIpc} (no native library). The game state is
  * snapshotted each tick on Telos; when ticks stop (you left Telos) the presence switches to the "off Telos" text.

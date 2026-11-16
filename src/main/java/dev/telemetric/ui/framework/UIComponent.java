@@ -53,6 +53,9 @@ public abstract class UIComponent {
 
     public boolean keyPressed(int key, int scancode, int modifiers) { return false; }
 
+    /** Mouse press sent to the focused component before normal click routing (anywhere on screen); true = consumed. */
+    public boolean focusedMouseButton(int button) { return false; }
+
     public boolean charTyped(int codepoint, int modifiers) { return false; }
 
     /** Called when this component loses keyboard focus. */

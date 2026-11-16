@@ -27,6 +27,11 @@ public abstract class ChatScreenMixin {
         if (ChatScreenHooks.mouseClicked(event.x(), event.y(), event.button())) cir.setReturnValue(true);
     }
 
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
+    private void telemetric$scroll(double mouseX, double mouseY, double scrollX, double scrollY, CallbackInfoReturnable<Boolean> cir) {
+        if (ChatScreenHooks.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) cir.setReturnValue(true);
+    }
+
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void telemetric$key(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (ChatScreenHooks.keyPressed(event.key(), event.modifiers())) cir.setReturnValue(true);

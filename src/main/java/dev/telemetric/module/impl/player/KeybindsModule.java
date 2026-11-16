@@ -13,7 +13,7 @@ import dev.telemetric.ui.notification.Toasts;
 import dev.telemetric.ui.realm.RealmSelectorScreen;
 
 /**
- * Player → Keybinds (Melinoe's Misc → Keybinds, own implementation): keys for Telos commands and menus, plus the
+ * Player → Keybinds: keys for Telos commands and menus, plus the
  * Realm Selector ({@code ui/realm/RealmSelectorScreen}). Leaving a dungeon through the selector needs three presses
  * within {@link #CONFIRM_MS} ms. Add a command key with one {@link #command} line.
  */
@@ -25,21 +25,23 @@ public class KeybindsModule extends Module {
     private final KeybindSetting realmSelector = add(new KeybindSetting("Realm Selector",
             "Opens the realm selector (3 presses inside a dungeon)", InputUtil.KEY_C).onPress(this::openRealmSelector));
 
-    private final GroupSetting menus = add(new GroupSetting("Menus", "Open Telos menus"));
-    private final GroupSetting toggles = add(new GroupSetting("Toggles", "Show / hide things for yourself"));
-    private final GroupSetting supporter = add(new GroupSetting("Supporter", "Commands for supporter ranks"));
-
+    // Settings render in registration order, so each group is added right before its own keys.
     {
+        GroupSetting menus = add(new GroupSetting("Menus", "Open Telos menus"));
         command(menus, "Bosses Menu", "bosses", KeybindSetting.NONE);
         command(menus, "Mounts Menu", "mounts", KeybindSetting.NONE);
         command(menus, "Pets Menu", "pets", KeybindSetting.NONE);
         command(menus, "Backpack", "backpack", KeybindSetting.NONE);
         command(menus, "Spawn Mount", "spawnmount", InputUtil.KEY_V);
         command(menus, "Use Sticker", "showtheselectedsticker", KeybindSetting.NONE);
+
+        GroupSetting toggles = add(new GroupSetting("Toggles", "Show / hide things for yourself"));
         command(toggles, "Toggle Mounts", "togglemounts", KeybindSetting.NONE);
         command(toggles, "Toggle Pets", "togglepets", KeybindSetting.NONE);
         command(toggles, "Toggle Players", "toggleplayers", KeybindSetting.NONE);
         command(toggles, "Toggle Stickers", "togglestickers", KeybindSetting.NONE);
+
+        GroupSetting supporter = add(new GroupSetting("Supporter", "Commands for supporter ranks"));
         command(supporter, "Stash", "stash", KeybindSetting.NONE);
         command(supporter, "Teleport to Centre", "centre", KeybindSetting.NONE);
         command(supporter, "Teleport to Spawn", "spawn", KeybindSetting.NONE);

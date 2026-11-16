@@ -15,6 +15,9 @@ public final class InterfaceModule extends Module {
     public final NumberSetting uiScale = add(new NumberSetting(
             "UI Scale", "Size of the ClickGUI relative to Minecraft's GUI scale", 1.0, 0.5, 2.0, 0.05).withSuffix("x"));
 
+    public final BooleanSetting fitToScreen = add(new BooleanSetting(
+            "Fit to Screen", "Keeps the ClickGUI the same size relative to the screen on every resolution / GUI scale", true));
+
     public final NumberSetting panelWidth = add(new NumberSetting(
             "Panel Width", "Width of each panel", 116, 90, 180, 1));
 

@@ -41,8 +41,31 @@ public abstract class ChatComponentMixin {
         return ChatHudAdapter.split(message, font, width, m -> original.call(m, font, width));
     }
 
-    @ModifyConstant(method = {"addMessageToDisplayQueue", "addMessageToQueue"}, constant = @Constant(intValue = 100))
+    @ModifyConstant(method = "addMessageToQueue", constant = @Constant(intValue = 100))
     private int telemetric$history(int vanilla) {
         return ChatHudAdapter.history();
+    }
+
+    @ModifyConstant(method = "addMessageToDisplayQueue", constant = @Constant(intValue = 100))
+    private int telemetric$displayLimit(int vanilla) {
+        return ChatHudAdapter.displayLimit();
+    }
+
+    /** Every new line (not re-layouts): All Chat archive + unread counts. */
+    @Inject(method = "addMessageToQueue", at = @At("HEAD"))
+    private void telemetric$stored(GuiMessage message, CallbackInfo ci) {
+        ChatHudAdapter.onStored(message);
+    }
+
+    /** All Chat open: the visible lines come from the archive instead of the trimmed history. */
+    @Inject(method = "refreshTrimmedMessages", at = @At("HEAD"), cancellable = true)
+    private void telemetric$refresh(CallbackInfo ci) {
+        if (ChatHudAdapter.refreshFromArchive((ChatComponent) (Object) this)) ci.cancel();
+    }
+
+    /** The archive survives a chat clear (reconnect, F3 + D); All Chat shows it again. */
+    @Inject(method = "clearMessages", at = @At("TAIL"))
+    private void telemetric$cleared(boolean history, CallbackInfo ci) {
+        ChatHudAdapter.afterClear();
     }
 }

@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Lifetime Stats (Melinoe's Tracker tab, own implementation): loot bags you got per bag type and your boss kills /
+ * Lifetime Stats: loot bags you got per bag type and your boss kills /
  * runs, all-time for this account ({@link LootTracker} counts them). One row per bag group of
  * {@code Extractor/bags.json}, so a new bag type is a new row without code.
  */
