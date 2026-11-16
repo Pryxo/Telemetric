@@ -19,6 +19,7 @@ import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.KeybindSetting;
+import dev.telemetric.setting.impl.ModeSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.tracking.RealmBossTracker;
 import dev.telemetric.tracking.RealmBossTracker.State;
@@ -38,6 +39,7 @@ import java.util.List;
 public final class BossTrackerModule extends LinesHudModule {
 
     /** Waypoints closer than this are hidden (you are there); they fade in over {@link #FADE}. */
+    private static final String STYLE_ICON = "Icon", STYLE_TEXT = "Text", STYLE_BOTH = "Both";
     private static final double NEAR = 20, FADE = 50, MAX_DRAW = 192, LOOK_DOT = 0.995;
 
     private final BooleanSetting autoTrack = add(new BooleanSetting("Auto Track",
@@ -52,6 +54,9 @@ public final class BossTrackerModule extends LinesHudModule {
             "Marker with name, fighter, portal time and distance at each boss", true)));
     private final BooleanSetting beams = add(waypointGroup.child(new BooleanSetting("Beams",
             "Light beam above each waypoint", true).visibleWhen(waypoints::get)));
+    private final ModeSetting waypointStyle = add(waypointGroup.child(new ModeSetting("Style",
+            "What each waypoint shows: the boss's icon, its text (name, fighter, timer, distance) or both",
+            STYLE_BOTH, STYLE_ICON, STYLE_TEXT, STYLE_BOTH).visibleWhen(waypoints::get)));
     private final BooleanSetting showAvailable = add(waypointGroup.child(new BooleanSetting("Available",
             "Waypoints for bosses nobody fights yet", true).visibleWhen(waypoints::get)));
     private final BooleanSetting showFighting = add(waypointGroup.child(new BooleanSetting("Fighting",
@@ -261,8 +266,10 @@ public final class BossTrackerModule extends LinesHudModule {
             double[] p = clamp(cam, x, y, z, dist);
             double height = Math.max(0.25, dist * p[3] * 0.018 * labelSize.get());
             int argb = (color(t) & 0x00FFFFFF) | ((int) Math.round(alpha * 255) << 24);
-            out.add(new WorldLabelAdapter.Label(p[0], p[1], p[2], waypointText(t, now, dist), BadgeText.Style.PLAIN,
-                    height, argb, true).look(false, true));
+            boolean icon = !waypointStyle.is(STYLE_TEXT) && !t.boss.icon().isEmpty();
+            String text = waypointStyle.is(STYLE_ICON) && icon ? "" : waypointText(t, now, dist);
+            out.add(new WorldLabelAdapter.Label(p[0], p[1], p[2], text, BadgeText.Style.PLAIN,
+                    height, argb, true).look(false, true).withIcon(icon ? t.boss.icon() : null));
         }
         return out;
     }

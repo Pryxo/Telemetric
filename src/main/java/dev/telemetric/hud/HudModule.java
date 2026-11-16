@@ -3,6 +3,7 @@ package dev.telemetric.hud;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ModeSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.render.Render2D;
 
@@ -51,19 +52,27 @@ public abstract class HudModule extends Module {
                 .visibleWhen(() -> false));
         this.scale = add(new NumberSetting("Scale", "Size of this element (also: HUD editor resize handle)",
                 Math.clamp(defaultScale, MIN_SCALE, MAX_SCALE), MIN_SCALE, MAX_SCALE, 0.05).withSuffix("x"));
-        this.mirror = add(new BooleanSetting("Mirror", "Mirrored text layout (HUD editor: M)", defaultX > 0.66)
-                .visibleWhen(() -> false));
+        this.align = add(new ModeSetting("Text Align", "Rows aligned left, centred or right (HUD editor: M cycles)",
+                defaultX > 0.66 ? ALIGN_RIGHT : ALIGN_LEFT, ALIGN_LEFT, ALIGN_MID, ALIGN_RIGHT));
     }
 
-    private final BooleanSetting mirror;
+    public static final String ALIGN_LEFT = "Left", ALIGN_MID = "Mid", ALIGN_RIGHT = "Right";
 
-    /** Mirrored layout: text right-aligned, icons in a column at the right edge (toggled with M in the HUD editor). */
+    private final ModeSetting align;
+
+    /** Right-aligned layout: text right-aligned, icons in a column at the right edge. */
     public boolean isMirrored() {
-        return mirror.get();
+        return align.is(ALIGN_RIGHT);
     }
 
-    public void toggleMirror() {
-        mirror.toggle();
+    /** Centred layout: each row centred in the element (icons stay in front of their row). */
+    public boolean isCentered() {
+        return align.is(ALIGN_MID);
+    }
+
+    /** HUD editor M: Left → Mid → Right → Left. */
+    public void cycleAlign() {
+        align.set(isMirrored() ? ALIGN_LEFT : isCentered() ? ALIGN_RIGHT : ALIGN_MID);
     }
 
     @Override
@@ -93,7 +102,8 @@ public abstract class HudModule extends Module {
      * Draws the content with its top-left corner at (0, 0).
      *
      * @param preview     true in the HUD editor: show placeholder data when the real data is missing
-     * @param alignRight  mirrored layout ({@link #isMirrored()}) — right-align text, icons on the right
+     * @param alignRight  right-aligned layout ({@link #isMirrored()}) — right-align text, icons on the right;
+     *                    centred ({@link #isCentered()}) is read by the element itself
      */
     public abstract void draw(Render2D r, boolean preview, boolean alignRight);
 
@@ -144,6 +154,6 @@ public abstract class HudModule extends Module {
         posX.reset();
         posY.reset();
         scale.reset();
-        mirror.reset();
+        align.reset();
     }
 }

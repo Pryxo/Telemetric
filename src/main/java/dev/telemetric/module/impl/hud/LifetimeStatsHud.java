@@ -2,6 +2,7 @@ package dev.telemetric.module.impl.hud;
 
 import dev.telemetric.data.TelosData;
 import dev.telemetric.data.TelosData.Bag;
+import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.LinesHudModule;
 import dev.telemetric.setting.impl.MultiChoiceSetting;
 import dev.telemetric.tracking.LootTracker;
@@ -32,26 +33,34 @@ public final class LifetimeStatsHud extends LinesHudModule {
         return "Lifetime Stats";
     }
 
-    private record Row(String label, String stat, int rgb) {}
+    private record Row(String label, String stat, int rgb, HudIcon icon) {}
+
+    /** The loot bag's own model as row icon: the totem path without {@code _totem} ({@code telos:mob/pouch/royal}). */
+    private static HudIcon bagIcon(Bag b) {
+        String totem = b.totem();
+        if (totem == null || totem.isEmpty()) return null;
+        return new HudIcon.Item("telos:" + (totem.endsWith("_totem") ? totem.substring(0, totem.length() - 6) : totem));
+    }
 
     /** Bag groups in table order (a group's label = its bag's, or the group name for shared ones like Event). */
     private static List<Row> rows() {
         List<Row> rows = new ArrayList<>();
         TelosData.Bags bags = TelosData.BAGS.get();
         for (String group : bags.groups()) {
-            Bag only = null;
+            Bag only = null, first = null;
             int count = 0;
             for (Bag b : bags.list()) {
                 if (!b.group().equals(group)) continue;
+                if (first == null) first = b;
                 only = b;
                 count++;
             }
             String label = count == 1 ? only.label() : Character.toUpperCase(group.charAt(0)) + group.substring(1);
             int rgb = count == 1 && only.rgb() >= 0 ? 0xFF000000 | only.rgb() : 0;
-            rows.add(new Row(label, LootTracker.BAG_PREFIX + group, rgb));
+            rows.add(new Row(label, LootTracker.BAG_PREFIX + group, rgb, bagIcon(first)));
         }
-        rows.add(new Row(KILLS, LootTracker.STAT_KILLS, 0));
-        rows.add(new Row(RUNS, LootTracker.STAT_RUNS, 0));
+        rows.add(new Row(KILLS, LootTracker.STAT_KILLS, 0, null));
+        rows.add(new Row(RUNS, LootTracker.STAT_RUNS, 0, null));
         return rows;
     }
 
@@ -71,7 +80,8 @@ public final class LifetimeStatsHud extends LinesHudModule {
             if (hidden.contains(r.label())) continue;
             int n = store.stat(r.stat());
             any |= n > 0;
-            lines.add(new Line(r.label(), Integer.toString(preview && n == 0 ? example++ * 7 : n), r.rgb(), 0));
+            lines.add(new Line(r.label(), Integer.toString(preview && n == 0 ? example++ * 7 : n), r.rgb(), 0,
+                    List.of(), r.icon()));
         }
         return any || preview ? lines : List.of();
     }

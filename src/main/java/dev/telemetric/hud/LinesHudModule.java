@@ -22,11 +22,29 @@ public abstract class LinesHudModule extends HudModule {
      * @param valueRuns server-styled value (drawn instead of {@code value} when non-empty), may be empty
      * @param icon      icon in front of the label, or null
      * @param tintIcon  tint the icon with the row's value colour (for white symbols)
+     * @param labelRuns styled label (drawn instead of {@code label} when non-empty; {@code label} stays its plain text)
+     * @param ownColors the runs keep their colours even with "Use Server Color" off (e.g. the shiny animation)
      */
     public record Line(String label, String value, int labelColor, int valueColor, List<TextRun> valueRuns, HudIcon icon,
-                       boolean tintIcon) {
+                       boolean tintIcon, List<TextRun> labelRuns, boolean ownColors) {
+        public Line(String label, String value, int labelColor, int valueColor, List<TextRun> valueRuns, HudIcon icon,
+                    boolean tintIcon) {
+            this(label, value, labelColor, valueColor, valueRuns, icon, tintIcon, List.of(), false);
+        }
+
         public Line(String label, String value, int labelColor, int valueColor, List<TextRun> valueRuns, HudIcon icon) {
             this(label, value, labelColor, valueColor, valueRuns, icon, false);
+        }
+
+        /** Same row with a styled label and/or value whose run colours always apply. */
+        public Line styledRuns(List<TextRun> label, List<TextRun> value) {
+            StringBuilder plain = new StringBuilder();
+            for (TextRun r : label) plain.append(r.text());
+            return new Line(plain.toString(), this.value, labelColor, valueColor, value, icon, tintIcon, label, true);
+        }
+
+        boolean styledLabel() {
+            return labelRuns != null && !labelRuns.isEmpty();
         }
 
         public Line(String label, String value, int labelColor, int valueColor) {
@@ -138,9 +156,13 @@ public abstract class LinesHudModule extends HudModule {
         return line.styled() ? r.runsWidth(line.valueRuns()) : r.textWidth(line.value());
     }
 
+    private int labelWidth(Render2D r, Line line) {
+        return line.styledLabel() ? r.runsWidth(line.labelRuns()) : r.textWidth(line.label());
+    }
+
     private int rowWidth(Render2D r, Line line) {
         if (line.label().isEmpty()) return valueWidth(r, line); // icon-only row
-        return r.textWidth(line.label()) + r.textWidth(separator()) + valueWidth(r, line);
+        return labelWidth(r, line) + r.textWidth(separator()) + valueWidth(r, line);
     }
 
     @Override
@@ -164,6 +186,7 @@ public abstract class LinesHudModule extends HudModule {
         HudSettingsModule style = style();
         List<Line> lines = lines(preview);
         int w = contentWidth(r, preview), h = contentHeight(r, preview);
+        boolean centered = !alignRight && isCentered();
 
         if (style.background.get()) {
             int bg = ColorUtil.fade(p.panel(), style.backgroundOpacity.get() / 100.0);
@@ -182,7 +205,7 @@ public abstract class LinesHudModule extends HudModule {
         int y = PAD_Y;
         if (title() != null) {
             int tw = r.textWidth(title());
-            r.text(title(), alignRight ? w - PAD_X - tw : PAD_X, y, p.accent());
+            r.text(title(), alignRight ? w - PAD_X - tw : centered ? (w - tw) / 2 : PAD_X, y, p.accent());
             y += lineHeight(r);
         }
         for (Line line : lines) {
@@ -191,21 +214,29 @@ public abstract class LinesHudModule extends HudModule {
             int tint = line.tintIcon() ? iconTint(line, vc) : 0xFFFFFFFF;
             int x;
             if (alignRight) {
-                // mirrored: icons in a column at the right edge, text right-aligned against it
+                // right-aligned: icons in a column at the right edge, text right-aligned against it
                 if (slot > 0) drawIcon(r, line.icon(), w - PAD_X - iconWidth(r, line.icon()), y, tint);
                 x = w - PAD_X - slot - rowWidth(r, line);
+            } else if (centered) {
+                // centred: each row (its own icon + text) centred in the element
+                int iw = slot > 0 && line.icon() != null ? iconWidth(r, line.icon()) + iconGap() : 0;
+                x = (w - iw - rowWidth(r, line)) / 2;
+                if (iw > 0) drawIcon(r, line.icon(), x, y, tint);
+                x += iw;
             } else {
                 if (slot > 0) drawIcon(r, line.icon(), PAD_X, y, tint);
                 x = PAD_X + slot;
             }
 
+            boolean runColors = serverColors || line.ownColors();
             if (!line.label().isEmpty()) {
-                r.text(line.label(), x, y, lc);
-                x += r.textWidth(line.label());
+                if (line.styledLabel()) r.runs(line.labelRuns(), x, y, lc, runColors);
+                else r.text(line.label(), x, y, lc);
+                x += labelWidth(r, line);
                 r.text(separator(), x, y, p.textMuted());
                 x += r.textWidth(separator());
             }
-            if (line.styled()) r.runs(line.valueRuns(), x, y, vc, serverColors);
+            if (line.styled()) r.runs(line.valueRuns(), x, y, vc, runColors);
             else r.text(line.value(), x, y, vc);
             y += lineHeight(r);
         }

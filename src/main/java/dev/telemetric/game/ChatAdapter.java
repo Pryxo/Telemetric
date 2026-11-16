@@ -8,7 +8,9 @@ import dev.telemetric.chat.ChatText;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.client.multiplayer.chat.GuiMessageTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.objects.AtlasSprite;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
@@ -79,7 +81,11 @@ public final class ChatAdapter {
         if (text == null || text.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
-            if (mc.gui != null) mc.gui.getChat().addClientSystemMessage(toComponent(text));
+            if (mc.gui == null) return;
+            ChatText.Tag tag = text.tag();
+            if (tag == null) mc.gui.getChat().addClientSystemMessage(toComponent(text));
+            else mc.gui.getChat().addPlayerMessage(toComponent(text), null,
+                    new GuiMessageTag(tag.rgb(), null, tag.text() == null ? null : toComponent(tag.text()), tag.logTag()));
         });
     }
 
@@ -95,7 +101,13 @@ public final class ChatAdapter {
             }
             if (s.hover() != null) style = style.withHoverEvent(new HoverEvent.ShowText(toComponent(s.hover())));
             if (s.suggest() != null) style = style.withClickEvent(new ClickEvent.SuggestCommand(s.suggest()));
-            out.append(Component.literal(s.text()).withStyle(style));
+            Identifier sprite = s.sprite() == null ? null : Identifier.tryParse(s.sprite());
+            if (sprite != null) {
+                out.append(Component.object(new AtlasSprite(AtlasSprite.DEFAULT_ATLAS, sprite), Component.literal(s.text()))
+                        .withStyle(style));
+            } else {
+                out.append(Component.literal(s.text()).withStyle(style));
+            }
         }
         return out;
     }

@@ -34,6 +34,8 @@ public final class Durations {
 
     /** One pass of a looping ambient effect (neon sweep on enabled modules). Not a transition: not capped by MAX. */
     public static final int AMBIENT_LOOP = 1600;
+    /** One pass of the shiny colour cycle (Telos' shiny tooltip: 9 frames × 4 ticks). Looping, not capped. */
+    public static final int SHINY_LOOP = 1800;
 
     /** Delay before a tooltip starts to appear (not a transition, a dwell time). */
     public static final int TOOLTIP_DELAY = 400;

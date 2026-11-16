@@ -81,7 +81,8 @@ public final class TelosData {
             SharedData.file(DIR + "rarities.json", Rarities::parse, Rarities.EMPTY);
 
     /** @param rgb 0xRRGGBB */
-    public record Rarity(String key, String label, int rgb) {}
+    /** @param glyph chat icon in the server pack's default font ("" = none), from {@code manual/rarities.json} glyphs */
+    public record Rarity(String key, String label, int rgb, String glyph) {}
 
     /** @param companions pet / mount rarities (usual … legacy), by key */
     public record Rarities(Map<String, Rarity> byKey, Map<String, Rarity> companions) {
@@ -97,7 +98,8 @@ public final class TelosData {
             for (Map.Entry<String, JsonElement> e : o.entrySet()) {
                 JsonObject r = e.getValue().getAsJsonObject();
                 String key = e.getKey().toLowerCase(Locale.ROOT);
-                map.put(key, new Rarity(key, JsonFields.str(r, "label"), JsonFields.rgb(JsonFields.str(r, "color"))));
+                map.put(key, new Rarity(key, JsonFields.str(r, "label"), JsonFields.rgb(JsonFields.str(r, "color")),
+                        JsonFields.str(r, "glyph")));
             }
             return Collections.unmodifiableMap(map);
         }

@@ -26,12 +26,14 @@ import java.util.regex.Pattern;
  * Pity and loot counting (Melinoe's Tracker tab, own implementation). Always on while on Telos — the Pity Counter,
  * Lifetime Stats and drop messages only <i>show</i> what is counted here, so nothing is missed while they are off.
  * <ul>
- *   <li><b>Boss kill</b> — the kill leaderboard ({@code Defeated <boss> in <time>}, multi-line server message):
+ *   <li><b>Boss kill</b> — the kill leaderboard (multi-line server message; {@code Defeated <boss> in <time>} in
+ *       dungeons, just {@code Defeated <boss>} at realm bosses — read live 2026-11-16):
  *       every pity drop of that boss ({@link LootTable#forDefeat}, current dungeon first) gets +1, shiny variants
  *       too; {@link #STAT_KILLS} +1, {@link #STAT_RUNS} +1 when it is the dungeon's final boss or a realm boss.</li>
  *   <li><b>Bonus chest</b> ({@code Bonus chest has been unlocked}) — one more roll of the last killed boss: +1.</li>
  *   <li><b>Drop</b> — your glowing loot after a bag opens ({@link DropAdapter}) or the server's
- *       {@code <you> got <item>} line: that drop's pity goes back to 0 and {@link Listener#onDrop} fires once.</li>
+ *       {@code [realm-3] ͱ <you> got <item>[telos:<model>] from <place>} line (read live 2026-11-16; the model id
+ *       picks the drop, {@code -shiny} included): that drop's pity goes back to 0 and {@link Listener#onDrop} fires once.</li>
  *   <li><b>Bag</b> — a loot bag's totem pop: {@code bag:<group>} +1 ({@code Extractor/bags.json}).</li>
  * </ul>
  * Counters live in {@link TrackingStore} (per account). Chat layouts were not read live yet ({@code anyRuns}).
@@ -49,11 +51,16 @@ public final class LootTracker {
         default void onDrop(Drop drop, int pityAt, String from) {}
     }
 
-    /** Kill leaderboard: several lines, one of them {@code Defeated <boss> in <time>}. Player names may be hoverable. */
+    /**
+     * Kill leaderboard: several lines, one of them {@code Defeated <boss> in <time>} (dungeon) or {@code Defeated <boss>}
+     * (realm boss, no timer). Player names may be hoverable.
+     */
     static final ChatPattern LEADERBOARD = ChatPattern.builder("Kill leaderboard",
-                    "(?=[^\\n]*\\n).*?\\bDefeated [^\\n]+? in \\d.*")
+                    "(?=[^\\n]*\\n).*?\\bDefeated [^\\n]+.*")
             .anyRuns().allowInteractive().build();
-    private static final Pattern DEFEAT_LINE = Pattern.compile("\\bDefeated (.+?) in \\d");
+    private static final Pattern DEFEAT_LINE = Pattern.compile("\\bDefeated\\s+(.+?)(?:\\s+in\\s+\\d.*)?\\s*$");
+    /** {@code [telos:material/pet/anubis_lair]} right after the item name in the drop line. */
+    private static final Pattern MODEL_TAG = Pattern.compile("\\[([a-z0-9_.-]+:[a-z0-9_./-]+)]");
     private static final Pattern PERCENT = Pattern.compile("(\\d+(?:\\.\\d+)?)%");
     private static final String SELF_ARROW = "⬅";
 
@@ -61,9 +68,12 @@ public final class LootTracker {
     static final ChatPattern BONUS_CHEST = ChatPattern.builder("Bonus chest unlocked",
             "[^A-Za-z0-9\\n]*Bonus chest has been unlocked[^\\n]*").anyRuns().build();
 
-    /** {@code <player> got <item>} — only glyphs / spaces may come before the name; the item can have a tooltip. */
+    /**
+     * {@code [realm-3] ͱ <player> got <item>[telos:<model>] from <place>} — an optional {@code [server]} tag, then only
+     * glyphs / spaces before the name; the item can have a tooltip.
+     */
     public static final ChatPattern DROP_LINE = ChatPattern.builder("Drop line",
-                    "[^A-Za-z0-9\\n]*(?<player>[A-Za-z0-9_]{3,16}) got (?<item>[^\\n]+)")
+                    "(?:\\[[^\\]\\n]*]\\s*)?[^A-Za-z0-9\\n]*(?<player>[A-Za-z0-9_]{3,16}) got (?<item>[^\\n]+)")
             .anyRuns().allowInteractive().build();
 
     /** The same drop seen twice (glow scan + chat line) within this time counts once. */
@@ -190,6 +200,11 @@ public final class LootTracker {
         if (me == null || !me.equals(m.group(1))) return null;
         String item = m.group(2);
         LootTable table = TelosData.LOOT.get();
+        Matcher tag = MODEL_TAG.matcher(item);
+        if (tag.find()) {
+            Drop byModel = table.byModel(tag.group(1));
+            if (byModel != null) return byModel;
+        }
         Drop d = table.startingWith(item);
         if (d == null) return null;
         if (item.toLowerCase(Locale.ROOT).contains("shiny")) {

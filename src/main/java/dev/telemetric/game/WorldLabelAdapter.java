@@ -1,18 +1,21 @@
 package dev.telemetric.game;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.telemetric.Telemetric;
 import dev.telemetric.ui.render.BadgeText;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 
 import java.util.EnumMap;
@@ -34,11 +37,11 @@ public final class WorldLabelAdapter {
      */
     public record Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                         boolean throughWalls, boolean shadow, boolean bold, boolean underline,
-                        double sideOffset, float align, boolean outline) {
+                        double sideOffset, float align, boolean outline, String icon) {
 
         public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                      boolean throughWalls, boolean shadow, boolean bold, boolean underline) {
-            this(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, 0, 0.5f, false);
+            this(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, 0, 0.5f, false, null);
         }
 
         public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
@@ -52,13 +55,23 @@ public final class WorldLabelAdapter {
          */
         public Label aligned(double sideOffset, float align) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline);
+                    align, outline, icon);
         }
 
         /** Shadow off / on, or a black outline instead (outline wins). */
         public Label look(boolean shadow, boolean outline) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow && !outline, bold, underline,
-                    sideOffset, align, outline);
+                    sideOffset, align, outline, icon);
+        }
+
+        /**
+         * Adds a picture {@link #ICON_PX} px square: the item model's texture ({@code "telos:material/boss/anubis"}
+         * → {@code telos:textures/material/boss/anubis.png}; needs the pack that has it), drawn above the text, or
+         * standing on the anchor when the text is empty. Null / empty = none.
+         */
+        public Label withIcon(String model) {
+            return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
+                    align, outline, model);
         }
     }
 
@@ -70,6 +83,9 @@ public final class WorldLabelAdapter {
 
     private static final int FULL_BRIGHT = 0xF000F0;
     private static final float GLYPH_PX = 8f;
+    /** Icon size in label pixels (two text lines) and its gap to the text. */
+    public static final float ICON_PX = 16f, ICON_GAP_PX = 2f;
+    private static final Map<String, Identifier> ICON_TEXTURES = new java.util.concurrent.ConcurrentHashMap<>();
     private static final List<Source> SOURCES = new CopyOnWriteArrayList<>();
     private static final Map<BadgeText.Style, Style> FONTS = new EnumMap<>(BadgeText.Style.class);
 
@@ -139,11 +155,40 @@ public final class WorldLabelAdapter {
                             buffers, l.throughWalls() ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL,
                             0, FULL_BRIGHT);
                 }
+                if (l.icon() != null && !l.icon().isEmpty()) drawIcon(l, text, tx, argb, pose, buffers, font);
                 pose.popPose();
                 drew = true;
             }
         }
         if (drew) buffers.endBatch();
+    }
+
+    /** Icon quad in the label's pixel space (y grows down, text spans -8..0), centred over the text. */
+    private static void drawIcon(Label l, Component text, float tx, int argb, PoseStack pose,
+                                 MultiBufferSource buffers, Font font) {
+        Identifier tex = iconTexture(l.icon());
+        if (tex == null) return;
+        boolean hasText = font.width(text) > 0;
+        float cx = hasText ? tx + font.width(text) / 2f : -ICON_PX * (l.align() - 0.5f);
+        float x0 = cx - ICON_PX / 2f, x1 = x0 + ICON_PX;
+        float y1 = hasText ? -GLYPH_PX - ICON_GAP_PX : 0, y0 = y1 - ICON_PX;
+        int color = (argb & 0xFF000000) | 0xFFFFFF; // the picture keeps its own colours, only the fade applies
+        VertexConsumer vc = buffers.getBuffer(l.throughWalls() ? RenderTypes.textSeeThrough(tex) : RenderTypes.text(tex));
+        Matrix4f m = pose.last().pose();
+        vc.addVertex(m, x0, y0, 0).setColor(color).setUv(0, 0).setLight(FULL_BRIGHT);
+        vc.addVertex(m, x0, y1, 0).setColor(color).setUv(0, 1).setLight(FULL_BRIGHT);
+        vc.addVertex(m, x1, y1, 0).setColor(color).setUv(1, 1).setLight(FULL_BRIGHT);
+        vc.addVertex(m, x1, y0, 0).setColor(color).setUv(1, 0).setLight(FULL_BRIGHT);
+    }
+
+    private static Identifier iconTexture(String model) {
+        return ICON_TEXTURES.computeIfAbsent(model, id -> {
+            int colon = id.indexOf(':');
+            String ns = colon < 0 ? "minecraft" : id.substring(0, colon), path = id.substring(colon + 1);
+            Identifier out = Identifier.tryBuild(ns, "textures/" + path + ".png");
+            if (out == null) Telemetric.debug("World label: bad icon id '{}'", id);
+            return out;
+        });
     }
 
     private static Component component(Label l) {

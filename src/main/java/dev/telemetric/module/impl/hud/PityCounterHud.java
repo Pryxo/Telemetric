@@ -16,12 +16,17 @@ import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.PlayerAdapter;
 import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.LinesHudModule;
+import dev.telemetric.hud.ShinyColors;
+import dev.telemetric.hud.TextRun;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.tracking.LootTracker;
 import dev.telemetric.tracking.TrackingStore;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -44,13 +49,21 @@ public final class PityCounterHud extends LinesHudModule {
 
     private final NumberSetting maxChars = add(new NumberSetting("Max Characters",
             "Item names longer than this are cut (0 = no names, counts only)", 15, 0, 30, 1));
+    private final BooleanSetting showChance = add(new BooleanSetting("Show Chance",
+            "Each item's drop chance per kill (%) after its name", true));
     private final BooleanSetting shinyCounts = add(new BooleanSetting("Shiny Counts",
-            "Also show the separate pity of each item's shiny variant", false));
+            "Also show the separate pity of each item's shiny variant (in the shiny colours)", false));
+    private final BooleanSetting separateShiny = add(new BooleanSetting("Separate Shiny",
+            "Shiny variants as their own rows; off = in brackets on the item's row: Item 1% (0.03%): 52 (1994)", false)
+            .visibleWhen(shinyCounts::get));
     private final GroupSetting chat = add(new GroupSetting("Chat", "Drop and pity lines in the chat"));
     private final BooleanSetting dropMessage = add(chat.child(new BooleanSetting("Drop Message",
             "Replace the server's line for your drop with one that shows the pity it came at", true)));
     private final BooleanSetting shareButton = add(chat.child(new BooleanSetting("Share Button",
             "Add a ⧉ to the drop line: click it to put a share text into the chat box", true)
+            .visibleWhen(dropMessage::get)));
+    private final BooleanSetting icons = add(chat.child(new BooleanSetting("Icons",
+            "Rarity icon in front of the drop line and the item's picture before its name (needs the Telos pack)", true)
             .visibleWhen(dropMessage::get)));
     private final BooleanSetting pityLine = add(chat.child(new BooleanSetting("Pity Line",
             "After each boss kill, one line with the boss's pity per loot group (hover for the items)", true)));
@@ -160,20 +173,58 @@ public final class PityCounterHud extends LinesHudModule {
         TrackingStore store = LootTracker.get().store();
         List<Line> lines = new ArrayList<>(drops.size());
         for (Drop d : drops) {
-            String value = Integer.toString(store.pity(d.key()));
             Drop shiny = shinyCounts.get() ? table.shinyOf(d) : null;
-            if (shiny != null) value += " (" + store.pity(shiny.key()) + ")";
-            lines.add(new Line(cut(d.name()), value, rarityColor(d), 0, List.of(), icon(d)));
+            if (shiny == d) shiny = null;
+            row(lines, d.name(), d.chance(), store.pity(d.key()), rarityColor(d), icon(d),
+                    shiny == null ? null : shiny.chance(), shiny == null ? 0 : store.pity(shiny.key()), shiny == null ? null : icon(shiny));
         }
         return lines;
     }
 
+    /**
+     * One item's row(s): {@code Name 1%: 52}; with a shiny variant either {@code Name 1% (0.03%): 52 (1994)} (bracket
+     * parts in the moving shiny colours) or a second row {@code Shiny Name 0.03%: 1994} all in shiny colours.
+     */
+    private void row(List<Line> out, String name, double chance, int pity, int rgb, HudIcon icon,
+                     Double shinyChance, int shinyPity, HudIcon shinyIcon) {
+        String label = cut(name) + chanceText(" ", chance);
+        if (shinyChance == null) {
+            out.add(new Line(label, Integer.toString(pity), rgb, 0, List.of(), icon));
+            return;
+        }
+        if (separateShiny.get()) {
+            out.add(new Line(label, Integer.toString(pity), rgb, 0, List.of(), icon));
+            String shinyLabel = cut("Shiny " + name) + chanceText(" ", shinyChance);
+            List<TextRun> labelRuns = ShinyColors.runs(shinyLabel, 0);
+            out.add(new Line(shinyLabel, "", rgb, 0, List.of(), shinyIcon != null ? shinyIcon : icon)
+                    .styledRuns(labelRuns, ShinyColors.runs(Integer.toString(shinyPity), shinyLabel.length() + 2)));
+            return;
+        }
+        List<TextRun> labelRuns = new ArrayList<>();
+        labelRuns.add(new TextRun(label, 0, null));
+        String shinyChanceText = chanceText("", shinyChance);
+        if (!shinyChanceText.isEmpty()) labelRuns.addAll(ShinyColors.runs(" (" + shinyChanceText + ")", 0));
+        List<TextRun> valueRuns = new ArrayList<>();
+        String count = Integer.toString(pity);
+        valueRuns.add(new TextRun(count, 0, null));
+        valueRuns.addAll(ShinyColors.runs(" (" + shinyPity + ")", shinyChanceText.length() + 3));
+        out.add(new Line(label, count, rgb, 0, List.of(), icon).styledRuns(labelRuns, valueRuns));
+    }
+
+    /** {@code prefix + "1%"} / {@code "0.033%"} (2–3 significant digits), or "" when off / unknown. */
+    private String chanceText(String prefix, double percent) {
+        if (!showChance.get() || percent <= 0) return "";
+        BigDecimal v = BigDecimal.valueOf(percent).round(new MathContext(percent >= 1 ? 3 : 2, RoundingMode.HALF_UP));
+        return prefix + v.stripTrailingZeros().toPlainString() + "%";
+    }
+
     private List<Line> previewLines() {
-        return List.of(
-                new Line(cut("Blunder Bow"), "42", rarityColor("irradiated"), 0, List.of(),
-                        new HudIcon.Item("telos:material/weapon/bow/ut-blunder")),
-                new Line(cut("Slime Archer"), "15", rarityColor("companion"), 0, List.of(),
-                        new HudIcon.Item("telos:material/pet/skull_cavern")));
+        List<Line> out = new ArrayList<>();
+        row(out, "Blunder Bow", 0.6, 42, rarityColor("irradiated"), new HudIcon.Item("telos:material/weapon/bow/ut-blunder"),
+                shinyCounts.get() ? 0.012 : null, 1994, new HudIcon.Item("telos:material/weapon/bow/ut-blunder-shiny"));
+        row(out, "Slime Archer", 2, 15, rarityColor("companion"), new HudIcon.Item("telos:material/pet/skull_cavern"),
+                null, 0, null);
+        return out;
     }
 
     private String cut(String name) {
@@ -201,11 +252,19 @@ public final class PityCounterHud extends LinesHudModule {
     private void postDrop(Drop drop, int pityAt, String from) {
         int base = LootTracker.tabLootBoost(), contribution = lastContribution;
         String label = drop.shiny() ? "SHINY" : groupLabel(drop).toUpperCase(Locale.ROOT);
-        int rgb = drop.shiny() ? ChatText.AQUA : rarityColor(drop) & 0xFFFFFF;
-        ChatText line = ChatText.of().add(label, rgb, ChatText.BOLD).add(" - ", ChatText.DARK_GRAY)
-                .add("Dropped ", ChatText.GRAY).add(drop.name(), rgb, ChatText.UNDERLINED)
-                .add(" at ", ChatText.GRAY).add(Integer.toString(pityAt), ChatText.YELLOW)
-                .add(" pity from ", ChatText.GRAY).add(from, rgb);
+        int rgb = drop.shiny() ? ShinyColors.START : rarityColor(drop) & 0xFFFFFF;
+        ChatText line = ChatText.of();
+        String glyph = icons.get() ? rarityGlyph(drop) : "";
+        if (!glyph.isEmpty()) line.glyph(glyph, null).add(" ", ChatText.WHITE);
+        if (drop.shiny()) shiny(line, label, ChatText.BOLD);
+        else line.add(label, rgb, ChatText.BOLD);
+        line.add(" - ", ChatText.DARK_GRAY).add("Dropped ", ChatText.GRAY);
+        if (icons.get() && !drop.model().isEmpty()) line.sprite(drop.model(), "").add(" ", ChatText.WHITE);
+        if (drop.shiny()) shiny(line, drop.name(), ChatText.UNDERLINED);
+        else line.add(drop.name(), rgb, ChatText.UNDERLINED);
+        line.add(" at ", ChatText.GRAY).add(Integer.toString(pityAt), ChatText.YELLOW).add(" pity from ", ChatText.GRAY);
+        if (drop.shiny()) shiny(line, from, 0);
+        else line.add(from, rgb);
         int boost = base + contribution;
         if (boost > 0) {
             line.add(" [+" + boost + "% LB]", ChatText.YELLOW).hover(ChatText.of()
@@ -218,6 +277,10 @@ public final class PityCounterHud extends LinesHudModule {
             line.add(" ⧉", ChatText.GRAY, ChatText.BOLD)
                     .hover(ChatText.of().add("Click to share in chat!", ChatText.GRAY)).suggest(share);
         }
+        ChatText tagText = ChatText.of();
+        if (!glyph.isEmpty()) tagText.glyph(glyph, null).add(" ", ChatText.WHITE);
+        tagText.add(label + " Drop", rgb, ChatText.BOLD);
+        line.tag(new ChatText.Tag(rgb, tagText, label + " Drop"));
         ChatAdapter.post(line);
     }
 
@@ -240,11 +303,28 @@ public final class PityCounterHud extends LinesHudModule {
                 if (!hover.isEmpty()) hover.add("\n", ChatText.GRAY);
                 hover.add(d.name(), rgb).add(": ", ChatText.GRAY).add(Integer.toString(store.pity(d.key())), ChatText.WHITE);
                 Drop shiny = table.shinyOf(d);
-                if (shiny != null) hover.add(" (Shiny: " + store.pity(shiny.key()) + ")", ChatText.AQUA);
+                if (shiny != null && shiny != d) shiny(hover, " (Shiny: " + store.pity(shiny.key()) + ")", 0);
             }
             line.add(" [" + g.getKey() + "]", rgb).hover(hover);
         }
         ChatAdapter.post(line);
+    }
+
+    /** Appends {@code text} in the shiny colours (a still gradient: chat lines are not redrawn per frame). */
+    private static void shiny(ChatText line, String text, int styles) {
+        int[] rgb = ShinyColors.gradient(text.codePointCount(0, text.length()));
+        int i = 0;
+        for (int c = 0; c < text.length(); ) {
+            int n = Character.charCount(text.codePointAt(c));
+            line.add(text.substring(c, c + n), rgb[i++], styles);
+            c += n;
+        }
+    }
+
+    /** The rarity's chat icon from {@code rarities.json} ({@code glyph}, server-pack default font), "" if none. */
+    private static String rarityGlyph(Drop d) {
+        TelosData.Rarity r = TelosData.RARITIES.get().any(d.shiny() ? "shiny" : d.isCompanion() ? "companion" : d.lootKey());
+        return r == null || r.glyph() == null ? "" : r.glyph();
     }
 
     /** Loot group label ("Bloodshot", "Companion"). */

@@ -23,8 +23,24 @@ public final class ChatText {
      * @param hover   shown while hovering, or null
      * @param suggest put into the chat box on click (not sent), or null
      * @param font    font id ({@code "minecraft:default"} = null), for server-pack glyphs
+     * @param sprite  block-atlas sprite id drawn instead of {@code text} ({@code "telos:material/pet/onyx"}), or null;
+     *                {@code text} is its fallback / copy text
      */
-    public record Span(String text, int rgb, int styles, ChatText hover, String suggest, String font) {}
+    public record Span(String text, int rgb, int styles, ChatText hover, String suggest, String font, String sprite) {
+        public Span(String text, int rgb, int styles, ChatText hover, String suggest, String font) {
+            this(text, rgb, styles, hover, suggest, font, null);
+        }
+    }
+
+    /**
+     * Chat-side tag of the whole line (the coloured bar left of it, hover = {@code text}), like the server's system
+     * tag. Null = Minecraft's default for client lines.
+     *
+     * @param rgb 0xRRGGBB bar colour
+     */
+    public record Tag(int rgb, ChatText text, String logTag) {}
+
+    private Tag tag;
 
     private final List<Span> spans = new ArrayList<>();
 
@@ -43,6 +59,22 @@ public final class ChatText {
         return this;
     }
 
+    /** A picture from the block atlas (item textures of the server pack, e.g. a drop's model id), one line tall. */
+    public ChatText sprite(String spriteId, String fallback) {
+        spans.add(new Span(fallback, 0xFFFFFF, 0, null, null, null, spriteId));
+        return this;
+    }
+
+    /** Sets the line's chat tag (indicator bar + hover). */
+    public ChatText tag(Tag tag) {
+        this.tag = tag;
+        return this;
+    }
+
+    public Tag tag() {
+        return tag;
+    }
+
     /** A glyph from a resource-pack font (e.g. a Telos loot icon). */
     public ChatText glyph(String text, String font) {
         spans.add(new Span(text, 0xFFFFFF, 0, null, null, font));
@@ -51,12 +83,12 @@ public final class ChatText {
 
     /** Hover text for the last span. */
     public ChatText hover(ChatText hover) {
-        return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), hover, s.suggest(), s.font()));
+        return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), hover, s.suggest(), s.font(), s.sprite()));
     }
 
     /** Click on the last span puts {@code text} into the chat box. */
     public ChatText suggest(String text) {
-        return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), s.hover(), text, s.font()));
+        return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), s.hover(), text, s.font(), s.sprite()));
     }
 
     /** Appends another text's spans. */
