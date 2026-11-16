@@ -35,7 +35,7 @@ processResources {
 
 	// Shared data tables (data/ submodule) bundled as the offline fallback — see docs/data.md.
 	from("data") {
-		include "telos/**/*.json"
+		include "Extractor/*.json" // top-level tables only (no raw/ scans, no manual/ inputs)
 		into "assets/telemetric/data"
 	}
 }

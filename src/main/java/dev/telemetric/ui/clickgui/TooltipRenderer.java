@@ -23,6 +23,10 @@ public final class TooltipRenderer {
     private final Animation fade = new Animation(Durations.TOOLTIP, Easing.OUT_CUBIC);
     private Object owner;
     private String text;
+    private String title;
+    private static final float TITLE_SCALE = 1.15f;
+    /** Overall tooltip text size (title + description). */
+    private static final float TEXT_SCALE = 0.7f;
     private long hoverStart;
 
     public TooltipRenderer(GuiContext ctx) {
@@ -38,6 +42,7 @@ public final class TooltipRenderer {
         } else if (requested != owner) {
             owner = requested;
             text = ctx.tooltipText();
+            title = ctx.tooltipTitle();
             hoverStart = System.currentTimeMillis();
             fade.snapTo(0);
         } else if (System.currentTimeMillis() - hoverStart >= Durations.TOOLTIP_DELAY) {
@@ -47,12 +52,20 @@ public final class TooltipRenderer {
         double a = fade.get();
         if (a <= 0.01 || text == null) return;
 
-        List<String> lines = wrap(r, text, MAX_WIDTH);
-        int w = 0;
-        for (String line : lines) w = Math.max(w, r.textWidth(line));
-        w += PAD * 2;
+        // Content is laid out in unscaled text units, then drawn at TEXT_SCALE.
+        List<String> lines = wrap(r, text, Math.round(MAX_WIDTH / TEXT_SCALE));
+        int cw = 0;
+        for (String line : lines) cw = Math.max(cw, r.textWidth(line));
+        boolean hasTitle = title != null && !title.isBlank();
+        int titleH = 0;
+        if (hasTitle) {
+            cw = Math.max(cw, Math.round(r.textWidth(title) * TITLE_SCALE));
+            titleH = Math.round(r.fontHeight() * TITLE_SCALE) + 3;
+        }
         int lineH = r.fontHeight() + 1;
-        int h = lines.size() * lineH + PAD * 2 - 1;
+        int ch = titleH + lines.size() * lineH - 1;
+        int w = Math.round(cw * TEXT_SCALE) + PAD * 2;
+        int h = Math.round(ch * TEXT_SCALE) + PAD * 2;
 
         int tx = mouseX + 10, ty = mouseY + 4 + (int) Math.round((1 - a) * 4);
         if (tx + w > screenW - 2) tx = mouseX - w - 6;
@@ -63,7 +76,14 @@ public final class TooltipRenderer {
         r.shadow(tx, ty, w, h, 3, p.shadow(), 4);
         r.roundedRect(tx, ty, w, h, 3, ColorUtil.withAlpha(p.panel(), 245));
         r.rect(tx, ty + 2, 1, h - 4, p.accent());
-        for (int i = 0; i < lines.size(); i++) r.text(lines.get(i), tx + PAD, ty + PAD + i * lineH, p.text());
+        r.pushTransform(tx + PAD, ty + PAD, TEXT_SCALE);
+        if (hasTitle) {
+            r.pushTransform(0, 0, TITLE_SCALE);
+            r.text(title, 0, 0, p.accent());
+            r.popTransform();
+        }
+        for (int i = 0; i < lines.size(); i++) r.text(lines.get(i), 0, titleH + i * lineH, p.text());
+        r.popTransform();
         r.popAlpha();
     }
 

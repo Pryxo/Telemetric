@@ -188,4 +188,44 @@ public final class PlayerAdapter {
     public static float partialTick() {
         return Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
     }
+
+    /** The player's name, or null outside a world. */
+    public static String name() {
+        LocalPlayer p = player();
+        return p == null ? null : p.getGameProfile().name();
+    }
+
+    /**
+     * Stable id of the logged-in account (UUID string), for per-account local files; null outside a world.
+     * Never sent anywhere.
+     */
+    public static String accountId() {
+        LocalPlayer p = player();
+        return p == null ? null : p.getUUID().toString();
+    }
+
+    /** Eye position, or null. */
+    public static Point eyes() {
+        LocalPlayer p = player();
+        return p == null ? null : new Point(p.getX(), p.getEyeY(), p.getZ());
+    }
+
+    /** Unit look direction {x, y, z}, or null. */
+    public static double[] look() {
+        LocalPlayer p = player();
+        if (p == null) return null;
+        Vec3 v = p.getLookAngle();
+        return new double[]{v.x, v.y, v.z};
+    }
+
+    /** True while no screen (menu, chat, inventory) is open. */
+    public static boolean noScreen() {
+        return Minecraft.getInstance().screen == null;
+    }
+
+    /** Runs a server command as if typed ({@code "bosses"}, no leading slash). Does nothing outside a world. */
+    public static void sendCommand(String command) {
+        LocalPlayer p = player();
+        if (p != null && p.connection != null) p.connection.sendCommand(command);
+    }
 }

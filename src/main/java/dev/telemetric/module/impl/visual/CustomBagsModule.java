@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * Your own picture (PNG / JPG / animated GIF) and drop sound (OGG / WAV) for each loot bag. Pick the bag, then
  * "Set Picture…" / "Set Sound…" open a file picker; the files are copied to {@code config/telemetric/bags/}.
- * Bag types come from {@code data/telos/bags.json}.
+ * Bag types come from {@code data/Extractor/bags.json}.
  */
 public final class CustomBagsModule extends Module {
 

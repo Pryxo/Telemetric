@@ -207,7 +207,7 @@ public class ModuleComponent extends UIComponent {
         if (hasSettings()) Icons.plusMinus(r, x + width - Layout.PAD - 3, y + Layout.MODULE_HEIGHT / 2, ex,
                 ColorUtil.lerp(p.textDisabled(), p.textMuted(), Math.max(h, ex)));
 
-        if (rowHovered) ctx.requestTooltip(module, module.getDescription());
+        if (rowHovered) ctx.requestTooltip(module, module.getName(), module.getDescription());
 
         // settings accordion
         if (ex > 0.001 && hasSettings()) {

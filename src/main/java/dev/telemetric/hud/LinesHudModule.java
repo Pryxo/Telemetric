@@ -118,6 +118,7 @@ public abstract class LinesHudModule extends HudModule {
             case null -> 0;
             case HudIcon.Glyph g -> r.glyphWidth(g);
             case HudIcon.Texture t -> Math.round(t.regionW() * (float) iconHeight(r) / t.regionH());
+            case HudIcon.Item i -> iconHeight(r) + 1;
         };
     }
 
@@ -234,6 +235,7 @@ public abstract class LinesHudModule extends HudModule {
             case HudIcon.Glyph g -> r.glyph(g, x, y, tint);
             case HudIcon.Texture t -> r.texture(t.path(), x, y - 1, iconWidth(r, t), iconHeight(r),
                     t.u(), t.v(), t.regionW(), t.regionH(), t.width(), t.height(), tint);
+            case HudIcon.Item i -> r.itemModel(i.model(), x, y - 1, iconHeight(r) + 1);
         }
     }
 }

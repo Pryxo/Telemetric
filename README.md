@@ -21,6 +21,9 @@ Discord: https://discord.gg/dqjD94x3Ra
 | Visual | **Custom Bags** | Your own picture (incl. GIF) and sound for loot bag drops |
 | Combat | **Low Health Warning** | Big warning text and a sound when your health gets low |
 | Visual | **Stash Overlay** | Replaces the stash with all saved pages + your inventory: search, rename pages, move items across pages |
+| Visual | **Boss Tracker** | Realm bosses as a HUD list and world waypoints: alive, who fights it, portal timer, Raphael's n/10; quick /tp key |
+| HUD | **Pity Counter** | Kills since each drop of the boss you are at; drop line with the pity it came at (+ share button), pity summary after kills |
+| HUD | **Lifetime Stats / Session Stats** | All-time loot bags per type, boss kills, runs; this session's playtime (Nexus / dungeons / realm) and fame gained |
 | Dungeon | **Wayfinder** | Shows the shortest way to treasure rooms and the boss drop |
 | Dungeon | **Dungeon Map** | Minimap of the dungeon rooms (spawn, boss drop, treasure) and players |
 | HUD | **DPS Meter** | Damage per second from the server's floating damage numbers |
@@ -68,9 +71,12 @@ The jar lands in `build/libs/telemetric-<version>.jar`. Needs JDK 25 (`JAVA_HOME
   The **Combat** features (weapon / ability / armor cooldowns and ready alerts, weapon / ability range, Assassin
   stacks, Auto Clicker) and Auto Sprint are based on Melinoe's Combat tab, and the **Visual** features (Fullbright,
   Camera, Boss Bar Scale, Hitboxes, Player Size, Hide Armor, Item Rarity, Health Bar, Custom Bags, Low Health Warning)
-  on its Visual tab — re-implemented for Telemetric with the authors' permission. The custom bag models
-  (`assets/telemetric/models/bags/`, `items/bags/`) and textures (`textures/mob/bags/`) and the Telos data tables in
-  the [data repo](https://github.com/Pryxo/Telemetric-Data) (`telos/`) come from Melinoe and remain under LGPL-3.0.
+  on its Visual tab, and the **Boss Tracker**, **Pity Counter**, **Lifetime Stats** and **Session Stats** on its
+  Tracking tab — re-implemented for Telemetric with the authors' permission. The custom bag models
+  (`assets/telemetric/models/bags/`, `items/bags/`) and textures (`textures/mob/bags/`) come from Melinoe and remain
+  under LGPL-3.0; the hand-written tables in the [data repo](https://github.com/Pryxo/Telemetric-Data)
+  (`Extractor/manual/`: dungeon final bosses, multi-boss drops, boss call lines, spawn spots, bag list) are taken
+  from Melinoe's data.
 
 ## License
 

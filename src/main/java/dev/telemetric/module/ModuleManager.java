@@ -1,5 +1,9 @@
 package dev.telemetric.module;
 
+import dev.telemetric.module.impl.visual.BossTrackerModule;
+import dev.telemetric.module.impl.hud.PityCounterHud;
+import dev.telemetric.module.impl.hud.LifetimeStatsHud;
+import dev.telemetric.module.impl.hud.SessionStatsHud;
 import dev.telemetric.Telemetric;
 import dev.telemetric.module.impl.combat.ArmorCooldownsHud;
 import dev.telemetric.module.impl.combat.AssassinStacksHud;
@@ -78,6 +82,7 @@ public final class ModuleManager {
         register(new StashOverlayModule());
         register(new VoxyModifierModule());
         register(new BossStageTrackerModule());
+        register(new BossTrackerModule()); // realm bosses: HUD list + waypoints
         register(new FullbrightModule());
         register(new CameraModule());
         register(new BossBarScaleModule());
@@ -103,6 +108,9 @@ public final class ModuleManager {
         register(TabStatsHud.statsInfo());
         register(new DpsMeterHud());
         register(new DungeonInfoHud());
+        register(new PityCounterHud());
+        register(new LifetimeStatsHud());
+        register(new SessionStatsHud());
     }
 
     public <M extends Module> M register(M module) {

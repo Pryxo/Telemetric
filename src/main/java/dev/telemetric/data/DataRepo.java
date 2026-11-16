@@ -18,9 +18,14 @@ public final class DataRepo {
 
     private DataRepo() {}
 
-    /** GET request for a repo path (e.g. {@code telos/bosses.json}). */
+    /** GET request for a repo path (e.g. {@code Extractor/bosses.json}). */
     static HttpRequest get(String path, Duration timeout) {
-        return HttpRequest.newBuilder(URI.create(BASE_URL + path)).timeout(timeout)
-                .header("User-Agent", "Telemetric").GET().build();
+        return request(path, timeout).GET().build();
+    }
+
+    /** Request builder for a repo path, to add headers (e.g. {@code If-None-Match}) before {@code GET().build()}. */
+    static HttpRequest.Builder request(String path, Duration timeout) {
+        return HttpRequest.newBuilder(URI.create(BASE_URL + path.replace(" ", "%20"))).timeout(timeout)
+                .header("User-Agent", "Telemetric");
     }
 }

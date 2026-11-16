@@ -23,8 +23,10 @@ import java.util.regex.Pattern;
  * A player's line relayed by the server (whisper, party, chat format) has a name / rank / channel prefix, so it
  * cannot pass 3.
  * <p>
- * Every pattern needs at least one run — there is no "text only" pattern. Find the runs of a new message with
- * debug logging on: {@code game/ChatAdapter} logs each system message as {@code Chat: [...]}.
+ * Every pattern needs at least one run, or an explicit {@link Builder#anyRuns()} for a message whose run layout was
+ * not read live yet (1–3 still hold; 4 is skipped; 5 too with {@link Builder#allowInteractive()}). Replace
+ * {@code anyRuns()} with the real runs once seen: debug logging on, {@code game/ChatAdapter} logs each system
+ * message as {@code Chat: [...]}.
  */
 public final class ChatPattern {
 
@@ -52,13 +54,16 @@ public final class ChatPattern {
     private final String name;
     private final Pattern text;
     private final List<Run> runs;
-    private final boolean overlay;
+    private final boolean overlay, anyRuns, interactive;
 
-    private ChatPattern(String name, Pattern text, List<Run> runs, boolean overlay) {
+    private ChatPattern(String name, Pattern text, List<Run> runs, boolean overlay, boolean anyRuns,
+                        boolean interactive) {
         this.name = name;
         this.text = text;
         this.runs = runs;
         this.overlay = overlay;
+        this.anyRuns = anyRuns;
+        this.interactive = interactive;
     }
 
     /** @param textRegex regex for the whole plain text; named groups ({@code (?<n>\d+)}) can be read from the match */
@@ -74,9 +79,13 @@ public final class ChatPattern {
     public MatchResult match(ChatMessage message) {
         if (message.overlay() != overlay) return null;
         List<ChatSegment> segments = message.segments();
-        if (segments.size() != runs.size()) return null;
-        for (int i = 0; i < runs.size(); i++) {
-            if (!runs.get(i).matches(segments.get(i))) return null;
+        if (anyRuns) {
+            if (!interactive) for (ChatSegment s : segments) if (s.interactive()) return null;
+        } else {
+            if (segments.size() != runs.size()) return null;
+            for (int i = 0; i < runs.size(); i++) {
+                if (!runs.get(i).matches(segments.get(i))) return null;
+            }
         }
         Matcher m = text.matcher(message.text());
         return m.matches() ? m.toMatchResult() : null;
@@ -91,7 +100,7 @@ public final class ChatPattern {
         private final String name;
         private final Pattern text;
         private final List<Run> runs = new ArrayList<>();
-        private boolean overlay;
+        private boolean overlay, anyRuns, interactive;
 
         private Builder(String name, String textRegex) {
             this.name = name;
@@ -109,6 +118,21 @@ public final class ChatPattern {
             return this;
         }
 
+        /**
+         * Run layout not read live yet: any runs / styles / fonts pass (the whole-text match still decides).
+         * Interactive runs are still refused unless {@link #allowInteractive()}.
+         */
+        public Builder anyRuns() {
+            anyRuns = true;
+            return this;
+        }
+
+        /** With {@link #anyRuns()}: runs with a click / hover event (player names, item tooltips) may be part of it. */
+        public Builder allowInteractive() {
+            interactive = true;
+            return this;
+        }
+
         /** The message is shown in the action bar, not the chat. */
         public Builder overlay() {
             overlay = true;
@@ -116,8 +140,12 @@ public final class ChatPattern {
         }
 
         public ChatPattern build() {
-            if (runs.isEmpty()) throw new IllegalStateException("ChatPattern '" + name + "' needs at least one run");
-            return new ChatPattern(name, text, List.copyOf(runs), overlay);
+            if (runs.isEmpty() && !anyRuns) {
+                throw new IllegalStateException("ChatPattern '" + name + "' needs at least one run (or anyRuns())");
+            }
+            if (!runs.isEmpty() && anyRuns) throw new IllegalStateException("ChatPattern '" + name + "': runs or anyRuns");
+            if (interactive && !anyRuns) throw new IllegalStateException("ChatPattern '" + name + "': allowInteractive needs anyRuns");
+            return new ChatPattern(name, text, List.copyOf(runs), overlay, anyRuns, interactive);
         }
     }
 }

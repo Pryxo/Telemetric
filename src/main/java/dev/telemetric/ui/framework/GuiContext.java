@@ -16,6 +16,7 @@ public final class GuiContext {
     private UIComponent captured;
 
     private String tooltipText;
+    private String tooltipTitle;
     private Object tooltipOwner;
 
     public GuiContext(ThemeManager themes) {
@@ -100,16 +101,24 @@ public final class GuiContext {
 
     /** Request a tooltip this frame. {@code owner} identifies the hovered thing (for dwell timing). */
     public void requestTooltip(Object owner, String text) {
+        requestTooltip(owner, null, text);
+    }
+
+    /** Tooltip with a {@code title} (feature/setting name) drawn bigger in the accent colour above the text. */
+    public void requestTooltip(Object owner, String title, String text) {
         if (text == null || text.isBlank()) return;
         tooltipOwner = owner;
+        tooltipTitle = title;
         tooltipText = text;
     }
 
     public void clearTooltipRequest() {
         tooltipOwner = null;
+        tooltipTitle = null;
         tooltipText = null;
     }
 
+    public String tooltipTitle() { return tooltipTitle; }
     public Object tooltipOwner() { return tooltipOwner; }
     public String tooltipText() { return tooltipText; }
 }

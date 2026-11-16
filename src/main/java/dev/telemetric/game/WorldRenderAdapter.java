@@ -10,6 +10,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.telemetric.Telemetric;
+import dev.telemetric.dungeon.Point;
 import dev.telemetric.mixin.RenderPipelinesAccessor;
 import dev.telemetric.mixin.RenderTypeInvoker;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -171,6 +172,12 @@ public final class WorldRenderAdapter {
     /** Camera pitch of the last world frame (degrees; −90 = up, 90 = down). Set before drawers run. */
     public static float cameraPitch() {
         return viewPitch;
+    }
+
+    /** Camera position of the last world frame (set before drawers and labels run), or null before the first one. */
+    public static Point cameraPos() {
+        Vec3 cam = viewCam;
+        return cam == null ? null : new Point(cam.x, cam.y, cam.z);
     }
 
     /**

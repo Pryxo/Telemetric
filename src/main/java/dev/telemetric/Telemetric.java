@@ -1,5 +1,11 @@
 package dev.telemetric;
 
+import dev.telemetric.data.TelosData;
+import dev.telemetric.game.BossMenuAdapter;
+import dev.telemetric.game.DropAdapter;
+import dev.telemetric.tracking.LootTracker;
+import dev.telemetric.tracking.RealmBossTracker;
+import dev.telemetric.tracking.TrackingStore;
 import dev.telemetric.addon.TelemetricAddon;
 import dev.telemetric.config.ConfigManager;
 import dev.telemetric.game.ChatAdapter;
@@ -52,6 +58,7 @@ public final class Telemetric implements ClientModInitializer {
     public void onInitializeClient() {
         instance = this;
 
+        TelosData.init(); // shared tables: cache / bundled copy now, one update check per start
         moduleManager = new ModuleManager();
         moduleManager.registerAll();
         // Add-ons register extra categories, palettes and modules here,
@@ -73,9 +80,16 @@ public final class Telemetric implements ClientModInitializer {
         DungeonAdapter.register();
         ChatAdapter.register();
         StashAdapter.register();
+        DropAdapter.register();
+        BossMenuAdapter.register();
+        LootTracker.get().start();
+        RealmBossTracker.get().start();
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> configManager.onShutdown());
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            configManager.onShutdown();
+            TrackingStore.saveAll();
+        });
 
         LOGGER.info("{} {} initialised with {} modules", NAME, version(), moduleManager.getModules().size());
     }
@@ -93,6 +107,7 @@ public final class Telemetric implements ClientModInitializer {
         }
         moduleKeyHandler.tick();
         DungeonTracker.get().tick();
+        RealmBossTracker.get().tick();
         try {
             CooldownTracker.get().tick();
         } catch (RuntimeException e) {

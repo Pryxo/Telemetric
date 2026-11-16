@@ -7,6 +7,7 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -22,20 +23,22 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * JSON tables from the shared data repo ({@code data/} submodule → {@link DataRepo}), e.g. {@code telos/bosses.json}.
+ * JSON tables from the shared data repo ({@code data/} submodule → {@link DataRepo}), e.g.
+ * {@code Extractor/bosses.json}.
  * <p>
  * A table is declared once with {@link #file(String, Function, Object)} and read with {@link SharedFile#get()}.
- * Where its content comes from (first one found wins at start):
+ * Where its content comes from (first one found wins at start, instantly, no network):
  * <ol>
  *   <li>{@code config/telemetric/data/<path>} — a <b>local override</b> the player edits by hand; never downloaded
  *       over, never replaced;</li>
- *   <li>{@code config/telemetric/data-cache/<path>} — the copy downloaded last session;</li>
+ *   <li>{@code config/telemetric/data-cache/<path>} — the copy downloaded last time;</li>
  *   <li>the copy bundled in the jar ({@code assets/telemetric/data/<path>}, packed from {@code data/} at build).</li>
  * </ol>
- * Without an override the file is then fetched from GitHub once per session (in the background); a good download
- * replaces the cache and the live value, and {@link SharedFile#onChange} listeners run (on the download thread).
- * Parsers must build immutable values. A file that fails to parse is ignored (the previous value stays).
- * Pure Java, no Minecraft imports.
+ * Without an override the repo is then asked <b>once per game start</b> (in the background) whether the file
+ * changed: the cached copy's ETag goes along ({@code If-None-Match}), so an unchanged file answers
+ * {@code 304 Not Modified} with no body. A changed file replaces the cache and the live value, and
+ * {@link SharedFile#onChange} listeners run (on the download thread). Parsers must build immutable values. A file
+ * that fails to parse is ignored (the previous value stays). Pure Java, no Minecraft imports.
  */
 public final class SharedData {
 
@@ -43,25 +46,26 @@ public final class SharedData {
     static final Path OVERRIDES = ROOT.resolve("data");
     static final Path CACHE = ROOT.resolve("data-cache");
     private static final String BUNDLED = "/assets/telemetric/data/";
+    private static final String ETAG_SUFFIX = ".etag";
 
     private static final Map<String, SharedFile<?>> FILES = new ConcurrentHashMap<>();
 
     private SharedData() {}
 
     /**
-     * Declares a table (once per path; later calls return the same handle).
+     * Declares a table (once per path; later calls return the same handle) and starts loading it.
      *
-     * @param path     repo path, e.g. {@code telos/bosses.json}
+     * @param path     repo path, e.g. {@code Extractor/bosses.json}
      * @param parser   JSON root → immutable value; may throw on bad input
      * @param fallback value while nothing could be loaded
      */
     @SuppressWarnings("unchecked")
     public static <T> SharedFile<T> file(String path, Function<JsonObject, T> parser, T fallback) {
-        return (SharedFile<T>) FILES.computeIfAbsent(path, p -> {
-            SharedFile<T> f = new SharedFile<>(p, parser, fallback);
-            f.start();
-            return f;
-        });
+        SharedFile<T> fresh = new SharedFile<>(path, parser, fallback);
+        SharedFile<T> known = (SharedFile<T>) FILES.putIfAbsent(path, fresh);
+        if (known != null) return known;
+        fresh.start(); // outside the map update: listeners may declare other tables
+        return fresh;
     }
 
     /** One shared JSON table. */
@@ -84,7 +88,10 @@ public final class SharedData {
             return value;
         }
 
-        /** Where the current value came from: {@code override}, {@code cache}, {@code bundled}, {@code download} or {@code none}. */
+        /**
+         * Where the current value came from: {@code override}, {@code cache} (also after the repo confirmed it is
+         * current), {@code bundled}, {@code download} or {@code none}.
+         */
         public String source() {
             return source;
         }
@@ -99,16 +106,25 @@ public final class SharedData {
         private void start() {
             Path override = OVERRIDES.resolve(path);
             if (Files.isRegularFile(override) && load(read(override), "override")) return; // hand-edited: no download
-            if (!(Files.isRegularFile(CACHE.resolve(path)) && load(read(CACHE.resolve(path)), "cache"))) {
-                load(bundled(), "bundled");
-            }
-            DataRepo.HTTP.sendAsync(DataRepo.get(path, Duration.ofSeconds(20)),
-                            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+            Path cache = CACHE.resolve(path);
+            boolean fromCache = Files.isRegularFile(cache) && load(read(cache), "cache");
+            if (!fromCache) load(bundled(), "bundled");
+            String etag = fromCache ? read(etagFile()) : null;
+            checkForUpdate(etag == null ? null : etag.trim());
+        }
+
+        /** One request per start: 304 = the cached copy is current, 200 = new content. */
+        private void checkForUpdate(String etag) {
+            HttpRequest.Builder req = DataRepo.request(path, Duration.ofSeconds(20));
+            if (etag != null && !etag.isEmpty()) req.header("If-None-Match", etag);
+            DataRepo.HTTP.sendAsync(req.GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
                     .thenAccept(r -> {
-                        if (r.statusCode() != 200) {
+                        if (r.statusCode() == 304) {
+                            Telemetric.debug("Shared data {} is up to date", path);
+                        } else if (r.statusCode() != 200) {
                             Telemetric.LOGGER.warn("Shared data {} not downloaded: HTTP {}", path, r.statusCode());
                         } else if (load(r.body(), "download")) {
-                            writeCache(r.body());
+                            writeCache(r.body(), r.headers().firstValue("ETag").orElse(null));
                         }
                     })
                     .exceptionally(e -> {
@@ -147,25 +163,35 @@ public final class SharedData {
             }
         }
 
-        private void writeCache(String json) {
+        private Path etagFile() {
             Path file = CACHE.resolve(path);
+            return file.resolveSibling(file.getFileName() + ETAG_SUFFIX);
+        }
+
+        private void writeCache(String json, String etag) {
             try {
-                Files.createDirectories(file.getParent());
-                Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-                Files.writeString(tmp, json, StandardCharsets.UTF_8);
-                try {
-                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-                } catch (AtomicMoveNotSupportedException e) {
-                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
-                }
+                writeAtomic(CACHE.resolve(path), json);
+                if (etag != null) writeAtomic(etagFile(), etag);
+                else Files.deleteIfExists(etagFile());
             } catch (IOException e) {
                 Telemetric.LOGGER.warn("Shared data {} not cached: {}", path, e.toString());
             }
         }
 
+        private static void writeAtomic(Path file, String text) throws IOException {
+            Files.createDirectories(file.getParent());
+            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+            Files.writeString(tmp, text, StandardCharsets.UTF_8);
+            try {
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+
         private static String read(Path file) {
             try {
-                return Files.readString(file, StandardCharsets.UTF_8);
+                return Files.isRegularFile(file) ? Files.readString(file, StandardCharsets.UTF_8) : null;
             } catch (IOException e) {
                 return null;
             }

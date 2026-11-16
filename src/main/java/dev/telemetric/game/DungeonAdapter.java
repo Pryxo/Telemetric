@@ -420,7 +420,7 @@ public final class DungeonAdapter {
 
     /** Lower-case letters/digits only ("Keeper of Dusk" → "keeperofdusk"). */
     public static String normalizeName(String s) {
-        return s == null ? "" : s.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        return dev.telemetric.data.Names.key(s);
     }
 
     private static final int PLATE_A = 0x16004, PLATE_Z = PLATE_A + 25;

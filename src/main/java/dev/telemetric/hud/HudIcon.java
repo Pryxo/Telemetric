@@ -31,4 +31,10 @@ public sealed interface HudIcon {
             return new Texture(newPath, width, height, u, v, regionW, regionH);
         }
     }
+
+    /**
+     * An item drawn by its item model id ({@code "telos:material/boss/anubis"}), one text line tall — boss / drop
+     * icons from the data tables. Needs the pack that defines the model.
+     */
+    record Item(String model) implements HudIcon {}
 }

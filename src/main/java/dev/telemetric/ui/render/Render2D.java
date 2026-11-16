@@ -2,6 +2,7 @@ package dev.telemetric.ui.render;
 
 import dev.telemetric.Telemetric;
 import dev.telemetric.game.GameItem;
+import dev.telemetric.game.ItemIcons;
 import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.TextRun;
 import dev.telemetric.mixin.GuiGraphicsExtractorAccessor;
@@ -340,6 +341,15 @@ public final class Render2D {
     /** Draws only the item model (no count, durability or vanilla cooldown overlay) at 16x16 GUI units. */
     public void itemIcon(GameItem item, int x, int y) {
         if (item != null) g.item(item.stack(), x, y);
+    }
+
+    /** Draws the item with this item model id ({@code telos:material/...}) scaled to {@code size} x {@code size}. */
+    public void itemModel(String model, int x, int y, int size) {
+        GameItem item = ItemIcons.of(model);
+        if (item == null || size <= 0) return;
+        pushTransform(x, y, size / 16f);
+        g.item(item.stack(), 0, 0);
+        popTransform();
     }
 
     /** Shows the item's normal (server-styled) tooltip at the mouse, drawn on top at the end of the frame. */

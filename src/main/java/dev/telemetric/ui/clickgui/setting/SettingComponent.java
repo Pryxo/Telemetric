@@ -88,7 +88,7 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
         hover.animateTo(rowHovered ? 1 : 0);
         double h = hover.get();
         if (h > 0.01) r.rect(x, y, width, rowHeight(), ColorUtil.fade(p.surfaceHover(), h * 0.6));
-        if (rowHovered) ctx.requestTooltip(setting, setting.getDescription());
+        if (rowHovered) ctx.requestTooltip(setting, setting.getLabel(), setting.getDescription());
 
         r.pushAlpha(visibility.get());
         renderContent(r, mouseX, mouseY, delta, p);

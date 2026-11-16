@@ -201,16 +201,34 @@ public final class BossBarAdapter {
 
     /**
      * Scale for the bar with this name this frame: the Boss Bar Scale size for a known boss
-     * ({@code telos/bosses.json}: name hash or label), 1 for everything else (HUD widget bars, the dungeon name).
+     * ({@code Extractor/bossbars.json}: name hash or name), 1 for everything else (HUD widget bars, the dungeon name).
      */
     public static float scaleFor(Component name) {
         float s = barScale;
         if (s >= 1f || name == null || !ServerGate.onTelos()) return 1f;
         if (name != lastName) { // a bar keeps its name object until the server renames it
             lastName = name;
-            lastIsBoss = TelosData.BOSSES.get().isBossBar(name.hashCode(), letters(name));
+            lastIsBoss = TelosData.BOSS_BARS.get().isBossBar(name.hashCode(), letters(name));
         }
         return lastIsBoss ? s : 1f;
+    }
+
+    /**
+     * Names of the bosses whose bars are showing right now ({@code Extractor/bossbars.json}: name hash → boss),
+     * in bar order; empty when no known boss bar is up.
+     */
+    public static List<String> knownBosses() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gui == null || !ServerGate.onTelos()) return List.of();
+        Map<UUID, LerpingBossEvent> events = ((BossHealthOverlayAccessor) mc.gui.getBossOverlay()).telemetric$getEvents();
+        if (events.isEmpty()) return List.of();
+        TelosData.BossBars bars = TelosData.BOSS_BARS.get();
+        List<String> out = new ArrayList<>(2);
+        for (LerpingBossEvent e : events.values()) {
+            String n = bars.nameFor(e.getName().hashCode());
+            if (n != null && !out.contains(n)) out.add(n);
+        }
+        return out;
     }
 
     /** Lower-case Latin letters only: drops colour codes, HP numbers, levels and custom-font glyphs. */
