@@ -35,8 +35,13 @@ public final class LifetimeStatsHud extends LinesHudModule {
 
     private record Row(String label, String stat, int rgb, HudIcon icon) {}
 
-    /** The loot bag's own model as row icon: the totem path without {@code _totem} ({@code telos:mob/pouch/royal}). */
+    /**
+     * The bag's pouch glyph (Loot Information icon, or the bag's own {@code icon}, e.g. Shiny); without one the loot
+     * bag's own model: the totem path without {@code _totem} ({@code telos:mob/pouch/royal}).
+     */
     private static HudIcon bagIcon(Bag b) {
+        String glyph = b.icon().isEmpty() ? TelosData.LOOT_INFO.get().getOrDefault(b.key(), "") : b.icon();
+        if (!glyph.isEmpty()) return new HudIcon.Glyph(glyph, null);
         String totem = b.totem();
         if (totem == null || totem.isEmpty()) return null;
         return new HudIcon.Item("telos:" + (totem.endsWith("_totem") ? totem.substring(0, totem.length() - 6) : totem));

@@ -127,6 +127,22 @@ public final class TelosData {
 
     // ------------------------------------------------------------------ loot bags
 
+    /** {@code loot_info.json} (FAQ → Loot Information) — loot key → pouch glyph (default font, server pack). */
+    public static final SharedFile<Map<String, String>> LOOT_INFO = SharedData.file(DIR + "loot_info.json",
+            TelosData::parseLootInfo, Map.of());
+
+    static Map<String, String> parseLootInfo(JsonObject root) {
+        if (!root.has("loot")) return Map.of();
+        Map<String, String> out = new HashMap<>();
+        for (JsonElement e : root.getAsJsonArray("loot")) {
+            if (!e.isJsonObject()) continue;
+            String key = JsonFields.str(e.getAsJsonObject(), "key").toLowerCase(Locale.ROOT);
+            String glyph = JsonFields.str(e.getAsJsonObject(), "glyph");
+            if (!key.isEmpty() && !glyph.isEmpty()) out.put(key, glyph);
+        }
+        return Map.copyOf(out);
+    }
+
     /** {@code bags.json} — loot bag types (drop totem model, drop sound) for Custom Bags and Lifetime Stats. */
     public static final SharedFile<Bags> BAGS = SharedData.file(DIR + "bags.json", Bags::parse, Bags.EMPTY);
 
@@ -137,8 +153,11 @@ public final class TelosData {
      * @param model custom model with the image screen ({@code telemetric:bags/<model>})
      * @param group Lifetime Stats row this bag counts in (the key unless several bags share one, e.g. {@code event})
      * @param rgb   bag colour 0xRRGGBB, or -1
+     * @param icon  pouch glyph in the server pack's default font ("" = none): bags Loot Information has no icon for
+     *              (shiny, event bags); the others use {@link #LOOT_INFO} by key
      */
-    public record Bag(String key, String label, String totem, String sound, String model, String group, int rgb) {}
+    public record Bag(String key, String label, String totem, String sound, String model, String group, int rgb,
+                      String icon) {}
 
     public record Bags(List<Bag> list, Map<String, Bag> byTotem, Map<String, Bag> bySound, List<String> groups) {
         static final Bags EMPTY = new Bags(List.of(), Map.of(), Map.of(), List.of());
@@ -154,8 +173,9 @@ public final class TelosData {
                 String group = JsonFields.str(o, "group").toLowerCase(Locale.ROOT);
                 if (group.isEmpty()) group = key;
                 String color = JsonFields.str(o, "color");
+                String icon = JsonFields.str(o, "icon");
                 Bag b = new Bag(key, JsonFields.str(o, "label"), JsonFields.str(o, "totem"), JsonFields.str(o, "sound"),
-                        JsonFields.str(o, "model"), group, color.isEmpty() ? -1 : JsonFields.rgb(color));
+                        JsonFields.str(o, "model"), group, color.isEmpty() ? -1 : JsonFields.rgb(color), icon);
                 list.add(b);
                 byTotem.put(b.totem(), b);
                 bySound.put(b.sound(), b);
