@@ -218,15 +218,26 @@ public final class BossBarAdapter {
      * in bar order; empty when no known boss bar is up.
      */
     public static List<String> knownBosses() {
+        List<KnownBar> bars = knownBossBars();
+        List<String> out = new ArrayList<>(bars.size());
+        for (KnownBar b : bars) if (!out.contains(b.boss())) out.add(b.boss());
+        return out;
+    }
+
+    /** A showing boss bar of a known boss: its name and the bar's fill in % (0..100, rounded). */
+    public record KnownBar(String boss, int percent) {}
+
+    /** The bars of known bosses showing right now ({@code Extractor/bossbars.json}), in bar order. */
+    public static List<KnownBar> knownBossBars() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gui == null || !ServerGate.onTelos()) return List.of();
         Map<UUID, LerpingBossEvent> events = ((BossHealthOverlayAccessor) mc.gui.getBossOverlay()).telemetric$getEvents();
         if (events.isEmpty()) return List.of();
         TelosData.BossBars bars = TelosData.BOSS_BARS.get();
-        List<String> out = new ArrayList<>(2);
+        List<KnownBar> out = new ArrayList<>(2);
         for (LerpingBossEvent e : events.values()) {
             String n = bars.nameFor(e.getName().hashCode());
-            if (n != null && !out.contains(n)) out.add(n);
+            if (n != null) out.add(new KnownBar(n, Math.round(Math.clamp(e.getProgress(), 0f, 1f) * 100f)));
         }
         return out;
     }

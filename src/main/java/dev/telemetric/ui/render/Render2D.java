@@ -71,10 +71,6 @@ public final class Render2D {
         alpha = alphaStack.isEmpty() ? 1f : alphaStack.pop();
     }
 
-    public float currentAlpha() {
-        return alpha;
-    }
-
     public void pushScale(float scale) {
         g.pose().pushMatrix();
         g.pose().scale(scale, scale);
@@ -97,7 +93,7 @@ public final class Render2D {
 
     /** Window pixels per GUI unit (vanilla's GUI scale, e.g. 2). */
     public static int guiScale() {
-        return Math.max(1, (int) Math.round(Minecraft.getInstance().getWindow().getGuiScale()));
+        return Math.max(1, Math.round(Minecraft.getInstance().getWindow().getGuiScale()));
     }
 
     /**

@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -106,7 +107,8 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         }
         bosses.replaceAll((k, v) -> List.copyOf(v));
         byName.replaceAll((k, v) -> List.copyOf(v));
-        return new LootTable(Map.copyOf(dungeons), Map.copyOf(bosses), Map.copyOf(byModel), Map.copyOf(byName),
+        // dungeons keeps the file order (realm bosses last, see ownerOf) — Map.copyOf would scramble it
+        return new LootTable(Collections.unmodifiableMap(dungeons), Map.copyOf(bosses), Map.copyOf(byModel), Map.copyOf(byName),
                 Map.copyOf(byKey), Map.copyOf(aliases));
     }
 
@@ -154,11 +156,6 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
     /** Drop with this dropped-item model or item id ({@code telos:material/...-shiny} included), or null. */
     public Drop byModel(String model) {
         return model == null ? null : byModel.get(model);
-    }
-
-    /** Non-shiny drops with this name (several bosses can share one item). */
-    public List<Drop> named(String name) {
-        return byName.getOrDefault(Names.key(name), List.of());
     }
 
     /** The shiny variant of a drop, or null. */

@@ -1,0 +1,93 @@
+package dev.telemetric.chat;
+
+import dev.telemetric.data.TelosData;
+import dev.telemetric.data.TelosData.ChatRules;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+
+/**
+ * Chat tabs: sorts every chat line into one category ({@code Extractor/manual/chat.json}) and tracks the open tab.
+ * Display only — a line's category never triggers anything, so lines a player typed may land in any tab. "All"
+ * ({@link #ALL}, always first) shows everything. Pure Java; the chat HUD asks {@link #visible} per line.
+ */
+public final class ChatTabs {
+
+    public static final String ALL = "All";
+    /** Category of lines no rule matched. */
+    public static final String OTHER = "";
+
+    private final Predicate<String> callout;
+    private List<String> shown = List.of(ALL);
+    private String active = ALL;
+
+    /** @param callout the {@code builtin: callout} check ({@link Callouts#isCallout}) */
+    public ChatTabs(Predicate<String> callout) {
+        this.callout = callout;
+    }
+
+    /** Category key of a line's plain text: the first matching category in {@code chat.json}, else {@link #OTHER}. */
+    public String categorize(String plain) {
+        for (ChatRules.Category c : TelosData.CHAT.get().categories()) {
+            if ("callout".equals(c.builtin()) && callout.test(plain)) return c.key();
+            for (Pattern p : c.patterns()) if (p.matcher(plain).find()) return c.key();
+        }
+        return OTHER;
+    }
+
+    /** True if a line of {@code category} shows in the open tab. */
+    public boolean visible(String category) {
+        if (ALL.equals(active)) return true;
+        ChatRules.Tab tab = TelosData.CHAT.get().tab(active);
+        return tab == null || tab.shows(category);
+    }
+
+    /**
+     * Sets the tabs in the bar ("All" first, then the ticked ones in {@code chat.json} order). Returns true if the
+     * open tab had to fall back to "All".
+     */
+    public boolean setShown(Set<String> ticked) {
+        List<String> list = new ArrayList<>();
+        list.add(ALL);
+        for (String name : TelosData.CHAT.get().tabNames()) {
+            for (String t : ticked) if (t.equalsIgnoreCase(name)) { list.add(name); break; }
+        }
+        shown = List.copyOf(list);
+        if (!shown.contains(active)) {
+            active = ALL;
+            return true;
+        }
+        return false;
+    }
+
+    public List<String> shown() {
+        return shown;
+    }
+
+    public String active() {
+        return active;
+    }
+
+    /** Opens {@code tab}; false if it is already open or not in the bar. */
+    public boolean open(String tab) {
+        if (tab == null || tab.equals(active) || !shown.contains(tab)) return false;
+        active = tab;
+        return true;
+    }
+
+    /** The tab {@code step} places from the open one (wraps around). */
+    public String neighbour(int step) {
+        int i = Math.max(0, shown.indexOf(active));
+        int n = shown.size();
+        return shown.get(Math.floorMod(i + step, n));
+    }
+
+    /** Server chat mode the open tab sends in ({@code guild} …), or "" for none (All, Callouts, …). */
+    public String channelOf(String tab) {
+        ChatRules.Tab t = TelosData.CHAT.get().tab(tab);
+        return t == null ? "" : t.channel();
+    }
+}

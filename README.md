@@ -12,16 +12,21 @@ Discord: https://discord.gg/dqjD94x3Ra
 |---|---|---|
 | Player | **No Jump Delay** | Hold jump to jump again the instant you land (no vanilla jump delay) |
 | Player | **Auto Sprint** | Always sprint while moving forward |
+| Player | **Keybinds / Realm Selector** | Keys for Telos menus and commands; a realm picker (your region, hubs, previous realm) |
 | Combat | **Weapon / Ability / Armor Cooldowns** | Cooldown bars beside the crosshair and on your armor, with "Ready!" popups and sounds |
 | Combat | **Weapon / Ability Range** | Range of the held weapon / ability drawn on the ground |
 | Combat | **Assassin Stacks / Auto Clicker** | Assassin stack counter; hold attack to keep attacking |
 | Visual | **Fullbright / Camera** | See in the dark; no front camera, optional auto third person while looking down |
 | Visual | **Hitboxes / Player Size / Hide Armor** | Entity hitboxes; bigger or smaller players; hide worn armor, peek at real items under skins |
 | Visual | **Item Rarity / Health Bar / Boss Bar Scale** | Rarity colour behind items; your health above your head or on the HUD; smaller boss bars |
+| Visual | **Trait Details** | Hold Shift on an item to read each trait's description with its tier's numbers |
 | Visual | **Custom Bags** | Your own picture (incl. GIF) and sound for loot bag drops |
 | Combat | **Low Health Warning** | Big warning text and a sound when your health gets low |
 | Visual | **Stash Overlay** | Replaces the stash with all saved pages + your inventory: search, rename pages, move items across pages |
 | Visual | **Boss Tracker** | Realm bosses as a HUD list and world waypoints: alive, who fights it, portal timer, Raphael's n/10; quick /tp key |
+| Social | **Chat** | Chat tabs (Guild, Group, Callouts, Drops, …), hide spam lines, censor guild / group, right-click copy, `/ac /gc /grc` |
+| Social | **Callouts** | One key calls out your boss (HP + phase) or portal; click others' call-outs to teleport, even across realms |
+| Social | **Discord RPC** | Your realm, location, boss and character on your Discord profile |
 | HUD | **Pity Counter** | Kills since each drop of the boss you are at; drop line with the pity it came at (+ share button), pity summary after kills |
 | HUD | **Lifetime Stats / Session Stats** | All-time loot bags per type, boss kills, runs; this session's playtime (Nexus / dungeons / realm) and fame gained |
 | Dungeon | **Wayfinder** | Shows the shortest way to treasure rooms and the boss drop |
@@ -72,11 +77,13 @@ The jar lands in `build/libs/telemetric-<version>.jar`. Needs JDK 25 (`JAVA_HOME
   stacks, Auto Clicker) and Auto Sprint are based on Melinoe's Combat tab, and the **Visual** features (Fullbright,
   Camera, Boss Bar Scale, Hitboxes, Player Size, Hide Armor, Item Rarity, Health Bar, Custom Bags, Low Health Warning)
   on its Visual tab, and the **Boss Tracker**, **Pity Counter**, **Lifetime Stats** and **Session Stats** on its
-  Tracking tab — re-implemented for Telemetric with the authors' permission. The custom bag models
+  Tracking tab, and **Chat**, **Callouts**, **Discord RPC**, **Keybinds** (with the Realm Selector) and **Trait
+  Details** on its Misc tab — re-implemented for Telemetric with the authors' permission. The custom bag models
   (`assets/telemetric/models/bags/`, `items/bags/`) and textures (`textures/mob/bags/`) come from Melinoe and remain
   under LGPL-3.0; the hand-written tables in the [data repo](https://github.com/Pryxo/Telemetric-Data)
-  (`Extractor/manual/`: dungeon final bosses, multi-boss drops, boss call lines, spawn spots, bag list) are taken
-  from Melinoe's data.
+  (`Extractor/manual/`: dungeon final bosses, multi-boss drops, boss call lines, spawn spots, bag list, chat
+  categories, boss phases, realm lists, Discord presence texts) are taken from Melinoe's data, and Discord RPC uses
+  Melinoe's Discord application.
 
 ## License
 

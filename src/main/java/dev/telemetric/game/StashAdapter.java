@@ -208,7 +208,6 @@ public final class StashAdapter {
         return null;
     }
 
-    /** The 45 item slots of the open stash as item JSON ({@code null} = empty). */
     /** True if the shown stash page has no items in slots 0–44 (Telos only converts empty pages). */
     public static boolean isPageEmpty() {
         if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> acs)) return false;
@@ -276,11 +275,6 @@ public final class StashAdapter {
         if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> acs)) return null;
         ItemStack stack = acs.getMenu().getCarried();
         return stack.isEmpty() ? null : new GameItem(stack);
-    }
-
-    /** True if both items stack together (same item and components). */
-    public static boolean sameItem(GameItem a, GameItem b) {
-        return a != null && b != null && ItemStack.isSameItemSameComponents(a.stack(), b.stack());
     }
 
     // ------------------------------------------------------------------ mode-switch confirm pop-up

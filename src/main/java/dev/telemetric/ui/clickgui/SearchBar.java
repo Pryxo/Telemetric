@@ -41,10 +41,6 @@ public class SearchBar extends UIComponent {
         appear.snapTo(0).animateTo(1, delayMs);
     }
 
-    public String getQuery() {
-        return query;
-    }
-
     /** Positions the bar bottom-centre for a {@code screenW × screenH} ClickGUI area, then renders it. */
     public void render(Render2D r, int mouseX, int mouseY, float delta, int screenW, int screenH) {
         double a = appear.get();

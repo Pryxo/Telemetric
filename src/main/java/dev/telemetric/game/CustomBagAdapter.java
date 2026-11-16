@@ -24,7 +24,6 @@ import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -146,10 +145,11 @@ public final class CustomBagAdapter {
             String ext = name.substring(name.lastIndexOf('.') + 1);
             if (!List.of(exts).contains(ext)) return "Unsupported file type ." + ext;
             if (Files.size(source) > MAX_FILE_BYTES) return "File is larger than 15 MB";
+            byte[] data = Files.readAllBytes(source); // first: the source may be one of the files deleted below
             Files.createDirectories(DIR);
             for (String e : exts) Files.deleteIfExists(DIR.resolve(key + "." + e));
             Path target = DIR.resolve(key + "." + (ext.equals("jpeg") ? "jpg" : ext));
-            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+            Files.write(target, data);
             if (exts == IMAGE_EXT) {
                 dropCache(key);
                 warm(key, target);

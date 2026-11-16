@@ -82,7 +82,7 @@ public final class RealmBossTracker {
 
     private final Map<String, Tracked> tracked = new LinkedHashMap<>();
     private int progress, progressMax = 10;
-    private long lastMenuScan, realmJoinedAt;
+    private long realmJoinedAt;
     private Object world;
     private boolean wasDungeon;
     private boolean started;
@@ -118,8 +118,6 @@ public final class RealmBossTracker {
     /** World bosses down this realm (Raphael's portal opens at max). */
     public int progress() { return progress; }
     public int progressMax() { return progressMax; }
-
-    public long lastMenuScan() { return lastMenuScan; }
 
     /** When a realm was last joined from somewhere other than a dungeon (0 = not yet) — time to read /bosses. */
     public long realmJoinedAt() { return realmJoinedAt; }
@@ -183,7 +181,6 @@ public final class RealmBossTracker {
 
     private synchronized void readMenu(List<MenuItem> items) {
         if (!isBossMenu(items)) return;
-        lastMenuScan = System.currentTimeMillis();
         for (MenuItem i : items) {
             Matcher name = MENU_NAME.matcher(i.name());
             if (i.name().contains("Raphael") || i.lore().contains("Raphael")) {

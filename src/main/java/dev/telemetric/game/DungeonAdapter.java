@@ -206,10 +206,6 @@ public final class DungeonAdapter {
         PENDING.add(((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL));
     }
 
-    public static int pendingCount() {
-        return PENDING.size();
-    }
-
     /** Scans queued chunks into the map until the time budget is used. Returns chunks scanned. */
     public static int scanPending(DungeonMap map, long budgetNanos) {
         ClientLevel level = level();

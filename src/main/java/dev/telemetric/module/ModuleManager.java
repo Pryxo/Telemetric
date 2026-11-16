@@ -25,6 +25,10 @@ import dev.telemetric.module.impl.misc.InterfaceModule;
 import dev.telemetric.module.impl.misc.ThemeModule;
 import dev.telemetric.module.impl.player.AutoJumpModule;
 import dev.telemetric.module.impl.player.AutoSprintModule;
+import dev.telemetric.module.impl.player.KeybindsModule;
+import dev.telemetric.module.impl.social.CalloutsModule;
+import dev.telemetric.module.impl.social.ChatModule;
+import dev.telemetric.module.impl.social.DiscordRpcModule;
 import dev.telemetric.module.impl.visual.BossBarScaleModule;
 import dev.telemetric.module.impl.visual.BossStageTrackerModule;
 import dev.telemetric.module.impl.visual.CameraModule;
@@ -38,6 +42,7 @@ import dev.telemetric.module.impl.visual.HitboxesModule;
 import dev.telemetric.module.impl.visual.ItemRarityModule;
 import dev.telemetric.module.impl.visual.PlayerSizeModule;
 import dev.telemetric.module.impl.visual.StashOverlayModule;
+import dev.telemetric.module.impl.visual.TraitDetailsModule;
 import dev.telemetric.module.impl.visual.VoxyModifierModule;
 
 import java.util.ArrayList;
@@ -65,6 +70,7 @@ public final class ModuleManager {
         // Player
         register(new AutoJumpModule());
         register(new AutoSprintModule());
+        register(new KeybindsModule());
 
         // Combat (cooldowns come from the shared CooldownTracker; HUD elements listed in the Combat panel)
         register(HeldCooldownHud.weapon());
@@ -92,12 +98,18 @@ public final class ModuleManager {
         register(new NametagsModule());
         register(new HidePlayersModule());
         register(new ItemRarityModule());
+        register(new TraitDetailsModule());
         register(new HealthBarModule());
         register(new CustomBagsModule());
 
         // Dungeon (active only in telos:dungeon/<n>)
         register(new WayfinderModule());
         register(new DungeonMapHud()); // HUD element listed in the Dungeon panel
+
+        // Social (chat, call-outs, Discord)
+        register(new ChatModule());
+        register(new CalloutsModule());
+        register(new DiscordRpcModule());
 
         // HUD (elements drawn in-game; layout edited via Misc → HUD → Edit HUD)
         register(new WatermarkHud());

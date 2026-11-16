@@ -46,7 +46,7 @@ final class AssassinStackCounter {
     /** One particle at (dx, dy, dz) blocks from the player's feet. */
     void accept(boolean spark, double dx, double dy, double dz, long now) {
         if (now - lastAdded > TIMEOUT_MS) reset();
-        int layer = (int) Math.clamp(Math.round(dy / LAYER_SPACING), 0, LAYERS - 1); // nearest ring by height
+        int layer = Math.clamp(Math.round(dy / LAYER_SPACING), 0, LAYERS - 1); // nearest ring by height
         double ly = dy - layer * LAYER_SPACING;
         double horizontal = Math.sqrt(dx * dx + dz * dz);
         if (Math.sqrt(horizontal * horizontal + ly * ly) > RADIUS) return;

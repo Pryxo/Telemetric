@@ -218,8 +218,4 @@ public final class ChunkCells {
                 && java.util.Arrays.deepEquals(climb, other.climb);
     }
 
-    public boolean hasAnyStand() {
-        for (short[] s : stand) if (s.length > 0) return true;
-        return false;
-    }
 }

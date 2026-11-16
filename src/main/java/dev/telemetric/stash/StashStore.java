@@ -6,12 +6,12 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.telemetric.Telemetric;
+import dev.telemetric.config.AtomicFiles;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
@@ -58,10 +58,7 @@ public final class StashStore {
         });
         root.add("players", playersJson);
         try {
-            Files.createDirectories(file.getParent());
-            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-            Files.writeString(tmp, root.toString(), StandardCharsets.UTF_8);
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            AtomicFiles.writeString(file, root.toString());
         } catch (IOException e) {
             Telemetric.LOGGER.error("Could not save {}", file, e);
         }
@@ -112,11 +109,7 @@ public final class StashStore {
             }
         } catch (RuntimeException | IOException e) {
             Telemetric.LOGGER.error("Could not read {} — starting with an empty stash cache", file, e);
-            try {
-                Files.move(file, file.resolveSibling(file.getFileName() + ".corrupt"), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException ignored) {
-                // keep going with an empty store
-            }
+            AtomicFiles.backupCorrupt(file);
         }
     }
 

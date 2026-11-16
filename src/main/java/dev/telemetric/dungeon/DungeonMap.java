@@ -67,12 +67,6 @@ public final class DungeonMap {
         return out.toLongArray();
     }
 
-    public int padCount() {
-        int n = 0;
-        for (int[] ys : pads.values()) n += ys.length;
-        return n;
-    }
-
     /** Stores a scan; the version only changes when the walkability actually changed. */
     public void put(ChunkCells cells) {
         ChunkCells old = chunks.put(Cell.chunkKey(cells.chunkX, cells.chunkZ), cells);
@@ -96,10 +90,6 @@ public final class DungeonMap {
 
     public Collection<ChunkCells> chunks() {
         return chunks.values();
-    }
-
-    public ChunkCells chunk(int chunkX, int chunkZ) {
-        return chunks.get(Cell.chunkKey(chunkX, chunkZ));
     }
 
     private ChunkCells at(int x, int z) {

@@ -12,13 +12,10 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -271,36 +268,18 @@ public final class ConfigManager {
             Telemetric.LOGGER.warn("{} is not a JSON object", file);
         } catch (IOException | RuntimeException e) {
             Telemetric.LOGGER.error("Could not read {}, backing it up", file, e);
-            backupCorrupt(file);
+            AtomicFiles.backupCorrupt(file);
         }
         return Optional.empty();
     }
 
     private boolean writeJson(Path file, JsonObject json) {
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
         try {
-            Files.createDirectories(file.getParent());
-            try (Writer writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
-                gson.toJson(json, writer);
-            }
-            try {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
-            }
+            AtomicFiles.writeString(file, gson.toJson(json));
             return true;
         } catch (IOException e) {
             Telemetric.LOGGER.error("Could not write {}", file, e);
             return false;
-        }
-    }
-
-    private void backupCorrupt(Path file) {
-        try {
-            Files.move(file, file.resolveSibling(file.getFileName() + ".corrupt-" + System.currentTimeMillis()),
-                    StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException ignored) {
-            // best effort
         }
     }
 }

@@ -66,7 +66,6 @@ final class TelosIcons {
             "evasion", "critical chance"); // critical damage's symbol is already coloured
     /** Class ruleset ("mode") glyphs in {@code telos:misc}: normal, hardcore ironman, seasonal. */
     private static final int RULESET_NORMAL = 0x370, RULESET_HARDCORE = 0x371, RULESET_SEASONAL = 0x372;
-    static final String[] CLASSES = {"arcanist", "assassin", "huntress", "knight", "necromancer", "samurai"};
     private static final Pattern DIGIT = Pattern.compile("\\d+");
     private static final Pattern ROMAN = Pattern.compile("\\b(VI|IV|V|III|II|I)\\b");
 
@@ -124,21 +123,6 @@ final class TelosIcons {
     /** True if this stat's icon is a white symbol that should be tinted with the stat colour. */
     static boolean tinted(String label) {
         return TINTED.contains(label.toLowerCase(Locale.ROOT));
-    }
-
-    /** True if {@code g} is a Mastery tier glyph. */
-    static boolean isMasteryGlyph(HudIcon.Glyph g) {
-        if (g == null || g.text().isEmpty()) return false;
-        int cp = g.text().codePointAt(0);
-        for (int m : MASTERY_GLYPHS) if (m == cp) return true;
-        return false;
-    }
-
-    /** True if {@code g} is a class ruleset (mode) glyph. */
-    static boolean isRulesetGlyph(HudIcon.Glyph g) {
-        if (g == null || g.text().isEmpty()) return false;
-        int cp = g.text().codePointAt(0);
-        return cp == RULESET_NORMAL || cp == RULESET_HARDCORE || cp == RULESET_SEASONAL;
     }
 
     /** Class mode icon from the value text (seasonal / hardcore ironman, else normal). */

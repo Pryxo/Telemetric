@@ -14,11 +14,6 @@ public final class ColorUtil {
         return (clamp255(a) << 24) | (clamp255(r) << 16) | (clamp255(g) << 8) | clamp255(b);
     }
 
-    /** Opaque RGB → ARGB. */
-    public static int opaque(int rgb) {
-        return 0xFF000000 | (rgb & 0xFFFFFF);
-    }
-
     /** Replaces alpha (0..255). */
     public static int withAlpha(int argb, int alpha) {
         return (clamp255(alpha) << 24) | (argb & 0xFFFFFF);
@@ -79,11 +74,6 @@ public final class ColorUtil {
         }
         float s = max == 0 ? 0 : delta / max;
         return new float[]{h, s, max};
-    }
-
-    /** Relative luminance-ish brightness 0..1 — used to pick readable text on coloured backgrounds. */
-    public static double brightness(int argb) {
-        return (0.299 * red(argb) + 0.587 * green(argb) + 0.114 * blue(argb)) / 255.0;
     }
 
     private static int clamp255(int v) {

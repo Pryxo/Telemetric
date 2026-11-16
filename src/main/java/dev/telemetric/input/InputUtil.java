@@ -27,6 +27,7 @@ public final class InputUtil {
     public static final int KEY_F = InputConstants.KEY_F;
     public static final int KEY_V = InputConstants.KEY_V;
     public static final int KEY_X = InputConstants.KEY_X;
+    public static final int KEY_F6 = InputConstants.KEY_F6;
 
     /** System clipboard text ("" when empty / unavailable). */
     public static String getClipboard() {

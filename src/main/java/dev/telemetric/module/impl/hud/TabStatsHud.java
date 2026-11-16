@@ -4,6 +4,7 @@ import dev.telemetric.Telemetric;
 import dev.telemetric.game.PlayerAdapter;
 import dev.telemetric.game.ServerInfoAdapter;
 import dev.telemetric.game.ServerInfoAdapter.TabStat;
+import dev.telemetric.game.TelosCharacter;
 import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.LinesHudModule;
 import dev.telemetric.hud.TextRun;
@@ -155,7 +156,7 @@ public class TabStatsHud extends LinesHudModule {
         if (key.equals("class")) {
             // keep only the class name (drop "Lvl 70" etc.)
             String lower = value.toLowerCase(Locale.ROOT);
-            for (String c : TelosIcons.CLASSES) {
+            for (String c : TelosCharacter.CLASSES) {
                 if (!lower.contains(c)) continue;
                 for (TextRun r : runs) {
                     if (r.text().toLowerCase(Locale.ROOT).contains(c) && r.color() != 0) { valueColor = r.color(); break; }

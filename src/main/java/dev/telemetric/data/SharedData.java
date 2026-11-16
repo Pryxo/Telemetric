@@ -3,6 +3,7 @@ package dev.telemetric.data;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.telemetric.Telemetric;
+import dev.telemetric.config.AtomicFiles;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -10,10 +11,8 @@ import java.io.InputStream;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -86,14 +85,6 @@ public final class SharedData {
         /** Current value (never null if the fallback was not null). */
         public T get() {
             return value;
-        }
-
-        /**
-         * Where the current value came from: {@code override}, {@code cache} (also after the repo confirmed it is
-         * current), {@code bundled}, {@code download} or {@code none}.
-         */
-        public String source() {
-            return source;
         }
 
         /** Runs whenever a newer value is loaded (also right away if one is loaded already). */
@@ -170,22 +161,11 @@ public final class SharedData {
 
         private void writeCache(String json, String etag) {
             try {
-                writeAtomic(CACHE.resolve(path), json);
-                if (etag != null) writeAtomic(etagFile(), etag);
+                AtomicFiles.writeString(CACHE.resolve(path), json);
+                if (etag != null) AtomicFiles.writeString(etagFile(), etag);
                 else Files.deleteIfExists(etagFile());
             } catch (IOException e) {
                 Telemetric.LOGGER.warn("Shared data {} not cached: {}", path, e.toString());
-            }
-        }
-
-        private static void writeAtomic(Path file, String text) throws IOException {
-            Files.createDirectories(file.getParent());
-            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-            Files.writeString(tmp, text, StandardCharsets.UTF_8);
-            try {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
             }
         }
 

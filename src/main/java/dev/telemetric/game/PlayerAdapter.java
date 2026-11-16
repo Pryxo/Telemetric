@@ -31,11 +31,6 @@ public final class PlayerAdapter {
         return mc.screen == null && mc.options.keyJump.isDown();
     }
 
-    public static boolean isOnGround() {
-        LocalPlayer p = player();
-        return p != null && p.onGround();
-    }
-
     /** Remaining ticks of the vanilla jump cooldown (0 = can jump). */
     public static int jumpCooldown() {
         LocalPlayer p = player();
@@ -218,9 +213,10 @@ public final class PlayerAdapter {
         return new double[]{v.x, v.y, v.z};
     }
 
-    /** True while no screen (menu, chat, inventory) is open. */
-    public static boolean noScreen() {
-        return Minecraft.getInstance().screen == null;
+    /** Sends a chat message as if typed (in the current server chat mode). Does nothing outside a world. */
+    public static void sendChat(String message) {
+        LocalPlayer p = player();
+        if (p != null && p.connection != null) p.connection.sendChat(message);
     }
 
     /** Runs a server command as if typed ({@code "bosses"}, no leading slash). Does nothing outside a world. */

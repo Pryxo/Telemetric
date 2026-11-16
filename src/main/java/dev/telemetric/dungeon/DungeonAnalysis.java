@@ -34,8 +34,6 @@ public record DungeonAnalysis(long mapVersion, LongSet reachable, List<Hole> hol
      * @param reached running union of reachable cells, owned by the caller's worker thread; a fresh
      *                flood from {@code start} is added to it ({@code start} may be {@link Long#MIN_VALUE}:
      *                no flood, e.g. mid-air). Re-flooding each time picks up chunks scanned since.
-     */
-    /**
      * @param bossAnchor where the boss is (boss-bar mob feet, or the boss nameplate while the boss is invisible),
      *                   null if not seen: the boss level is then flooded from the floor under it and the boss
      *                   drop is the drop falling into it (see {@link BossArena#floodFromAnchor})

@@ -9,10 +9,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Every typed Telos table read from the shared data repo ({@code data/Extractor/*.json}, built by the wiki
@@ -80,8 +82,10 @@ public final class TelosData {
     public static final SharedFile<Rarities> RARITIES =
             SharedData.file(DIR + "rarities.json", Rarities::parse, Rarities.EMPTY);
 
-    /** @param rgb 0xRRGGBB */
-    /** @param glyph chat icon in the server pack's default font ("" = none), from {@code manual/rarities.json} glyphs */
+    /**
+     * @param rgb   0xRRGGBB
+     * @param glyph chat icon in the server pack's default font ("" = none), from {@code manual/rarities.json} glyphs
+     */
     public record Rarity(String key, String label, int rgb, String glyph) {}
 
     /** @param companions pet / mount rarities (usual … legacy), by key */
@@ -193,6 +197,145 @@ public final class TelosData {
             List<String> out = new ArrayList<>(list.size());
             for (Bag b : list) out.add(b.label());
             return out;
+        }
+    }
+
+    // ------------------------------------------------------------------ traits
+
+    /** {@code traits.json} — unique trait descriptions per tier (Trait Details). */
+    public static final SharedFile<TraitTable> TRAITS = SharedData.file(DIR + "traits.json", TraitTable::parse, TraitTable.EMPTY);
+
+    // ------------------------------------------------------------------ hand-written tables (Extractor/manual/)
+    // Read straight from manual/: no extractor step merges them into a generated file.
+
+    static final String MANUAL = DIR + "manual/";
+
+    /** {@code manual/callouts.json} — boss / portal call-out data (Callouts). */
+    public static final SharedFile<CalloutTable> CALLOUTS = SharedData.file(MANUAL + "callouts.json", CalloutTable::parse, CalloutTable.EMPTY);
+
+    /** {@code manual/chat.json} — chat tab categories + utility lines (Chat). */
+    public static final SharedFile<ChatRules> CHAT = SharedData.file(MANUAL + "chat.json", ChatRules::parse, ChatRules.EMPTY);
+
+    /**
+     * @param categories message categories, first match wins ({@code builtin} = a code check such as {@code callout})
+     * @param tabs       chat tabs in bar order (after "All")
+     * @param utility    whole-message regexes of the server's utility lines
+     */
+    public record ChatRules(List<Category> categories, List<Tab> tabs, List<String> utility) {
+        static final ChatRules EMPTY = new ChatRules(List.of(), List.of(), List.of());
+
+        public record Category(String key, List<Pattern> patterns, String builtin) {}
+
+        /** @param channel server chat mode this tab switches to ({@code default} / {@code guild} / …), or "" */
+        public record Tab(String name, String category, Set<String> also, String channel, boolean shown) {
+            public boolean shows(String messageCategory) {
+                return category.equals(messageCategory) || also.contains(messageCategory);
+            }
+        }
+
+        static ChatRules parse(JsonObject root) {
+            List<Category> categories = new ArrayList<>();
+            for (JsonObject c : JsonFields.objects(root, "categories")) {
+                List<Pattern> patterns = new ArrayList<>();
+                for (String p : JsonFields.strings(c, "patterns")) patterns.add(Pattern.compile(p));
+                categories.add(new Category(JsonFields.str(c, "key"), List.copyOf(patterns), JsonFields.str(c, "builtin")));
+            }
+            List<Tab> tabs = new ArrayList<>();
+            for (JsonObject t : JsonFields.objects(root, "tabs")) {
+                String name = JsonFields.str(t, "name");
+                if (name.isEmpty()) continue;
+                tabs.add(new Tab(name, JsonFields.str(t, "category"), Set.copyOf(JsonFields.strings(t, "also")),
+                        JsonFields.str(t, "channel"), JsonFields.bool(t, "shown", true)));
+            }
+            return new ChatRules(List.copyOf(categories), List.copyOf(tabs), JsonFields.strings(root, "utility"));
+        }
+
+        public Tab tab(String name) {
+            for (Tab t : tabs) if (t.name().equalsIgnoreCase(name)) return t;
+            return null;
+        }
+
+        public List<String> tabNames() {
+            List<String> out = new ArrayList<>(tabs.size());
+            for (Tab t : tabs) out.add(t.name());
+            return out;
+        }
+
+        public Set<String> defaultShown() {
+            Set<String> out = new LinkedHashSet<>();
+            for (Tab t : tabs) if (t.shown()) out.add(t.name());
+            return out;
+        }
+    }
+
+    /** {@code manual/realms.json} — realm / hub names per region (Keybinds → Realm Selector). */
+    public static final SharedFile<Realms> REALMS = SharedData.file(MANUAL + "realms.json", Realms::parse, Realms.EMPTY);
+
+    public record Realms(List<Region> regions) {
+        static final Realms EMPTY = new Realms(List.of());
+
+        /** @param prefix start of the Tab "Server" region part that picks this region ("" = any) */
+        public record Region(String name, String prefix, List<String> realms, List<String> hubs) {}
+
+        static Realms parse(JsonObject root) {
+            List<Region> regions = new ArrayList<>();
+            for (JsonObject r : JsonFields.objects(root, "regions")) {
+                regions.add(new Region(JsonFields.str(r, "name"), JsonFields.str(r, "prefix").toLowerCase(Locale.ROOT),
+                        JsonFields.strings(r, "realms"), JsonFields.strings(r, "hubs")));
+            }
+            return new Realms(List.copyOf(regions));
+        }
+
+        /** True if {@code name} is a realm or hub of any region (case-insensitive). */
+        public boolean isKnown(String name) {
+            for (Region g : regions) {
+                for (String r : g.realms()) if (r.equalsIgnoreCase(name)) return true;
+                for (String h : g.hubs()) if (h.equalsIgnoreCase(name)) return true;
+            }
+            return false;
+        }
+
+        /** The region for the Tab "Server" region part ({@code null} / unknown → null). */
+        public Region forServerRegion(String region) {
+            if (region == null || region.isBlank()) return null;
+            String r = region.trim().toLowerCase(Locale.ROOT);
+            for (Region g : regions) if (r.startsWith(g.prefix())) return g;
+            return null;
+        }
+    }
+
+    /** {@code manual/discord.json} — Discord Rich Presence application, art keys and texts (Discord RPC). */
+    public static final SharedFile<DiscordInfo> DISCORD = SharedData.file(MANUAL + "discord.json", DiscordInfo::parse, DiscordInfo.EMPTY);
+
+    /**
+     * @param modeImages / modeNames character mode ({@code normal} / {@code seasonal} / {@code hardcore}) → art key / name
+     * @param texts      named texts ({@code connecting}, {@code fighting}, … with {@code {placeholders}})
+     * @param areaTexts  area name → second line while idle there
+     */
+    public record DiscordInfo(String applicationId, String largeImage, String smallImage,
+                              Map<String, String> modeImages, Map<String, String> modeNames,
+                              Map<String, String> texts, List<Button> buttons, Map<String, String> areaTexts) {
+        static final DiscordInfo EMPTY = new DiscordInfo("", "", "", Map.of(), Map.of(), Map.of(), List.of(), Map.of());
+
+        public record Button(String label, String url) {}
+
+        static DiscordInfo parse(JsonObject root) {
+            List<Button> buttons = new ArrayList<>();
+            for (JsonObject b : JsonFields.objects(root, "buttons")) {
+                String label = JsonFields.str(b, "label"), url = JsonFields.str(b, "url");
+                if (!label.isEmpty() && url.startsWith("https://") && buttons.size() < 2) buttons.add(new Button(label, url));
+            }
+            return new DiscordInfo(JsonFields.str(root, "applicationId"), JsonFields.str(root, "largeImage"),
+                    JsonFields.str(root, "smallImage"), JsonFields.stringMap(root, "modeImages"),
+                    JsonFields.stringMap(root, "modeNames"), JsonFields.stringMap(root, "texts"), List.copyOf(buttons),
+                    JsonFields.stringMap(root, "areaTexts"));
+        }
+
+        /** Text {@code key} with {@code {name}} placeholders filled from {@code vars} (name, value, …); "" when missing. */
+        public String text(String key, String... vars) {
+            String t = texts.getOrDefault(key, "");
+            for (int i = 0; i + 1 < vars.length; i += 2) t = t.replace("{" + vars[i] + "}", vars[i + 1]);
+            return t;
         }
     }
 }

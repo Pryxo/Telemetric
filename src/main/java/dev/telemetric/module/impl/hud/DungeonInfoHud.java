@@ -5,6 +5,7 @@ import dev.telemetric.dungeon.rules.ChatCounter;
 import dev.telemetric.dungeon.rules.ChatPuzzles;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.ServerInfoAdapter;
+import dev.telemetric.game.TelosServer;
 import dev.telemetric.hud.LinesHudModule;
 import dev.telemetric.module.impl.dungeon.DungeonTracker;
 import dev.telemetric.setting.impl.BooleanSetting;
@@ -102,14 +103,9 @@ public final class DungeonInfoHud extends LinesHudModule {
         String path = dimension.substring(dimension.indexOf(':') + 1);
         boolean numbered = path.startsWith("dungeon/");
         String id = numbered ? path.substring("dungeon/".length()) : path.replace("/", "");
-        String region = "";
-        if (server != null) {
-            String s = server.trim();
-            if (s.startsWith("[")) s = s.substring(1);
-            int end = s.indexOf(',');
-            if (end < 0) end = s.indexOf(']');
-            region = (end < 0 ? s : s.substring(0, end)).trim();
-        }
+        TelosServer parsed = TelosServer.parse(server);
+        // "[EU, Astra]" → "EU"; a value without a region → its only part
+        String region = parsed == null ? "" : parsed.region().isEmpty() ? parsed.realm() : parsed.region();
         return numbered || region.isEmpty() ? region + id : region + "/" + id;
     }
 

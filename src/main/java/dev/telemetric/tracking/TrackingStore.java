@@ -6,14 +6,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.telemetric.Telemetric;
+import dev.telemetric.config.AtomicFiles;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -26,8 +25,6 @@ import java.util.concurrent.TimeUnit;
  * Persistent counters of one Minecraft account: pity per drop ({@code pity}) and lifetime stats ({@code stats}),
  * in {@code config/telemetric/tracking/<account uuid>.json}. Changes are saved 2 s after the last one (background
  * thread) and on game exit. Pure Java (no Minecraft imports). Thread-safe.
- * <p>
- * {@link #revision()} bumps on every change, so HUD rows can cache their text until it moves.
  */
 public final class TrackingStore {
 
@@ -49,7 +46,6 @@ public final class TrackingStore {
     private final Path file;
     private final Map<String, Integer> pity = new HashMap<>();
     private final Map<String, Integer> stats = new HashMap<>();
-    private volatile int revision;
     private ScheduledFuture<?> pendingSave;
 
     private TrackingStore(Path file) {
@@ -106,15 +102,9 @@ public final class TrackingStore {
         changed();
     }
 
-    /** Bumps on every change. */
-    public int revision() {
-        return revision;
-    }
-
     // ------------------------------------------------------------------ file
 
     private void changed() {
-        revision++;
         if (pendingSave != null) pendingSave.cancel(false);
         pendingSave = SAVER.schedule(this::saveNow, SAVE_DELAY_MS, TimeUnit.MILLISECONDS);
     }
@@ -127,14 +117,7 @@ public final class TrackingStore {
         root.add("pity", GSON.toJsonTree(new TreeMap<>(pity)));
         root.add("stats", GSON.toJsonTree(new TreeMap<>(stats)));
         try {
-            Files.createDirectories(file.getParent());
-            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-            Files.writeString(tmp, GSON.toJson(root), StandardCharsets.UTF_8);
-            try {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
-            }
+            AtomicFiles.writeString(file, GSON.toJson(root));
         } catch (IOException e) {
             Telemetric.LOGGER.warn("Tracking data not saved to {}: {}", file, e.toString());
         }
@@ -147,7 +130,10 @@ public final class TrackingStore {
             readInts(root.getAsJsonObject("pity"), pity);
             readInts(root.getAsJsonObject("stats"), stats);
         } catch (IOException | RuntimeException e) {
-            Telemetric.LOGGER.warn("Tracking data {} unreadable, starting empty: {}", file, e.toString());
+            Telemetric.LOGGER.warn("Tracking data {} unreadable, backed up, starting empty: {}", file, e.toString());
+            pity.clear();
+            stats.clear();
+            AtomicFiles.backupCorrupt(file); // the next save would overwrite it
         }
     }
 

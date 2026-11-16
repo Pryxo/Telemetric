@@ -78,10 +78,6 @@ public final class ServerInfoAdapter {
         return info == null ? -1 : info.getLatency();
     }
 
-    public static boolean isConnected() {
-        return Minecraft.getInstance().getConnection() != null;
-    }
-
     /** Parsed Tab-list stats keyed by lower-case label, in Tab order. Never null. */
     public static Map<String, TabStat> tabStats() {
         long now = System.currentTimeMillis();

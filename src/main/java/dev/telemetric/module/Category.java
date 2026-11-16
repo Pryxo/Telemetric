@@ -22,6 +22,7 @@ public final class Category {
     public static final Category PLAYER = register("Player", 12);
     public static final Category DUNGEON = register("Dungeon", 13);
     public static final Category TEXTURE_PACK = register("Texture Pack", 15);
+    public static final Category SOCIAL = register("Social", 16);
     public static final Category HUD = register("HUD", 20);
     public static final Category MISC = register("Misc", 1000);
     // Extra categories are registered by add-ons (see TelemetricAddon), never here.

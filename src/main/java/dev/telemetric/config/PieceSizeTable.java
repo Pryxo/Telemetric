@@ -10,12 +10,9 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -165,12 +162,7 @@ public final class PieceSizeTable {
             }
         } catch (IOException | RuntimeException ex) {
             Telemetric.LOGGER.error("Could not read {}, backing it up", file, ex);
-            try {
-                Files.move(file, file.resolveSibling(file.getFileName() + ".corrupt-" + System.currentTimeMillis()),
-                        StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException ignored) {
-                // best effort
-            }
+            AtomicFiles.backupCorrupt(file);
         }
     }
 
@@ -189,17 +181,8 @@ public final class PieceSizeTable {
             dungeons.add(d.getKey(), o);
         }
         root.add("dungeons", dungeons);
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
         try {
-            Files.createDirectories(file.getParent());
-            try (Writer writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
-                gson.toJson(root, writer);
-            }
-            try {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException ex) {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
-            }
+            AtomicFiles.writeString(file, gson.toJson(root));
         } catch (IOException ex) {
             Telemetric.LOGGER.error("Could not write {}", file, ex);
         }

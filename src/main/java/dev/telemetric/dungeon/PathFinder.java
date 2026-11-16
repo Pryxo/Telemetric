@@ -47,8 +47,8 @@ public final class PathFinder {
     /**
      * A found path. {@code complete} = it ends on a goal; otherwise no goal is reachable from the start
      * (sealed section, unexplored chunks) and the path ends at the reachable cell closest to the goals.
+     * {@code capped}: the search stopped at its node limit (the goal may still be walkable).
      */
-    /** {@code capped}: the search stopped at its node limit (the goal may still be walkable). */
     public record Result(long[] cells, boolean complete, boolean capped) {}
 
     private static final class Node {

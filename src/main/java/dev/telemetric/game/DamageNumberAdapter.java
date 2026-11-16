@@ -143,11 +143,6 @@ public final class DamageNumberAdapter {
         return out;
     }
 
-    /** Number of glyphs mapped from the server pack (0 = Telos pack not loaded). */
-    public static int glyphCount() {
-        return glyphs.size();
-    }
-
     // ------------------------------------------------------------------ entity text
 
     /** Text of a text display, or the visible custom name of an armor stand / non-living marker entity. */

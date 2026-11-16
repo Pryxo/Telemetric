@@ -26,7 +26,12 @@ public class MultiChoiceSetting extends Setting<Set<String>> {
     private final Supplier<List<String>> options;
 
     public MultiChoiceSetting(String name, String description, Supplier<List<String>> options) {
-        super(name, description, Set.of());
+        this(name, description, options, Set.of());
+    }
+
+    /** @param defaults options ticked by default (and after a reset) */
+    public MultiChoiceSetting(String name, String description, Supplier<List<String>> options, Set<String> defaults) {
+        super(name, description, Collections.unmodifiableSet(new LinkedHashSet<>(defaults)));
         this.options = Objects.requireNonNull(options);
     }
 

@@ -387,7 +387,6 @@ public final class DungeonTracker {
         DungeonAdapter.setActive(false);
     }
 
-    /** Merges glowing entities closer than 2 blocks (multi-part treasure models). */
     /**
      * A different boss place: more than 2 blocks apart in Y, or more than 24 apart sideways. A boss walking
      * around its arena (or the mob vs. its nameplate, ~1.7 higher) is the same anchor — every anchor change
