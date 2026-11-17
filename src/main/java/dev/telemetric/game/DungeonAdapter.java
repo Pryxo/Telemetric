@@ -390,8 +390,10 @@ public final class DungeonAdapter {
 
     /**
      * Nameplates (text displays) whose text spells {@code name} — {@code name} normalised like
-     * {@link #normalizeName}. Telos draws elite/goal mob names in a custom font: {@code A}–{@code Z} =
-     * U+16004–U+1601D, space U+15FF9, brackets U+1601F/U+16020 (verified: "Keeper of Dusk", Midnight Stronghold);
+     * {@link #normalizeName}. Telos draws mob names in image glyphs of the server pack's {@code telos:font/text.json},
+     * one set per mob tier with its own code points: {@code default} (normal mobs, a = U+15FD6, with gaps —
+     * "Cursed Bowsman", Omnipotent's Citadel), {@code miniboss} (A–Z = U+16004–U+1601D — "Keeper of Dusk"),
+     * {@code boss}, {@code misc}. Decoded from the pack's font file ({@link DamageNumberAdapter#textFontLetter});
      * plain Latin letters are read too.
      */
     public static List<NamePlate> namePlates(String name) {
@@ -421,12 +423,18 @@ public final class DungeonAdapter {
 
     private static final int PLATE_A = 0x16004, PLATE_Z = PLATE_A + 25;
 
-    /** Nameplate text → lower-case letters (Telos plate font decoded, everything else dropped). */
+    /**
+     * Nameplate text → lower-case letters/digits (Telos plate fonts decoded, everything else dropped). The
+     * miniboss A–Z range is a built-in fallback for when the server pack font could not be read.
+     */
     static String plateLetters(String s) {
         StringBuilder b = new StringBuilder(s.length());
         for (int i = 0; i < s.length(); ) {
             int cp = s.codePointAt(i);
-            if (cp >= PLATE_A && cp <= PLATE_Z) b.append((char) ('a' + (cp - PLATE_A)));
+            char font = cp < 0x80 ? 0 : DamageNumberAdapter.textFontLetter(cp);
+            if (font != 0) {
+                if (font != ' ') b.append(font);
+            } else if (cp >= PLATE_A && cp <= PLATE_Z) b.append((char) ('a' + (cp - PLATE_A)));
             else if (cp < 0x80 && Character.isLetterOrDigit(cp)) b.append(Character.toLowerCase((char) cp));
             i += Character.charCount(cp);
         }

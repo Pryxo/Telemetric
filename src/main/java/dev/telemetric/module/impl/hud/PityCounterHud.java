@@ -72,8 +72,6 @@ public final class PityCounterHud extends LinesHudModule {
     private final BooleanSetting icons = add(chat.child(new BooleanSetting("Icons",
             "Rarity icon in front of the drop line and the item's picture before its name (needs the Telos pack)", true)
             .visibleWhen(dropMessage::get)));
-    private final BooleanSetting pityLine = add(chat.child(new BooleanSetting("Pity Line",
-            "After each boss kill, one line with the boss's pity per loot group (hover for the items)", true)));
     private final BooleanSetting hideBonusChest = add(chat.child(new BooleanSetting("Hide Bonus Chest Messages",
             "Hide the server's bonus chest spawned / unlocked lines (the unlock still counts)", false)));
     private final ActionSetting resetSeasonal = add(new ActionSetting("Reset Seasonal Pity",
@@ -97,7 +95,6 @@ public final class PityCounterHud extends LinesHudModule {
             @Override
             public void onKill(BossLoot loot, int contributionBoost) {
                 lastContribution = contributionBoost;
-                if (isEnabled() && pityLine.get()) postPityLine(loot);
             }
 
             @Override
@@ -315,32 +312,6 @@ public final class PityCounterHud extends LinesHudModule {
         if (!glyph.isEmpty()) tagText.glyph(glyph, null).add(" ", ChatText.WHITE);
         tagText.add(label + " Drop", rgb, ChatText.BOLD);
         line.tag(new ChatText.Tag(rgb, tagText, label + " Drop"));
-        ChatAdapter.post(line);
-    }
-
-    /** "Pity: [Bloodshot] [Companion]" — hover a group for its items and counts. */
-    private void postPityLine(BossLoot loot) {
-        Map<String, List<Drop>> byGroup = new LinkedHashMap<>();
-        for (Drop d : loot.pityDrops()) {
-            if (!d.shiny()) byGroup.computeIfAbsent(groupLabel(d), k -> new ArrayList<>()).add(d);
-        }
-        if (byGroup.isEmpty()) return;
-        LootTable table = TelosData.LOOT.get();
-        TrackingStore store = LootTracker.get().store();
-        ChatText line = ChatText.of().add("Pity", ChatText.GRAY, ChatText.BOLD).add(" " + loot.boss() + ":", ChatText.GRAY);
-        for (Map.Entry<String, List<Drop>> g : byGroup.entrySet()) {
-            int rgb = rarityColor(g.getValue().getFirst()) & 0xFFFFFF;
-            ChatText hover = ChatText.of();
-            Set<String> done = new LinkedHashSet<>();
-            for (Drop d : g.getValue()) {
-                if (!done.add(d.key())) continue;
-                if (!hover.isEmpty()) hover.add("\n", ChatText.GRAY);
-                hover.add(d.name(), rgb).add(": ", ChatText.GRAY).add(Integer.toString(store.pity(d.key())), ChatText.WHITE);
-                Drop shiny = table.shinyOf(d);
-                if (shiny != null && shiny != d) shiny(hover, " (Shiny: " + store.pity(shiny.key()) + ")", 0);
-            }
-            line.add(" [" + g.getKey() + "]", rgb).hover(hover);
-        }
         ChatAdapter.post(line);
     }
 

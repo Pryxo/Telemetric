@@ -12,7 +12,7 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
- * Chat tabs: sorts every chat line into one category ({@code Extractor/manual/chat.json}) and tracks the open tab.
+ * Chat tabs: sorts every chat line into one category ({@code tables/chat.json}) and tracks the open tab.
  * Display only — a line's category never triggers anything, so lines a player typed may land in any tab. "All"
  * ({@link #ALL}, always first) shows everything. Pure Java; the chat HUD asks {@link #visible} per line.
  */

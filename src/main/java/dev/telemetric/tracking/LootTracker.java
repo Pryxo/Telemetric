@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
  *       {@value #MOB_KILL_RANGE} blocks of you, chunk still loaded = killed near you: its drops get +1
  *       ({@link Listener#onMobKill}). A plate that shows up again right there within {@value #MOB_RESENT_MS} ms was
  *       only re-sent: the kill is taken back.</li>
- *   <li><b>Bag</b> — a loot bag's totem pop: {@code bag:<group>} +1 ({@code Extractor/rarities.json} bags).</li>
+ *   <li><b>Bag</b> — a loot bag's totem pop: {@code bag:<group>} +1 ({@code tables/rarities.json} bags).</li>
  * </ul>
  * Counters live in {@link TrackingStore} (per account). Chat layouts were not read live yet ({@code anyRuns}).
  */
@@ -202,7 +202,7 @@ public final class LootTracker {
             TrackingStore store = store();
             for (Drop d : own) store.addPity(d.key());
             mobKills.add(new MobKill(p, now, own));
-            String name = own.getFirst().mob();
+            String name = own.getFirst().mobName(e.getValue().mob());
             Telemetric.debug("Pity: named mob '{}' killed at {}", name, p);
             for (Listener l : listeners) l.onMobKill(name, own);
         }
@@ -330,7 +330,7 @@ public final class LootTracker {
     private void onBag(String totem) {
         Bag bag = TelosData.BAGS.get().byTotem().get(totem);
         if (bag == null) {
-            if (totem.contains("pouch")) Telemetric.debug("Unknown loot bag '{}' (add it to Extractor/rarities.json: bag / eventBags)", totem);
+            if (totem.contains("pouch")) Telemetric.debug("Unknown loot bag '{}' (add it to tables/rarities.json: bag / eventBags)", totem);
             return;
         }
         store().addStat(BAG_PREFIX + bag.group(), 1);

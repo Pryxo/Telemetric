@@ -15,7 +15,7 @@ import java.util.Set;
 
 /**
  * Marks items by rarity with a soft coloured shape behind them in inventories and the hotbar. Rarities and their
- * colours come from {@code data/Extractor/rarities.json}, so a new rarity only needs a line there.
+ * colours come from {@code data/tables/rarities.json}, so a new rarity only needs a line there.
  */
 public final class ItemRarityModule extends Module {
 

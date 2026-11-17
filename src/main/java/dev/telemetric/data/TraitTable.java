@@ -10,7 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@code Extractor/traits.json} (wiki → Traits): the unique traits of untiered items with their description template
+ * {@code tables/traits.json}: the unique traits of untiered items with their description template
  * and the value of every placeholder per tier. Feeds Trait Details. Pure Java.
  *
  * @param byKey trait {@link Names#key} → trait
@@ -50,13 +50,10 @@ public record TraitTable(Map<String, Trait> byKey, List<String> tiers) {
 
     static TraitTable parse(JsonObject root) {
         List<String> tiers = new ArrayList<>();
-        for (JsonObject t : JsonFields.objects(root, "tiers")) {
-            String letter = JsonFields.str(t, "tier");
-            if (!letter.isEmpty()) tiers.add(letter);
-        }
+        for (String letter : JsonFields.strings(root, "tiers")) if (!letter.isEmpty()) tiers.add(letter);
         Map<String, Trait> byKey = new HashMap<>();
         for (String slot : List.of("weapon", "ability", "armour")) {
-            for (JsonObject o : JsonFields.objects(JsonFields.obj(root, slot), "unique")) {
+            for (JsonObject o : JsonFields.objects(root, slot)) {
                 String name = JsonFields.str(o, "name"), template = JsonFields.str(o, "template");
                 if (name.isEmpty() || template.isEmpty()) continue;
                 List<Map<String, String>> values = new ArrayList<>();

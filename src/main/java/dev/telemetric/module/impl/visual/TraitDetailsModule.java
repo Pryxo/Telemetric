@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * Visual → Trait Details: under each unique trait in an item's
  * lore ({@code <tier glyph> <name>}) its description with the numbers of that tier, from the wiki's trait table
- * ({@code Extractor/traits.json}). Needs no data of its own — new traits appear when the table updates.
+ * ({@code tables/traits.json}). Needs no data of its own — new traits appear when the table updates.
  */
 public class TraitDetailsModule extends Module {
 

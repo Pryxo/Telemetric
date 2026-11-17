@@ -12,8 +12,8 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
- * {@code Extractor/Boss.json}: every boss — wiki minibosses / realm / event bosses (spawn spots, icons, Boss Tracker
- * data) and every dungeon loot boss, with drops and boss bar hashes. Pure Java.
+ * {@code tables/Boss.json}: every boss — realm bosses (zone, spawn spots, Boss Tracker data + icon) and dungeon bosses
+ * ({@code dungeon}), with drops and boss bar hashes. Pure Java.
  *
  * @param loot the drops of the same file ({@link TelosData#LOOT})
  * @param bars the boss bar hashes of the same file ({@link TelosData#BOSS_BARS})
@@ -44,16 +44,15 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
 
     /**
      * @param id      name key ({@link Names#key})
-     * @param type    {@code miniboss}, {@code boss}, {@code eventBoss} or {@code dungeon}
-     * @param area    where a realm boss spawns ({@code Realm}, a biome, {@code Shadowlands}, …), may be empty
-     * @param icon    item model of its menu icon ({@code telos:material/boss/anubis}), may be empty
+     * @param zone    separate realm region a realm boss spawns in ({@code Shadowlands}), empty = the open realm
+     * @param icon    item model of its Boss Tracker icon ({@code telos:material/boss/anubis}), may be empty
      * @param dungeon dungeon of a dungeon boss, else empty
      * @param tracker Boss Tracker data, or null when it is not tracked
      */
-    public record Boss(String id, String name, String type, String area, String icon, List<Spot> positions,
-                       String dungeon, Tracker tracker) {
+    public record Boss(String id, String name, String zone, String icon, List<Spot> positions, String dungeon,
+                       Tracker tracker) {
         public boolean isDungeonBoss() {
-            return "dungeon".equals(type);
+            return !dungeon.isEmpty();
         }
     }
 
@@ -62,21 +61,19 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         List<Boss> all = new ArrayList<>();
         Map<String, Boss> realm = new HashMap<>();
         List<Boss> tracked = new ArrayList<>();
+        List<String> zones = new ArrayList<>();
         for (JsonElement e : root.getAsJsonArray("bosses")) {
             JsonObject o = e.getAsJsonObject();
-            String name = JsonFields.str(o, "name");
-            String type = JsonFields.str(o, "type"), location = JsonFields.str(o, "location");
-            boolean dungeon = "dungeon".equals(type);
-            Boss b = new Boss(Names.key(name), name, type, dungeon ? "" : location, JsonFields.str(o, "icon"),
-                    spots(o, "positions", name), dungeon ? location : "",
-                    tracker(o.getAsJsonObject("tracker"), name, defaultPortal));
+            String name = JsonFields.str(o, "name"), dungeon = JsonFields.str(o, "dungeon");
+            String zone = dungeon.isEmpty() ? JsonFields.str(o, "zone") : "";
+            Boss b = new Boss(Names.key(name), name, zone, JsonFields.str(o, "icon"), spots(o, "positions", name),
+                    dungeon, tracker(o.getAsJsonObject("tracker"), name, defaultPortal));
             all.add(b);
             if (b.isDungeonBoss()) continue;
+            if (!zone.isEmpty() && !zones.contains(zone)) zones.add(zone);
             realm.putIfAbsent(Names.key(name), b);
             if (b.tracker() != null) tracked.add(b);
         }
-        List<String> zones = new ArrayList<>();
-        if (root.has("zones")) for (JsonElement z : root.getAsJsonArray("zones")) zones.add(z.getAsString());
         JsonArray bosses = root.getAsJsonArray("bosses");
         return new BossTable(List.copyOf(all), Map.copyOf(realm), List.copyOf(tracked), defaultPortal, List.copyOf(zones),
                 LootTable.parse(bosses, root.getAsJsonObject("aliases")), TelosData.BossBars.parse(bosses));
@@ -93,10 +90,9 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         return null;
     }
 
-    /** The zone a boss belongs to (its area is a zone), or null. */
+    /** The zone a boss belongs to, or null for the open realm (and dungeon bosses). */
     public String zoneOf(Boss boss) {
-        for (String z : zones) if (Names.placeKey(z).equals(Names.placeKey(boss.area()))) return z;
-        return null;
+        return boss.zone().isEmpty() ? null : boss.zone();
     }
 
     /** Realm (non-dungeon) boss by name, any spelling ("cog sentinel", "Cog Sentinel"), or null. */

@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Dungeon → Boss → drops, read from the bosses of {@code Extractor/Boss.json}. Feeds the Pity Counter (which drops a
+ * Dungeon → Boss → drops, read from the bosses of {@code tables/Boss.json}. Feeds the Pity Counter (which drops a
  * boss kill counts for), drop detection (a dropped item's model / name → its drop) and the drop messages. Pure Java.
  *
  * @param dungeons dungeon key ({@link Names#placeKey}) → its loot bosses, final boss last ({@value #REALM} =
@@ -28,7 +28,7 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
 
     /** Bucket of minibosses and bosses outside any dungeon. */
     public static final String REALM = "Realm";
-    /** Dungeon boss whose name is not written yet ({@code manual/bosses.json}). */
+    /** Dungeon boss whose name is not known yet. */
     public static final String UNKNOWN = "???";
 
     /**
@@ -36,30 +36,30 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
      *
      * @param key     stable id for counters: the item id ({@code telos:weapon/bow/ut-blunder}, shiny ids end in
      *                {@code -shiny}), else {@code <kind>:<name key>}
-     * @param kind    {@code item}, {@code material}, {@code pet}, {@code mount}, {@code mountSkin} or {@code fragment}
+     * @param kind    {@code item}, {@code material}, {@code pet}, {@code mount} or {@code mountSkin}
      * @param rarity  item rarity ({@code bloodshot}) or companion rarity ({@code usual}), may be empty
-     * @param lootKey loot group ({@code irradiated} … {@code unholy}, {@code companion}), empty for fragments
+     * @param lootKey loot group ({@code irradiated} … {@code unholy}, {@code companion}), empty = no group
      * @param model   item model as dropped on the ground ({@code telos:material/...}), may be empty
-     * @param from    where it drops besides the boss ({@code specificMob}, {@code anyMob}, {@code puzzle},
-     *                {@code each}), may be empty
-     * @param mob     the mob a {@code specificMob} drop comes from, as its nameplate shows it (Boss.json {@code mob},
-     *                {@code manual/bosses.json mobDrops}), may be empty
+     * @param mobs    the named mobs the drop comes from instead of the boss, as their nameplates show them (Boss.json
+     *                {@code mob}: one name or a list), may be empty. A kill of any of them adds pity to the drop.
      */
     public record Drop(String key, String name, String kind, String rarity, String lootKey, String id, String model,
-                       boolean shiny, double chance, String from, String mob) {
+                       boolean shiny, double chance, List<String> mobs) {
 
-        /**
-         * Counts towards pity: a real loot-group drop (not a fragment / tier equipment) of the boss kill itself —
-         * not one from other mobs or a puzzle.
-         */
+        /** Counts towards pity from the boss kill: a loot-group drop of the boss itself (not of named mobs). */
         public boolean hasPity() {
-            return !lootKey.isEmpty() && !"fragment".equals(kind)
-                    && !"anyMob".equals(from) && !"specificMob".equals(from) && !"puzzle".equals(from);
+            return !lootKey.isEmpty() && mobs.isEmpty();
         }
 
-        /** A loot-group drop of one named mob ({@link #mob}): a kill of that mob near you adds pity to it. */
+        /** A loot-group drop of named mobs ({@link #mobs}): a kill of one of them near you adds pity to it. */
         public boolean isMobDrop() {
-            return !mob.isEmpty() && !lootKey.isEmpty() && !"fragment".equals(kind);
+            return !mobs.isEmpty() && !lootKey.isEmpty();
+        }
+
+        /** The name (as written in the table) of the mob in {@link #mobs} with this name key, or the key itself. */
+        public String mobName(String mobKey) {
+            for (String m : mobs) if (Names.key(m).equals(mobKey)) return m;
+            return mobKey;
         }
 
         /** Has a pity counter: from the boss kill ({@link #hasPity}) or from its mob ({@link #isMobDrop}). */
@@ -105,7 +105,7 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
 
     /**
      * From the {@code bosses} array of Boss.json: every boss with a {@code drops} list, dungeon bosses by their
-     * {@code location}, every other boss in {@value #REALM} (kept last, see {@link #ownerOf}).
+     * {@code dungeon}, every other boss in {@value #REALM} (kept last, see {@link #ownerOf}).
      */
     static LootTable parse(JsonArray bosses, JsonObject aliasTable) {
         Map<String, List<BossLoot>> dungeons = new LinkedHashMap<>();
@@ -117,8 +117,9 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
             JsonObject o = el.getAsJsonObject();
             if (!o.has("drops") || !o.get("drops").isJsonArray()) continue;
             String boss = JsonFields.str(o, "name");
-            boolean dungeon = "dungeon".equals(JsonFields.str(o, "type"));
-            String place = dungeon ? JsonFields.str(o, "location") : REALM;
+            String place = JsonFields.str(o, "dungeon");
+            boolean dungeon = !place.isEmpty();
+            if (!dungeon) place = REALM;
             List<Drop> drops = new ArrayList<>();
             for (JsonElement e : o.getAsJsonArray("drops")) {
                 JsonObject d = e.getAsJsonObject();
@@ -160,18 +161,17 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
     }
 
     /**
-     * A Boss.json drop (or its shiny version: id + {@code -shiny}, chance = chance / {@code manual/shinyChance.json} divisor). Derived, not stored: kind
-     * ({@code kind} only where it differs: id {@code pet/} = pet, {@code mount/} = mount, other id = item, no id with a
-     * rarity = material, else fragment), loot group (companions: {@code companion}, fragments: none, else the
-     * rarity) and the dropped item model ({@code <ns>:material/<id path>}).
+     * A Boss.json drop (or its shiny version: id + {@code -shiny}, chance = chance / {@code shinyChance.json} divisor).
+     * Derived, not stored: kind ({@code kind} only where it differs: id {@code pet/} = pet, {@code mount/} = mount,
+     * other id = item, no id = material), loot group (companions: {@code companion}, else the rarity) and the dropped
+     * item model ({@code <ns>:material/<id path>}).
      */
     private static Drop drop(JsonObject o, boolean shiny) {
         String name = JsonFields.str(o, "name"), id = JsonFields.str(o, "id"), rarity = JsonFields.str(o, "rarity");
         String kind = JsonFields.str(o, "kind");
-        if (kind.isEmpty()) kind = impliedKind(id, rarity);
+        if (kind.isEmpty()) kind = impliedKind(id);
         if (shiny) id = id + "-shiny";
         String lootKey = switch (kind) {
-            case "fragment" -> "";
             case "pet", "mount", "mountSkin" -> "companion";
             default -> rarity;
         };
@@ -181,17 +181,23 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         String key = !id.isEmpty() ? id : kind + ":" + Names.key(name) + (shiny ? "-shiny" : "");
         double chance = o.has("chance") ? o.get("chance").getAsDouble() : 0;
         if (shiny) chance = TelosData.SHINY_CHANCE.get().of(chance, rarity);
-        return new Drop(key, name, kind, rarity, lootKey, id, model, shiny, chance, JsonFields.str(o, "from"),
-                JsonFields.str(o, "mob"));
+        return new Drop(key, name, kind, rarity, lootKey, id, model, shiny, chance, mobs(o));
     }
 
-    /** Kind of a drop without a {@code kind} field (the table generator writes {@code kind} only where this differs). */
-    private static String impliedKind(String id, String rarity) {
-        if (!id.isEmpty()) {
-            String path = id.substring(id.indexOf(':') + 1);
-            return path.startsWith("pet/") ? "pet" : path.startsWith("mount/") ? "mount" : "item";
-        }
-        return rarity.isEmpty() ? "fragment" : "material";
+    /** Boss.json {@code mob}: one mob name or a list of them (blank names dropped). */
+    private static List<String> mobs(JsonObject o) {
+        String one = JsonFields.str(o, "mob");
+        List<String> all = one.isEmpty() ? JsonFields.strings(o, "mob") : List.of(one);
+        List<String> out = new ArrayList<>();
+        for (String m : all) if (!m.isBlank() && !out.contains(m)) out.add(m);
+        return List.copyOf(out);
+    }
+
+    /** Kind of a drop without a {@code kind} field (write {@code kind} only where this is wrong). */
+    private static String impliedKind(String id) {
+        if (id.isEmpty()) return "material";
+        String path = id.substring(id.indexOf(':') + 1);
+        return path.startsWith("pet/") ? "pet" : path.startsWith("mount/") ? "mount" : "item";
     }
 
     // ------------------------------------------------------------------ lookups
@@ -213,8 +219,10 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         Map<String, List<Drop>> out = new LinkedHashMap<>();
         for (BossLoot b : dungeon(placeName)) {
             for (Drop d : b.mobDrops()) {
-                List<Drop> list = out.computeIfAbsent(Names.key(d.mob()), k -> new ArrayList<>());
-                if (!list.contains(d)) list.add(d);
+                for (String mob : d.mobs()) {
+                    List<Drop> list = out.computeIfAbsent(Names.key(mob), k -> new ArrayList<>());
+                    if (!list.contains(d)) list.add(d);
+                }
             }
         }
         return out;

@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * MC ADAPTER (UI) — Player → Keybinds → Realm Selector: one button per realm of a region (tabs on top, your region
  * first), hubs / missions in their own row and "Previous" (the realm before this one). A click runs
- * {@code /joinq <name>}. Realm lists: {@code manual/realms.json}. Theme colours, open fade {@link Durations#SCREEN},
+ * {@code /joinq <name>}. Realm lists: {@code realms.json}. Theme colours, open fade {@link Durations#SCREEN},
  * button hover {@link Durations#HOVER}.
  */
 public class RealmSelectorScreen extends Screen {
@@ -138,7 +138,7 @@ public class RealmSelectorScreen extends Screen {
         try {
             r.pushAlpha(open.get());
             if (buttons.isEmpty()) {
-                r.textCentered("No realm list (manual/realms.json)", width / 2, height / 2, p.textMuted());
+                r.textCentered("No realm list (realms.json)", width / 2, height / 2, p.textMuted());
             } else {
                 int titleY = Math.max(4, tabs.getFirst().y() - 14);
                 r.textCentered(here == null ? "Realm Selector" : "Realm Selector — " + here.display(), width / 2, titleY, p.text());

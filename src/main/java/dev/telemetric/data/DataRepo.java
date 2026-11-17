@@ -18,7 +18,7 @@ public final class DataRepo {
 
     private DataRepo() {}
 
-    /** GET request for a repo path (e.g. {@code Extractor/Boss.json}). */
+    /** GET request for a repo path (e.g. {@code tables/Boss.json}). */
     static HttpRequest get(String path, Duration timeout) {
         return request(path, timeout).GET().build();
     }

@@ -23,7 +23,7 @@ import java.util.function.Function;
 
 /**
  * JSON tables from the shared data repo ({@code data/} submodule → {@link DataRepo}), e.g.
- * {@code Extractor/Boss.json}.
+ * {@code tables/Boss.json}.
  * <p>
  * A table is declared once with {@link #file(String, Function, Object)} and read with {@link SharedFile#get()}.
  * Where its content comes from (first one found wins at start, instantly, no network):
@@ -49,12 +49,26 @@ public final class SharedData {
 
     private static final Map<String, SharedFile<?>> FILES = new ConcurrentHashMap<>();
 
+    static {
+        deleteOldCache(CACHE.resolve("Extractor"));
+    }
+
     private SharedData() {}
+
+    /** Drops downloads of the old {@code Extractor/} layout (tables live in {@code tables/} since 0.34.0). */
+    private static void deleteOldCache(Path dir) {
+        if (!Files.isDirectory(dir)) return;
+        try (var walk = Files.walk(dir)) {
+            for (Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(p);
+        } catch (IOException | RuntimeException e) {
+            Telemetric.LOGGER.warn("Old shared data cache {} not removed: {}", dir, e.toString());
+        }
+    }
 
     /**
      * Declares a table (once per path; later calls return the same handle) and starts loading it.
      *
-     * @param path     repo path, e.g. {@code Extractor/Boss.json}
+     * @param path     repo path, e.g. {@code tables/Boss.json}
      * @param parser   JSON root → immutable value; may throw on bad input
      * @param fallback value while nothing could be loaded
      */

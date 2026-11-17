@@ -34,7 +34,7 @@ import java.util.List;
  * Boss Tracker: the realm's bosses as a HUD list and as waypoints in
  * the world — alive / being fought (who called it) / portal open (seconds left) / defeated, Raphael's n/m. State
  * comes from {@link RealmBossTracker} ({@code /bosses} menu + server lines); bosses, spots, lines and timers from
- * {@code Extractor/Boss.json}. Only in the realm; in a zone (Shadowlands, Radiant Isles) only that zone's bosses.
+ * {@code tables/Boss.json}. Only in the realm; in a zone (Shadowlands, Radiant Isles) only that zone's bosses.
  */
 public final class BossTrackerModule extends LinesHudModule {
 

@@ -81,7 +81,7 @@ The jar lands in `build/libs/telemetric-<version>.jar`. Needs JDK 25 (`JAVA_HOME
   Details** on its Misc tab — re-implemented for Telemetric with the authors' permission. The custom bag models
   (`assets/telemetric/models/bags/`, `items/bags/`) and textures (`textures/mob/bags/`) come from Melinoe and remain
   under LGPL-3.0; the hand-written tables in the [data repo](https://github.com/Pryxo/Telemetric-Data)
-  (`Extractor/manual/`: dungeon final bosses, multi-boss drops, boss call lines, spawn spots, bag list, chat
+  (`tables/`: boss call lines, spawn spots, bag list, chat
   categories, boss phases, realm lists, Discord presence texts) are taken from Melinoe's data, and Discord RPC uses
   Melinoe's Discord application.
 

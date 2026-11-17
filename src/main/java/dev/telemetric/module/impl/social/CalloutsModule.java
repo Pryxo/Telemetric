@@ -29,7 +29,7 @@ import java.util.Locale;
  * Social → Callouts:
  * <ul>
  *   <li><b>Callout Key</b>: sends the boss you fight ({@code Teleport for X - 42% HP}, in dungeons with its phase from
- *       {@code manual/callouts.json}), the portal next to you ({@code … - 12s left}) or {@code Currently in <area>};
+ *       {@code callouts.json}), the portal next to you ({@code … - 12s left}) or {@code Currently in <area>};
  *       a public call is held back while someone else just called the same thing in your realm;</li>
  *   <li><b>Click to Teleport</b>: other players' call-outs get a link that teleports you to them — across realms on a
  *       second click ({@code /joinq} the caller's realm, then {@code /tp} once you arrived);</li>

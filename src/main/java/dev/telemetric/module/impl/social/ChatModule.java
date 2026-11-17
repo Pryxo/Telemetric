@@ -35,7 +35,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Social → Chat: chat tabs sorted by {@code manual/chat.json}, hidden
+ * Social → Chat: chat tabs sorted by {@code chat.json}, hidden
  * utility lines, censored guild / group lines, right-click copy, longer history and chat-mode keys. The tab bar is
  * {@code ui/chat/ChatScreenHooks}; lines are filtered through {@link ChatView} on {@code game/ChatHudAdapter}, so a
  * tab switch never loses lines. Server chat mode + {@code /ac /gc /grc}: {@link #channels()}.

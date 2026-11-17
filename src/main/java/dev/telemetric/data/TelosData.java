@@ -19,16 +19,15 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /**
- * Every typed Telos table read from the shared data repo ({@code data/Extractor/*.json}, built by the wiki
- * extractor + the hand-written {@code Extractor/manual/} files, see {@link SharedData} / {@code docs/data.md}).
- * One place to find which file feeds which feature; add a new table here. Values are immutable snapshots
- * (re-read with {@code TABLE.get()} — it may be swapped once the start-up update check finds a newer file).
- * Pure Java.
+ * Every typed Telos table read from the shared data repo ({@code data/tables/*.json}, all hand-written, see
+ * {@link SharedData} / {@code docs/data.md}). One place to find which file feeds which feature; add a new table here.
+ * Values are immutable snapshots (re-read with {@code TABLE.get()} — it may be swapped once the start-up update check
+ * finds a newer file). Pure Java.
  */
 public final class TelosData {
 
-    /** Repo folder of the extractor's tables. */
-    static final String DIR = "Extractor/";
+    /** Repo folder of the tables. */
+    static final String DIR = "tables/";
 
     private TelosData() {}
 
@@ -40,7 +39,7 @@ public final class TelosData {
     // ------------------------------------------------------------------ bosses + loot + boss bars
 
     /**
-     * {@code Boss.json} — every boss (where it spawns, icon, spawn spots, portal, drops, Boss Tracker data, boss bar
+     * {@code Boss.json} — every boss (dungeon or zone, icon, spawn spots, drops, Boss Tracker data, boss bar
      * hash). Boss Tracker / Pity Counter / spawn lookups ({@link BossTable}), drops ({@link #LOOT}) and boss bars
      * ({@link #BOSS_BARS}) all read this one file.
      */
@@ -49,7 +48,7 @@ public final class TelosData {
     /** Dungeon → Boss → drops from {@code Boss.json} (Pity Counter, drop messages). */
     public static final Supplier<LootTable> LOOT = () -> BOSSES.get().loot();
 
-    /** Boss bar name hashes from {@code Boss.json} (Boss Recorder): name hash → boss name. */
+    /** Boss bar name hashes from {@code Boss.json}: name hash → boss name. */
     public static final Supplier<BossBars> BOSS_BARS = () -> BOSSES.get().bars();
 
     /** @param byHash {@code Component#hashCode()} of the bar name (Telos names are glyphs) → boss name */
@@ -96,16 +95,12 @@ public final class TelosData {
      */
     public record Rarity(String key, String label, int rgb, String glyph) {}
 
-    /**
-     * @param companions pet / mount rarities (usual … legacy), by key
-     * @param bags       loot bags: every rarity with a {@code bag} + the {@code eventBags}
-     */
-    public record Rarities(Map<String, Rarity> byKey, Map<String, Rarity> companions, Bags bags) {
-        static final Rarities EMPTY = new Rarities(Map.of(), Map.of(), Bags.EMPTY);
+    /** @param bags loot bags: every rarity with a {@code bag} + the {@code eventBags} */
+    public record Rarities(Map<String, Rarity> byKey, Bags bags) {
+        static final Rarities EMPTY = new Rarities(Map.of(), Bags.EMPTY);
 
         static Rarities parse(JsonObject root) {
-            return new Rarities(rarityMap(root.getAsJsonObject("rarities")), rarityMap(root.getAsJsonObject("companions")),
-                    Bags.parse(root));
+            return new Rarities(rarityMap(root.getAsJsonObject("rarities")), Bags.parse(root));
         }
 
         private static Map<String, Rarity> rarityMap(JsonObject o) {
@@ -126,12 +121,9 @@ public final class TelosData {
             return byKey.get(stylePath.substring(stylePath.lastIndexOf('/') + 1).toLowerCase(Locale.ROOT));
         }
 
-        /** Any rarity key (item or companion) → its rarity, or null. */
+        /** Rarity / loot group key ({@code bloodshot}, {@code companion}, {@code shiny}) → its rarity, or null. */
         public Rarity any(String key) {
-            if (key == null) return null;
-            String k = key.toLowerCase(Locale.ROOT);
-            Rarity r = byKey.get(k);
-            return r != null ? r : companions.get(k);
+            return key == null ? null : byKey.get(key.toLowerCase(Locale.ROOT));
         }
 
         public List<String> labels() {
@@ -213,16 +205,13 @@ public final class TelosData {
     /** {@code traits.json} — unique trait descriptions per tier (Trait Details). */
     public static final SharedFile<TraitTable> TRAITS = SharedData.file(DIR + "traits.json", TraitTable::parse, TraitTable.EMPTY);
 
-    // ------------------------------------------------------------------ hand-written tables (Extractor/manual/)
-    // Read straight from manual/: no extractor step merges them into a generated file.
+    // ------------------------------------------------------------------ chat + callouts
 
-    static final String MANUAL = DIR + "manual/";
+    /** {@code callouts.json} — boss / portal call-out data (Callouts). */
+    public static final SharedFile<CalloutTable> CALLOUTS = SharedData.file(DIR + "callouts.json", CalloutTable::parse, CalloutTable.EMPTY);
 
-    /** {@code manual/callouts.json} — boss / portal call-out data (Callouts). */
-    public static final SharedFile<CalloutTable> CALLOUTS = SharedData.file(MANUAL + "callouts.json", CalloutTable::parse, CalloutTable.EMPTY);
-
-    /** {@code manual/chat.json} — chat tab categories + utility lines (Chat). */
-    public static final SharedFile<ChatRules> CHAT = SharedData.file(MANUAL + "chat.json", ChatRules::parse, ChatRules.EMPTY);
+    /** {@code chat.json} — chat tab categories + utility lines (Chat). */
+    public static final SharedFile<ChatRules> CHAT = SharedData.file(DIR + "chat.json", ChatRules::parse, ChatRules.EMPTY);
 
     /**
      * @param categories message categories, first match wins ({@code builtin} = a code check such as {@code callout})
@@ -276,8 +265,8 @@ public final class TelosData {
         }
     }
 
-    /** {@code manual/shinyChance.json} — shiny chance divisor per rarity (shiny chance = normal chance / divisor). */
-    public static final SharedFile<ShinyChance> SHINY_CHANCE = SharedData.file(MANUAL + "shinyChance.json", ShinyChance::parse, ShinyChance.EMPTY);
+    /** {@code shinyChance.json} — shiny chance divisor per rarity (shiny chance = normal chance / divisor). */
+    public static final SharedFile<ShinyChance> SHINY_CHANCE = SharedData.file(DIR + "shinyChance.json", ShinyChance::parse, ShinyChance.EMPTY);
 
     /** @param divisors rarity → divisor; {@code default} = every other rarity */
     public record ShinyChance(Map<String, Double> divisors) {
@@ -300,8 +289,8 @@ public final class TelosData {
         }
     }
 
-    /** {@code manual/realms.json} — realm / hub names per region (Keybinds → Realm Selector). */
-    public static final SharedFile<Realms> REALMS = SharedData.file(MANUAL + "realms.json", Realms::parse, Realms.EMPTY);
+    /** {@code realms.json} — realm / hub names per region (Keybinds → Realm Selector). */
+    public static final SharedFile<Realms> REALMS = SharedData.file(DIR + "realms.json", Realms::parse, Realms.EMPTY);
 
     public record Realms(List<Region> regions) {
         static final Realms EMPTY = new Realms(List.of());
@@ -336,8 +325,8 @@ public final class TelosData {
         }
     }
 
-    /** {@code manual/discord.json} — Discord Rich Presence application, art keys and texts (Discord RPC). */
-    public static final SharedFile<DiscordInfo> DISCORD = SharedData.file(MANUAL + "discord.json", DiscordInfo::parse, DiscordInfo.EMPTY);
+    /** {@code discord.json} — Discord Rich Presence application, art keys and texts (Discord RPC). */
+    public static final SharedFile<DiscordInfo> DISCORD = SharedData.file(DIR + "discord.json", DiscordInfo::parse, DiscordInfo.EMPTY);
 
     /**
      * @param modeImages / modeNames character mode ({@code normal} / {@code seasonal} / {@code hardcore}) → art key / name

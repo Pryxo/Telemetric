@@ -201,7 +201,7 @@ public final class BossBarAdapter {
 
     /**
      * Scale for the bar with this name this frame: the Boss Bar Scale size for a known boss
-     * ({@code Extractor/Boss.json}: bar name hash or boss name), 1 for everything else (HUD widget bars, the dungeon name).
+     * ({@code tables/Boss.json}: bar name hash or boss name), 1 for everything else (HUD widget bars, the dungeon name).
      */
     public static float scaleFor(Component name) {
         float s = barScale;
@@ -214,7 +214,7 @@ public final class BossBarAdapter {
     }
 
     /**
-     * Names of the bosses whose bars are showing right now ({@code Extractor/Boss.json}: bar name hash → boss),
+     * Names of the bosses whose bars are showing right now ({@code tables/Boss.json}: bar name hash → boss),
      * in bar order; empty when no known boss bar is up.
      */
     public static List<String> knownBosses() {
@@ -227,7 +227,7 @@ public final class BossBarAdapter {
     /** A showing boss bar of a known boss: its name and the bar's fill in % (0..100, rounded). */
     public record KnownBar(String boss, int percent) {}
 
-    /** The bars of known bosses showing right now ({@code Extractor/Boss.json}), in bar order. */
+    /** The bars of known bosses showing right now ({@code tables/Boss.json}), in bar order. */
     public static List<KnownBar> knownBossBars() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gui == null || !ServerGate.onTelos()) return List.of();

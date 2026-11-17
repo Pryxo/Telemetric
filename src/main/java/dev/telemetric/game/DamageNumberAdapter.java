@@ -105,12 +105,8 @@ public final class DamageNumberAdapter {
         if (level != lastLevel) {
             lastLevel = level;
             reset();
-            glyphs = loadGlyphs();
-            lastGlyphLoad = System.currentTimeMillis();
-        } else if (glyphs.isEmpty() && System.currentTimeMillis() - lastGlyphLoad > 5_000) {
-            glyphs = loadGlyphs(); // server pack may have been applied after joining
-            lastGlyphLoad = System.currentTimeMillis();
         }
+        refreshGlyphs(level);
 
         List<DamageNumber> out = new ArrayList<>();
         PRESENT.clear();
@@ -237,6 +233,32 @@ public final class DamageNumberAdapter {
     }
 
     // ------------------------------------------------------------------ server pack font
+
+    private static Object glyphLevel;
+
+    /** (Re)reads the server pack font on a new level, and every 5 s while it is still empty (pack applied late). */
+    private static void refreshGlyphs(ClientLevel level) {
+        long now = System.currentTimeMillis();
+        if (level != glyphLevel || (glyphs.isEmpty() && now - lastGlyphLoad > 5_000)) {
+            glyphLevel = level;
+            glyphs = loadGlyphs();
+            lastGlyphLoad = now;
+        }
+    }
+
+    /**
+     * The letter a Telos text-font glyph draws ({@code telos:font/text.json}, every xikage set: default /
+     * miniboss / boss / misc mob plates, damage numbers): lower-case {@code a}–{@code z}, a digit, or ' ';
+     * 0 for anything else (brackets, frames, unknown code points).
+     */
+    public static char textFontLetter(int cp) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != null) refreshGlyphs(level);
+        Glyph g = glyphs.get(cp);
+        if (g == null) return 0;
+        char c = g.ch();
+        return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == ' ' ? c : 0;
+    }
 
     private static Map<Integer, Glyph> loadGlyphs() {
         Map<Integer, Glyph> map = new HashMap<>();

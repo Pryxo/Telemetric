@@ -6,7 +6,7 @@ import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.NumberSetting;
 
 /**
- * Shrinks the boss bar of real bosses (bar hash or name in {@code data/Extractor/Boss.json}); HUD widget bars and the dungeon
+ * Shrinks the boss bar of real bosses (bar hash or name in {@code data/tables/Boss.json}); HUD widget bars and the dungeon
  * name bar keep their size. The bars below move up so no gap is left.
  */
 public final class BossBarScaleModule extends Module {
