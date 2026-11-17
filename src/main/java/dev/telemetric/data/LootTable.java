@@ -17,7 +17,7 @@ import java.util.Set;
  * Dungeon → Boss → drops, read from the bosses of {@code tables/Boss.json}. Feeds the Pity Counter (which drops a
  * boss kill counts for), drop detection (a dropped item's model / name → its drop) and the drop messages. Pure Java.
  *
- * @param dungeons dungeon key ({@link Names#placeKey}) → its loot bosses, final boss last ({@value #REALM} =
+ * @param dungeons dungeon key ({@link Names#partKey}, keeps ": Part …") → its loot bosses, final boss last ({@value #REALM} =
  *                 minibosses and bosses outside dungeons)
  */
 public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<BossLoot>> bossesByKey,
@@ -141,7 +141,7 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
                 }
             }
             BossLoot loot = new BossLoot(place, boss, List.copyOf(drops), Set.copyOf(pityOnly));
-            if (dungeon) dungeons.computeIfAbsent(Names.placeKey(place), k -> new ArrayList<>()).add(loot);
+            if (dungeon) dungeons.computeIfAbsent(Names.partKey(place), k -> new ArrayList<>()).add(loot);
             else realm.add(loot);
             if (!UNKNOWN.equals(boss)) byBoss.computeIfAbsent(Names.key(boss), k -> new ArrayList<>()).add(loot);
         }
@@ -202,11 +202,15 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
 
     // ------------------------------------------------------------------ lookups
 
-    /** The loot bosses of the dungeon with this in-game (HUD) name, final boss last; empty if unknown. */
+    /**
+     * The loot bosses of the dungeon with this in-game (HUD) name, final boss last; empty if unknown. A part name
+     * ("Rustborn Kingdom: Part II") gets that part's bosses when Boss.json lists the part, else the whole dungeon's.
+     */
     public List<BossLoot> dungeon(String placeName) {
         String key = Names.placeKey(placeName);
         if (key.isEmpty() || key.equals(Names.key(REALM))) return List.of();
-        List<BossLoot> list = dungeons.get(key);
+        List<BossLoot> list = dungeons.get(Names.partKey(placeName));
+        if (list == null) list = dungeons.get(key);
         if (list == null && aliases.containsKey(key)) list = dungeons.get(aliases.get(key));
         return list == null ? List.of() : list;
     }

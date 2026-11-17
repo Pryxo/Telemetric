@@ -27,6 +27,16 @@ public final class Names {
         String t = s.trim();
         int part = t.toLowerCase(Locale.ROOT).indexOf(": part");
         if (part > 0) t = t.substring(0, part);
+        return partKey(t);
+    }
+
+    /**
+     * Like {@link #placeKey} but keeps a trailing ": Part …" ("Rustborn Kingdom: Part II" → "rustbornkingdompartii",
+     * "The Aviary" → "aviary"). Equals {@link #placeKey} for names without a part.
+     */
+    public static String partKey(String s) {
+        if (s == null) return "";
+        String t = s.trim();
         if (t.regionMatches(true, 0, "the ", 0, 4)) t = t.substring(4);
         return key(t);
     }
