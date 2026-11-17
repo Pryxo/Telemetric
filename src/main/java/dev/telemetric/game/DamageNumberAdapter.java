@@ -88,12 +88,11 @@ public final class DamageNumberAdapter {
     /**
      * New damage numbers since the last call.
      *
-     * @param range        max distance from the player (blocks)
-     * @param ignoreSelf   skip numbers spawned on the local player (damage taken)
+     * Every damage number in the loaded world counts (no range / self filter).
+     *
      * @param plainNumbers also count numbers written in ordinary (non-glyph) text
-     * @param debug        log every new text entity (parsed or not) once, with colours / fonts
      */
-    public static List<DamageNumber> poll(double range, boolean ignoreSelf, boolean plainNumbers, boolean debug) {
+    public static List<DamageNumber> poll(boolean plainNumbers) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         LocalPlayer player = mc.player;
@@ -110,7 +109,6 @@ public final class DamageNumberAdapter {
 
         List<DamageNumber> out = new ArrayList<>();
         PRESENT.clear();
-        double rangeSq = range * range;
         for (Entity entity : level.entitiesForRendering()) {
             Component text = textOf(entity);
             if (text == null) continue;
@@ -121,18 +119,11 @@ public final class DamageNumberAdapter {
             SEEN.add(id);
             if (!primed) continue;
 
-            double distSq = entity.distanceToSqr(player);
             Parsed parsed = parse(text);
             boolean accepted = parsed != null && (plainNumbers || !parsed.set.equals("plain"));
-            if (debug) {
-                Telemetric.LOGGER.info("[DPS debug] {} #{} dist={} text={} -> {}",
-                        entity.getClass().getSimpleName(), id, String.format(Locale.ROOT, "%.1f", Math.sqrt(distSq)),
-                        ServerInfoAdapter.describe(text),
-                        parsed == null ? "ignored" : parsed.raw + " (" + parsed.set + ")" + (accepted ? "" : " ignored"));
-            }
-            if (!accepted || distSq > rangeSq) continue;
-            if (ignoreSelf && isOnPlayer(entity, player)) continue;
-            out.add(new DamageNumber(id, parsed.amount, parsed.color, parsed.raw, parsed.set, Math.sqrt(distSq)));
+            if (!accepted) continue;
+            out.add(new DamageNumber(id, parsed.amount, parsed.color, parsed.raw, parsed.set,
+                    Math.sqrt(entity.distanceToSqr(player))));
         }
         SEEN.retainAll(PRESENT);
         primed = true;
@@ -147,12 +138,6 @@ public final class DamageNumberAdapter {
         if (entity instanceof LivingEntity && !(entity instanceof ArmorStand)) return null;
         if (!entity.isCustomNameVisible()) return null;
         return entity.getCustomName();
-    }
-
-    private static boolean isOnPlayer(Entity e, LocalPlayer p) {
-        double dx = e.getX() - p.getX(), dz = e.getZ() - p.getZ();
-        double dy = e.getY() - p.getY();
-        return dx * dx + dz * dz < 1.2 * 1.2 && dy > -1 && dy < p.getBbHeight() + 1.5;
     }
 
     // ------------------------------------------------------------------ parsing

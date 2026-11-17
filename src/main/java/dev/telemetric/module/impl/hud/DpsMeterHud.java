@@ -1,44 +1,59 @@
 package dev.telemetric.module.impl.hud;
 
+import dev.telemetric.game.BossBarAdapter;
 import dev.telemetric.game.DamageNumberAdapter;
 import dev.telemetric.game.DamageNumberAdapter.DamageNumber;
 import dev.telemetric.hud.LinesHudModule;
+import dev.telemetric.hud.TextRun;
 import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ModeSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * DPS meter: reads the server's floating damage numbers (see {@link DamageNumberAdapter}).
- * Appears with the first damage number of a fight and hides after {@code Hide After} seconds without one.
+ * DPS meter: reads every floating damage number the server shows (see {@link DamageNumberAdapter}, shared through
+ * {@link DamageFeed}). <i>Visibility</i>: always shown, only while a known boss bar is up (one fight per boss),
+ * or from the first hit until {@code Hide After} seconds without one. Max / Last Hit use the {@link DamageTiers} colours.
  */
 public final class DpsMeterHud extends LinesHudModule {
 
+    static final String NEVER_HIDE = "Never Hide", ON_BOSSES = "Only on Bosses", HIDE_AFTER = "Hide After Xs";
+
+    /** Pause that ends a fight when the meter never hides (no slider: the meter stays up anyway). */
+    private static final long FIGHT_GAP_MS = 5000;
+
+    private final ModeSetting visibility = add(new ModeSetting("Visibility",
+            "Never Hide: always shown (last fight stays). Only on Bosses: while a boss bar is up, one fight per boss. "
+                    + "Hide After Xs: from the first hit until X seconds without one",
+            HIDE_AFTER, NEVER_HIDE, ON_BOSSES, HIDE_AFTER));
     private final NumberSetting hideAfter = add(new NumberSetting("Hide After",
-            "Seconds without a damage number until the fight ends and the meter hides", 5, 1, 60, 1).withSuffix("s"));
-    private final NumberSetting range = add(new NumberSetting("Range",
-            "Only count damage numbers within this distance of you", 24, 4, 64, 1).withSuffix(" blocks"));
-    private final BooleanSetting ignoreSelf = add(new BooleanSetting("Ignore Damage Taken",
-            "Skip numbers that pop up on yourself", true));
-    private final BooleanSetting plainNumbers = add(new BooleanSetting("Count Plain Numbers",
-            "Also count numbers in normal text (off on Telos: those are countdowns, damage uses pack glyphs)", false));
+            "Seconds without a damage number until the fight ends and the meter hides", 5, 1, 60, 1).withSuffix("s")
+            .visibleWhen(() -> visibility.is(HIDE_AFTER)));
 
     private final BooleanSetting showDps = add(new BooleanSetting("Show DPS", "Damage per second of the current fight", true));
+    private final NumberSetting dpsWindow = add(new NumberSetting("DPS Window",
+            "DPS = damage of the last X seconds ÷ X. 0 = whole fight (total ÷ fight length)", 0, 0, 60, 1)
+            .withSuffix("s").visibleWhen(showDps::get));
     private final BooleanSetting showMax = add(new BooleanSetting("Show Max Hit", "Highest single hit of the fight", true));
+    private final BooleanSetting resetMax = add(new BooleanSetting("Reset Max Hit",
+            "Forget the max hit after some seconds without a bigger one", false).visibleWhen(showMax::get));
+    private final NumberSetting resetMaxAfter = add(new NumberSetting("Reset Max After",
+            "Seconds until the max hit resets", 10, 1, 30, 1).withSuffix("s")
+            .visibleWhen(() -> showMax.get() && resetMax.get()));
     private final BooleanSetting showLast = add(new BooleanSetting("Show Last Hit", "Most recent hit", true));
     private final BooleanSetting showTotal = add(new BooleanSetting("Show Total", "Total damage of the fight", true));
     private final BooleanSetting showHits = add(new BooleanSetting("Show Hits", "Number of hits in the fight", false));
-    private final BooleanSetting showTime = add(new BooleanSetting("Show Fight Time", "Length of the fight", false));
     private final BooleanSetting compact = add(new BooleanSetting("Compact Numbers", "12.3k instead of 12,345", true));
+    private final BooleanSetting tierColors = add(new BooleanSetting("Damage Colors",
+            "Colour Max / Last Hit by size (50, 100, 150, 200, 300, 400, 500, 700, shiny at 1k) like the DPS Log", true));
     private final BooleanSetting useServerColor = addUseServerColor();
-    private final BooleanSetting debugLog = add(new BooleanSetting("Debug Log",
-            "Write every new floating-text entity to latest.log (to identify damage numbers)", false));
     private final ActionSetting resetAction = add(new ActionSetting("Reset", "End the current fight", this::resetStats));
 
     private final DpsTracker tracker = new DpsTracker();
+    private boolean bossUp;
 
     public DpsMeterHud() {
         super("DPS Meter", "Damage per second from the server's floating damage numbers", 0.0, 0.62, false);
@@ -49,6 +64,8 @@ public final class DpsMeterHud extends LinesHudModule {
     }
 
     private long timeoutMs() {
+        if (visibility.is(ON_BOSSES)) return bossUp ? Long.MAX_VALUE / 4 : 0;
+        if (visibility.is(NEVER_HIDE)) return FIGHT_GAP_MS;
         return Math.round(hideAfter.get() * 1000);
     }
 
@@ -58,16 +75,21 @@ public final class DpsMeterHud extends LinesHudModule {
 
     @Override
     protected void onEnable() {
-        DamageNumberAdapter.reset();
         tracker.reset();
+        bossUp = false;
     }
 
     @Override
     public void onTick() {
+        boolean boss = !BossBarAdapter.knownBosses().isEmpty();
+        if (boss && !bossUp && visibility.is(ON_BOSSES)) tracker.reset(); // a new boss = a new fight
+        bossUp = boss;
+
         long now = now();
-        for (DamageNumber n : DamageNumberAdapter.poll(range.get(), ignoreSelf.get(), plainNumbers.get(), debugLog.get())) {
+        for (DamageNumber n : DamageFeed.thisTick()) {
             tracker.add(now, n.amount(), timeoutMs());
         }
+        if (showMax.get() && resetMax.get()) tracker.expireMax(now, Math.round(resetMaxAfter.get() * 1000));
     }
 
     @Override
@@ -75,46 +97,48 @@ public final class DpsMeterHud extends LinesHudModule {
         return "DPS Meter";
     }
 
+    private boolean visible(long now) {
+        if (visibility.is(NEVER_HIDE)) return true;
+        if (visibility.is(ON_BOSSES)) return bossUp;
+        return tracker.active(now, timeoutMs());
+    }
+
     @Override
     protected List<Line> lines(boolean preview) {
         long now = now();
-        if (!tracker.active(now, timeoutMs())) return preview ? placeholder() : List.of();
+        if (!visible(now) || (preview && !tracker.hasFight())) return preview ? placeholder() : List.of();
 
+        long end = tracker.hasFight() ? tracker.clock(now, timeoutMs()) : now;
         List<Line> rows = new ArrayList<>();
-        if (showDps.get()) rows.add(new Line("DPS", fmt(tracker.dps(now))));
-        if (showMax.get()) rows.add(new Line("Max Hit", fmt(tracker.max())));
-        if (showLast.get()) rows.add(new Line("Last Hit", fmt(tracker.last())));
+        if (showDps.get()) rows.add(new Line("DPS", fmt(tracker.dps(end, Math.round(dpsWindow.get() * 1000)))));
+        if (showMax.get()) rows.add(hit("Max Hit", tracker.max()));
+        if (showLast.get()) rows.add(hit("Last Hit", tracker.last()));
         if (showTotal.get()) rows.add(new Line("Total", fmt(tracker.total())));
         if (showHits.get()) rows.add(new Line("Hits", Integer.toString(tracker.hits())));
-        if (showTime.get()) rows.add(new Line("Time", time(tracker.duration(now))));
-        if (rows.isEmpty()) rows.add(new Line("DPS", fmt(tracker.dps(now))));
+        if (rows.isEmpty()) rows.add(new Line("DPS", fmt(tracker.dps(end, Math.round(dpsWindow.get() * 1000)))));
         return rows;
+    }
+
+    /** Hit row, value in its damage-tier colour (shiny at 1k+) when Damage Colors is on. */
+    private Line hit(String label, double amount) {
+        Line plain = new Line(label, fmt(amount));
+        int tier = DamageTiers.tier(amount);
+        if (!tierColors.get() || tier == 0) return plain;
+        return plain.styledRuns(List.of(new TextRun(label, 0, null)), DamageTiers.runs(plain.value(), tier, 0));
     }
 
     private List<Line> placeholder() {
         List<Line> rows = new ArrayList<>();
-        if (showDps.get()) rows.add(new Line("DPS", "33.1"));
-        if (showMax.get()) rows.add(new Line("Max Hit", "15.9"));
-        if (showLast.get()) rows.add(new Line("Last Hit", "9.9"));
-        if (showTotal.get()) rows.add(new Line("Total", "51.8"));
-        if (showHits.get()) rows.add(new Line("Hits", "4"));
-        if (showTime.get()) rows.add(new Line("Time", "0:02"));
-        if (rows.isEmpty()) rows.add(new Line("DPS", "33.1"));
+        if (showDps.get()) rows.add(new Line("DPS", "331"));
+        if (showMax.get()) rows.add(hit("Max Hit", 1240));
+        if (showLast.get()) rows.add(hit("Last Hit", 215));
+        if (showTotal.get()) rows.add(new Line("Total", "5,180"));
+        if (showHits.get()) rows.add(new Line("Hits", "14"));
+        if (rows.isEmpty()) rows.add(new Line("DPS", "331"));
         return rows;
     }
 
     private String fmt(double v) {
-        if (compact.get()) {
-            if (v >= 1e9) return String.format(Locale.ROOT, "%.2fB", v / 1e9);
-            if (v >= 1e6) return String.format(Locale.ROOT, "%.2fM", v / 1e6);
-            if (v >= 1e4) return String.format(Locale.ROOT, "%.1fk", v / 1e3);
-        }
-        if (v >= 1000 || v == Math.rint(v)) return String.format(Locale.ROOT, "%,.0f", v);
-        return String.format(Locale.ROOT, "%.1f", v);
-    }
-
-    private static String time(long ms) {
-        long s = ms / 1000;
-        return String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60);
+        return DamageTiers.format(v, compact.get());
     }
 }

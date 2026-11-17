@@ -14,6 +14,7 @@ import dev.telemetric.module.impl.combat.ItemRangeModule;
 import dev.telemetric.module.impl.combat.ReadyAlertsHud;
 import dev.telemetric.module.impl.dungeon.DungeonMapHud;
 import dev.telemetric.module.impl.dungeon.WayfinderModule;
+import dev.telemetric.module.impl.hud.DpsLogHud;
 import dev.telemetric.module.impl.hud.DpsMeterHud;
 import dev.telemetric.module.impl.hud.DungeonInfoHud;
 import dev.telemetric.module.impl.hud.TabStatsHud;
@@ -122,6 +123,7 @@ public final class ModuleManager {
         register(TabStatsHud.characterInfo());
         register(TabStatsHud.statsInfo());
         register(new DpsMeterHud());
+        register(new DpsLogHud());
         register(new DungeonInfoHud());
         register(new PityCounterHud());
         register(new LifetimeStatsHud());
@@ -153,8 +155,16 @@ public final class ModuleManager {
         }
     }
 
+    private static long tickCount;
+
+    /** Number of {@link #tick()} calls so far (lets several modules share one per-tick poll). */
+    public static long tickCount() {
+        return tickCount;
+    }
+
     /** Ticks enabled toggleable modules and all settings-group modules. */
     public void tick() {
+        tickCount++;
         for (Module module : modules) {
             if (module.isToggleable() && !module.isEnabled()) continue;
             try {
