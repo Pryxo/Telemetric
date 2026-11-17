@@ -141,7 +141,7 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
     }
 
     /**
-     * A Boss.json drop (or its shiny version: id + {@code -shiny}, chance = {@code shiny}). Derived, not stored: kind
+     * A Boss.json drop (or its shiny version: id + {@code -shiny}, chance = chance / {@code manual/shinyChance.json} divisor). Derived, not stored: kind
      * ({@code kind} only where it differs: id {@code pet/} = pet, {@code mount/} = mount, other id = item, no id with a
      * rarity = material, else fragment), loot group (companions: {@code companion}, fragments: none, else the
      * rarity) and the dropped item model ({@code <ns>:material/<id path>}).
@@ -160,7 +160,8 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         int colon = id.indexOf(':');
         if (colon > 0) model = id.substring(0, colon) + ":material/" + id.substring(colon + 1);
         String key = !id.isEmpty() ? id : kind + ":" + Names.key(name) + (shiny ? "-shiny" : "");
-        double chance = shiny ? o.get("shiny").getAsDouble() : o.has("chance") ? o.get("chance").getAsDouble() : 0;
+        double chance = o.has("chance") ? o.get("chance").getAsDouble() : 0;
+        if (shiny) chance = TelosData.SHINY_CHANCE.get().of(chance, rarity);
         return new Drop(key, name, kind, rarity, lootKey, id, model, shiny, chance, JsonFields.str(o, "from"));
     }
 

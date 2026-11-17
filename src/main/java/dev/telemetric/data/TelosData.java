@@ -276,6 +276,30 @@ public final class TelosData {
         }
     }
 
+    /** {@code manual/shinyChance.json} — shiny chance divisor per rarity (shiny chance = normal chance / divisor). */
+    public static final SharedFile<ShinyChance> SHINY_CHANCE = SharedData.file(MANUAL + "shinyChance.json", ShinyChance::parse, ShinyChance.EMPTY);
+
+    /** @param divisors rarity → divisor; {@code default} = every other rarity */
+    public record ShinyChance(Map<String, Double> divisors) {
+        static final ShinyChance EMPTY = new ShinyChance(Map.of("irradiated", 50.0, "gilded", 40.0, "default", 30.0));
+
+        static ShinyChance parse(JsonObject root) {
+            Map<String, Double> out = new HashMap<>(EMPTY.divisors);
+            for (Map.Entry<String, JsonElement> e : root.entrySet()) {
+                if (e.getValue().isJsonPrimitive() && e.getValue().getAsJsonPrimitive().isNumber()
+                        && e.getValue().getAsDouble() > 0) out.put(e.getKey(), e.getValue().getAsDouble());
+            }
+            return new ShinyChance(Map.copyOf(out));
+        }
+
+        /** Shiny chance (percent) of a drop with this normal chance and rarity. */
+        public double of(double chance, String rarity) {
+            Double d = divisors.get(rarity == null ? "" : rarity);
+            if (d == null) d = divisors.getOrDefault("default", 30.0);
+            return chance / d;
+        }
+    }
+
     /** {@code manual/realms.json} — realm / hub names per region (Keybinds → Realm Selector). */
     public static final SharedFile<Realms> REALMS = SharedData.file(MANUAL + "realms.json", Realms::parse, Realms.EMPTY);
 

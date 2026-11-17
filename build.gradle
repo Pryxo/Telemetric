@@ -37,7 +37,7 @@ processResources {
 	from("data") {
 		// only the tables the mod reads (TelosData); the other Extractor/ files are extractor inputs / scans
 		include(["Boss", "rarities", "traits",
-				 "manual/callouts", "manual/chat", "manual/realms", "manual/discord"].collect { 'Extractor/' + it + '.json' })
+				 "manual/callouts", "manual/chat", "manual/realms", "manual/discord", "manual/shinyChance"].collect { 'Extractor/' + it + '.json' })
 		into "assets/telemetric/data"
 	}
 }
