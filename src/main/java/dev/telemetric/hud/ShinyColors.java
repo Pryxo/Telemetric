@@ -60,6 +60,14 @@ public final class ShinyColors {
         return out;
     }
 
+    /** Characters until the per-character offset wraps around the whole cycle (9 frames / 0.45 = 20). */
+    public static final int CYCLE_CHARS = (int) Math.round(FRAMES.length / CHAR_STEP);
+
+    /** 0xRRGGBB of the {@code index}-th character right now (moving; still when animations are off). */
+    public static int rgbNow(int index) {
+        return rgbAt(phase() + index * CHAR_STEP);
+    }
+
     /** 0xRRGGBB per character for a still gradient (chat lines cannot move): one step per character. */
     public static int[] gradient(int length) {
         int[] out = new int[Math.max(0, length)];

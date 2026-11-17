@@ -13,6 +13,11 @@ import java.util.List;
 public final class ChatText {
 
     public static final int BOLD = 1, UNDERLINED = 2;
+    /**
+     * Style flag: the span is drawn in the shiny colours (one step per character along the line; {@code rgb} is
+     * ignored). It moves while Misc → Chat Colors is on, otherwise it is a still gradient.
+     */
+    public static final int SHINY = 4;
 
     /** Minecraft's chat colours (0xRRGGBB) — the look players know from server lines. */
     public static final int GRAY = 0xAAAAAA, DARK_GRAY = 0x555555, WHITE = 0xFFFFFF, YELLOW = 0xFFFF55,

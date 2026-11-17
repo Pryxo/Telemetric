@@ -44,8 +44,11 @@ public final class ChatAdapter {
     private static boolean allow(Component component, boolean overlay) {
         if (!ServerGate.onTelos() || !ChatBus.hasHideRules()) return true;
         ChatMessage message = convert(component, overlay);
-        if (message.segments().isEmpty() || !ChatBus.shouldHide(message)) return true;
-        if (!overlay) ChatHudAdapter.onHidden(component); // All Chat still keeps it
+        if (message.segments().isEmpty()) return true;
+        ChatBus.Visibility visibility = ChatBus.visibility(message);
+        if (visibility == ChatBus.Visibility.SHOW) return true;
+        // All Chat still keeps hidden lines; replaced ones are gone (their Telemetric line shows instead)
+        if (!overlay && visibility == ChatBus.Visibility.HIDE) ChatHudAdapter.onHidden(component);
         return false;
     }
 
@@ -93,9 +96,11 @@ public final class ChatAdapter {
 
     static Component toComponent(ChatText text) {
         MutableComponent out = Component.empty();
+        int shinyChars = 0; // shiny characters so far: the cycle runs on along the line
         for (ChatText.Span s : text.spans()) {
             Style style = Style.EMPTY;
-            if (s.rgb() >= 0) style = style.withColor(TextColor.fromRgb(s.rgb()));
+            boolean shiny = (s.styles() & ChatText.SHINY) != 0 && s.sprite() == null;
+            if (!shiny && s.rgb() >= 0) style = style.withColor(TextColor.fromRgb(s.rgb()));
             if ((s.styles() & ChatText.BOLD) != 0) style = style.withBold(true);
             if ((s.styles() & ChatText.UNDERLINED) != 0) style = style.withUnderlined(true);
             if (s.font() != null) {
@@ -107,6 +112,17 @@ public final class ChatAdapter {
             if (sprite != null) {
                 out.append(Component.object(new AtlasSprite(AtlasSprite.DEFAULT_ATLAS, sprite), Component.literal(s.text()))
                         .withStyle(style));
+            } else if (shiny) {
+                // one component per character, each with its marker colour (see AnimatedTextAdapter)
+                MutableComponent run = Component.empty().withStyle(style);
+                String t = s.text();
+                for (int c = 0; c < t.length(); ) {
+                    int n = Character.charCount(t.codePointAt(c));
+                    run.append(Component.literal(t.substring(c, c + n))
+                            .withStyle(Style.EMPTY.withColor(AnimatedTextAdapter.shiny(shinyChars++))));
+                    c += n;
+                }
+                out.append(run);
             } else {
                 out.append(Component.literal(s.text()).withStyle(style));
             }

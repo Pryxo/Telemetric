@@ -17,6 +17,7 @@
 		"DisplayRendererMixin",
 		"EntityRenderDispatcherMixin",
 		"EquipmentAssetManagerMixin",
+		"FontAnimatedColorMixin",
 		"GameRendererMixin",
 		"GuiGraphicsExtractorAccessor",
 		"HotbarSlotMixin",

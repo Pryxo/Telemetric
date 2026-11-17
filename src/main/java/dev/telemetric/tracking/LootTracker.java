@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
  *   <li><b>Drop</b> — your glowing loot after a bag opens ({@link DropAdapter}) or the server's
  *       {@code [realm-3] ͱ <you> got <item>[telos:<model>] from <place>} line (read live 2026-11-16; the model id
  *       picks the drop, {@code -shiny} included): that drop's pity goes back to 0 and {@link Listener#onDrop} fires once.</li>
- *   <li><b>Bag</b> — a loot bag's totem pop: {@code bag:<group>} +1 ({@code Extractor/bags.json}).</li>
+ *   <li><b>Bag</b> — a loot bag's totem pop: {@code bag:<group>} +1 ({@code Extractor/rarities.json} bags).</li>
  * </ul>
  * Counters live in {@link TrackingStore} (per account). Chat layouts were not read live yet ({@code anyRuns}).
  */
@@ -236,7 +236,7 @@ public final class LootTracker {
     private void onBag(String totem) {
         Bag bag = TelosData.BAGS.get().byTotem().get(totem);
         if (bag == null) {
-            if (totem.contains("pouch")) Telemetric.debug("Unknown loot bag '{}' (add it to Extractor/manual/bags.json)", totem);
+            if (totem.contains("pouch")) Telemetric.debug("Unknown loot bag '{}' (add it to Extractor/rarities.json: bag / eventBags)", totem);
             return;
         }
         store().addStat(BAG_PREFIX + bag.group(), 1);

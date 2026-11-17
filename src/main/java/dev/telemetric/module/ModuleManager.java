@@ -19,6 +19,7 @@ import dev.telemetric.module.impl.hud.DungeonInfoHud;
 import dev.telemetric.module.impl.hud.TabStatsHud;
 import dev.telemetric.module.impl.hud.PerformanceHud;
 import dev.telemetric.module.impl.hud.WatermarkHud;
+import dev.telemetric.module.impl.misc.ChatColorsModule;
 import dev.telemetric.module.impl.misc.ConfigModule;
 import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.module.impl.misc.InterfaceModule;
@@ -65,6 +66,7 @@ public final class ModuleManager {
         register(new ThemeModule());
         register(new InterfaceModule());
         register(new HudSettingsModule());
+        register(new ChatColorsModule());
         register(new ConfigModule());
 
         // ---- Features, grouped by category ----

@@ -24,7 +24,17 @@ public final class ChatBus {
 
     private record Entry(ChatPattern pattern, Consumer<MatchResult> listener) {}
 
-    private record Hide(ChatPattern pattern, Predicate<MatchResult> when) {}
+    private record Hide(ChatPattern pattern, Predicate<MatchResult> when, boolean replaced) {}
+
+    /** What happens to a system message before it is shown. */
+    public enum Visibility {
+        /** Shown normally. */
+        SHOW,
+        /** Kept out of the chat; All Chat (the archive) still shows it. */
+        HIDE,
+        /** Replaced by a Telemetric line: gone everywhere, All Chat included (the replacement is shown instead). */
+        REPLACE
+    }
 
     private static final List<Entry> ENTRIES = new CopyOnWriteArrayList<>();
     private static final List<Hide> HIDES = new CopyOnWriteArrayList<>();
@@ -43,7 +53,18 @@ public final class ChatBus {
      * setting is on and the line is about you). Listeners still receive them.
      */
     public static Subscription hide(ChatPattern pattern, Predicate<MatchResult> when) {
-        Hide hide = new Hide(pattern, when);
+        return add(new Hide(pattern, when, false));
+    }
+
+    /**
+     * Like {@link #hide}, for a message a feature shows its own line for instead: it is also kept out of All Chat,
+     * so the chat never shows both. Listeners still receive it.
+     */
+    public static Subscription replace(ChatPattern pattern, Predicate<MatchResult> when) {
+        return add(new Hide(pattern, when, true));
+    }
+
+    private static Subscription add(Hide hide) {
         HIDES.add(hide);
         return () -> HIDES.remove(hide);
     }
@@ -53,17 +74,20 @@ public final class ChatBus {
         return !HIDES.isEmpty();
     }
 
-    /** Called by {@code game/ChatAdapter} before a system message is shown: true = do not show it. */
-    public static boolean shouldHide(ChatMessage message) {
+    /** Called by {@code game/ChatAdapter} before a system message is shown (a replace rule wins over a hide rule). */
+    public static Visibility visibility(ChatMessage message) {
+        Visibility out = Visibility.SHOW;
         for (Hide h : HIDES) {
             try {
                 MatchResult m = h.pattern().match(message);
-                if (m != null && h.when().test(m)) return true;
+                if (m == null || !h.when().test(m)) continue;
+                if (h.replaced()) return Visibility.REPLACE;
+                out = Visibility.HIDE;
             } catch (RuntimeException ex) {
                 Telemetric.LOGGER.error("Chat hide rule for '{}' failed", h.pattern().name(), ex);
             }
         }
-        return false;
+        return out;
     }
 
     /** Called by {@code game/ChatAdapter} for each received system message. */

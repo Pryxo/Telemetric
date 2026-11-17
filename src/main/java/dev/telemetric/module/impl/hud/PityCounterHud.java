@@ -36,17 +36,19 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Pity Counter: kills since each drop of the boss you are at — the
- * dungeon you are in, the boss whose bar is up, or the nearest realm boss. Counting happens in {@link LootTracker}
+ * Pity Counter: kills since each drop of the boss you are at — the dungeon you are in, else the realm boss found by
+ * (1) its boss bar, (2) one of its spawn spots ({@code Boss.json} positions)
+ * within Boss Range. No boss found = the HUD hides. Counting happens in {@link LootTracker}
  * (always on); this module shows it and writes the chat lines: your drop with its pity (+ share button) and a pity
  * summary after each kill leaderboard.
  */
 public final class PityCounterHud extends LinesHudModule {
 
-    /** A realm boss counts as "here" within this many blocks of one of its spawn spots (outside zones). */
-    private static final double NEAR_BOSS = 75;
-    private static final long CONTEXT_MS = 500, BOSS_BAR_MEMORY_MS = 60_000;
+    private static final long CONTEXT_MS = 500;
 
+    private final NumberSetting bossRange = add(new NumberSetting("Boss Range",
+            "Show a realm boss only while one of its spawn spots is this close (blocks); "
+                    + "without a boss bar or spot in range the HUD hides", 75, 10, 200, 5));
     private final NumberSetting maxChars = add(new NumberSetting("Max Characters",
             "Item names longer than this are cut (0 = no names, counts only)", 15, 0, 30, 1));
     private final BooleanSetting showChance = add(new BooleanSetting("Show Chance",
@@ -76,12 +78,11 @@ public final class PityCounterHud extends LinesHudModule {
     private record Context(String title, List<Drop> drops) {}
 
     private volatile Context context = new Context(null, List.of());
-    private long contextAt, bossBarAt;
-    private String bossBarBoss;
+    private long contextAt;
     private int lastContribution;
 
     public PityCounterHud() {
-        super("Pity Counter", "Kills since each drop of the boss you are at (dungeon, boss bar or nearest boss)",
+        super("Pity Counter", "Kills since each drop of the boss you are at (dungeon, boss bar or boss spawn); hidden without one",
                 0.0, 0.20, false);
         addUseServerColor();
         LootTracker.get().addListener(new LootTracker.Listener() {
@@ -96,7 +97,7 @@ public final class PityCounterHud extends LinesHudModule {
                 if (isEnabled() && dropMessage.get()) postDrop(drop, pityAt, from);
             }
         });
-        ChatBus.hide(LootTracker.DROP_LINE, m -> isEnabled() && dropMessage.get() && LootTracker.get().ownDrop(m) != null);
+        ChatBus.replace(LootTracker.DROP_LINE, m -> isEnabled() && dropMessage.get() && LootTracker.get().ownDrop(m) != null);
         ChatBus.hide(BONUS_SPAWNED, m -> isEnabled() && hideBonusChest.get());
     }
 
@@ -112,10 +113,10 @@ public final class PityCounterHud extends LinesHudModule {
         long now = System.currentTimeMillis();
         if (now - contextAt < CONTEXT_MS) return;
         contextAt = now;
-        context = findContext(now);
+        context = findContext();
     }
 
-    private Context findContext(long now) {
+    private Context findContext() {
         String dim = DungeonAdapter.dimensionId();
         if (dim == null || dim.startsWith("telos:hub")) return new Context(null, List.of());
         LootTable loot = TelosData.LOOT.get();
@@ -124,24 +125,27 @@ public final class PityCounterHud extends LinesHudModule {
             List<BossLoot> bosses = loot.dungeon(place);
             return bosses.isEmpty() ? new Context(null, List.of()) : new Context(place, merged(bosses));
         }
-        for (String boss : BossBarAdapter.knownBosses()) {
-            if (loot.realm(boss) != null) {
-                bossBarBoss = boss;
-                bossBarAt = now;
-            }
+        double range = bossRange.get();
+        BossLoot bl = null;
+        for (String boss : BossBarAdapter.knownBosses()) { // 1. boss bar
+            bl = loot.realm(boss);
+            if (bl != null) break;
         }
-        String boss = bossBarBoss != null && now - bossBarAt < BOSS_BAR_MEMORY_MS ? bossBarBoss : nearestBoss();
-        BossLoot bl = boss == null ? null : loot.realm(boss);
+        if (bl == null) bl = realmLoot(loot, nearestSpawn(range)); // 2. spawn spot from data
         return bl == null ? new Context(null, List.of()) : new Context(bl.boss(), merged(List.of(bl)));
     }
 
-    /** Nearest realm boss spot: within {@link #NEAR_BOSS} in the open realm, the zone's nearest boss in a zone. */
-    private static String nearestBoss() {
+    private static BossLoot realmLoot(LootTable loot, String boss) {
+        return boss == null ? null : loot.realm(boss);
+    }
+
+    /** Realm boss with the nearest spawn spot within {@code range} blocks (in a zone: only that zone's bosses). */
+    private static String nearestSpawn(double range) {
         Point me = DungeonAdapter.playerPos();
         if (me == null) return null;
         BossTable table = TelosData.BOSSES.get();
         String zone = table.zoneOf(PlayerAdapter.locationName());
-        double best = zone == null ? NEAR_BOSS * NEAR_BOSS : Double.MAX_VALUE;
+        double best = range * range;
         String name = null;
         for (BossTable.Boss b : table.realmByKey().values()) {
             if (zone != null && !zone.equals(table.zoneOf(b))) continue;
@@ -310,15 +314,9 @@ public final class PityCounterHud extends LinesHudModule {
         ChatAdapter.post(line);
     }
 
-    /** Appends {@code text} in the shiny colours (a still gradient: chat lines are not redrawn per frame). */
+    /** Appends {@code text} in the shiny colours (moving while Misc → Chat Colors is on). */
     private static void shiny(ChatText line, String text, int styles) {
-        int[] rgb = ShinyColors.gradient(text.codePointCount(0, text.length()));
-        int i = 0;
-        for (int c = 0; c < text.length(); ) {
-            int n = Character.charCount(text.codePointAt(c));
-            line.add(text.substring(c, c + n), rgb[i++], styles);
-            c += n;
-        }
+        line.add(text, ShinyColors.START, styles | ChatText.SHINY);
     }
 
     /** The rarity's chat icon from {@code rarities.json} ({@code glyph}, server-pack default font), "" if none. */

@@ -23,7 +23,7 @@ import java.util.function.Function;
 
 /**
  * JSON tables from the shared data repo ({@code data/} submodule → {@link DataRepo}), e.g.
- * {@code Extractor/bosses.json}.
+ * {@code Extractor/Boss.json}.
  * <p>
  * A table is declared once with {@link #file(String, Function, Object)} and read with {@link SharedFile#get()}.
  * Where its content comes from (first one found wins at start, instantly, no network):
@@ -54,7 +54,7 @@ public final class SharedData {
     /**
      * Declares a table (once per path; later calls return the same handle) and starts loading it.
      *
-     * @param path     repo path, e.g. {@code Extractor/bosses.json}
+     * @param path     repo path, e.g. {@code Extractor/Boss.json}
      * @param parser   JSON root → immutable value; may throw on bad input
      * @param fallback value while nothing could be loaded
      */

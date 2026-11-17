@@ -37,7 +37,7 @@ import java.util.function.Consumer;
 /**
  * MC ADAPTER — Custom Bags: the player's own picture (PNG/JPG/GIF) and sound (OGG/WAV) for a loot bag drop.
  * <ul>
- *   <li><b>Files</b>: {@code config/telemetric/bags/<key>.<ext>} (key from {@code data/Extractor/bags.json}); imported with
+ *   <li><b>Files</b>: {@code config/telemetric/bags/<key>.<ext>} (key from the bags in {@code data/Extractor/rarities.json}); imported with
  *       a native file picker, so players never have to find the folder.</li>
  *   <li><b>Picture</b>: Telos shows a drop as a totem pop of {@code telos:<totem>}. {@code GameRendererMixin} hands the
  *       floating stack to {@link #onDropAnimation}; it is switched to {@code telemetric:bags/<model>} (the bag's banner

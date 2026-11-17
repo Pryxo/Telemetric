@@ -1,5 +1,6 @@
 package dev.telemetric.data;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -11,8 +12,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code Extractor/loottable.json}: Dungeon → Boss → drops. Feeds the Pity Counter (which drops a boss kill
- * counts for), drop detection (a dropped item's model / name → its drop) and the drop messages. Pure Java.
+ * Dungeon → Boss → drops, read from the bosses of {@code Extractor/Boss.json}. Feeds the Pity Counter (which drops a
+ * boss kill counts for), drop detection (a dropped item's model / name → its drop) and the drop messages. Pure Java.
  *
  * @param dungeons dungeon key ({@link Names#placeKey}) → its loot bosses, final boss last ({@value #REALM} =
  *                 minibosses and bosses outside dungeons)
@@ -25,7 +26,7 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
 
     /** Bucket of minibosses and bosses outside any dungeon. */
     public static final String REALM = "Realm";
-    /** Boss name not written yet in {@code manual/bosses.json}. */
+    /** Dungeon boss whose name is not written yet ({@code manual/bosses.json}). */
     public static final String UNKNOWN = "???";
 
     /**
@@ -72,53 +73,87 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         }
     }
 
-    static LootTable parse(JsonObject root) {
+    /**
+     * From the {@code bosses} array of Boss.json: every boss with a {@code drops} list, dungeon bosses by their
+     * {@code location}, every other boss in {@value #REALM} (kept last, see {@link #ownerOf}).
+     */
+    static LootTable parse(JsonArray bosses, JsonObject aliasTable) {
         Map<String, List<BossLoot>> dungeons = new LinkedHashMap<>();
-        Map<String, List<BossLoot>> bosses = new HashMap<>();
+        List<BossLoot> realm = new ArrayList<>();
+        Map<String, List<BossLoot>> byBoss = new HashMap<>();
         Map<String, Drop> byModel = new HashMap<>(), byKey = new HashMap<>();
         Map<String, List<Drop>> byName = new HashMap<>();
-        for (Map.Entry<String, JsonElement> d : root.getAsJsonObject("loot").entrySet()) {
-            List<BossLoot> list = new ArrayList<>();
-            for (Map.Entry<String, JsonElement> b : d.getValue().getAsJsonObject().entrySet()) {
-                List<Drop> drops = new ArrayList<>();
-                for (JsonElement e : b.getValue().getAsJsonObject().getAsJsonArray("drops")) {
-                    Drop drop = drop(e.getAsJsonObject());
-                    drops.add(drop);
-                    if (!drop.hasPity()) continue;
-                    byKey.putIfAbsent(drop.key(), drop);
-                    if (!drop.model().isEmpty()) byModel.putIfAbsent(drop.model(), drop);
-                    if (!drop.id().isEmpty()) byModel.putIfAbsent(drop.id(), drop);
-                    if (!drop.shiny()) byName.computeIfAbsent(Names.key(drop.name()), k -> new ArrayList<>()).add(drop);
-                }
-                BossLoot loot = new BossLoot(d.getKey(), b.getKey(), List.copyOf(drops));
-                list.add(loot);
-                if (!UNKNOWN.equals(b.getKey())) {
-                    bosses.computeIfAbsent(Names.key(b.getKey()), k -> new ArrayList<>()).add(loot);
-                }
+        for (JsonElement el : bosses == null ? new JsonArray() : bosses) {
+            JsonObject o = el.getAsJsonObject();
+            if (!o.has("drops") || !o.get("drops").isJsonArray()) continue;
+            String boss = JsonFields.str(o, "name");
+            boolean dungeon = "dungeon".equals(JsonFields.str(o, "type"));
+            String place = dungeon ? JsonFields.str(o, "location") : REALM;
+            List<Drop> drops = new ArrayList<>();
+            for (JsonElement e : o.getAsJsonArray("drops")) {
+                JsonObject d = e.getAsJsonObject();
+                Drop drop = drop(d, false);
+                drops.add(drop);
+                if (d.has("shiny") && !drop.id().isEmpty()) drops.add(drop(d, true));
             }
-            dungeons.put(Names.placeKey(d.getKey()), List.copyOf(list));
+            for (Drop drop : drops) {
+                if (!drop.hasPity()) continue;
+                byKey.putIfAbsent(drop.key(), drop);
+                if (!drop.model().isEmpty()) byModel.putIfAbsent(drop.model(), drop);
+                if (!drop.id().isEmpty()) byModel.putIfAbsent(drop.id(), drop);
+                if (!drop.shiny()) byName.computeIfAbsent(Names.key(drop.name()), k -> new ArrayList<>()).add(drop);
+            }
+            BossLoot loot = new BossLoot(place, boss, List.copyOf(drops));
+            if (dungeon) dungeons.computeIfAbsent(Names.placeKey(place), k -> new ArrayList<>()).add(loot);
+            else realm.add(loot);
+            if (!UNKNOWN.equals(boss)) byBoss.computeIfAbsent(Names.key(boss), k -> new ArrayList<>()).add(loot);
         }
+        dungeons.replaceAll((k, v) -> List.copyOf(v));
+        dungeons.put(Names.key(REALM), List.copyOf(realm));
         Map<String, String> aliases = new HashMap<>();
-        JsonObject al = root.getAsJsonObject("aliases");
-        if (al != null) {
-            for (Map.Entry<String, JsonElement> e : al.entrySet()) {
-                aliases.put(Names.placeKey(e.getKey()), Names.placeKey(e.getValue().getAsString()));
+        if (aliasTable != null) {
+            for (Map.Entry<String, JsonElement> e : aliasTable.entrySet()) {
+                if (e.getValue().isJsonPrimitive()) aliases.put(Names.placeKey(e.getKey()), Names.placeKey(e.getValue().getAsString()));
             }
         }
-        bosses.replaceAll((k, v) -> List.copyOf(v));
+        byBoss.replaceAll((k, v) -> List.copyOf(v));
         byName.replaceAll((k, v) -> List.copyOf(v));
         // dungeons keeps the file order (realm bosses last, see ownerOf) — Map.copyOf would scramble it
-        return new LootTable(Collections.unmodifiableMap(dungeons), Map.copyOf(bosses), Map.copyOf(byModel), Map.copyOf(byName),
+        return new LootTable(Collections.unmodifiableMap(dungeons), Map.copyOf(byBoss), Map.copyOf(byModel), Map.copyOf(byName),
                 Map.copyOf(byKey), Map.copyOf(aliases));
     }
 
-    private static Drop drop(JsonObject o) {
-        String name = JsonFields.str(o, "name"), kind = JsonFields.str(o, "kind"), id = JsonFields.str(o, "id");
-        boolean shiny = o.has("shiny") && o.get("shiny").getAsBoolean();
+    /**
+     * A Boss.json drop (or its shiny version: id + {@code -shiny}, chance = {@code shiny}). Derived, not stored: kind
+     * ({@code kind} only where it differs: id {@code pet/} = pet, {@code mount/} = mount, other id = item, no id with a
+     * rarity = material, else fragment), loot group (companions: {@code companion}, fragments: none, else the
+     * rarity) and the dropped item model ({@code <ns>:material/<id path>}).
+     */
+    private static Drop drop(JsonObject o, boolean shiny) {
+        String name = JsonFields.str(o, "name"), id = JsonFields.str(o, "id"), rarity = JsonFields.str(o, "rarity");
+        String kind = JsonFields.str(o, "kind");
+        if (kind.isEmpty()) kind = impliedKind(id, rarity);
+        if (shiny) id = id + "-shiny";
+        String lootKey = switch (kind) {
+            case "fragment" -> "";
+            case "pet", "mount", "mountSkin" -> "companion";
+            default -> rarity;
+        };
+        String model = "";
+        int colon = id.indexOf(':');
+        if (colon > 0) model = id.substring(0, colon) + ":material/" + id.substring(colon + 1);
         String key = !id.isEmpty() ? id : kind + ":" + Names.key(name) + (shiny ? "-shiny" : "");
-        return new Drop(key, name, kind, JsonFields.str(o, "rarity"), JsonFields.str(o, "lootKey"), id,
-                JsonFields.str(o, "model"), shiny, o.has("chance") ? o.get("chance").getAsDouble() : 0,
-                JsonFields.str(o, "from"));
+        double chance = shiny ? o.get("shiny").getAsDouble() : o.has("chance") ? o.get("chance").getAsDouble() : 0;
+        return new Drop(key, name, kind, rarity, lootKey, id, model, shiny, chance, JsonFields.str(o, "from"));
+    }
+
+    /** Kind of a drop without a {@code kind} field (the table generator writes {@code kind} only where this differs). */
+    private static String impliedKind(String id, String rarity) {
+        if (!id.isEmpty()) {
+            String path = id.substring(id.indexOf(':') + 1);
+            return path.startsWith("pet/") ? "pet" : path.startsWith("mount/") ? "mount" : "item";
+        }
+        return rarity.isEmpty() ? "fragment" : "material";
     }
 
     // ------------------------------------------------------------------ lookups

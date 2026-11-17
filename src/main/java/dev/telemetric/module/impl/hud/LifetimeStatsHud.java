@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * Lifetime Stats: loot bags you got per bag type and your boss kills /
  * runs, all-time for this account ({@link LootTracker} counts them). One row per bag group of
- * {@code Extractor/bags.json}, so a new bag type is a new row without code.
+ * {@code Extractor/rarities.json} bags, so a new bag type is a new row without code.
  */
 public final class LifetimeStatsHud extends LinesHudModule {
 
@@ -36,11 +36,11 @@ public final class LifetimeStatsHud extends LinesHudModule {
     private record Row(String label, String stat, int rgb, HudIcon icon) {}
 
     /**
-     * The bag's pouch glyph (Loot Information icon, or the bag's own {@code icon}, e.g. Shiny); without one the loot
-     * bag's own model: the totem path without {@code _totem} ({@code telos:mob/pouch/royal}).
+     * The bag's pouch glyph ({@code icon} in {@code rarities.json}); without one the loot bag's own model: the totem
+     * path without {@code _totem} ({@code telos:mob/pouch/royal}).
      */
     private static HudIcon bagIcon(Bag b) {
-        String glyph = b.icon().isEmpty() ? TelosData.LOOT_INFO.get().getOrDefault(b.key(), "") : b.icon();
+        String glyph = b.icon();
         if (!glyph.isEmpty()) return new HudIcon.Glyph(glyph, null);
         String totem = b.totem();
         if (totem == null || totem.isEmpty()) return null;

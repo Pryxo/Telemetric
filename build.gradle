@@ -36,7 +36,7 @@ processResources {
 	// Shared data tables (data/ submodule) bundled as the offline fallback — see docs/data.md.
 	from("data") {
 		// only the tables the mod reads (TelosData); the other Extractor/ files are extractor inputs / scans
-		include(["bossbars", "bosses", "loottable", "rarities", "bags", "loot_info", "traits",
+		include(["Boss", "rarities", "traits",
 				 "manual/callouts", "manual/chat", "manual/realms", "manual/discord"].collect { 'Extractor/' + it + '.json' })
 		into "assets/telemetric/data"
 	}

@@ -1,5 +1,6 @@
 package dev.telemetric.data;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.telemetric.data.SharedData.SharedFile;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /**
@@ -35,23 +37,38 @@ public final class TelosData {
         // touching the class runs the static declarations below — nothing else to do
     }
 
-    // ------------------------------------------------------------------ boss bars
+    // ------------------------------------------------------------------ bosses + loot + boss bars
 
-    /** {@code bossbars.json} — every boss bar seen in game (Boss Recorder): name hash → boss name. */
-    public static final SharedFile<BossBars> BOSS_BARS = SharedData.file(DIR + "bossbars.json", BossBars::parse, BossBars.EMPTY);
+    /**
+     * {@code Boss.json} — every boss (where it spawns, icon, spawn spots, portal, drops, Boss Tracker data, boss bar
+     * hash). Boss Tracker / Pity Counter / spawn lookups ({@link BossTable}), drops ({@link #LOOT}) and boss bars
+     * ({@link #BOSS_BARS}) all read this one file.
+     */
+    public static final SharedFile<BossTable> BOSSES = SharedData.file(DIR + "Boss.json", BossTable::parse, BossTable.EMPTY);
+
+    /** Dungeon → Boss → drops from {@code Boss.json} (Pity Counter, drop messages). */
+    public static final Supplier<LootTable> LOOT = () -> BOSSES.get().loot();
+
+    /** Boss bar name hashes from {@code Boss.json} (Boss Recorder): name hash → boss name. */
+    public static final Supplier<BossBars> BOSS_BARS = () -> BOSSES.get().bars();
 
     /** @param byHash {@code Component#hashCode()} of the bar name (Telos names are glyphs) → boss name */
     public record BossBars(Map<Integer, String> byHash, Set<String> names) {
         static final BossBars EMPTY = new BossBars(Map.of(), Set.of());
 
-        static BossBars parse(JsonObject root) {
+        /** From the {@code bosses} array of Boss.json ({@code bossBarHash}: one hash or a list). */
+        static BossBars parse(JsonArray bosses) {
             Map<Integer, String> byHash = new HashMap<>();
             Set<String> names = new HashSet<>();
-            for (JsonElement e : root.getAsJsonArray("bosses")) {
+            for (JsonElement e : bosses) {
                 JsonObject o = e.getAsJsonObject();
                 String name = JsonFields.str(o, "name");
-                if (o.has("bossBarHash")) byHash.put(o.get("bossBarHash").getAsInt(), name);
-                if (!name.isEmpty()) names.add(Names.key(name));
+                if (name.isEmpty() || LootTable.UNKNOWN.equals(name)) continue;
+                names.add(Names.key(name));
+                JsonElement h = o.get("bossBarHash");
+                if (h == null) continue;
+                if (h.isJsonArray()) for (JsonElement x : h.getAsJsonArray()) byHash.putIfAbsent(x.getAsInt(), name);
+                else byHash.putIfAbsent(h.getAsInt(), name);
             }
             return new BossBars(Map.copyOf(byHash), Set.copyOf(names));
         }
@@ -63,37 +80,32 @@ public final class TelosData {
 
         /** Boss name for a bar name hash, or null. */
         public String nameFor(int nameHash) {
-            String n = byHash.get(nameHash);
-            return n == null || n.isEmpty() ? null : n;
+            return byHash.get(nameHash);
         }
     }
 
-    // ------------------------------------------------------------------ bosses + loot
-
-    /** {@code bosses.json} — wiki bosses (+ positions, icons, Boss Tracker data) and every dungeon loot boss. */
-    public static final SharedFile<BossTable> BOSSES = SharedData.file(DIR + "bosses.json", BossTable::parse, BossTable.EMPTY);
-
-    /** {@code loottable.json} — Dungeon → Boss → drops (Pity Counter, drop messages). */
-    public static final SharedFile<LootTable> LOOT = SharedData.file(DIR + "loottable.json", LootTable::parse, LootTable.EMPTY);
-
     // ------------------------------------------------------------------ rarities
 
-    /** {@code rarities.json} — rarity colours, keyed by the last part of the tooltip style. */
+    /** {@code rarities.json} — rarity colours + glyphs and the loot bags, keyed by the last part of the tooltip style. */
     public static final SharedFile<Rarities> RARITIES =
             SharedData.file(DIR + "rarities.json", Rarities::parse, Rarities.EMPTY);
 
     /**
      * @param rgb   0xRRGGBB
-     * @param glyph chat icon in the server pack's default font ("" = none), from {@code manual/rarities.json} glyphs
+     * @param glyph chat icon in the server pack's default font ("" = none)
      */
     public record Rarity(String key, String label, int rgb, String glyph) {}
 
-    /** @param companions pet / mount rarities (usual … legacy), by key */
-    public record Rarities(Map<String, Rarity> byKey, Map<String, Rarity> companions) {
-        static final Rarities EMPTY = new Rarities(Map.of(), Map.of());
+    /**
+     * @param companions pet / mount rarities (usual … legacy), by key
+     * @param bags       loot bags: every rarity with a {@code bag} + the {@code eventBags}
+     */
+    public record Rarities(Map<String, Rarity> byKey, Map<String, Rarity> companions, Bags bags) {
+        static final Rarities EMPTY = new Rarities(Map.of(), Map.of(), Bags.EMPTY);
 
         static Rarities parse(JsonObject root) {
-            return new Rarities(rarityMap(root.getAsJsonObject("rarities")), rarityMap(root.getAsJsonObject("companions")));
+            return new Rarities(rarityMap(root.getAsJsonObject("rarities")), rarityMap(root.getAsJsonObject("companions")),
+                    Bags.parse(root));
         }
 
         private static Map<String, Rarity> rarityMap(JsonObject o) {
@@ -131,24 +143,8 @@ public final class TelosData {
 
     // ------------------------------------------------------------------ loot bags
 
-    /** {@code loot_info.json} (FAQ → Loot Information) — loot key → pouch glyph (default font, server pack). */
-    public static final SharedFile<Map<String, String>> LOOT_INFO = SharedData.file(DIR + "loot_info.json",
-            TelosData::parseLootInfo, Map.of());
-
-    static Map<String, String> parseLootInfo(JsonObject root) {
-        if (!root.has("loot")) return Map.of();
-        Map<String, String> out = new HashMap<>();
-        for (JsonElement e : root.getAsJsonArray("loot")) {
-            if (!e.isJsonObject()) continue;
-            String key = JsonFields.str(e.getAsJsonObject(), "key").toLowerCase(Locale.ROOT);
-            String glyph = JsonFields.str(e.getAsJsonObject(), "glyph");
-            if (!key.isEmpty() && !glyph.isEmpty()) out.put(key, glyph);
-        }
-        return Map.copyOf(out);
-    }
-
-    /** {@code bags.json} — loot bag types (drop totem model, drop sound) for Custom Bags and Lifetime Stats. */
-    public static final SharedFile<Bags> BAGS = SharedData.file(DIR + "bags.json", Bags::parse, Bags.EMPTY);
+    /** Loot bag types (drop totem model, drop sound) for Custom Bags and Lifetime Stats — part of {@code rarities.json}. */
+    public static final Supplier<Bags> BAGS = () -> RARITIES.get().bags();
 
     /**
      * @param key   file name of the custom image / sound
@@ -157,8 +153,7 @@ public final class TelosData {
      * @param model custom model with the image screen ({@code telemetric:bags/<model>})
      * @param group Lifetime Stats row this bag counts in (the key unless several bags share one, e.g. {@code event})
      * @param rgb   bag colour 0xRRGGBB, or -1
-     * @param icon  pouch glyph in the server pack's default font ("" = none): bags Loot Information has no icon for
-     *              (shiny, event bags); the others use {@link #LOOT_INFO} by key
+     * @param icon  pouch glyph in the server pack's default font ("" = none)
      */
     public record Bag(String key, String label, String totem, String sound, String model, String group, int rgb,
                       String icon) {}
@@ -166,26 +161,39 @@ public final class TelosData {
     public record Bags(List<Bag> list, Map<String, Bag> byTotem, Map<String, Bag> bySound, List<String> groups) {
         static final Bags EMPTY = new Bags(List.of(), Map.of(), Map.of(), List.of());
 
+        /**
+         * Rarity bags ({@code rarities.<key>.bag}, label / colour / icon of the rarity, group = key) then
+         * {@code eventBags} (group {@code event} unless set). {@code bag} = totem name: item model
+         * {@code mob/pouch/<bag>}, custom model {@code <bag>}; {@code sound} defaults to the key.
+         */
         static Bags parse(JsonObject root) {
             List<Bag> list = new ArrayList<>();
+            addBags(list, root.getAsJsonObject("rarities"), false);
+            addBags(list, root.getAsJsonObject("eventBags"), true);
             Map<String, Bag> byTotem = new HashMap<>(), bySound = new HashMap<>();
-            Set<String> groups = new java.util.LinkedHashSet<>();
-            for (JsonElement e : root.getAsJsonArray("bags")) {
-                JsonObject o = e.getAsJsonObject();
-                String key = JsonFields.str(o, "key").toLowerCase(Locale.ROOT);
-                if (key.isEmpty() || !key.matches("[a-z0-9_]+")) continue; // used as a file name
-                String group = JsonFields.str(o, "group").toLowerCase(Locale.ROOT);
-                if (group.isEmpty()) group = key;
-                String color = JsonFields.str(o, "color");
-                String icon = JsonFields.str(o, "icon");
-                Bag b = new Bag(key, JsonFields.str(o, "label"), JsonFields.str(o, "totem"), JsonFields.str(o, "sound"),
-                        JsonFields.str(o, "model"), group, color.isEmpty() ? -1 : JsonFields.rgb(color), icon);
-                list.add(b);
+            Set<String> groups = new LinkedHashSet<>();
+            for (Bag b : list) {
                 byTotem.put(b.totem(), b);
                 bySound.put(b.sound(), b);
-                groups.add(group);
+                groups.add(b.group());
             }
             return new Bags(List.copyOf(list), Map.copyOf(byTotem), Map.copyOf(bySound), List.copyOf(groups));
+        }
+
+        private static void addBags(List<Bag> list, JsonObject table, boolean event) {
+            if (table == null) return;
+            for (Map.Entry<String, JsonElement> e : table.entrySet()) {
+                if (!e.getValue().isJsonObject()) continue;
+                JsonObject o = e.getValue().getAsJsonObject();
+                String key = e.getKey().toLowerCase(Locale.ROOT);
+                String bag = JsonFields.str(o, "bag");
+                if (bag.isEmpty() || !key.matches("[a-z0-9_]+")) continue; // key is used as a file name
+                String sound = JsonFields.str(o, "sound"), group = JsonFields.str(o, "group").toLowerCase(Locale.ROOT);
+                String color = JsonFields.str(o, "color");
+                list.add(new Bag(key, JsonFields.str(o, "label"), "mob/pouch/" + bag, sound.isEmpty() ? key : sound, bag,
+                        group.isEmpty() ? (event ? "event" : key) : group, color.isEmpty() ? -1 : JsonFields.rgb(color),
+                        JsonFields.str(o, "icon")));
+            }
         }
 
         public Bag byLabel(String label) {

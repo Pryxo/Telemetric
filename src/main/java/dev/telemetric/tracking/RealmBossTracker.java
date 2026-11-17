@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  *       {@code defeat} lines of always-present bosses), {@code Boss has been defeated (n/m)} (portal open for
  *       {@code portalSeconds}; at n = m the {@code progress} boss's portal opens), {@code Boss has spawned at x, y, z}.</li>
  * </ul>
- * Which bosses exist, where, their lines and timers: {@code Extractor/bosses.json} ({@code tracker} data). Pure logic
+ * Which bosses exist, where, their lines and timers: {@code Extractor/Boss.json} ({@code tracker} data). Pure logic
  * — the menu comes through {@link BossMenuAdapter}. Chat layouts were not read live yet ({@code anyRuns}).
  */
 public final class RealmBossTracker {

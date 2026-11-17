@@ -32,7 +32,8 @@ public final class ChatScreenHooks {
     private static final int GLFW_MOD_ALT = 0x0004;
     /** Unread badge: fixed status colours (like toast success / error), not theme colours. */
     private static final int PING = 0xFFEF4444, PING_TEXT = 0xFFFFFFFF;
-    private static final int BADGE_GAP = 3;
+    /** Badge height, and how far it pokes above / right of its tab. */
+    private static final int BADGE_H = 9, BADGE_RISE = 3, BADGE_OUT = 3;
 
     private static final Render2D R = new Render2D();
     private static final Map<String, Animation> HOVER = new HashMap<>();
@@ -65,7 +66,7 @@ public final class ChatScreenHooks {
 
         R.begin(graphics, mod.theme().textShadow());
         try {
-            R.pushClip(LEFT, y - 1, maxW, h + 2);
+            R.pushClip(LEFT, y - BADGE_RISE - 1, maxW + BADGE_OUT, h + BADGE_RISE + 2);
             int x = LEFT - scroll;
             for (String tab : tabs) {
                 int w = tabWidth(chat, tab);
@@ -77,39 +78,47 @@ public final class ChatScreenHooks {
                 R.roundedRect(x, y, w, h, 2, bg);
                 int text = isActive ? p.text() : ColorUtil.lerp(p.textMuted(), p.text(), hover.get());
                 R.text(tab, x + PAD, y + PAD, text);
-                int unread = chat.tabs().unread(tab);
-                if (unread > 0) badge(x + PAD + R.textWidth(tab) + BADGE_GAP, y, h, unread);
                 if (isActive) slideUnderline(x + PAD - (LEFT - scroll), w - PAD * 2);
                 x += w + GAP;
             }
             R.rect(LEFT - scroll + (int) UNDER_X.get(), y + h - 1, (int) UNDER_W.get(), 1, p.accent());
+            // Badges in a second pass so a neighbouring tab never covers them.
+            x = LEFT - scroll;
+            for (String tab : tabs) {
+                int w = tabWidth(chat, tab);
+                int unread = chat.tabs().unread(tab);
+                if (unread > 0) badge(x + w, y, unread);
+                x += w + GAP;
+            }
             R.popClip();
         } finally {
             R.end();
         }
     }
 
-    /** Red pill with the unread count ("99+" above 99). */
-    private static void badge(int x, int y, int barH, int count) {
+    /**
+     * Red dot/pill with the unread count ("99+" above 99), overlapping the tab's top-right corner so the tab keeps
+     * its size. The label is centred on its ink (font width minus the trailing 1 px spacing), and the pill width is
+     * chosen with the same parity as the ink so the margins are equal on both sides.
+     */
+    private static void badge(int tabRight, int tabTop, int count) {
         String label = badgeLabel(count);
-        int bh = barH - 4, bw = Math.max(bh, R.textWidth(label) + 4);
-        R.roundedRect(x, y + 2, bw, bh, bh / 2, PING);
-        R.text(label, x + (bw - R.textWidth(label)) / 2 + 1, y + 3, PING_TEXT);
+        int ink = R.textWidth(label) - 1;
+        int bw = Math.max(BADGE_H, ink + 4);
+        if ((bw - ink) % 2 != 0) bw++;
+        int bx = tabRight - bw + BADGE_OUT, by = tabTop - BADGE_RISE;
+        R.roundedRect(bx, by, bw, BADGE_H, BADGE_H / 2, PING);
+        R.text(label, bx + (bw - ink) / 2, by + 1, PING_TEXT); // digit ink is 7 px tall in a 9 px pill
     }
 
     private static String badgeLabel(int count) {
         return count > 99 ? "99+" : String.valueOf(count);
     }
 
-    /** Tab width: label + padding (+ badge). Same font as {@link Render2D#textWidth}. */
+    /** Tab width: label + padding (the badge overlaps the corner). Same font as {@link Render2D#textWidth}. */
     private static int tabWidth(ChatModule chat, String tab) {
         var font = Minecraft.getInstance().font;
         int w = font.width(tab) + PAD * 2;
-        int unread = chat.tabs().unread(tab);
-        if (unread > 0) {
-            int bh = barHeight() - 4;
-            w += BADGE_GAP + Math.max(bh, font.width(badgeLabel(unread)) + 4);
-        }
         return w;
     }
 

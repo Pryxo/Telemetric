@@ -1,5 +1,6 @@
 package dev.telemetric.data;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -11,13 +12,17 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
- * {@code Extractor/bosses.json}: wiki bosses (minibosses, realm / event bosses with spawn spots and icons, the
- * Boss Tracker data merged from {@code manual/bosses.json}) and every dungeon loot boss. Pure Java.
+ * {@code Extractor/Boss.json}: every boss — wiki minibosses / realm / event bosses (spawn spots, icons, Boss Tracker
+ * data) and every dungeon loot boss, with drops and boss bar hashes. Pure Java.
+ *
+ * @param loot the drops of the same file ({@link TelosData#LOOT})
+ * @param bars the boss bar hashes of the same file ({@link TelosData#BOSS_BARS})
  */
 public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss> tracked, int portalSeconds,
-                        List<String> zones) {
+                        List<String> zones, LootTable loot, TelosData.BossBars bars) {
 
-    static final BossTable EMPTY = new BossTable(List.of(), Map.of(), List.of(), 30, List.of());
+    static final BossTable EMPTY = new BossTable(List.of(), Map.of(), List.of(), 30, List.of(), LootTable.EMPTY,
+            TelosData.BossBars.EMPTY);
 
     /** A fixed world spot (spawn point or extra waypoint). */
     public record Spot(String name, int x, int y, int z) {}
@@ -38,8 +43,9 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
                           boolean progress, List<Spot> waypoints) {}
 
     /**
+     * @param id      name key ({@link Names#key})
      * @param type    {@code miniboss}, {@code boss}, {@code eventBoss} or {@code dungeon}
-     * @param area    where it is found ({@code Realm}, {@code Shadowlands}, {@code Radiant Isles}, …), may be empty
+     * @param area    where a realm boss spawns ({@code Realm}, a biome, {@code Shadowlands}, …), may be empty
      * @param icon    item model of its menu icon ({@code telos:material/boss/anubis}), may be empty
      * @param dungeon dungeon of a dungeon boss, else empty
      * @param tracker Boss Tracker data, or null when it is not tracked
@@ -59,8 +65,10 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         for (JsonElement e : root.getAsJsonArray("bosses")) {
             JsonObject o = e.getAsJsonObject();
             String name = JsonFields.str(o, "name");
-            Boss b = new Boss(JsonFields.str(o, "id"), name, JsonFields.str(o, "type"), JsonFields.str(o, "foundIn"),
-                    JsonFields.str(o, "icon"), spots(o, "positions", name), JsonFields.str(o, "dungeon"),
+            String type = JsonFields.str(o, "type"), location = JsonFields.str(o, "location");
+            boolean dungeon = "dungeon".equals(type);
+            Boss b = new Boss(Names.key(name), name, type, dungeon ? "" : location, JsonFields.str(o, "icon"),
+                    spots(o, "positions", name), dungeon ? location : "",
                     tracker(o.getAsJsonObject("tracker"), name, defaultPortal));
             all.add(b);
             if (b.isDungeonBoss()) continue;
@@ -69,7 +77,9 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         }
         List<String> zones = new ArrayList<>();
         if (root.has("zones")) for (JsonElement z : root.getAsJsonArray("zones")) zones.add(z.getAsString());
-        return new BossTable(List.copyOf(all), Map.copyOf(realm), List.copyOf(tracked), defaultPortal, List.copyOf(zones));
+        JsonArray bosses = root.getAsJsonArray("bosses");
+        return new BossTable(List.copyOf(all), Map.copyOf(realm), List.copyOf(tracked), defaultPortal, List.copyOf(zones),
+                LootTable.parse(bosses, root.getAsJsonObject("aliases")), TelosData.BossBars.parse(bosses));
     }
 
     /**
@@ -109,7 +119,7 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         try {
             return Pattern.compile(s);
         } catch (PatternSyntaxException ex) {
-            dev.telemetric.Telemetric.LOGGER.warn("bosses.json: bad {} regex for {}: {}", key, boss, ex.getDescription());
+            dev.telemetric.Telemetric.LOGGER.warn("Boss.json: bad {} regex for {}: {}", key, boss, ex.getDescription());
             return null;
         }
     }
