@@ -7,9 +7,11 @@ import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Dungeon → Boss → drops, read from the bosses of {@code Extractor/Boss.json}. Feeds the Pity Counter (which drops a
@@ -58,13 +60,22 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         }
     }
 
-    /** One boss's drops. {@code boss} may be {@value #UNKNOWN} for a dungeon whose final boss is not named yet. */
-    public record BossLoot(String dungeon, String boss, List<Drop> drops) {
+    /**
+     * One boss's drops. {@code boss} may be {@value #UNKNOWN} for a dungeon whose final boss is not named yet.
+     *
+     * @param pityOnly {@link Names#key name keys} of the only drops a kill of this boss adds pity to (Boss.json
+     *                 {@code pityOnly}, e.g. Seraph's Domain: it drops the earlier bosses' loot, but only its own extra
+     *                 item gains pity); empty = every pity drop
+     */
+    public record BossLoot(String dungeon, String boss, List<Drop> drops, Set<String> pityOnly) {
 
-        /** Drops that count towards pity (normal and shiny). */
+        /** Drops a kill of this boss adds pity to (normal and shiny). */
         public List<Drop> pityDrops() {
             List<Drop> out = new ArrayList<>();
-            for (Drop d : drops) if (d.hasPity()) out.add(d);
+            for (Drop d : drops) {
+                // shinies have no real pity: their counter (kills since one) always counts where they can drop
+                if (d.hasPity() && (d.shiny() || pityOnly.isEmpty() || pityOnly.contains(Names.key(d.name())))) out.add(d);
+            }
             return out;
         }
 
@@ -103,7 +114,13 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
                 if (!drop.id().isEmpty()) byModel.putIfAbsent(drop.id(), drop);
                 if (!drop.shiny()) byName.computeIfAbsent(Names.key(drop.name()), k -> new ArrayList<>()).add(drop);
             }
-            BossLoot loot = new BossLoot(place, boss, List.copyOf(drops));
+            Set<String> pityOnly = new HashSet<>();
+            if (o.has("pityOnly") && o.get("pityOnly").isJsonArray()) {
+                for (JsonElement n : o.getAsJsonArray("pityOnly")) {
+                    if (n.isJsonPrimitive()) pityOnly.add(Names.key(n.getAsString()));
+                }
+            }
+            BossLoot loot = new BossLoot(place, boss, List.copyOf(drops), Set.copyOf(pityOnly));
             if (dungeon) dungeons.computeIfAbsent(Names.placeKey(place), k -> new ArrayList<>()).add(loot);
             else realm.add(loot);
             if (!UNKNOWN.equals(boss)) byBoss.computeIfAbsent(Names.key(boss), k -> new ArrayList<>()).add(loot);
