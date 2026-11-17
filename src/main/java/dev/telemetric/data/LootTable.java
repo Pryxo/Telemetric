@@ -42,9 +42,11 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
      * @param model   item model as dropped on the ground ({@code telos:material/...}), may be empty
      * @param from    where it drops besides the boss ({@code specificMob}, {@code anyMob}, {@code puzzle},
      *                {@code each}), may be empty
+     * @param mob     the mob a {@code specificMob} drop comes from, as its nameplate shows it (Boss.json {@code mob},
+     *                {@code manual/bosses.json mobDrops}), may be empty
      */
     public record Drop(String key, String name, String kind, String rarity, String lootKey, String id, String model,
-                       boolean shiny, double chance, String from) {
+                       boolean shiny, double chance, String from, String mob) {
 
         /**
          * Counts towards pity: a real loot-group drop (not a fragment / tier equipment) of the boss kill itself —
@@ -53,6 +55,16 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         public boolean hasPity() {
             return !lootKey.isEmpty() && !"fragment".equals(kind)
                     && !"anyMob".equals(from) && !"specificMob".equals(from) && !"puzzle".equals(from);
+        }
+
+        /** A loot-group drop of one named mob ({@link #mob}): a kill of that mob near you adds pity to it. */
+        public boolean isMobDrop() {
+            return !mob.isEmpty() && !lootKey.isEmpty() && !"fragment".equals(kind);
+        }
+
+        /** Has a pity counter: from the boss kill ({@link #hasPity}) or from its mob ({@link #isMobDrop}). */
+        public boolean tracked() {
+            return hasPity() || isMobDrop();
         }
 
         public boolean isCompanion() {
@@ -76,6 +88,13 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
                 // shinies have no real pity: their counter (kills since one) always counts where they can drop
                 if (d.hasPity() && (d.shiny() || pityOnly.isEmpty() || pityOnly.contains(Names.key(d.name())))) out.add(d);
             }
+            return out;
+        }
+
+        /** Drops of a named mob in this boss's dungeon ({@link Drop#isMobDrop}, normal and shiny). */
+        public List<Drop> mobDrops() {
+            List<Drop> out = new ArrayList<>();
+            for (Drop d : drops) if (d.isMobDrop()) out.add(d);
             return out;
         }
 
@@ -108,7 +127,7 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
                 if (d.has("shiny") && !drop.id().isEmpty()) drops.add(drop(d, true));
             }
             for (Drop drop : drops) {
-                if (!drop.hasPity()) continue;
+                if (!drop.tracked()) continue;
                 byKey.putIfAbsent(drop.key(), drop);
                 if (!drop.model().isEmpty()) byModel.putIfAbsent(drop.model(), drop);
                 if (!drop.id().isEmpty()) byModel.putIfAbsent(drop.id(), drop);
@@ -162,7 +181,8 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         String key = !id.isEmpty() ? id : kind + ":" + Names.key(name) + (shiny ? "-shiny" : "");
         double chance = o.has("chance") ? o.get("chance").getAsDouble() : 0;
         if (shiny) chance = TelosData.SHINY_CHANCE.get().of(chance, rarity);
-        return new Drop(key, name, kind, rarity, lootKey, id, model, shiny, chance, JsonFields.str(o, "from"));
+        return new Drop(key, name, kind, rarity, lootKey, id, model, shiny, chance, JsonFields.str(o, "from"),
+                JsonFields.str(o, "mob"));
     }
 
     /** Kind of a drop without a {@code kind} field (the table generator writes {@code kind} only where this differs). */
@@ -183,6 +203,21 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         List<BossLoot> list = dungeons.get(key);
         if (list == null && aliases.containsKey(key)) list = dungeons.get(aliases.get(key));
         return list == null ? List.of() : list;
+    }
+
+    /**
+     * The named-mob drops of the dungeon with this in-game name: mob name key ({@link Names#key}) → its drops
+     * (normal and shiny, file order). Empty outside a dungeon or when no mob there has a drop of its own.
+     */
+    public Map<String, List<Drop>> mobDrops(String placeName) {
+        Map<String, List<Drop>> out = new LinkedHashMap<>();
+        for (BossLoot b : dungeon(placeName)) {
+            for (Drop d : b.mobDrops()) {
+                List<Drop> list = out.computeIfAbsent(Names.key(d.mob()), k -> new ArrayList<>());
+                if (!list.contains(d)) list.add(d);
+            }
+        }
+        return out;
     }
 
     /** A realm boss's loot (minibosses, world bosses), or null. */

@@ -18,11 +18,14 @@ import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.LinesHudModule;
 import dev.telemetric.hud.ShinyColors;
 import dev.telemetric.hud.TextRun;
+import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.tracking.LootTracker;
+import dev.telemetric.tracking.PityScopes;
 import dev.telemetric.tracking.TrackingStore;
+import dev.telemetric.ui.notification.Toasts;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -44,7 +47,9 @@ import java.util.Set;
  */
 public final class PityCounterHud extends LinesHudModule {
 
-    private static final long CONTEXT_MS = 500;
+    /** After the name of a drop that comes from a named mob, not the boss (the wiki's footnote mark). */
+    static final String MOB_MARK = "**";
+    private static final long CONTEXT_MS = 500, RESET_CONFIRM_MS = 4000;
 
     private final NumberSetting bossRange = add(new NumberSetting("Boss Range",
             "Show a realm boss only while one of its spawn spots is this close (blocks); "
@@ -71,6 +76,8 @@ public final class PityCounterHud extends LinesHudModule {
             "After each boss kill, one line with the boss's pity per loot group (hover for the items)", true)));
     private final BooleanSetting hideBonusChest = add(chat.child(new BooleanSetting("Hide Bonus Chest Messages",
             "Hide the server's bonus chest spawned / unlocked lines (the unlock still counts)", false)));
+    private final ActionSetting resetSeasonal = add(new ActionSetting("Reset Seasonal Pity",
+            "New season: set every seasonal pity back to 0 (click twice to confirm)", this::resetSeasonal));
 
     private static final ChatPattern BONUS_SPAWNED = ChatPattern.builder("Bonus chest spawned",
             "[^A-Za-z0-9\\n]*Bonus (?:dungeon )?chest has (?:spawned|been unlocked)[^\\n]*").anyRuns().build();
@@ -78,6 +85,7 @@ public final class PityCounterHud extends LinesHudModule {
     private record Context(String title, List<Drop> drops) {}
 
     private volatile Context context = new Context(null, List.of());
+    private long resetArmedAt;
     private long contextAt;
     private int lastContribution;
 
@@ -99,6 +107,19 @@ public final class PityCounterHud extends LinesHudModule {
         });
         ChatBus.replace(LootTracker.DROP_LINE, m -> isEnabled() && dropMessage.get() && LootTracker.get().ownDrop(m) != null);
         ChatBus.hide(BONUS_SPAWNED, m -> isEnabled() && hideBonusChest.get());
+    }
+
+    /** First click arms, a second one within {@link #RESET_CONFIRM_MS} clears the seasonal pity pool. */
+    private void resetSeasonal() {
+        long now = System.currentTimeMillis();
+        if (now - resetArmedAt > RESET_CONFIRM_MS) {
+            resetArmedAt = now;
+            Toasts.info("Click again to reset all seasonal pity");
+            return;
+        }
+        resetArmedAt = 0;
+        int n = LootTracker.get().store().clearPityScope(PityScopes.SEASONAL);
+        Toasts.success(n == 0 ? "Seasonal pity was already empty" : "Seasonal pity reset (" + n + " counters)");
     }
 
     @Override
@@ -160,10 +181,18 @@ public final class PityCounterHud extends LinesHudModule {
         return name;
     }
 
-    /** Non-shiny pity drops of these bosses, each once, in table order. */
+    /**
+     * Non-shiny pity drops of these bosses plus the drops of the dungeon's named mobs ({@link Drop#isMobDrop}, e.g.
+     * Wild Wisps from Dyerftum Overlord), each once, in table order.
+     */
     private static List<Drop> merged(List<BossLoot> bosses) {
         Map<String, Drop> out = new LinkedHashMap<>();
-        for (BossLoot b : bosses) for (Drop d : b.pityDrops()) if (!d.shiny()) out.putIfAbsent(d.key(), d);
+        for (BossLoot b : bosses) {
+            List<Drop> pity = b.pityDrops();
+            for (Drop d : b.drops()) {
+                if (!d.shiny() && (pity.contains(d) || d.isMobDrop())) out.putIfAbsent(d.key(), d);
+            }
+        }
         return List.copyOf(out.values());
     }
 
@@ -179,7 +208,7 @@ public final class PityCounterHud extends LinesHudModule {
         for (Drop d : drops) {
             Drop shiny = shinyCounts.get() ? table.shinyOf(d) : null;
             if (shiny == d) shiny = null;
-            row(lines, d.name(), d.chance(), store.pity(d.key()), rarityColor(d), icon(d),
+            row(lines, d.name(), d.isMobDrop() ? MOB_MARK : "", d.chance(), store.pity(d.key()), rarityColor(d), icon(d),
                     shiny == null ? null : shiny.chance(), shiny == null ? 0 : store.pity(shiny.key()), shiny == null ? null : icon(shiny));
         }
         return lines;
@@ -188,17 +217,18 @@ public final class PityCounterHud extends LinesHudModule {
     /**
      * One item's row(s): {@code Name 1%: 52}; with a shiny variant either {@code Name 1% (0.03%): 52 (1994)} (bracket
      * parts in the moving shiny colours) or a second row {@code Shiny Name 0.03%: 1994} all in shiny colours.
+     * {@code mark} follows the name ({@value #MOB_MARK} = dropped by a named mob, not the boss).
      */
-    private void row(List<Line> out, String name, double chance, int pity, int rgb, HudIcon icon,
+    private void row(List<Line> out, String name, String mark, double chance, int pity, int rgb, HudIcon icon,
                      Double shinyChance, int shinyPity, HudIcon shinyIcon) {
-        String label = cut(name) + chanceText(" ", chance);
+        String label = cut(name) + mark + chanceText(" ", chance);
         if (shinyChance == null) {
             out.add(new Line(label, Integer.toString(pity), rgb, 0, List.of(), icon));
             return;
         }
         if (separateShiny.get()) {
             out.add(new Line(label, Integer.toString(pity), rgb, 0, List.of(), icon));
-            String shinyLabel = cut("Shiny " + name) + chanceText(" ", shinyChance);
+            String shinyLabel = cut("Shiny " + name) + mark + chanceText(" ", shinyChance);
             List<TextRun> labelRuns = ShinyColors.runs(shinyLabel, 0);
             out.add(new Line(shinyLabel, "", rgb, 0, List.of(), shinyIcon != null ? shinyIcon : icon)
                     .styledRuns(labelRuns, ShinyColors.runs(Integer.toString(shinyPity), shinyLabel.length() + 2)));
@@ -224,9 +254,9 @@ public final class PityCounterHud extends LinesHudModule {
 
     private List<Line> previewLines() {
         List<Line> out = new ArrayList<>();
-        row(out, "Blunder Bow", 0.6, 42, rarityColor("irradiated"), new HudIcon.Item("telos:material/weapon/bow/ut-blunder"),
+        row(out, "Blunder Bow", "", 0.6, 42, rarityColor("irradiated"), new HudIcon.Item("telos:material/weapon/bow/ut-blunder"),
                 shinyCounts.get() ? 0.012 : null, 1994, new HudIcon.Item("telos:material/weapon/bow/ut-blunder-shiny"));
-        row(out, "Slime Archer", 2, 15, rarityColor("companion"), new HudIcon.Item("telos:material/pet/skull_cavern"),
+        row(out, "Slime Archer", "", 2, 15, rarityColor("companion"), new HudIcon.Item("telos:material/pet/skull_cavern"),
                 null, 0, null);
         return out;
     }

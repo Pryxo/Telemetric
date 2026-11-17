@@ -6,7 +6,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.telemetric.Telemetric;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -19,7 +18,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Piece size per dungeon, in {@code config/telemetric/dungeon-sizes.json} — a plain file meant to be shared
+ * Piece size per dungeon, in {@code config/telemetric/saved/dungeon-sizes.json} — a plain file meant to be shared
  * (copy it into another player's config folder). Each Telos dungeon always uses the same piece size, so once
  * it is known the room detector no longer has to guess it.
  * <pre>
@@ -53,7 +52,7 @@ public final class PieceSizeTable {
     }
 
     private static final PieceSizeTable INSTANCE = new PieceSizeTable(
-            FabricLoader.getInstance().getConfigDir().resolve(Telemetric.MOD_ID).resolve("dungeon-sizes.json"));
+            ModPaths.DUNGEON_SIZES);
 
     private final Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private final Path file;

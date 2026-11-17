@@ -17,7 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Saved stash pages, kept in {@code config/telemetric/stash.json}, per player UUID and per {@link StashMode}.
+ * Saved stash pages, kept in {@code config/telemetric/saved/stash.json}, per player UUID and per {@link StashMode}.
  * <pre>{@code
  * { "version": 1, "players": { "<uuid>": { "normal": { "pageCount": 9,
  *     "pages": { "1": { "savedAt": 1731550000000, "slots": [ <item json or null> x45 ] } } } } } }

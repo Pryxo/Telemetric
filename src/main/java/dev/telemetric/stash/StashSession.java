@@ -1,5 +1,6 @@
 package dev.telemetric.stash;
 
+import dev.telemetric.config.ModPaths;
 import dev.telemetric.Telemetric;
 import dev.telemetric.game.StashAdapter;
 
@@ -108,7 +109,7 @@ public final class StashSession {
     }
 
     public static StashSession get() {
-        if (instance == null) instance = new StashSession(Telemetric.get().config().getRoot().resolve("stash.json"));
+        if (instance == null) instance = new StashSession(ModPaths.STASH);
         return instance;
     }
 

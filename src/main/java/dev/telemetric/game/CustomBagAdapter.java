@@ -1,5 +1,6 @@
 package dev.telemetric.game;
 
+import dev.telemetric.config.ModPaths;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -8,7 +9,6 @@ import dev.telemetric.Telemetric;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.data.TelosData.Bag;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.texture.TextureAtlas;
@@ -37,7 +37,7 @@ import java.util.function.Consumer;
 /**
  * MC ADAPTER — Custom Bags: the player's own picture (PNG/JPG/GIF) and sound (OGG/WAV) for a loot bag drop.
  * <ul>
- *   <li><b>Files</b>: {@code config/telemetric/bags/<key>.<ext>} (key from the bags in {@code data/Extractor/rarities.json}); imported with
+ *   <li><b>Files</b>: {@code config/telemetric/custom/bags/<key>.<ext>} (key from the bags in {@code data/Extractor/rarities.json}); imported with
  *       a native file picker, so players never have to find the folder.</li>
  *   <li><b>Picture</b>: Telos shows a drop as a totem pop of {@code telos:<totem>}. {@code GameRendererMixin} hands the
  *       floating stack to {@link #onDropAnimation}; it is switched to {@code telemetric:bags/<model>} (the bag's banner
@@ -50,7 +50,7 @@ import java.util.function.Consumer;
  */
 public final class CustomBagAdapter {
 
-    public static final Path DIR = FabricLoader.getInstance().getConfigDir().resolve(Telemetric.MOD_ID).resolve("bags");
+    public static final Path DIR = ModPaths.BAGS;
     private static final Identifier SCREEN_SPRITE = Identifier.fromNamespaceAndPath(Telemetric.MOD_ID, "mob/bags/image");
     private static final String DROP_SOUND = "noise:player.bags.create_";
     private static final String[] IMAGE_EXT = {"gif", "png", "jpg", "jpeg"}, SOUND_EXT = {"ogg", "wav"};

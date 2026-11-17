@@ -8,15 +8,20 @@ import dev.telemetric.data.LootTable.BossLoot;
 import dev.telemetric.data.LootTable.Drop;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.data.TelosData.Bag;
+import dev.telemetric.dungeon.Point;
 import dev.telemetric.game.DropAdapter;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.PlayerAdapter;
 import dev.telemetric.game.ServerInfoAdapter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
@@ -34,6 +39,11 @@ import java.util.regex.Pattern;
  *   <li><b>Drop</b> — your glowing loot after a bag opens ({@link DropAdapter}) or the server's
  *       {@code [realm-3] ͱ <you> got <item>[telos:<model>] from <place>} line (read live 2026-11-16; the model id
  *       picks the drop, {@code -shiny} included): that drop's pity goes back to 0 and {@link Listener#onDrop} fires once.</li>
+ *   <li><b>Mob kill</b> — a dungeon mob that has drops of its own (Boss.json {@code mob}, e.g. Dyerftum Overlord →
+ *       Wild Wisps in Illarius' Hideout): its nameplate (a text display in the Telos plate font) vanishing within
+ *       {@value #MOB_KILL_RANGE} blocks of you, chunk still loaded = killed near you: its drops get +1
+ *       ({@link Listener#onMobKill}). A plate that shows up again right there within {@value #MOB_RESENT_MS} ms was
+ *       only re-sent: the kill is taken back.</li>
  *   <li><b>Bag</b> — a loot bag's totem pop: {@code bag:<group>} +1 ({@code Extractor/rarities.json} bags).</li>
  * </ul>
  * Counters live in {@link TrackingStore} (per account). Chat layouts were not read live yet ({@code anyRuns}).
@@ -49,6 +59,9 @@ public final class LootTracker {
 
         /** A pity drop came at {@code pityAt} (its counter is 0 now); {@code from} = dungeon or boss name. */
         default void onDrop(Drop drop, int pityAt, String from) {}
+
+        /** A kill of a named dungeon mob near you was counted: {@code drops} got +1. */
+        default void onMobKill(String mob, List<Drop> drops) {}
     }
 
     /**
@@ -79,6 +92,13 @@ public final class LootTracker {
     /** The same drop seen twice (glow scan + chat line) within this time counts once. */
     private static final long SAME_DROP_MS = 60_000, BONUS_AFTER_KILL_MS = 10 * 60_000;
 
+    /** A mob nameplate vanishing within this many blocks (horizontal) of you counts as a kill. */
+    static final int MOB_KILL_RANGE = 16;
+    /** A plate showing up within {@link #MOB_SAME_SQ} of a kill this soon after it = the same mob (plate re-sent). */
+    static final long MOB_RESENT_MS = 5_000;
+    private static final double MOB_SAME_SQ = 3 * 3, MOB_TELEPORT_SQ = 32 * 32;
+    private static final int MOB_SCAN_TICKS = 4;
+
     private static final LootTracker INSTANCE = new LootTracker();
 
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
@@ -86,6 +106,18 @@ public final class LootTracker {
     private BossLoot lastKill;
     private long lastKillAt;
     private boolean started;
+
+    /** A named-mob plate being followed: which mob (name key), where it was last seen. */
+    private record MobPlate(String mob, Point pos) {}
+
+    /** A counted mob kill, kept {@link #MOB_RESENT_MS} to take it back if the plate comes back. */
+    private record MobKill(Point pos, long at, List<Drop> drops) {}
+
+    private final Map<Integer, MobPlate> mobPlates = new HashMap<>();
+    private final List<MobKill> mobKills = new ArrayList<>();
+    private String mobPlace;
+    private Point mobLastPlayer;
+    private int mobTicks;
 
     private LootTracker() {}
 
@@ -118,13 +150,75 @@ public final class LootTracker {
         listeners.add(listener);
     }
 
-    /** Counters of the account playing now. */
+    /** Counters of the account playing now, set to the pity scope of the character played now ({@link PityScopes}). */
     public TrackingStore store() {
-        return TrackingStore.of(PlayerAdapter.accountId());
+        TrackingStore s = TrackingStore.of(PlayerAdapter.accountId());
+        s.setPityScope(PityScopes.get().scope());
+        return s;
     }
 
     public int pity(Drop drop) {
         return drop == null ? 0 : store().pity(drop.key());
+    }
+
+    // ------------------------------------------------------------------ named-mob kills
+
+    /** Client tick (on Telos): follows the nameplates of this dungeon's named mobs every few ticks. */
+    public void tick() {
+        if (++mobTicks % MOB_SCAN_TICKS != 0) return;
+        PityScopes.get().tick(TrackingStore.of(PlayerAdapter.accountId()));
+        String place = DungeonAdapter.isInDungeon() ? DungeonAdapter.dungeonName() : null;
+        Map<String, List<Drop>> drops = place == null ? Map.of() : TelosData.LOOT.get().mobDrops(place);
+        Point player = DungeonAdapter.playerPos();
+        // new dungeon / no dungeon / teleport (death, portal, world change): forget the plates without counting
+        boolean jumped = player == null || mobLastPlayer == null
+                || player.distanceSq(mobLastPlayer.x(), mobLastPlayer.y(), mobLastPlayer.z()) > MOB_TELEPORT_SQ;
+        if (drops.isEmpty() || jumped || !place.equals(mobPlace)) {
+            mobPlates.clear();
+            mobKills.clear();
+        }
+        mobPlace = place;
+        mobLastPlayer = player;
+        if (drops.isEmpty() || player == null) return;
+
+        long now = System.currentTimeMillis();
+        mobKills.removeIf(k -> now - k.at() > MOB_RESENT_MS);
+        Set<Integer> present = new HashSet<>();
+        for (String mob : drops.keySet()) {
+            for (DungeonAdapter.NamePlate plate : DungeonAdapter.namePlates(mob)) {
+                present.add(plate.id());
+                if (mobPlates.put(plate.id(), new MobPlate(mob, plate.pos())) == null) undoResent(plate.pos());
+            }
+        }
+        for (Iterator<Map.Entry<Integer, MobPlate>> it = mobPlates.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<Integer, MobPlate> e = it.next();
+            if (present.contains(e.getKey())) continue;
+            it.remove();
+            Point p = e.getValue().pos();
+            double dx = p.x() - player.x(), dz = p.z() - player.z();
+            if (!DungeonAdapter.isLoaded(p.x(), p.z()) || dx * dx + dz * dz > MOB_KILL_RANGE * MOB_KILL_RANGE) continue;
+            List<Drop> own = drops.get(e.getValue().mob());
+            if (own == null || own.isEmpty()) continue;
+            TrackingStore store = store();
+            for (Drop d : own) store.addPity(d.key());
+            mobKills.add(new MobKill(p, now, own));
+            String name = own.getFirst().mob();
+            Telemetric.debug("Pity: named mob '{}' killed at {}", name, p);
+            for (Listener l : listeners) l.onMobKill(name, own);
+        }
+    }
+
+    /** A new plate right where a mob was just counted as killed: the same mob, re-sent — take the kill back. */
+    private void undoResent(Point pos) {
+        for (Iterator<MobKill> it = mobKills.iterator(); it.hasNext(); ) {
+            MobKill k = it.next();
+            if (k.pos().distanceSq(pos.x(), pos.y(), pos.z()) > MOB_SAME_SQ) continue;
+            it.remove();
+            TrackingStore store = store();
+            for (Drop d : k.drops()) store.removePity(d.key());
+            Telemetric.debug("Pity: named mob at {} is still alive (kill undone)", pos);
+            return;
+        }
     }
 
     // ------------------------------------------------------------------ kills

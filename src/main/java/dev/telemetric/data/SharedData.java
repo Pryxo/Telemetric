@@ -1,10 +1,10 @@
 package dev.telemetric.data;
 
+import dev.telemetric.config.ModPaths;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.telemetric.Telemetric;
 import dev.telemetric.config.AtomicFiles;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,9 +28,9 @@ import java.util.function.Function;
  * A table is declared once with {@link #file(String, Function, Object)} and read with {@link SharedFile#get()}.
  * Where its content comes from (first one found wins at start, instantly, no network):
  * <ol>
- *   <li>{@code config/telemetric/data/<path>} — a <b>local override</b> the player edits by hand; never downloaded
+ *   <li>{@code config/telemetric/data/overrides/<path>} — a <b>local override</b> the player edits by hand; never downloaded
  *       over, never replaced;</li>
- *   <li>{@code config/telemetric/data-cache/<path>} — the copy downloaded last time;</li>
+ *   <li>{@code config/telemetric/data/cache/<path>} — the copy downloaded last time;</li>
  *   <li>the copy bundled in the jar ({@code assets/telemetric/data/<path>}, packed from {@code data/} at build).</li>
  * </ol>
  * Without an override the repo is then asked <b>once per game start</b> (in the background) whether the file
@@ -41,9 +41,9 @@ import java.util.function.Function;
  */
 public final class SharedData {
 
-    private static final Path ROOT = FabricLoader.getInstance().getConfigDir().resolve(Telemetric.MOD_ID);
-    static final Path OVERRIDES = ROOT.resolve("data");
-    static final Path CACHE = ROOT.resolve("data-cache");
+    
+    static final Path OVERRIDES = ModPaths.DATA_OVERRIDES;
+    static final Path CACHE = ModPaths.DATA_CACHE;
     private static final String BUNDLED = "/assets/telemetric/data/";
     private static final String ETAG_SUFFIX = ".etag";
 

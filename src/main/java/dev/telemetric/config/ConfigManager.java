@@ -8,7 +8,6 @@ import com.google.gson.JsonParser;
 import dev.telemetric.Telemetric;
 import dev.telemetric.module.Module;
 import dev.telemetric.module.ModuleManager;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -22,9 +21,10 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * Loads and saves everything to {@code .minecraft/config/telemetric/}:
+ * Loads and saves module settings + GUI layout in {@code .minecraft/config/telemetric/settings/}
+ * (paths in {@link ModPaths}):
  * <pre>
- * telemetric/
+ * settings/
  * ├─ meta.json            active profile, auto-save flag
  * ├─ layout.json          ClickGUI panel positions (profile independent)
  * └─ profiles/
@@ -53,10 +53,10 @@ public final class ConfigManager {
 
     public ConfigManager(ModuleManager modules) {
         this.modules = modules;
-        this.root = FabricLoader.getInstance().getConfigDir().resolve(Telemetric.MOD_ID);
-        this.profilesDir = root.resolve("profiles");
-        this.metaFile = root.resolve("meta.json");
-        this.layoutFile = root.resolve("layout.json");
+        this.root = ModPaths.ROOT;
+        this.profilesDir = ModPaths.PROFILES;
+        this.metaFile = ModPaths.META;
+        this.layoutFile = ModPaths.LAYOUT;
     }
 
     // ================================================================== lifecycle

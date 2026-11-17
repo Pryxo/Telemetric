@@ -1,7 +1,7 @@
 package dev.telemetric.game;
 
+import dev.telemetric.config.ModPaths;
 import dev.telemetric.Telemetric;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
@@ -14,12 +14,12 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
- * MC ADAPTER — the sound Social → Chat → Notifications plays ({@code config/telemetric/sounds/notification.ogg|wav}):
+ * MC ADAPTER — the sound Social → Chat → Notifications plays ({@code config/telemetric/custom/sounds/notification.ogg|wav}):
  * native file picker (off the render thread, like Custom Bags), copy, and playback through {@link SoundFiles}.
  */
 public final class NotificationSoundAdapter {
 
-    public static final Path DIR = FabricLoader.getInstance().getConfigDir().resolve(Telemetric.MOD_ID).resolve("sounds");
+    public static final Path DIR = ModPaths.SOUNDS;
     private static final String NAME = "notification";
     private static final String[] EXT = {"ogg", "wav"};
     private static final long MAX_FILE_BYTES = 15L * 1024 * 1024;

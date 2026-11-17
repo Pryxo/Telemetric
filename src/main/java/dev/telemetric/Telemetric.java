@@ -6,6 +6,7 @@ import dev.telemetric.game.DropAdapter;
 import dev.telemetric.tracking.LootTracker;
 import dev.telemetric.tracking.RealmBossTracker;
 import dev.telemetric.tracking.TrackingStore;
+import dev.telemetric.config.ModPaths;
 import dev.telemetric.addon.TelemetricAddon;
 import dev.telemetric.config.ConfigManager;
 import dev.telemetric.game.ChatAdapter;
@@ -58,6 +59,7 @@ public final class Telemetric implements ClientModInitializer {
     public void onInitializeClient() {
         instance = this;
 
+        ModPaths.migrate(); // first: old flat config folder -> settings/ saved/ custom/ data/
         TelosData.init(); // shared tables: cache / bundled copy now, one update check per start
         moduleManager = new ModuleManager();
         moduleManager.registerAll();
@@ -108,6 +110,7 @@ public final class Telemetric implements ClientModInitializer {
         moduleKeyHandler.tick();
         DungeonTracker.get().tick();
         RealmBossTracker.get().tick();
+        LootTracker.get().tick();
         try {
             CooldownTracker.get().tick();
         } catch (RuntimeException e) {
