@@ -37,7 +37,7 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
      * @param key     stable id for counters: the item id ({@code telos:weapon/bow/ut-blunder}, shiny ids end in
      *                {@code -shiny}), else {@code <kind>:<name key>}
      * @param kind    {@code item}, {@code material}, {@code pet}, {@code mount} or {@code mountSkin}
-     * @param rarity  item rarity ({@code bloodshot}) or companion rarity ({@code usual}), may be empty
+     * @param rarity  item rarity ({@code bloodshot}) or event bag ({@code halloween}), may be empty
      * @param lootKey loot group ({@code irradiated} … {@code unholy}, {@code companion}), empty = no group
      * @param model   item model as dropped on the ground ({@code telos:material/...}), may be empty
      * @param mobs    the named mobs the drop comes from instead of the boss, as their nameplates show them (Boss.json

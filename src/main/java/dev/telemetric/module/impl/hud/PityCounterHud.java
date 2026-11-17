@@ -300,7 +300,13 @@ public final class PityCounterHud extends LinesHudModule {
     }
 
     private static int rarityColor(Drop d) {
-        return rarityColor(d.isCompanion() ? "companion" : d.lootKey());
+        return rarityColor(groupKey(d));
+    }
+
+    /** Colour / label key: the drop's {@code rarity} if rarities.json knows it (rarity or coloured event bag), else companion / loot group. */
+    private static String groupKey(Drop d) {
+        if (!d.rarity().isEmpty() && TelosData.RARITIES.get().any(d.rarity()) != null) return d.rarity();
+        return d.isCompanion() ? "companion" : d.lootKey();
     }
 
     /** ARGB of a rarity / loot group from {@code rarities.json}, 0 = theme default. */
@@ -353,13 +359,13 @@ public final class PityCounterHud extends LinesHudModule {
 
     /** The rarity's chat icon from {@code rarities.json} ({@code glyph}, server-pack default font), "" if none. */
     private static String rarityGlyph(Drop d) {
-        TelosData.Rarity r = TelosData.RARITIES.get().any(d.shiny() ? "shiny" : d.isCompanion() ? "companion" : d.lootKey());
+        TelosData.Rarity r = TelosData.RARITIES.get().any(d.shiny() ? "shiny" : groupKey(d));
         return r == null || r.glyph() == null ? "" : r.glyph();
     }
 
     /** Loot group label ("Bloodshot", "Companion"). */
     private static String groupLabel(Drop d) {
-        String key = d.isCompanion() ? "companion" : d.lootKey();
+        String key = groupKey(d);
         TelosData.Rarity r = TelosData.RARITIES.get().any(key);
         if (r != null) return r.label();
         return key.isEmpty() ? "Loot" : Character.toUpperCase(key.charAt(0)) + key.substring(1);

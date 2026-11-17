@@ -96,18 +96,22 @@ public final class TelosData {
     public record Rarity(String key, String label, int rgb, String glyph) {}
 
     /** @param bags loot bags: every rarity with a {@code bag} + the {@code eventBags} */
-    public record Rarities(Map<String, Rarity> byKey, Bags bags) {
-        static final Rarities EMPTY = new Rarities(Map.of(), Bags.EMPTY);
+    /** @param events {@code eventBags} with a {@code color} — usable as a Boss.json drop {@code rarity} (pity colour) */
+    public record Rarities(Map<String, Rarity> byKey, Map<String, Rarity> events, Bags bags) {
+        static final Rarities EMPTY = new Rarities(Map.of(), Map.of(), Bags.EMPTY);
 
         static Rarities parse(JsonObject root) {
-            return new Rarities(rarityMap(root.getAsJsonObject("rarities")), Bags.parse(root));
+            return new Rarities(rarityMap(root.getAsJsonObject("rarities"), false),
+                    rarityMap(root.getAsJsonObject("eventBags"), true), Bags.parse(root));
         }
 
-        private static Map<String, Rarity> rarityMap(JsonObject o) {
+        private static Map<String, Rarity> rarityMap(JsonObject o, boolean colouredOnly) {
             Map<String, Rarity> map = new LinkedHashMap<>();
             if (o == null) return Map.of();
             for (Map.Entry<String, JsonElement> e : o.entrySet()) {
+                if (!e.getValue().isJsonObject()) continue;
                 JsonObject r = e.getValue().getAsJsonObject();
+                if (colouredOnly && JsonFields.str(r, "color").isEmpty()) continue;
                 String key = e.getKey().toLowerCase(Locale.ROOT);
                 map.put(key, new Rarity(key, JsonFields.str(r, "label"), JsonFields.rgb(JsonFields.str(r, "color")),
                         JsonFields.str(r, "glyph")));
@@ -123,7 +127,15 @@ public final class TelosData {
 
         /** Rarity / loot group key ({@code bloodshot}, {@code companion}, {@code shiny}) → its rarity, or null. */
         public Rarity any(String key) {
-            return key == null ? null : byKey.get(key.toLowerCase(Locale.ROOT));
+            if (key == null) return null;
+            String k = key.toLowerCase(Locale.ROOT);
+            Rarity r = byKey.get(k);
+            return r != null ? r : events.get(k);
+        }
+
+        /** Coloured event bag ({@code halloween}, …) for this key, or null. */
+        public Rarity event(String key) {
+            return key == null ? null : events.get(key.toLowerCase(Locale.ROOT));
         }
 
         public List<String> labels() {
