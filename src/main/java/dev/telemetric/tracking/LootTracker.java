@@ -308,9 +308,13 @@ public final class LootTracker {
         return d;
     }
 
-    /** False on Normal: Normal characters cannot drop shinies, so shiny pity is neither shown nor counted there. */
+    /**
+     * False on Normal: Normal characters cannot drop shinies, so shiny pity is neither shown nor counted there.
+     * Only a mode actually read from the Tab list counts — an unknown mode glyph never hides shinies.
+     */
     public static boolean shiniesDrop() {
-        return !PityScopes.NORMAL.equals(PityScopes.get().scope());
+        PityScopes s = PityScopes.get();
+        return !(s.modeKnown() && PityScopes.NORMAL.equals(s.scope()));
     }
 
     /** Whether {@code d}'s pity is counted in the current mode (no shinies on Normal). */

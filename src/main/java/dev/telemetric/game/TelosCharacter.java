@@ -10,15 +10,22 @@ import java.util.Optional;
  *
  * @param level     character level, -1 when not shown
  * @param className class name ("Knight"), "" when unknown
- * @param mode      {@code normal} / {@code seasonal} / {@code hardcore}, "" when the mode glyph is unknown
+ * @param mode      {@code normal} / {@code seasonal} / {@code hardcore} / {@code group}, "" when the mode glyph is unknown
  */
 public record TelosCharacter(int level, String className, String mode) {
 
     /** Telos classes, lower case. */
     public static final List<String> CLASSES = List.of("arcanist", "assassin", "huntress", "knight", "necromancer", "samurai");
 
-    /** Mode glyphs in the Class value: {@code telos:misc} U+0370 / U+0371 / U+0372; U+18057 = seasonal (seen live). */
-    private static final int NORMAL = 0x370, HARDCORE = 0x371, SEASONAL = 0x372, SEASONAL_LIVE = 0x18057;
+    /**
+     * Mode glyphs in the Class value ({@code telos:misc} → {@code telos:icon/ruleset/...}, checked in the server pack
+     * 2026-11-17). Each ruleset has a plain and a {@code glowing/} icon: normal U+0370 / U+18056, hardcore (ironman)
+     * U+0371 / U+18055, seasonal U+0372 / U+18057; {@code group_type/<colour>} (16 colours) U+15DFC–U+15E0D /
+     * U+18058–U+18069.
+     */
+    private static final int NORMAL = 0x370, HARDCORE = 0x371, SEASONAL = 0x372,
+            HARDCORE_GLOW = 0x18055, NORMAL_GLOW = 0x18056, SEASONAL_GLOW = 0x18057,
+            GROUP_FIRST = 0x15DFC, GROUP_LAST = 0x15E0D, GROUP_GLOW_FIRST = 0x18058, GROUP_GLOW_LAST = 0x18069;
 
     public static TelosCharacter parse(String value) {
         if (value == null || value.isBlank()) return null;
@@ -27,7 +34,12 @@ public record TelosCharacter(int level, String className, String mode) {
     }
 
     public static Optional<TelosCharacter> current() {
-        return ServerInfoAdapter.tabStat("Class").map(s -> parse(s.value()));
+        // TabStat.value has its glyphs removed: the mode glyph is only in the styled runs.
+        return ServerInfoAdapter.tabStat("Class").map(s -> {
+            StringBuilder b = new StringBuilder();
+            for (var run : s.valueRuns()) b.append(run.text());
+            return parse(b.isEmpty() ? s.value() : b.toString());
+        });
     }
 
     /** Capitalised class name found in {@code text} ("Knight"), or "". */
@@ -42,9 +54,10 @@ public record TelosCharacter(int level, String className, String mode) {
     private static String mode(String value, String lower) {
         for (int i = 0; i < value.length(); ) {
             int cp = value.codePointAt(i);
-            if (cp == NORMAL) return "normal";
-            if (cp == HARDCORE) return "hardcore";
-            if (cp == SEASONAL || cp == SEASONAL_LIVE) return "seasonal";
+            if (cp == NORMAL || cp == NORMAL_GLOW) return "normal";
+            if (cp == HARDCORE || cp == HARDCORE_GLOW) return "hardcore";
+            if (cp == SEASONAL || cp == SEASONAL_GLOW) return "seasonal";
+            if ((cp >= GROUP_FIRST && cp <= GROUP_LAST) || (cp >= GROUP_GLOW_FIRST && cp <= GROUP_GLOW_LAST)) return "group";
             i += Character.charCount(cp);
         }
         if (lower.contains("season")) return "seasonal";

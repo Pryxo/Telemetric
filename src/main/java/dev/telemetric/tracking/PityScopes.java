@@ -11,7 +11,8 @@ import java.util.UUID;
 /**
  * Which pity pool the character you play now counts into. Telos shares pity per mode: every <b>normal</b>
  * character shares one pool, every <b>seasonal</b> character another, and each <b>hardcore</b> character has its own.
- * Scope keys: {@code normal}, {@code seasonal}, {@code hardcore:<id>}.
+ * <b>Group</b> characters (ruleset {@code group_type/<colour>} glyphs) are tracked like hardcore ones, one pool each.
+ * Scope keys: {@code normal}, {@code seasonal}, {@code hardcore:<id>}, {@code group:<id>}.
  * <p>
  * The mode comes from the Tab "Class" glyph ({@link TelosCharacter}). All hardcore characters share that glyph, so
  * a hardcore character is recognised by its <i>signature</i>: class, level, Fame, Tier Points and the four fragment
@@ -27,7 +28,10 @@ import java.util.UUID;
  */
 public final class PityScopes {
 
-    public static final String NORMAL = "normal", SEASONAL = "seasonal", HARDCORE_PREFIX = "hardcore:";
+    public static final String NORMAL = "normal", SEASONAL = "seasonal", HARDCORE_PREFIX = "hardcore:",
+            GROUP_PREFIX = "group:";
+    /** Signature prefix of group characters (hardcore signatures have none, so stored ones keep matching). */
+    private static final String GROUP_SIG = "group|";
     private static final long SETTLE_MS = 2000;
     private static final String[] SIGNATURE_STATS = {"Fame", "Tier Points",
             "Irradiated Fragments", "Gilded Fragments", "Royal Fragments", "Bloodshot Fragments"};
@@ -42,6 +46,8 @@ public final class PityScopes {
     public record HardcoreChar(String id, String signature, String className, int level, long lastSeen) {}
 
     private volatile String scope = NORMAL;
+    /** Whether the Tab "Class" glyph told the mode on the last tick (false = scope is only the fallback). */
+    private volatile boolean modeKnown;
     private TrackingStore store;
     private Object world;
     /** Hardcore character played now (null = not on hardcore or not resolved yet). */
@@ -59,12 +65,21 @@ public final class PityScopes {
         return scope;
     }
 
+    /** True when the current mode was read from the Tab list, false when {@link #scope()} is only a fallback. */
+    public boolean modeKnown() {
+        return modeKnown;
+    }
+
     /** Human name of a scope ("Normal", "Seasonal", "Hardcore Knight"). */
     public static String label(String scope, TrackingStore store) {
         if (SEASONAL.equals(scope)) return "Seasonal";
         if (scope != null && scope.startsWith(HARDCORE_PREFIX)) {
             HardcoreChar c = store.hardcoreChar(scope.substring(HARDCORE_PREFIX.length()));
             return c == null || c.className().isEmpty() ? "Hardcore" : "Hardcore " + c.className();
+        }
+        if (scope != null && scope.startsWith(GROUP_PREFIX)) {
+            HardcoreChar c = store.hardcoreChar(scope.substring(GROUP_PREFIX.length()));
+            return c == null || c.className().isEmpty() ? "Group" : "Group " + c.className();
         }
         return "Normal";
     }
@@ -87,14 +102,16 @@ public final class PityScopes {
         }
         if (w == null) return;
         TelosCharacter ch = TelosCharacter.current().orElse(null);
-        if (ch == null || ch.mode().isEmpty()) return; // Tab not there yet: keep the last scope
-        if (!"hardcore".equals(ch.mode())) {
+        modeKnown = ch != null && !ch.mode().isEmpty();
+        if (!modeKnown) return; // Tab not there yet / unknown glyph: keep the last scope
+        boolean group = "group".equals(ch.mode());
+        if (!group && !"hardcore".equals(ch.mode())) {
             setScope(ch.mode()); // normal / seasonal
             bound = previous = null;
             pending = false;
             return;
         }
-        String sig = signature(ch);
+        String sig = signature(ch, group);
         long now = System.currentTimeMillis();
         if (bound != null && !pending) {
             if (!sig.equals(bound.signature())) bind(new HardcoreChar(bound.id(), sig, ch.className(), ch.level(), now));
@@ -114,19 +131,24 @@ public final class PityScopes {
     private HardcoreChar resolve(TelosCharacter ch, String sig, long now) {
         HardcoreChar exact = store.hardcoreBySignature(sig);
         if (exact != null) return new HardcoreChar(exact.id(), sig, ch.className(), ch.level(), now);
-        if (previous != null && previous.className().equals(ch.className()) && ch.level() >= previous.level()) {
+        if (previous != null && isGroup(previous) == sig.startsWith(GROUP_SIG)
+                && previous.className().equals(ch.className()) && ch.level() >= previous.level()) {
             HardcoreChar p = store.hardcoreChar(previous.id());
             if (p != null) return new HardcoreChar(p.id(), sig, ch.className(), ch.level(), now);
         }
         String id = UUID.randomUUID().toString().substring(0, 8);
-        Telemetric.debug("Pity: new hardcore character {} ({} lvl {})", id, ch.className(), ch.level());
+        Telemetric.debug("Pity: new {} character {} ({} lvl {})", ch.mode(), id, ch.className(), ch.level());
         return new HardcoreChar(id, sig, ch.className(), ch.level(), now);
     }
 
     private void bind(HardcoreChar c) {
         bound = c;
         store.putHardcoreChar(c);
-        setScope(HARDCORE_PREFIX + c.id());
+        setScope((isGroup(c) ? GROUP_PREFIX : HARDCORE_PREFIX) + c.id());
+    }
+
+    private static boolean isGroup(HardcoreChar c) {
+        return c.signature().startsWith(GROUP_SIG);
     }
 
     private void setScope(String s) {
@@ -134,8 +156,8 @@ public final class PityScopes {
         scope = s;
     }
 
-    private static String signature(TelosCharacter ch) {
-        StringBuilder b = new StringBuilder(ch.className()).append('|').append(ch.level());
+    private static String signature(TelosCharacter ch, boolean group) {
+        StringBuilder b = new StringBuilder(group ? GROUP_SIG : "").append(ch.className()).append('|').append(ch.level());
         for (String label : SIGNATURE_STATS) {
             String v = ServerInfoAdapter.tabStat(label).map(ServerInfoAdapter.TabStat::value).orElse("");
             b.append('|').append(v.strip().toLowerCase(Locale.ROOT));
