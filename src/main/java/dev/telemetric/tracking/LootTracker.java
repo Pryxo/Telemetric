@@ -200,7 +200,7 @@ public final class LootTracker {
             List<Drop> own = drops.get(e.getValue().mob());
             if (own == null || own.isEmpty()) continue;
             TrackingStore store = store();
-            for (Drop d : own) store.addPity(d.key());
+            for (Drop d : own) if (counts(d)) store.addPity(d.key());
             mobKills.add(new MobKill(p, now, own));
             String name = own.getFirst().mobName(e.getValue().mob());
             Telemetric.debug("Pity: named mob '{}' killed at {}", name, p);
@@ -249,7 +249,7 @@ public final class LootTracker {
 
     private void countKill(BossLoot loot) {
         TrackingStore store = store();
-        for (Drop d : loot.pityDrops()) store.addPity(d.key());
+        for (Drop d : loot.pityDrops()) if (counts(d)) store.addPity(d.key());
         store.addStat(STAT_KILLS, 1);
         List<BossLoot> bosses = loot.isRealm() ? List.of() : TelosData.LOOT.get().dungeon(loot.dungeon());
         if (loot.isRealm() || (!bosses.isEmpty() && bosses.getLast() == loot)) store.addStat(STAT_RUNS, 1);
@@ -258,7 +258,7 @@ public final class LootTracker {
     private void onBonusChest() {
         if (lastKill == null || System.currentTimeMillis() - lastKillAt > BONUS_AFTER_KILL_MS) return;
         TrackingStore store = store();
-        for (Drop d : lastKill.pityDrops()) store.addPity(d.key());
+        for (Drop d : lastKill.pityDrops()) if (counts(d)) store.addPity(d.key());
     }
 
     /** Your row of the leaderboard (marked ⬅ or with your name): its last percentage. */
@@ -308,6 +308,16 @@ public final class LootTracker {
         return d;
     }
 
+    /** False on Normal: Normal characters cannot drop shinies, so shiny pity is neither shown nor counted there. */
+    public static boolean shiniesDrop() {
+        return !PityScopes.NORMAL.equals(PityScopes.get().scope());
+    }
+
+    /** Whether {@code d}'s pity is counted in the current mode (no shinies on Normal). */
+    private static boolean counts(Drop d) {
+        return !d.shiny() || shiniesDrop();
+    }
+
     private void onDropLine(MatchResult m) {
         Drop d = ownDrop(m);
         if (d != null) dropped(d);
@@ -317,6 +327,7 @@ public final class LootTracker {
         long now = System.currentTimeMillis();
         recentDrops.values().removeIf(t -> now - t > SAME_DROP_MS);
         if (recentDrops.putIfAbsent(drop.key(), now) != null) return; // glow scan + chat line: count once
+        if (!counts(drop)) return;
         int at = store().resetPity(drop.key());
         String place = DungeonAdapter.isInDungeon() ? DungeonAdapter.dungeonName() : null;
         BossLoot owner = TelosData.LOOT.get().ownerOf(drop, place);

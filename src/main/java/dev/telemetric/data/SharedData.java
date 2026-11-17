@@ -14,8 +14,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -81,6 +83,34 @@ public final class SharedData {
         return fresh;
     }
 
+    /** What {@link #refreshAll()} did: tables downloaded fresh, re-read from a local override, or kept as they were. */
+    public record RefreshResult(int downloaded, int overridden, int failed) {
+        public int total() { return downloaded + overridden + failed; }
+    }
+
+    /**
+     * Re-downloads every declared table now (no ETag, so the full current file comes back), saves it to the cache and
+     * swaps the value in (listeners run). A table with a local override is re-read from that file instead. A table
+     * whose download fails keeps its current value. Completes on the download thread.
+     */
+    public static CompletableFuture<RefreshResult> refreshAll() {
+        List<CompletableFuture<Outcome>> all = new ArrayList<>();
+        for (SharedFile<?> f : FILES.values()) all.add(f.refresh());
+        return CompletableFuture.allOf(all.toArray(CompletableFuture[]::new)).thenApply(v -> {
+            int down = 0, over = 0, fail = 0;
+            for (CompletableFuture<Outcome> o : all) {
+                switch (o.join()) {
+                    case DOWNLOADED -> down++;
+                    case OVERRIDE -> over++;
+                    case FAILED -> fail++;
+                }
+            }
+            return new RefreshResult(down, over, fail);
+        });
+    }
+
+    private enum Outcome { DOWNLOADED, OVERRIDE, FAILED }
+
     /** One shared JSON table. */
     public static final class SharedFile<T> {
 
@@ -118,23 +148,37 @@ public final class SharedData {
             checkForUpdate(etag == null ? null : etag.trim());
         }
 
-        /** One request per start: 304 = the cached copy is current, 200 = new content. */
-        private void checkForUpdate(String etag) {
+        /** Forced update ({@code /telemetric update-cache}): override re-read, else a full download. */
+        private CompletableFuture<Outcome> refresh() {
+            Path override = OVERRIDES.resolve(path);
+            if (Files.isRegularFile(override)) {
+                return CompletableFuture.completedFuture(load(read(override), "override") ? Outcome.OVERRIDE : Outcome.FAILED);
+            }
+            return checkForUpdate(null).thenApply(ok -> ok ? Outcome.DOWNLOADED : Outcome.FAILED);
+        }
+
+        /**
+         * One request per start: 304 = the cached copy is current, 200 = new content.
+         * Completes with true when a new copy was downloaded and loaded.
+         */
+        private CompletableFuture<Boolean> checkForUpdate(String etag) {
             HttpRequest.Builder req = DataRepo.request(path, Duration.ofSeconds(20));
             if (etag != null && !etag.isEmpty()) req.header("If-None-Match", etag);
-            DataRepo.HTTP.sendAsync(req.GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
-                    .thenAccept(r -> {
+            return DataRepo.HTTP.sendAsync(req.GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+                    .thenApply(r -> {
                         if (r.statusCode() == 304) {
                             Telemetric.debug("Shared data {} is up to date", path);
                         } else if (r.statusCode() != 200) {
                             Telemetric.LOGGER.warn("Shared data {} not downloaded: HTTP {}", path, r.statusCode());
                         } else if (load(r.body(), "download")) {
                             writeCache(r.body(), r.headers().firstValue("ETag").orElse(null));
+                            return true;
                         }
+                        return false;
                     })
                     .exceptionally(e -> {
                         Telemetric.LOGGER.warn("Shared data {} not downloaded: {}", path, e.toString());
-                        return null;
+                        return false;
                     });
         }
 

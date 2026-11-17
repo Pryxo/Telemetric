@@ -410,6 +410,29 @@ public final class DungeonAdapter {
         return out;
     }
 
+    /** A nameplate near the player: its decoded letters ({@link #plateLetters}) and squared distance. */
+    public record NearPlate(String letters, double distanceSq) {}
+
+    /** Every nameplate (text display) within {@code range} blocks of the player, decoded; nearest first. */
+    public static List<NearPlate> namePlatesNear(double range) {
+        ClientLevel level = level();
+        List<NearPlate> out = new ArrayList<>();
+        var player = Minecraft.getInstance().player;
+        if (level == null || player == null) return out;
+        double r2 = range * range;
+        for (Entity e : level.entitiesForRendering()) {
+            if (e.isRemoved() || !(e instanceof net.minecraft.world.entity.Display.TextDisplay td)) continue;
+            double d2 = e.distanceToSqr(player);
+            if (d2 > r2) continue;
+            net.minecraft.network.chat.Component text = ((dev.telemetric.mixin.TextDisplayAccessor) td).telemetric$getText();
+            if (text == null) continue;
+            String letters = plateLetters(text.getString());
+            if (!letters.isEmpty()) out.add(new NearPlate(letters, d2));
+        }
+        out.sort(java.util.Comparator.comparingDouble(NearPlate::distanceSq));
+        return out;
+    }
+
     /** True while the chunk holding block column (x, z) is loaded on the client. */
     public static boolean isLoaded(double x, double z) {
         ClientLevel level = level();

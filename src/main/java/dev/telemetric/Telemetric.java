@@ -1,5 +1,6 @@
 package dev.telemetric;
 
+import dev.telemetric.command.TelemetricCommand;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.game.BossMenuAdapter;
 import dev.telemetric.game.DropAdapter;
@@ -84,6 +85,7 @@ public final class Telemetric implements ClientModInitializer {
         StashAdapter.register();
         DropAdapter.register();
         BossMenuAdapter.register();
+        TelemetricCommand.register();
         LootTracker.get().start();
         RealmBossTracker.get().start();
 

@@ -48,9 +48,11 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
      * @param icon    item model of its Boss Tracker icon ({@code telos:material/boss/anubis}), may be empty
      * @param dungeon dungeon of a dungeon boss, else empty
      * @param tracker Boss Tracker data, or null when it is not tracked
+     * @param areas   HUD location names (bottom-right box) where the Pity Counter shows this realm boss's pity when
+     *                no boss is near and no boss bar is up; {@link Names#placeKey}s, may be empty
      */
     public record Boss(String id, String name, String zone, String icon, List<Spot> positions, String dungeon,
-                       Tracker tracker) {
+                       Tracker tracker, List<String> areas) {
         public boolean isDungeonBoss() {
             return !dungeon.isEmpty();
         }
@@ -67,7 +69,7 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
             String name = JsonFields.str(o, "name"), dungeon = JsonFields.str(o, "dungeon");
             String zone = dungeon.isEmpty() ? JsonFields.str(o, "zone") : "";
             Boss b = new Boss(Names.key(name), name, zone, JsonFields.str(o, "icon"), spots(o, "positions", name),
-                    dungeon, tracker(o.getAsJsonObject("tracker"), name, defaultPortal));
+                    dungeon, tracker(o.getAsJsonObject("tracker"), name, defaultPortal), areas(o));
             all.add(b);
             if (b.isDungeonBoss()) continue;
             if (!zone.isEmpty() && !zones.contains(zone)) zones.add(zone);
@@ -98,6 +100,26 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
     /** Realm (non-dungeon) boss by name, any spelling ("cog sentinel", "Cog Sentinel"), or null. */
     public Boss realm(String name) {
         return name == null ? null : realmByKey.get(Names.key(name));
+    }
+
+    /** Realm bosses whose {@code areas} hold this HUD location name, file order; empty if none. */
+    public List<Boss> inArea(String placeName) {
+        String key = Names.placeKey(placeName);
+        if (key.isEmpty()) return List.of();
+        List<Boss> out = new ArrayList<>();
+        for (Boss b : all) if (!b.isDungeonBoss() && b.areas().contains(key)) out.add(b);
+        return out;
+    }
+
+    /** {@code "areas": ["Ancient Grove", …]} (or one string) → place keys. */
+    private static List<String> areas(JsonObject o) {
+        JsonElement a = o.get("areas");
+        List<String> out = new ArrayList<>();
+        if (a == null) return out;
+        if (a.isJsonPrimitive()) out.add(Names.placeKey(a.getAsString()));
+        else if (a.isJsonArray()) for (JsonElement n : a.getAsJsonArray()) if (n.isJsonPrimitive()) out.add(Names.placeKey(n.getAsString()));
+        out.removeIf(String::isEmpty);
+        return List.copyOf(out);
     }
 
     private static Tracker tracker(JsonObject t, String boss, int defaultPortal) {

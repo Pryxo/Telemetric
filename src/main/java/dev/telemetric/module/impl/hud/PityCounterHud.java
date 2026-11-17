@@ -144,13 +144,44 @@ public final class PityCounterHud extends LinesHudModule {
             return bosses.isEmpty() ? new Context(null, List.of()) : new Context(place, merged(bosses));
         }
         double range = bossRange.get();
-        BossLoot bl = null;
-        for (String boss : BossBarAdapter.knownBosses()) { // 1. boss bar
-            bl = loot.realm(boss);
-            if (bl != null) break;
+        BossLoot bl = nearestPlate(loot, range); // 1. nearest boss nameplate with a loot pool (minibosses have no bar)
+        if (bl == null) {
+            for (String boss : BossBarAdapter.knownBosses()) { // 2. boss bar
+                bl = loot.realm(boss);
+                if (bl != null && !merged(List.of(bl)).isEmpty()) break;
+                bl = null;
+            }
         }
-        if (bl == null) bl = realmLoot(loot, nearestSpawn(range)); // 2. spawn spot from data
+        if (bl != null) return new Context(bl.boss(), merged(List.of(bl)));
+        Context area = areaContext(loot); // 3. HUD location box → that area's bosses (Boss.json "areas")
+        if (area != null) return area;
+        bl = realmLoot(loot, nearestSpawn(range)); // 4. spawn spot from data
         return bl == null ? new Context(null, List.of()) : new Context(bl.boss(), merged(List.of(bl)));
+    }
+
+    /** Realm boss of the nearest nameplate within {@code range} whose boss has pity drops, or null. */
+    private static BossLoot nearestPlate(LootTable loot, double range) {
+        for (DungeonAdapter.NearPlate p : DungeonAdapter.namePlatesNear(range)) {
+            BossLoot bl = loot.realm(p.letters());
+            if (bl != null && !merged(List.of(bl)).isEmpty()) return bl;
+        }
+        return null;
+    }
+
+    /** Pity of the realm bosses listed for the HUD box location ({@code areas} in Boss.json), or null. */
+    private static Context areaContext(LootTable loot) {
+        BossTable table = TelosData.BOSSES.get();
+        String place = DungeonAdapter.hudLocation();
+        List<BossTable.Boss> inArea = table.inArea(place);
+        if (inArea.isEmpty()) inArea = table.inArea(place = PlayerAdapter.locationName()); // part-specific / biome name
+        List<BossLoot> bosses = new ArrayList<>();
+        for (BossTable.Boss b : inArea) {
+            BossLoot bl = loot.realm(b.name());
+            if (bl != null) bosses.add(bl);
+        }
+        List<Drop> drops = merged(bosses);
+        if (drops.isEmpty()) return null;
+        return new Context(bosses.size() == 1 ? bosses.getFirst().boss() : place, drops);
     }
 
     private static BossLoot realmLoot(LootTable loot, String boss) {
@@ -203,7 +234,7 @@ public final class PityCounterHud extends LinesHudModule {
         TrackingStore store = LootTracker.get().store();
         List<Line> lines = new ArrayList<>(drops.size());
         for (Drop d : drops) {
-            Drop shiny = shinyCounts.get() ? table.shinyOf(d) : null;
+            Drop shiny = shinyCounts.get() && LootTracker.shiniesDrop() ? table.shinyOf(d) : null;
             if (shiny == d) shiny = null;
             row(lines, d.name(), d.isMobDrop() ? MOB_MARK : "", d.chance(), store.pity(d.key()), rarityColor(d), icon(d),
                     shiny == null ? null : shiny.chance(), shiny == null ? 0 : store.pity(shiny.key()), shiny == null ? null : icon(shiny));
