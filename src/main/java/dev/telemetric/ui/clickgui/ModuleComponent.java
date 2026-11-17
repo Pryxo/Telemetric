@@ -455,6 +455,13 @@ public class ModuleComponent extends UIComponent {
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        if (!settingsInteractive() || !isHovered(mouseX, mouseY)) return false;
+        for (SettingComponent<?> c : settings) if (c.mouseScrolled(mouseX, mouseY, amount)) return true;
+        return false;
+    }
+
+    @Override
     public boolean keyPressed(int key, int scancode, int modifiers) {
         for (SettingComponent<?> c : settings) if (c.keyPressed(key, scancode, modifiers)) return true;
         return false;

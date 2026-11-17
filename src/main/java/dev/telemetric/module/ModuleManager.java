@@ -22,6 +22,7 @@ import dev.telemetric.module.impl.hud.PerformanceHud;
 import dev.telemetric.module.impl.hud.WatermarkHud;
 import dev.telemetric.module.impl.misc.ChatColorsModule;
 import dev.telemetric.module.impl.misc.ConfigModule;
+import dev.telemetric.module.impl.misc.ShareSettingsModule;
 import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.module.impl.misc.InterfaceModule;
 import dev.telemetric.module.impl.misc.ThemeModule;
@@ -69,6 +70,7 @@ public final class ModuleManager {
         register(new HudSettingsModule());
         register(new ChatColorsModule());
         register(new ConfigModule());
+        register(new ShareSettingsModule());
 
         // ---- Features, grouped by category ----
         // Player

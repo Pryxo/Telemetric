@@ -14,7 +14,8 @@ import dev.telemetric.ui.theme.Theme;
 
 /**
  * Single-line text field (label above, input below). Click to focus; Enter (runs the setting's submit action)/Esc or clicking elsewhere
- * unfocuses. Backspace deletes, Ctrl+Backspace clears. Caret always at the end (simple & robust).
+ * unfocuses. Backspace deletes, Ctrl+Backspace clears, Ctrl+V pastes, Ctrl+C copies the whole value. Caret always at
+ * the end (simple & robust).
  */
 public class TextComponent extends SettingComponent<TextSetting> {
 
@@ -57,6 +58,7 @@ public class TextComponent extends SettingComponent<TextSetting> {
         } else {
             // show the tail of the text if it overflows
             String shown = value;
+            if (shown.length() > 256) shown = shown.substring(shown.length() - 256); // long pastes: measure only the tail
             while (!shown.isEmpty() && r.textWidth(shown) > innerW - 2) shown = shown.substring(1);
             r.text(shown, bx + 3, by + 2, p.text());
             boolean caretOn = focused && ((System.currentTimeMillis() - focusTime) / 530) % 2 == 0;
@@ -82,6 +84,14 @@ public class TextComponent extends SettingComponent<TextSetting> {
             else if (!value.isEmpty()) setting.set(value.substring(0, value.offsetByCodePoints(value.length(), -1)));
             return true;
         }
+        if ((modifiers & CTRL_MASK) != 0 && key == InputUtil.KEY_V) {
+            paste(InputUtil.getClipboard());
+            return true;
+        }
+        if ((modifiers & CTRL_MASK) != 0 && key == InputUtil.KEY_C) {
+            if (!value.isEmpty()) InputUtil.setClipboard(value);
+            return true;
+        }
         if (key == InputUtil.KEY_ENTER || key == InputUtil.KEY_ESCAPE) {
             if (key == InputUtil.KEY_ENTER) setting.submit();
             ctx.clearFocus();
@@ -100,6 +110,20 @@ public class TextComponent extends SettingComponent<TextSetting> {
         setting.set(value + new String(Character.toChars(codepoint)));
         focusTime = System.currentTimeMillis();
         return true;
+    }
+
+    /** Appends clipboard text (line breaks / tabs dropped, filter + max length applied). */
+    private void paste(String text) {
+        StringBuilder next = new StringBuilder(setting.get());
+        int count = next.codePointCount(0, next.length());
+        for (int cp : text.codePoints().toArray()) {
+            if (count >= setting.getMaxLength()) break;
+            if (Character.isISOControl(cp) || !setting.accepts(cp)) continue;
+            next.appendCodePoint(cp);
+            count++;
+        }
+        setting.set(next.toString());
+        focusTime = System.currentTimeMillis();
     }
 
     @Override

@@ -1,10 +1,16 @@
 package dev.telemetric.ui.theme;
 
 import dev.telemetric.setting.impl.EnumSetting;
+import dev.telemetric.ui.render.ColorUtil;
 
-/** Built-in purple/black palettes. Add a constant to add a preset — it appears in the Theme dropdown. */
+/**
+ * Built-in palettes. Add a constant to add a preset — it appears in the (searchable) Theme dropdown.
+ * The first four are hand-tuned; the rest are derived from a base colour + accent pair by {@link #dark} /
+ * {@link #light} so every preset stays consistent.
+ */
 public enum ThemePreset implements EnumSetting.Nameable {
 
+    // ---- purple (hand-tuned) ----
     MIDNIGHT("Midnight", new Theme(
             0xA0050408,
             0xFF0F0D14, 0xFF1A1426, 0xFF130F1C,
@@ -39,7 +45,49 @@ public enum ThemePreset implements EnumSetting.Nameable {
             0xFF0D0A18, 0xFF2B2548, 0xFF2E2752,
             0xFFEEEBFF, 0xFFA49CCB, 0xFF625A88,
             0xFF9D7BFF, 0xFFF0ABFC,
-            0x80000000));
+            0x80000000)),
+
+    // ---- purple / pink ----
+    LAVENDER("Lavender", dark(0xFF15121C, 0xFFB794F6, 0xFFE9D5FF)),
+    VAMPIRE("Vampire", dark(0xFF1C1D27, 0xFFBD93F9, 0xFFFF79C6)),
+    PASTEL("Pastel", dark(0xFF1B1B29, 0xFFCBA6F7, 0xFFF5C2E7)),
+    SYNTHWAVE("Synthwave", dark(0xFF140B22, 0xFFFF2E97, 0xFF00E5FF)),
+    SAKURA("Sakura", dark(0xFF170E15, 0xFFF472B6, 0xFFFBCFE8)),
+    ROSE("Rose", dark(0xFF160B10, 0xFFF43F5E, 0xFFFDA4AF)),
+
+    // ---- red / orange / yellow ----
+    CRIMSON("Crimson", dark(0xFF140A0C, 0xFFDC2626, 0xFFF87171)),
+    BLOOD_MOON("Blood Moon", dark(0xFF110606, 0xFFB91C1C, 0xFFF97316)),
+    SUNSET("Sunset", dark(0xFF150D0B, 0xFFF97316, 0xFFEC4899)),
+    EMBER("Ember", dark(0xFF130C08, 0xFFEA580C, 0xFFFBBF24)),
+    AMBER("Amber", dark(0xFF14100A, 0xFFF59E0B, 0xFFFDE047)),
+    GOLD("Gold", dark(0xFF121008, 0xFFEAB308, 0xFFFEF08A)),
+    COPPER("Copper", dark(0xFF130E0B, 0xFFC2703D, 0xFFF0B27A)),
+    CYBER("Cyber", dark(0xFF0E0E0A, 0xFFFCEE0A, 0xFF00F0FF)),
+
+    // ---- green ----
+    EMERALD("Emerald", dark(0xFF08130E, 0xFF10B981, 0xFF6EE7B7)),
+    FOREST("Forest", dark(0xFF0E140C, 0xFF65A30D, 0xFFBEF264)),
+    MINT("Mint", dark(0xFF0C1513, 0xFF34D399, 0xFFA7F3D0)),
+    MATRIX("Matrix", dark(0xFF050A05, 0xFF22C55E, 0xFF86EFAC)),
+
+    // ---- blue / cyan ----
+    OCEAN("Ocean", dark(0xFF0B1220, 0xFF3B82F6, 0xFF22D3EE)),
+    DEEP_SEA("Deep Sea", dark(0xFF06101A, 0xFF0EA5E9, 0xFF2DD4BF)),
+    AQUA("Aqua", dark(0xFF071416, 0xFF06B6D4, 0xFF5EEAD4)),
+    ARCTIC("Arctic", dark(0xFF0E1419, 0xFF7DD3FC, 0xFFE0F2FE)),
+    POLAR("Polar", dark(0xFF262B35, 0xFF88C0D0, 0xFF81A1C1)),
+    SAPPHIRE("Sapphire", dark(0xFF0A0D1C, 0xFF4F46E5, 0xFF818CF8)),
+
+    // ---- neutral ----
+    SLATE("Slate", dark(0xFF111318, 0xFF94A3B8, 0xFFCBD5E1)),
+    GRAPHITE("Graphite", dark(0xFF0E0E0E, 0xFFE5E5E5, 0xFFA3A3A3)),
+    COFFEE("Coffee", dark(0xFF16110E, 0xFFC8A27A, 0xFFE7C9A9)),
+
+    // ---- light ----
+    PAPER("Paper", light(0xFFF4F4F7, 0xFF7C3AED, 0xFFC084FC)),
+    LATTE("Latte", light(0xFFF4EFE9, 0xFFD97706, 0xFFEA580C)),
+    SKY("Sky", light(0xFFF0F5FA, 0xFF2563EB, 0xFF06B6D4));
 
     private final String displayName;
     private final Theme theme;
@@ -56,5 +104,47 @@ public enum ThemePreset implements EnumSetting.Nameable {
     @Override
     public String displayName() {
         return displayName;
+    }
+
+    // ------------------------------------------------------------------ derived palettes
+
+    /** Dark palette from a panel colour: surfaces step up in brightness and pick up a hint of the accent. */
+    private static Theme dark(int base, int accent, int accentAlt) {
+        return new Theme(
+                ColorUtil.withAlpha(ColorUtil.shade(base, -0.6), 0xA0),
+                base,
+                ColorUtil.lerp(ColorUtil.shade(base, 0.04), accent, 0.10),
+                ColorUtil.lerp(base, accent, 0.05),
+                ColorUtil.shade(base, 0.02),
+                ColorUtil.lerp(ColorUtil.shade(base, 0.06), accent, 0.06),
+                ColorUtil.lerp(base, accent, 0.15),
+                ColorUtil.shade(base, -0.3),
+                ColorUtil.lerp(ColorUtil.shade(base, 0.10), accent, 0.08),
+                ColorUtil.lerp(ColorUtil.shade(base, 0.12), accent, 0.10),
+                ColorUtil.lerp(0xFFF0F0F2, accent, 0.06),
+                ColorUtil.lerp(0xFF9A9AA4, accent, 0.14),
+                ColorUtil.lerp(0xFF5A5A62, accent, 0.10),
+                accent, accentAlt,
+                0x80000000);
+    }
+
+    /** Light palette from a pale panel colour: surfaces step down, dark text. */
+    private static Theme light(int base, int accent, int accentAlt) {
+        return new Theme(
+                0x60101018,
+                base,
+                ColorUtil.lerp(ColorUtil.shade(base, -0.06), accent, 0.10),
+                ColorUtil.lerp(ColorUtil.shade(base, -0.03), accent, 0.05),
+                ColorUtil.shade(base, -0.02),
+                ColorUtil.lerp(ColorUtil.shade(base, -0.07), accent, 0.05),
+                ColorUtil.lerp(base, accent, 0.18),
+                ColorUtil.shade(base, -0.05),
+                ColorUtil.lerp(ColorUtil.shade(base, -0.13), accent, 0.05),
+                ColorUtil.lerp(ColorUtil.shade(base, -0.20), accent, 0.08),
+                ColorUtil.lerp(0xFF16161C, accent, 0.06),
+                ColorUtil.lerp(0xFF5A5A68, accent, 0.10),
+                ColorUtil.lerp(0xFF9C9CA8, accent, 0.08),
+                accent, accentAlt,
+                0x40000000);
     }
 }

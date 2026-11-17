@@ -33,6 +33,7 @@ public abstract class Setting<T> {
     private BooleanSupplier visibility = () -> true;
     private boolean persistent = true;
     private boolean movable;
+    private boolean searchable;
     private Setting<?> attachedTo;
     private Setting<?> group;
     private final List<Consumer<T>> listeners = new ArrayList<>();
@@ -184,6 +185,20 @@ public abstract class Setting<T> {
     public <S extends Setting<T>> S attachedTo(Setting<?> parent) {
         this.attachedTo = Objects.requireNonNull(parent);
         return (S) this;
+    }
+
+    /**
+     * Dropdowns only ({@code ChoiceSetting}, {@code MultiChoiceSetting}): the open list gets a search field and
+     * shows at most a few rows at a time (scroll wheel for the rest). Other setting types ignore it.
+     */
+    @SuppressWarnings("unchecked")
+    public <S extends Setting<T>> S searchable() {
+        this.searchable = true;
+        return (S) this;
+    }
+
+    public boolean isSearchable() {
+        return searchable;
     }
 
     public boolean isMovable() {

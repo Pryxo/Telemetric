@@ -298,7 +298,9 @@ public class Panel extends UIComponent {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-        if (maxScroll <= 0 || !isOverBody(mouseX, mouseY)) return false;
+        if (!isOverBody(mouseX, mouseY)) return false;
+        for (ModuleComponent m : modules) if (m.mouseScrolled(mouseX, mouseY, amount)) return true; // e.g. a long dropdown
+        if (maxScroll <= 0) return false;
         scrollTarget = Math.clamp(scrollTarget - amount * Layout.SCROLL_STEP, 0, maxScroll);
         return true;
     }

@@ -2,27 +2,63 @@ package dev.telemetric.module.impl.misc;
 
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
+import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.EnumSetting;
+import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.ui.notification.Toasts;
+import dev.telemetric.ui.theme.Theme;
 import dev.telemetric.ui.theme.ThemePreset;
+
+import java.util.List;
 
 /** UI-only: colours and look of the ClickGUI. Read by {@link dev.telemetric.ui.theme.ThemeManager}. */
 public final class ThemeModule extends Module {
 
+    private static final Theme DEFAULTS = ThemePreset.MIDNIGHT.theme();
+
     public final EnumSetting<ThemePreset> preset = add(new EnumSetting<>(
-            "Preset", "Base colour palette of the interface", ThemePreset.MIDNIGHT));
+            "Preset", "Base colour palette of the interface", ThemePreset.MIDNIGHT).searchable());
 
-    public final BooleanSetting customAccent = add(new BooleanSetting(
-            "Custom Accent", "Override the preset's accent colours", false));
+    // ---- accent override (group: right-click to edit the colours) ----
+    public final GroupToggleSetting customAccent = add(new GroupToggleSetting(
+            "Custom Accent", "Override the preset's accent colours (right-click to edit)", false));
 
-    public final ColorSetting accent = add(new ColorSetting(
-            "Accent", "Primary accent colour", 0xFF8B5CF6, false).visibleWhen(customAccent::get));
+    public final ColorSetting accent = add(customAccent.child(new ColorSetting(
+            "Accent", "Primary accent colour", DEFAULTS.accent(), false)));
 
-    public final ColorSetting accentAlt = add(new ColorSetting(
-            "Accent 2", "Secondary accent used in gradients", 0xFFC084FC, false).visibleWhen(customAccent::get));
+    public final ColorSetting accentAlt = add(customAccent.child(new ColorSetting(
+            "Accent 2", "Secondary accent used in gradients", DEFAULTS.accentAlt(), false)));
 
+    // ---- full palette override ----
+    public final GroupToggleSetting customColors = add(new GroupToggleSetting(
+            "Custom Colors", "Use your own colours for every part of the interface instead of the preset's "
+            + "(right-click to edit; starts from the current preset)", false));
+
+    public final ColorSetting panelColor = color("Panel", "Panel body, tooltips and toasts", DEFAULTS.panel(), false);
+    public final ColorSetting headerColor = color("Header", "Panel header (gradient start)", DEFAULTS.header(), false);
+    public final ColorSetting headerEndColor = color("Header End", "Panel header (gradient end)", DEFAULTS.headerEnd(), false);
+    public final ColorSetting rowColor = color("Row", "Module row", DEFAULTS.surface(), false);
+    public final ColorSetting rowHoverColor = color("Row Hover", "Module row while hovered", DEFAULTS.surfaceHover(), false);
+    public final ColorSetting rowEnabledColor = color("Row Enabled", "Module row of an enabled module", DEFAULTS.surfaceActive(), false);
+    public final ColorSetting settingsColor = color("Settings Area", "Background of opened settings and dropdown lists", DEFAULTS.settingsBg(), false);
+    public final ColorSetting controlColor = color("Controls", "Slider tracks, switches, input boxes, buttons", DEFAULTS.control(), false);
+    public final ColorSetting borderColor = color("Borders", "Outlines and hairlines", DEFAULTS.border(), false);
+    public final ColorSetting textColor = color("Text", "Primary text", DEFAULTS.text(), false);
+    public final ColorSetting mutedTextColor = color("Muted Text", "Values and hints", DEFAULTS.textMuted(), false);
+    public final ColorSetting disabledTextColor = color("Disabled Text", "Placeholders and disabled entries", DEFAULTS.textDisabled(), false);
+    public final ColorSetting shadowColor = color("Shadow Color", "Drop shadow behind panels", DEFAULTS.shadow(), true);
+    public final ColorSetting dimColor = color("Screen Dim", "Full-screen dim behind the GUI (its alpha is scaled by Background Dim)", DEFAULTS.backdrop(), true);
+
+    public final ActionSetting copyPreset = add(customColors.child(new ActionSetting(
+            "Copy From Preset", "Fill the custom colours with the selected preset's colours", () -> {
+                copyColorsFrom(preset.get().theme());
+                Toasts.info("Copied colours from " + preset.get().displayName());
+            })));
+
+    // ---- look ----
     public final BooleanSetting headerGradient = add(new BooleanSetting(
             "Header Gradient", "Draw an accent gradient line under panel headers", true));
 
@@ -40,5 +76,58 @@ public final class ThemeModule extends Module {
 
     public ThemeModule() {
         super("Theme", "Colours, preset and look of the interface", Category.MISC, false);
+        // first switch-on starts from the current preset instead of Midnight's colours
+        // (profile loads: the toggle loads before its colours, which then overwrite this copy)
+        customAccent.onChange(on -> {
+            if (on && accent.get().equals(accent.getDefault()) && accentAlt.get().equals(accentAlt.getDefault())) {
+                Theme t = preset.get().theme();
+                accent.set(t.accent());
+                accentAlt.set(t.accentAlt());
+            }
+        });
+        customColors.onChange(on -> {
+            if (on && paletteColors().stream().allMatch(c -> c.get().equals(c.getDefault()))) {
+                copyColorsFrom(preset.get().theme());
+            }
+        });
+    }
+
+    private ColorSetting color(String name, String description, int defaultArgb, boolean alpha) {
+        return add(customColors.child(new ColorSetting(name, description, defaultArgb, alpha)));
+    }
+
+    private List<ColorSetting> paletteColors() {
+        return List.of(panelColor, headerColor, headerEndColor, rowColor, rowHoverColor, rowEnabledColor, settingsColor,
+                controlColor, borderColor, textColor, mutedTextColor, disabledTextColor, shadowColor, dimColor);
+    }
+
+    private void copyColorsFrom(Theme t) {
+        panelColor.set(t.panel());
+        headerColor.set(t.header());
+        headerEndColor.set(t.headerEnd());
+        rowColor.set(t.surface());
+        rowHoverColor.set(t.surfaceHover());
+        rowEnabledColor.set(t.surfaceActive());
+        settingsColor.set(t.settingsBg());
+        controlColor.set(t.control());
+        borderColor.set(t.border());
+        textColor.set(t.text());
+        mutedTextColor.set(t.textMuted());
+        disabledTextColor.set(t.textDisabled());
+        shadowColor.set(t.shadow());
+        dimColor.set(t.backdrop());
+    }
+
+    /** Preset palette with the Custom Colors / Custom Accent overrides applied (before panel opacity). */
+    public Theme resolvedPalette() {
+        Theme theme = preset.get().theme();
+        if (customColors.get()) {
+            theme = new Theme(dimColor.get(), panelColor.get(), headerColor.get(), headerEndColor.get(),
+                    rowColor.get(), rowHoverColor.get(), rowEnabledColor.get(), settingsColor.get(),
+                    controlColor.get(), borderColor.get(), textColor.get(), mutedTextColor.get(), disabledTextColor.get(),
+                    theme.accent(), theme.accentAlt(), shadowColor.get());
+        }
+        if (customAccent.get()) theme = theme.withAccent(accent.get(), accentAlt.get());
+        return theme;
     }
 }

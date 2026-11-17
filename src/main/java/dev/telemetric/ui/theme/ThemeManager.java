@@ -61,9 +61,7 @@ public final class ThemeManager {
 
     private Theme resolve() {
         ThemeModule module = Telemetric.get().modules().get(ThemeModule.class);
-        Theme theme = module.preset.get().theme();
-        if (module.customAccent.get()) theme = theme.withAccent(module.accent.get(), module.accentAlt.get());
-        return theme.withSurfaceOpacity(module.panelOpacity.get() / 100.0);
+        return module.resolvedPalette().withSurfaceOpacity(module.panelOpacity.get() / 100.0);
     }
 
     // convenience accessors for frequently read look settings
