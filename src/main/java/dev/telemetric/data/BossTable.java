@@ -93,6 +93,12 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
             realm.putIfAbsent(Names.key(name), b);
             if (b.tracker() != null) tracked.add(b);
         }
+        // areas without realm bosses of their own: the open realm's bosses are hidden there too (Voided Abyss)
+        if (root.has("emptyZones") && root.get("emptyZones").isJsonArray()) {
+            for (JsonElement z : root.getAsJsonArray("emptyZones")) {
+                if (!zones.contains(z.getAsString())) zones.add(z.getAsString());
+            }
+        }
         return new BossTable(List.copyOf(all), Map.copyOf(realm), List.copyOf(tracked), defaultPortal, List.copyOf(zones),
                 LootTable.parse(bosses), TelosData.BossBars.parse(bosses));
     }

@@ -189,16 +189,14 @@ public final class PityCounterHud extends LinesHudModule {
         return boss == null ? null : loot.realm(boss);
     }
 
-    /** Realm boss with the nearest spawn spot within {@code range} blocks (in a zone: only that zone's bosses). */
+    /** Realm boss with the nearest spawn spot within {@code range} blocks. */
     private static String nearestSpawn(double range) {
         Point me = DungeonAdapter.playerPos();
         if (me == null) return null;
         BossTable table = TelosData.BOSSES.get();
-        String zone = table.zoneOf(PlayerAdapter.locationName());
         double best = range * range;
         String name = null;
         for (BossTable.Boss b : table.realmByKey().values()) {
-            if (zone != null && !zone.equals(table.zoneOf(b))) continue;
             for (Spot s : b.positions()) {
                 double d = me.distanceSq(s.x() + 0.5, s.y() + 0.5, s.z() + 0.5);
                 if (d <= best) {
