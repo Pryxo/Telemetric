@@ -39,6 +39,12 @@ public final class TelosData {
     // ------------------------------------------------------------------ bosses + loot + boss bars
 
     /**
+     * {@code shinyChance.json} — shiny chance divisor per rarity (shiny chance = normal chance / divisor). Must stay
+     * above {@link #BOSSES}: Boss.json's shiny drops read it while the class initialises.
+     */
+    public static final SharedFile<ShinyChance> SHINY_CHANCE = SharedData.file(DIR + "shinyChance.json", ShinyChance::parse, ShinyChance.EMPTY);
+
+    /**
      * {@code Boss.json} — every boss (dungeon or zone, icon, spawn spots, drops, Boss Tracker data, boss bar
      * hash). Boss Tracker / Pity Counter / spawn lookups ({@link BossTable}), drops ({@link #LOOT}) and boss bars
      * ({@link #BOSS_BARS}) all read this one file.
@@ -278,8 +284,7 @@ public final class TelosData {
         }
     }
 
-    /** {@code shinyChance.json} — shiny chance divisor per rarity (shiny chance = normal chance / divisor). */
-    public static final SharedFile<ShinyChance> SHINY_CHANCE = SharedData.file(DIR + "shinyChance.json", ShinyChance::parse, ShinyChance.EMPTY);
+    /** {@code shinyChance.json} — declared near the top: {@link #BOSSES} reads it while parsing. */
 
     /** @param divisors rarity → divisor; {@code default} = every other rarity */
     public record ShinyChance(Map<String, Double> divisors) {

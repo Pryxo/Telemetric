@@ -77,9 +77,12 @@ public final class LootTracker {
     private static final Pattern PERCENT = Pattern.compile("(\\d+(?:\\.\\d+)?)%");
     private static final String SELF_ARROW = "⬅";
 
-    /** {@code Bonus chest has been unlocked!} — no letters before it (so no player name / rank prefix). */
+    /**
+     * {@code Skull Cavern𕴫 Bonus chest has been unlocked!} — sent when you open the boss's bonus chest with a key
+     * (read live 0.37.15). Only a place name (letters / spaces, no {@code :}) and glyphs before it.
+     */
     static final ChatPattern BONUS_CHEST = ChatPattern.builder("Bonus chest unlocked",
-            "[^A-Za-z0-9\\n]*Bonus chest has been unlocked[^\\n]*").anyRuns().build();
+            "(?:[A-Za-z' ]{1,40})?[^A-Za-z0-9:\\n]*Bonus chest has been unlocked[^\\n]*").anyRuns().build();
 
     /**
      * {@code [realm-3] ͱ <player> got <item>[telos:<model>] from <place>} — an optional {@code [server]} tag, then only
@@ -90,7 +93,7 @@ public final class LootTracker {
             .anyRuns().allowInteractive().build();
 
     /** The same drop seen twice (glow scan + chat line) within this time counts once. */
-    private static final long SAME_DROP_MS = 60_000, BONUS_AFTER_KILL_MS = 10 * 60_000;
+    private static final long SAME_DROP_MS = 60_000, BONUS_AFTER_KILL_MS = 30 * 60_000;
 
     /** A mob nameplate vanishing within this many blocks (horizontal) of you counts as a kill. */
     static final int MOB_KILL_RANGE = 16;

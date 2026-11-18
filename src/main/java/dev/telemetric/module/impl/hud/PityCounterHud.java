@@ -78,7 +78,8 @@ public final class PityCounterHud extends LinesHudModule {
             "New season: set every seasonal pity back to 0 (click twice to confirm)", this::resetSeasonal));
 
     private static final ChatPattern BONUS_SPAWNED = ChatPattern.builder("Bonus chest spawned",
-            "[^A-Za-z0-9\\n]*Bonus (?:dungeon )?chest has (?:spawned|been unlocked)[^\\n]*").anyRuns().build();
+            "(?:[A-Za-z' ]{1,40})?[^A-Za-z0-9:\\n]*Bonus (?:dungeon )?chest has (?:spawned|been unlocked)[^\\n]*(?:\\n[^\\n]*)?")
+            .anyRuns().build();
 
     private record Context(String title, List<Drop> drops) {}
 

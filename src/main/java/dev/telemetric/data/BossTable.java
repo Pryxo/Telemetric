@@ -64,7 +64,8 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         Map<String, Boss> realm = new HashMap<>();
         List<Boss> tracked = new ArrayList<>();
         List<String> zones = new ArrayList<>();
-        for (JsonElement e : root.getAsJsonArray("bosses")) {
+        JsonArray bosses = enabled(root);
+        for (JsonElement e : bosses) {
             JsonObject o = e.getAsJsonObject();
             String name = JsonFields.str(o, "name"), dungeon = JsonFields.str(o, "dungeon");
             String zone = dungeon.isEmpty() ? JsonFields.str(o, "zone") : "";
@@ -76,9 +77,24 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
             realm.putIfAbsent(Names.key(name), b);
             if (b.tracker() != null) tracked.add(b);
         }
-        JsonArray bosses = root.getAsJsonArray("bosses");
         return new BossTable(List.copyOf(all), Map.copyOf(realm), List.copyOf(tracked), defaultPortal, List.copyOf(zones),
                 LootTable.parse(bosses, root.getAsJsonObject("aliases")), TelosData.BossBars.parse(bosses));
+    }
+
+    /**
+     * The {@code bosses} array without the ones named in the root {@code disabled} list (boss names, matched by
+     * {@link Names#key}): their entries stay in the file but are never loaded — no tracker, pity, loot or boss bar.
+     */
+    private static JsonArray enabled(JsonObject root) {
+        JsonArray src = root.getAsJsonArray("bosses"), out = new JsonArray();
+        if (src == null) return out;
+        java.util.Set<String> off = new java.util.HashSet<>();
+        if (root.has("disabled") && root.get("disabled").isJsonArray())
+            for (JsonElement d : root.getAsJsonArray("disabled"))
+                if (d.isJsonPrimitive()) off.add(Names.key(d.getAsString()));
+        for (JsonElement e : src)
+            if (off.isEmpty() || !off.contains(Names.key(JsonFields.str(e.getAsJsonObject(), "name")))) out.add(e);
+        return out;
     }
 
     /**
