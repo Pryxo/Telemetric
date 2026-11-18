@@ -214,10 +214,10 @@ public abstract class LinesHudModule extends HudModule {
             int tint = line.tintIcon() ? iconTint(line, vc) : 0xFFFFFFFF;
             boolean runColors = serverColors || line.ownColors();
             int x;
-            if (alignRight && style.mirrorRight.get()) {
+            if (alignRight && isTextMirrored()) {
                 // right-aligned: the whole row mirrored — "Value :Label <icon>", icons in a column at the right edge
                 if (slot > 0 && line.icon() != null)
-                    drawIcon(r, line.icon(), w - PAD_X - iconWidth(r, line.icon()), y, tint);
+                    drawIcon(r, line.icon(), w - PAD_X - (slot - iconGap() + iconWidth(r, line.icon())) / 2, y, tint);
                 x = w - PAD_X - slot;
                 if (!line.label().isEmpty()) {
                     x -= labelWidth(r, line);
@@ -240,7 +240,9 @@ public abstract class LinesHudModule extends HudModule {
                 if (iw > 0) drawIcon(r, line.icon(), x, y, tint);
                 x += iw;
             } else {
-                if (slot > 0) drawIcon(r, line.icon(), PAD_X, y, tint);
+                // icons centred in the shared column, so narrow ones (Server/Glory PNGs) line up with the glyphs
+                if (slot > 0 && line.icon() != null)
+                    drawIcon(r, line.icon(), PAD_X + (slot - iconGap() - iconWidth(r, line.icon())) / 2, y, tint);
                 x = PAD_X + slot;
             }
 

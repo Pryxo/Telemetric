@@ -54,6 +54,21 @@ public abstract class HudModule extends Module {
                 Math.clamp(defaultScale, MIN_SCALE, MAX_SCALE), MIN_SCALE, MAX_SCALE, 0.05).withSuffix("x"));
         this.align = add(new ModeSetting("Text Align", "Rows aligned left, centred or right (HUD editor: M cycles)",
                 defaultX > 0.66 ? ALIGN_RIGHT : ALIGN_LEFT, ALIGN_LEFT, ALIGN_MID, ALIGN_RIGHT));
+        this.mirrorText = add(new BooleanSetting("Mirror Text",
+                "Right align mirrors rows (\"Arcanist :Class <icon>\"); off keeps \"<icon> Class: Arcanist\" (HUD editor: N)", true)
+                .visibleWhen(() -> align.is(ALIGN_RIGHT)));
+    }
+
+    private final BooleanSetting mirrorText;
+
+    /** Right-aligned rows drawn mirrored ("Value :Label <icon>") instead of in normal reading order. */
+    public boolean isTextMirrored() {
+        return mirrorText.get();
+    }
+
+    /** HUD editor N: toggle mirrored text for this element. */
+    public void toggleMirrorText() {
+        mirrorText.set(!mirrorText.get());
     }
 
     public static final String ALIGN_LEFT = "Left", ALIGN_MID = "Mid", ALIGN_RIGHT = "Right";
@@ -155,5 +170,6 @@ public abstract class HudModule extends Module {
         posY.reset();
         scale.reset();
         align.reset();
+        mirrorText.reset();
     }
 }

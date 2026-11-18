@@ -20,6 +20,7 @@ public final class InputUtil {
     public static final int KEY_END = InputConstants.KEY_END;
     public static final int KEY_UP = InputConstants.KEY_UP;
     public static final int KEY_M = InputConstants.KEY_M;
+    public static final int KEY_N = InputConstants.KEY_N;
     public static final int KEY_DOWN = InputConstants.KEY_DOWN;
     public static final int KEY_LSHIFT = InputConstants.KEY_LSHIFT;
     public static final int KEY_RSHIFT = InputConstants.KEY_RSHIFT;

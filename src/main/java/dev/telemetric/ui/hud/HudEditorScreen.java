@@ -149,7 +149,7 @@ public class HudEditorScreen extends Screen {
         r.pushAlpha(open.get());
         String hint = elements.isEmpty()
                 ? "No HUD elements enabled — turn some on in the HUD panel of the ClickGUI"
-                : "Drag: move · Corner / scroll: resize · Right-click: reset size · Arrows: nudge · M: align (left / mid / right) · Del: hide · Shift: no snap · Esc: done";
+                : "Drag: move · Corner / scroll: resize · Right-click: reset size · Arrows: nudge · M: align (left / mid / right) · N: mirror text · Del: hide · Shift: no snap · Esc: done";
         String text = r.trim(hint, sw - 20);
         int w = r.textWidth(text) + 12, h = r.fontHeight() + 7;
         int x = (sw - w) / 2, y = elements.isEmpty() ? sh / 2 - h / 2 : sh - h - 40;
@@ -291,6 +291,10 @@ public class HudEditorScreen extends Screen {
                 if (!r.isActive()) r.begin(null, false);
                 int[] b = HudRenderer.bounds(r, selected, this.width, this.height, true);
                 selected.setTopLeft(b[0] + dx, b[1] + dy, this.width, this.height, b[2], b[3]);
+                return true;
+            }
+            if (key == InputUtil.KEY_N) {
+                selected.toggleMirrorText();
                 return true;
             }
             if (key == InputUtil.KEY_M) {

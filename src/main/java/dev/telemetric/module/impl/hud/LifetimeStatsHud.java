@@ -15,13 +15,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Lifetime Stats: loot bags you got per bag type and your boss kills /
- * runs, all-time for this account ({@link LootTracker} counts them). One row per bag group of
+ * Lifetime Stats: loot bags you got per bag type and your runs, all-time for this account ({@link LootTracker} counts them). One row per bag group of
  * {@code tables/rarities.json} bags, so a new bag type is a new row without code.
  */
 public final class LifetimeStatsHud extends LinesHudModule {
 
-    private static final String KILLS = "Boss Kills", RUNS = "Runs";
+    private static final String RUNS = "Runs";
 
     private final MultiChoiceSetting hidden = add(new MultiChoiceSetting("Hidden Rows",
             "Rows this element does not show", LifetimeStatsHud::rowLabels));
@@ -30,7 +29,7 @@ public final class LifetimeStatsHud extends LinesHudModule {
             () -> WikiStatsScan.get().start()));
 
     public LifetimeStatsHud() {
-        super("Lifetime Stats", "All-time loot bags per type, boss kills and runs (this account)", 1.0, 0.20, false);
+        super("Lifetime Stats", "All-time loot bags per type and runs (this account)", 1.0, 0.20, false);
         addUseServerColor();
     }
 
@@ -49,6 +48,7 @@ public final class LifetimeStatsHud extends LinesHudModule {
     private static HudIcon bagIcon(Bag b) {
         String glyph = b.glyph();
         if (!glyph.isEmpty()) return new HudIcon.Glyph(glyph, null);
+        if (!b.icon().isEmpty()) return new HudIcon.Glyph(b.icon(), null); // event bags: their pouch glyph
         String totem = b.totem();
         if (totem == null || totem.isEmpty()) return null;
         return new HudIcon.Item("telos:" + (totem.endsWith("_totem") ? totem.substring(0, totem.length() - 6) : totem));
@@ -71,7 +71,6 @@ public final class LifetimeStatsHud extends LinesHudModule {
             int rgb = count == 1 && only.rgb() >= 0 ? 0xFF000000 | only.rgb() : 0;
             rows.add(new Row(label, LootTracker.BAG_PREFIX + group, rgb, bagIcon(first), group.equals("shiny")));
         }
-        rows.add(new Row(KILLS, LootTracker.STAT_KILLS, 0, null, false));
         rows.add(new Row(RUNS, LootTracker.STAT_RUNS, 0, null, false));
         return rows;
     }
