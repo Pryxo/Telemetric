@@ -38,9 +38,22 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
      * @param portalSeconds how long its portal stays after a defeat
      * @param progress      its portal opens once every world boss is down (n/m count shown)
      * @param waypoints     extra fixed markers shown with it (Cog Stabilizers)
+     * @param counter       chat line that sets its own n/m count (groups {@code n}, {@code max}), e.g.
+     *                      {@code (1/5) Void Crystals shattered}, or null
+     * @param countFrom     bosses whose defeat adds 1 to its count (Defender: Reaper, Warden, Herald)
+     * @param counterMax    count it spawns / opens at (until the chat line or {@code /bosses} names it)
+     * @param readyText     shown once the count is full ("Spawned", "Open", …)
+     * @param menuName      its {@code /bosses} item name when that differs ("Tenebris Portal"), or empty
+     * @param ready         whole server line that fills the count ("A portal to Tenebris has opened in …"), or null
      */
     public record Tracker(Pattern call, Pattern spawn, Pattern defeat, boolean idle, int portalSeconds,
-                          boolean progress, List<Spot> waypoints) {}
+                          boolean progress, List<Spot> waypoints, Pattern counter, List<String> countFrom,
+                          int counterMax, String readyText, Pattern ready, String menuName) {
+        /** Listed in the Boss Tracker's bottom section (Raphael and the n/m counter bosses). */
+        public boolean counted() {
+            return progress || counter != null || !countFrom.isEmpty();
+        }
+    }
 
     /**
      * @param id      name key ({@link Names#key})
@@ -72,7 +85,10 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
             Boss b = new Boss(Names.key(name), name, zone, JsonFields.str(o, "icon"), spots(o, "positions", name),
                     dungeon, tracker(o.getAsJsonObject("tracker"), name, defaultPortal), areas(o));
             all.add(b);
-            if (b.isDungeonBoss()) continue;
+            if (b.isDungeonBoss()) {
+                if (b.tracker() != null && b.tracker().counted()) tracked.add(b); // spawned by a realm counter (Voided Omnipotent)
+                continue;
+            }
             if (!zone.isEmpty() && !zones.contains(zone)) zones.add(zone);
             realm.putIfAbsent(Names.key(name), b);
             if (b.tracker() != null) tracked.add(b);
@@ -143,7 +159,17 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         return new Tracker(regex(t, "call", boss), regex(t, "spawn", boss), regex(t, "defeat", boss),
                 t.has("idle") && t.get("idle").getAsBoolean(),
                 t.has("portalSeconds") ? t.get("portalSeconds").getAsInt() : defaultPortal,
-                t.has("progress") && t.get("progress").getAsBoolean(), spots(t, "waypoints", boss));
+                t.has("progress") && t.get("progress").getAsBoolean(), spots(t, "waypoints", boss),
+                regex(t, "counter", boss), names(t, "countFrom"),
+                t.has("counterMax") ? t.get("counterMax").getAsInt() : 5,
+                t.has("readyText") ? t.get("readyText").getAsString() : "Spawned", regex(t, "ready", boss), JsonFields.str(t, "menuName"));
+    }
+
+    private static List<String> names(JsonObject o, String key) {
+        if (!o.has(key) || !o.get(key).isJsonArray()) return List.of();
+        List<String> out = new ArrayList<>();
+        for (var e : o.getAsJsonArray(key)) out.add(e.getAsString());
+        return List.copyOf(out);
     }
 
     /** A hand-written regex; a broken one is dropped (logged) instead of failing the whole table. */

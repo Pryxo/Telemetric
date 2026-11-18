@@ -58,7 +58,17 @@ public abstract class LinesHudModule extends HudModule {
         boolean styled() {
             return valueRuns != null && !valueRuns.isEmpty();
         }
+
+        /** A thin horizontal rule between two groups of rows (compared by identity). */
+        public static final Line DIVIDER = new Line("", "");
+
+        boolean divider() {
+            return this == DIVIDER;
+        }
     }
+
+    /** Height of a {@link Line#DIVIDER} row (the 1 px rule sits in its middle). */
+    private static final int DIVIDER_H = 5;
 
     protected static final int PAD_X = 4, PAD_Y = 3, LINE_GAP = 2, ICON_GAP = 3;
 
@@ -176,8 +186,11 @@ public abstract class LinesHudModule extends HudModule {
 
     @Override
     public int contentHeight(Render2D r, boolean preview) {
-        int rows = lines(preview).size() + (title() == null ? 0 : 1);
-        return Math.max(1, rows) * lineHeight(r) - LINE_GAP + PAD_Y * 2;
+        List<Line> lines = lines(preview);
+        int dividers = 0;
+        for (Line line : lines) if (line.divider()) dividers++;
+        int rows = lines.size() - dividers + (title() == null ? 0 : 1);
+        return Math.max(1, rows) * lineHeight(r) + dividers * DIVIDER_H - LINE_GAP + PAD_Y * 2;
     }
 
     @Override
@@ -209,6 +222,11 @@ public abstract class LinesHudModule extends HudModule {
             y += lineHeight(r);
         }
         for (Line line : lines) {
+            if (line.divider()) {
+                r.rect(PAD_X, y + 1, w - PAD_X * 2, 1, ColorUtil.fade(p.textMuted(), 0.5));
+                y += DIVIDER_H;
+                continue;
+            }
             int lc = serverColors && line.labelColor() != 0 ? line.labelColor() : defaultLabel;
             int vc = serverColors && line.valueColor() != 0 ? line.valueColor() : defaultValue;
             int tint = line.tintIcon() ? iconTint(line, vc) : 0xFFFFFFFF;

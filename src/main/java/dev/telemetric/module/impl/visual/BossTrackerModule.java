@@ -3,12 +3,14 @@ package dev.telemetric.module.impl.visual;
 import dev.telemetric.chat.ChatBus;
 import dev.telemetric.chat.ChatText;
 import dev.telemetric.data.BossTable;
+import dev.telemetric.data.BossTable.Boss;
 import dev.telemetric.data.BossTable.Spot;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.dungeon.Point;
 import dev.telemetric.game.ChatAdapter;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.PlayerAdapter;
+import dev.telemetric.game.ResourceAdapter;
 import dev.telemetric.game.WorldLabelAdapter;
 import dev.telemetric.game.WorldRenderAdapter;
 import dev.telemetric.hud.HudIcon;
@@ -84,6 +86,7 @@ public final class BossTrackerModule extends LinesHudModule {
     private long seenRealmJoin;
     /** Bosses of the place you are in, refreshed each tick (render code reads only this). */
     private volatile List<Tracked> here = List.of();
+    private volatile boolean realm;
 
     public BossTrackerModule() {
         super("Boss Tracker", "Realm bosses: list on the HUD + waypoints (alive, fought by, portal timer)",
@@ -107,12 +110,14 @@ public final class BossTrackerModule extends LinesHudModule {
             seenRealmJoin = join;
             if (join != 0 && autoTrack.get()) tracker.scanMenu();
         }
-        here = inRealm() ? bossesHere() : List.of();
+        realm = inRealm();
+        here = realm ? bossesHere() : List.of();
     }
 
     @Override
     protected void onDisable() {
         here = List.of();
+        realm = false;
     }
 
     // ------------------------------------------------------------------ what is shown
@@ -153,24 +158,61 @@ public final class BossTrackerModule extends LinesHudModule {
 
     @Override
     protected List<Line> lines(boolean preview) {
-        if (!showList.get() || here.isEmpty()) return preview ? previewLines() : List.of();
+        if (!showList.get() || !realm) return preview ? previewLines() : List.of();
         long now = System.currentTimeMillis();
         List<Tracked> list = new ArrayList<>();
-        Tracked progressBoss = null;
         for (Tracked t : here) {
-            if (t.marker) continue;
-            if (t.boss.tracker().progress()) progressBoss = t;
-            else list.add(t);
+            if (!t.marker && !t.boss.tracker().counted()) list.add(t);
         }
         list.sort(Comparator.comparingInt((Tracked t) -> order(t.state())).thenComparing(t -> t.name));
-        List<Line> lines = new ArrayList<>(list.size() + 1);
+        List<Line> lines = new ArrayList<>(list.size() + 6);
         for (Tracked t : list) lines.add(line(t, now));
-        if (progressBoss != null && (tracker.progress() > 0 || progressBoss.state() == State.PORTAL)) {
-            lines.add(progressLine(progressBoss, now));
-        }
+        List<Line> counted = countedLines(now);
+        if (!lines.isEmpty() && !counted.isEmpty()) lines.add(Line.DIVIDER);
+        lines.addAll(counted);
         if (lines.isEmpty() && preview) return previewLines();
         return lines;
     }
+
+    /** Bottom section, below the divider: Raphael first, then the n/m counter bosses in table order. */
+    private List<Line> countedLines(long now) {
+        List<Line> out = new ArrayList<>(4);
+        List<Line> counters = new ArrayList<>(3);
+        for (Boss b : TelosData.BOSSES.get().tracked()) {
+            if (!b.tracker().counted()) continue;
+            Tracked t = tracker.get(b.name());
+            if (b.tracker().progress()) out.add(progressLine(b, t, now));
+            else counters.add(counterLine(b, t, now));
+        }
+        out.addAll(counters);
+        return out;
+    }
+
+    private Line counterLine(Boss b, Tracked t, long now) {
+        State s = t == null ? State.IDLE : t.state();
+        int[] c = tracker.count(b.name());
+        boolean ready = c != null && c[0] >= c[1] && c[1] > 0
+                || s == State.ALIVE && !b.tracker().idle(); // a spawn-only boss that is up (Defender)
+        String value;
+        int vc;
+        if (s == State.PORTAL) {
+            value = "Portal " + t.portalSeconds(now) + "s";
+            vc = portalColor.get();
+        } else if (s == State.ALIVE && t.calledBy() != null) {
+            value = t.calledBy();
+            vc = fightingColor.get();
+        } else if (ready) {
+            value = b.tracker().readyText();
+            vc = portalColor.get();
+        } else {
+            value = c == null ? "0/" + b.tracker().counterMax() : c[0] + "/" + c[1];
+            vc = availableColor.get();
+        }
+        int label = s == State.PORTAL || ready ? portalColor.get()
+                : s == State.ALIVE && t.calledBy() != null ? fightingColor.get() : availableColor.get();
+        return new Line(b.name(), value, label, vc, List.of(), icon(b));
+    }
+
 
     private static int order(State s) {
         return switch (s) {
@@ -197,16 +239,28 @@ public final class BossTrackerModule extends LinesHudModule {
         return new Line(t.name, "", color(t), 0, runs, icon(t));
     }
 
-    private Line progressLine(Tracked t, long now) {
-        String value = t.state() == State.PORTAL ? "Portal " + t.portalSeconds(now) + "s"
+    private Line progressLine(Boss b, Tracked t, long now) {
+        boolean portal = t != null && t.state() == State.PORTAL;
+        String value = portal ? "Portal " + t.portalSeconds(now) + "s"
                 : tracker.progress() + "/" + tracker.progressMax();
-        int c = t.state() == State.PORTAL || tracker.progress() >= tracker.progressMax()
-                ? portalColor.get() : availableColor.get();
-        return new Line(t.name, value, color(t), c, List.of(), icon(t));
+        int c = portal || tracker.progress() >= tracker.progressMax() ? portalColor.get() : availableColor.get();
+        return new Line(b.name(), value, t == null ? availableColor.get() : color(t), c, List.of(), icon(b));
     }
 
     private static HudIcon icon(Tracked t) {
-        return t.boss.icon().isEmpty() ? null : new HudIcon.Item(t.boss.icon());
+        return icon(t.boss);
+    }
+
+    private static HudIcon icon(Boss b) {
+        if (b.icon().isEmpty()) return null;
+        // an item model when the pack has one, else its texture (Cog Sentinel's gear: material/bosses/, no model)
+        int colon = b.icon().indexOf(':');
+        String ns = colon < 0 ? "minecraft" : b.icon().substring(0, colon), path = b.icon().substring(colon + 1);
+        if (!ResourceAdapter.exists(ns + ":items/" + path + ".json")
+                && ResourceAdapter.exists(ns + ":textures/" + path + ".png")) {
+            return new HudIcon.Texture(ns + ":textures/" + path + ".png", 32, 32);
+        }
+        return new HudIcon.Item(b.icon());
     }
 
     private List<Line> previewLines() {
@@ -217,8 +271,13 @@ public final class BossTrackerModule extends LinesHudModule {
                 new Line("Astaroth", "", portalColor.get(), 0,
                         List.of(new TextRun("Portal 21s", portalColor.get(), null)),
                         new HudIcon.Item("telos:material/boss/astaroth")),
+                Line.DIVIDER,
                 new Line("Raphael", "7/10", availableColor.get(), availableColor.get(), List.of(),
-                        new HudIcon.Item("telos:material/pet/onyx")));
+                        new HudIcon.Item("telos:material/pet/onyx")),
+                new Line("Cog Sentinel", "1/5", availableColor.get(), availableColor.get(), List.of(),
+                        new HudIcon.Texture("telos:textures/material/bosses/cog_sentinel.png", 32, 32)),
+                new Line("Defender", "Spawned", portalColor.get(), portalColor.get(), List.of(),
+                        new HudIcon.Item("telos:material/boss/defender")));
     }
 
     // ------------------------------------------------------------------ waypoints

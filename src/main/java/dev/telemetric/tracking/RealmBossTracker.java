@@ -77,10 +77,18 @@ public final class RealmBossTracker {
     static final ChatPattern SPAWNED = ChatPattern.builder("Boss spawned",
             "(?<boss>[A-Za-z' ]{2,30}) has spawned at (?<x>-?[\\d.]+), (?<y>-?[\\d.]+), (?<z>-?[\\d.]+)[^\\n]*")
             .anyRuns().build();
+    /** {@code (1/5) Void Crystals shattered} — a counter boss's own n/m line (which boss: its {@code counter} regex). */
+    static final ChatPattern COUNTER = ChatPattern.builder("Boss counter",
+            "\\((?<n>\\d+)/(?<max>\\d+)\\) [^\\n]{2,60}").anyRuns().build();
+
+    /** Any server line, tested against the counter bosses' {@code ready} regexes ("A portal to Tenebris has opened…"). */
+    static final ChatPattern ANY_LINE = ChatPattern.builder("Boss ready line", "[^\n]{8,160}").anyRuns().build();
 
     private static final RealmBossTracker INSTANCE = new RealmBossTracker();
 
     private final Map<String, Tracked> tracked = new LinkedHashMap<>();
+    /** n/m of the counter bosses (Cog Sentinel, Tenebris Portal, Defender), by {@link Names#key}. */
+    private final Map<String, int[]> counts = new LinkedHashMap<>();
     private int progress, progressMax = 10;
     private long realmJoinedAt;
     private Object world;
@@ -100,6 +108,8 @@ public final class RealmBossTracker {
         ChatBus.on(BOSS_LINE, m -> onBossLine(m.group(1).trim(), m.group(2)));
         ChatBus.on(DEFEATED, this::onDefeated);
         ChatBus.on(SPAWNED, this::onSpawned);
+        ChatBus.on(COUNTER, m -> onCounter(m.group(0).trim(), Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2))));
+        ChatBus.on(ANY_LINE, m -> onReadyLine(m.group(0).trim()));
         BossMenuAdapter.onMenuClosed(this::readMenu);
         TelosData.BOSSES.onChange(t -> clear());
         clear();
@@ -119,6 +129,12 @@ public final class RealmBossTracker {
     public int progress() { return progress; }
     public int progressMax() { return progressMax; }
 
+    /** {n, max} of a counter boss ({@code counter} / {@code countFrom} in Boss.json), or null. */
+    public synchronized int[] count(String name) {
+        int[] c = counts.get(Names.key(name));
+        return c == null ? null : c.clone();
+    }
+
     /** When a realm was last joined from somewhere other than a dungeon (0 = not yet) — time to read /bosses. */
     public long realmJoinedAt() { return realmJoinedAt; }
 
@@ -127,9 +143,12 @@ public final class RealmBossTracker {
     /** New realm / hub: forget everything but the always-present bosses and markers. */
     public synchronized void clear() {
         tracked.clear();
+        counts.clear();
         progress = 0;
         progressMax = 10;
         for (Boss b : TelosData.BOSSES.get().tracked()) {
+            BossTable.Tracker tr = b.tracker();
+            if (tr.counted() && !tr.progress()) counts.put(Names.key(b.name()), new int[] {0, tr.counterMax()});
             if (!b.tracker().idle()) continue;
             add(b, b.tracker().spawn() != null ? State.IDLE : State.ALIVE); // no spawn line: always up
             for (Spot w : b.tracker().waypoints()) {
@@ -193,6 +212,22 @@ public final class RealmBossTracker {
             }
             if (!name.find()) continue;
             String boss = name.group(1);
+            int[] c = counts.get(Names.key(boss));
+            if (c == null) { // listed under another name ("Tenebris Portal" → Voided Omnipotent)
+                for (Boss b : TelosData.BOSSES.get().tracked()) {
+                    if (Names.key(b.tracker().menuName()).equals(Names.key(boss))) c = counts.get(Names.key(b.name()));
+                }
+            }
+            if (c != null) { // "This boss has not spawned - (2/4)", "This portal hasn't activated yet - (1/5)"
+                Matcher p = PROGRESS.matcher(i.lore());
+                if (p.find()) {
+                    c[0] = Integer.parseInt(p.group(1));
+                    c[1] = Integer.parseInt(p.group(2));
+                } else if (!i.lore().contains("not spawned") && !i.lore().contains("hasn't")
+                        && !i.lore().contains("invulnerable")) {
+                    c[0] = c[1]; // no count left: it is up / open
+                }
+            }
             if (i.lore().contains("This boss is alive")) set(boss, State.ALIVE);
             else if (i.lore().contains("This boss has been defeated")) set(boss, State.DEFEATED);
             else if (i.lore().contains("This boss has not spawned")) remove(boss);
@@ -206,6 +241,7 @@ public final class RealmBossTracker {
         if (t.defeat() != null && t.defeat().matcher(text).matches()) {
             Tracked tr = set(name, State.IDLE);
             if (tr != null) tr.calledBy = null;
+            feed(boss.name());
             return;
         }
         if (t.spawn() != null && t.spawn().matcher(text).matches()) {
@@ -226,6 +262,9 @@ public final class RealmBossTracker {
         Boss boss = TelosData.BOSSES.get().realm(name);
         if (boss == null || boss.tracker() == null) return;
         openPortal(name, boss);
+        if (boss.tracker().defeat() == null) feed(boss.name()); // with a [Boss] defeat line that one counts
+        int[] own = counts.get(Names.key(boss.name()));
+        if (own != null) own[0] = 0; // a counter boss starts over once it is down
         if (m.group(2) == null) return;
         progress = Integer.parseInt(m.group(2));
         progressMax = Integer.parseInt(m.group(3));
@@ -253,6 +292,38 @@ public final class RealmBossTracker {
             } catch (NumberFormatException ignored) {
                 // keep no spot
             }
+        }
+    }
+
+    /** {@code (n/m) <text>}: the counter boss whose {@code counter} regex matches the line. */
+    private synchronized void onCounter(String line, int n, int max) {
+        for (Boss b : TelosData.BOSSES.get().tracked()) {
+            if (b.tracker().counter() == null || !b.tracker().counter().matcher(line).matches()) continue;
+            int[] c = counts.computeIfAbsent(Names.key(b.name()), k -> new int[2]);
+            c[0] = n;
+            c[1] = max;
+            return;
+        }
+    }
+
+    /** A counter boss's {@code ready} line: its count is full (Tenebris portal opened). */
+    private synchronized void onReadyLine(String line) {
+        for (Boss b : TelosData.BOSSES.get().tracked()) {
+            if (b.tracker().ready() == null || !b.tracker().ready().matcher(line).matches()) continue;
+            int[] c = counts.computeIfAbsent(Names.key(b.name()), k -> new int[] {0, b.tracker().counterMax()});
+            c[0] = c[1];
+        }
+    }
+
+    /**
+     * {@code feeder} went down: +1 on every boss that counts it ({@code countFrom}) — every defeat, respawns too.
+     * Counted from exactly one line per defeat: its {@code [Boss]} defeat line, or "has been defeated" without one.
+     */
+    private void feed(String feeder) {
+        for (Boss b : TelosData.BOSSES.get().tracked()) {
+            if (b.tracker().countFrom().stream().noneMatch(f -> Names.key(f).equals(Names.key(feeder)))) continue;
+            int[] c = counts.computeIfAbsent(Names.key(b.name()), k -> new int[] {0, b.tracker().counterMax()});
+            if (c[0] < c[1]) c[0]++;
         }
     }
 
