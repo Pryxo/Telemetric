@@ -189,7 +189,7 @@ public final class DpsLogHud extends HudModule {
 
         if (style.background.get()) {
             r.roundedRect(0, 0, w, h, 3, ColorUtil.fade(p.panel(), style.backgroundOpacity.get() / 100.0));
-            if (style.accentBar.get()) r.rect(alignRight ? w - 1 : 0, 2, 1, h - 4, p.accent());
+            if (style.accentBar.get() && !centered) r.rect(alignRight ? w - 1 : 0, 2, 1, h - 4, p.accent());
         }
         String title = "DPS Log";
         int tw = r.textWidth(title);

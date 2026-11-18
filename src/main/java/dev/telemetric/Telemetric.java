@@ -5,6 +5,7 @@ import dev.telemetric.data.TelosData;
 import dev.telemetric.game.BossMenuAdapter;
 import dev.telemetric.game.DropAdapter;
 import dev.telemetric.tracking.LootTracker;
+import dev.telemetric.tracking.WikiStatsScan;
 import dev.telemetric.tracking.RealmBossTracker;
 import dev.telemetric.tracking.TrackingStore;
 import dev.telemetric.config.ModPaths;
@@ -113,6 +114,7 @@ public final class Telemetric implements ClientModInitializer {
         DungeonTracker.get().tick();
         RealmBossTracker.get().tick();
         LootTracker.get().tick();
+        WikiStatsScan.get().tick();
         try {
             CooldownTracker.get().tick();
         } catch (RuntimeException e) {

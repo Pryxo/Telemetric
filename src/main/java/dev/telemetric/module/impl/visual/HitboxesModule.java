@@ -40,6 +40,7 @@ public final class HitboxesModule extends Module {
         kind(BoxKind.MOB, "Mobs", "mob hitboxes", true, 0xFFE5484D);
         kind(BoxKind.ARMOR_STAND, "Armor Stands", "armor stand hitboxes (Telos uses many as markers)", false, 0xFFA1A1AA);
         kind(BoxKind.ITEM, "Items", "dropped item hitboxes", true, 0xFF2DD4BF);
+        kind(BoxKind.OTHER, "Other", "every other entity's hitbox (props, projectiles, NPC boxes, ...)", false, 0xFFF5A524);
         WorldRenderAdapter.addUnderDrawer(this::draw);
     }
 

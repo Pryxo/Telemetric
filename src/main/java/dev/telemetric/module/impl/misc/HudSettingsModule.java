@@ -34,6 +34,9 @@ public final class HudSettingsModule extends Module {
     public final BooleanSetting statIcons = add(new BooleanSetting(
             "Stat Icons", "Show the server resource pack's icons in front of Tab-list stats", true));
 
+    public final BooleanSetting mirrorRight = add(new BooleanSetting(
+            "Mirror Right Align", "Right-aligned elements mirror their rows (\"Arcanist :Class <icon>\"); off keeps \"<icon> Class: Arcanist\"", true));
+
     public final BooleanSetting snapping = add(new BooleanSetting(
             "Snapping", "Snap to screen edges, centre and other elements in the editor (hold Shift to bypass)", true));
 

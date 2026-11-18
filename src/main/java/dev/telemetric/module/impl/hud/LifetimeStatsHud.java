@@ -4,9 +4,12 @@ import dev.telemetric.data.TelosData;
 import dev.telemetric.data.TelosData.Bag;
 import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.LinesHudModule;
+import dev.telemetric.hud.ShinyColors;
+import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.MultiChoiceSetting;
 import dev.telemetric.tracking.LootTracker;
 import dev.telemetric.tracking.TrackingStore;
+import dev.telemetric.tracking.WikiStatsScan;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +25,9 @@ public final class LifetimeStatsHud extends LinesHudModule {
 
     private final MultiChoiceSetting hidden = add(new MultiChoiceSetting("Hidden Rows",
             "Rows this element does not show", LifetimeStatsHud::rowLabels));
+    private final ActionSetting updateFromWiki = add(new ActionSetting("Update from Wiki",
+            "Reads your all-time bags and completions from /wiki (Dungeons & Bosses) and replaces the counted ones",
+            () -> WikiStatsScan.get().start()));
 
     public LifetimeStatsHud() {
         super("Lifetime Stats", "All-time loot bags per type, boss kills and runs (this account)", 1.0, 0.20, false);
@@ -33,14 +39,15 @@ public final class LifetimeStatsHud extends LinesHudModule {
         return "Lifetime Stats";
     }
 
-    private record Row(String label, String stat, int rgb, HudIcon icon) {}
+    private record Row(String label, String stat, int rgb, HudIcon icon, boolean shiny) {}
 
     /**
-     * The bag's pouch glyph ({@code icon} in {@code rarities.json}); without one the loot bag's own model: the totem
-     * path without {@code _totem} ({@code telos:mob/pouch/royal}).
+     * The rarity's small glyph ({@code glyph} in {@code rarities.json} — the one /wiki shows, text sized; the
+     * {@code icon} pouch glyph is far too big for a row); without one the loot bag's own model, one line tall: the
+     * totem path without {@code _totem} ({@code telos:mob/pouch/halloween}).
      */
     private static HudIcon bagIcon(Bag b) {
-        String glyph = b.icon();
+        String glyph = b.glyph();
         if (!glyph.isEmpty()) return new HudIcon.Glyph(glyph, null);
         String totem = b.totem();
         if (totem == null || totem.isEmpty()) return null;
@@ -62,10 +69,10 @@ public final class LifetimeStatsHud extends LinesHudModule {
             }
             String label = count == 1 ? only.label() : Character.toUpperCase(group.charAt(0)) + group.substring(1);
             int rgb = count == 1 && only.rgb() >= 0 ? 0xFF000000 | only.rgb() : 0;
-            rows.add(new Row(label, LootTracker.BAG_PREFIX + group, rgb, bagIcon(first)));
+            rows.add(new Row(label, LootTracker.BAG_PREFIX + group, rgb, bagIcon(first), group.equals("shiny")));
         }
-        rows.add(new Row(KILLS, LootTracker.STAT_KILLS, 0, null));
-        rows.add(new Row(RUNS, LootTracker.STAT_RUNS, 0, null));
+        rows.add(new Row(KILLS, LootTracker.STAT_KILLS, 0, null, false));
+        rows.add(new Row(RUNS, LootTracker.STAT_RUNS, 0, null, false));
         return rows;
     }
 
@@ -85,8 +92,11 @@ public final class LifetimeStatsHud extends LinesHudModule {
             if (hidden.contains(r.label())) continue;
             int n = store.stat(r.stat());
             any |= n > 0;
-            lines.add(new Line(r.label(), Integer.toString(preview && n == 0 ? example++ * 7 : n), r.rgb(), 0,
-                    List.of(), r.icon()));
+            String value = Integer.toString(preview && n == 0 ? example++ * 7 : n);
+            Line line = new Line(r.label(), value, r.rgb(), 0, List.of(), r.icon());
+            if (r.shiny()) // Telos' shiny animation on the label (the value stays in the normal colour)
+                line = line.styledRuns(ShinyColors.runs(r.label(), 0), List.of());
+            lines.add(line);
         }
         return any || preview ? lines : List.of();
     }

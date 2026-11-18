@@ -174,9 +174,18 @@ public class TabStatsHud extends LinesHudModule {
             runs = withExtra;
             value = value + " (" + extra + ")";
         }
-        String shown = isFragment(label) ? "" : label;
-        return new Line(shown, value, s.labelColor(), valueColor, runs,
-                TelosIcons.resolve(label, s.value(), tabIcon), TelosIcons.tinted(label));
+        HudIcon icon = TelosIcons.resolve(label, s.value(), tabIcon);
+        // icon-only mode drops the name, but only when there is an icon to stand in for it
+        boolean hideName = isFragment(label) || (iconOnly != null && iconOnly.get() && icon != null);
+        String shown = hideName ? "" : label;
+        return new Line(shown, value, s.labelColor(), valueColor, runs, icon, TelosIcons.tinted(label));
+    }
+
+    /** Optional "Icon Only" toggle: hide stat names, show just the icon and the number. */
+    private BooleanSetting iconOnly;
+
+    protected final void addIconOnly() {
+        iconOnly = add(new BooleanSetting("Icon Only", "Hide the stat names: show only the icon and the number", false));
     }
 
     /**
@@ -223,6 +232,8 @@ public class TabStatsHud extends LinesHudModule {
         return new TabStatsHud("Stats Info", "Combat stats (Attack, Speed, Defense ...) from the Tab list",
                 "Stats Info", List.of("Attack", "Speed", "Defense", "Health", "Vitality", "Evasion",
                         "Critical Chance", "Critical Damage", "Loot Boost", "Fame Boost"), 0.0, 0.75, false) {
+            { addIconOnly(); }
+
             // the tooltip stat symbols are 13 px wide with built-in padding: a tighter gap looks right
             @Override
             protected int iconGap() {

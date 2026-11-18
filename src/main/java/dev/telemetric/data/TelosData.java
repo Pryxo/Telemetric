@@ -157,10 +157,11 @@ public final class TelosData {
      * @param model custom model with the image screen ({@code telemetric:bags/<model>})
      * @param group Lifetime Stats row this bag counts in (the key unless several bags share one, e.g. {@code event})
      * @param rgb   bag colour 0xRRGGBB, or -1
-     * @param icon  pouch glyph in the server pack's default font ("" = none)
+     * @param icon  pouch glyph in the server pack's default font ("" = none) — large, the bag's picture
+     * @param glyph the rarity's small text-size glyph (the one chat and the /wiki use; "" = none)
      */
     public record Bag(String key, String label, String totem, String sound, String model, String group, int rgb,
-                      String icon) {}
+                      String icon, String glyph) {}
 
     public record Bags(List<Bag> list, Map<String, Bag> byTotem, Map<String, Bag> bySound, List<String> groups) {
         static final Bags EMPTY = new Bags(List.of(), Map.of(), Map.of(), List.of());
@@ -196,7 +197,7 @@ public final class TelosData {
                 String color = JsonFields.str(o, "color");
                 list.add(new Bag(key, JsonFields.str(o, "label"), "mob/pouch/" + bag, sound.isEmpty() ? key : sound, bag,
                         group.isEmpty() ? (event ? "event" : key) : group, color.isEmpty() ? -1 : JsonFields.rgb(color),
-                        JsonFields.str(o, "icon")));
+                        JsonFields.str(o, "icon"), JsonFields.str(o, "glyph")));
             }
         }
 

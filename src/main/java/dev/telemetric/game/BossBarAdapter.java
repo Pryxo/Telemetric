@@ -42,6 +42,16 @@ public final class BossBarAdapter {
 
     private BossBarAdapter() {}
 
+    /** True while a boss bar with a boss name (not a HUD widget bar) is shown. */
+    public static boolean hasBossBar() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gui == null) return false;
+        for (LerpingBossEvent e : ((BossHealthOverlayAccessor) mc.gui.getBossOverlay()).telemetric$getEvents().values()) {
+            if (letters(e.getName()).length() >= MIN_NAME) return true;
+        }
+        return false;
+    }
+
     /** Feet position of the boss-bar mob closest to the player, or null if none is loaded. */
     public static Point bossMobPos() {
         Minecraft mc = Minecraft.getInstance();

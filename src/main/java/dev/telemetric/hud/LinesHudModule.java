@@ -191,7 +191,7 @@ public abstract class LinesHudModule extends HudModule {
         if (style.background.get()) {
             int bg = ColorUtil.fade(p.panel(), style.backgroundOpacity.get() / 100.0);
             r.roundedRect(0, 0, w, h, 3, bg);
-            if (style.accentBar.get()) {
+            if (style.accentBar.get() && !centered) {
                 r.rect(alignRight ? w - 1 : 0, 2, 1, h - 4, p.accent());
             }
         }
@@ -212,15 +212,31 @@ public abstract class LinesHudModule extends HudModule {
             int lc = serverColors && line.labelColor() != 0 ? line.labelColor() : defaultLabel;
             int vc = serverColors && line.valueColor() != 0 ? line.valueColor() : defaultValue;
             int tint = line.tintIcon() ? iconTint(line, vc) : 0xFFFFFFFF;
+            boolean runColors = serverColors || line.ownColors();
             int x;
-            if (alignRight) {
-                // right-aligned: icons in a column at the right edge, text right-aligned against it
-                if (slot > 0) drawIcon(r, line.icon(), w - PAD_X - iconWidth(r, line.icon()), y, tint);
-                x = w - PAD_X - slot - rowWidth(r, line);
-            } else if (centered) {
-                // centred: each row (its own icon + text) centred in the element
+            if (alignRight && style.mirrorRight.get()) {
+                // right-aligned: the whole row mirrored — "Value :Label <icon>", icons in a column at the right edge
+                if (slot > 0 && line.icon() != null)
+                    drawIcon(r, line.icon(), w - PAD_X - iconWidth(r, line.icon()), y, tint);
+                x = w - PAD_X - slot;
+                if (!line.label().isEmpty()) {
+                    x -= labelWidth(r, line);
+                    if (line.styledLabel()) r.runs(line.labelRuns(), x, y, lc, runColors);
+                    else r.text(line.label(), x, y, lc);
+                    String sep = new StringBuilder(separator()).reverse().toString();
+                    x -= r.textWidth(sep);
+                    r.text(sep, x, y, p.textMuted());
+                }
+                x -= valueWidth(r, line);
+                if (line.styled()) r.runs(line.valueRuns(), x, y, vc, runColors);
+                else r.text(line.value(), x, y, vc);
+                y += lineHeight(r);
+                continue;
+            } else if (centered || alignRight) {
+                // centred / unmirrored right: each whole row (its own icon + text) aligned as one block
                 int iw = slot > 0 && line.icon() != null ? iconWidth(r, line.icon()) + iconGap() : 0;
-                x = (w - iw - rowWidth(r, line)) / 2;
+                int rw = iw + rowWidth(r, line);
+                x = alignRight ? w - PAD_X - rw : (w - rw) / 2;
                 if (iw > 0) drawIcon(r, line.icon(), x, y, tint);
                 x += iw;
             } else {
@@ -228,7 +244,6 @@ public abstract class LinesHudModule extends HudModule {
                 x = PAD_X + slot;
             }
 
-            boolean runColors = serverColors || line.ownColors();
             if (!line.label().isEmpty()) {
                 if (line.styledLabel()) r.runs(line.labelRuns(), x, y, lc, runColors);
                 else r.text(line.label(), x, y, lc);

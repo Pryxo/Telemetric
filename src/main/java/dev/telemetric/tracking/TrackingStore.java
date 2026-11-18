@@ -158,6 +158,12 @@ public final class TrackingStore {
         changed();
     }
 
+    /** Overwrites a stat (the /wiki update: the server's own all-time numbers replace the tracked ones). */
+    public synchronized void setStat(String key, int value) {
+        stats.put(key, value);
+        changed();
+    }
+
     // ------------------------------------------------------------------ file
 
     private void changed() {

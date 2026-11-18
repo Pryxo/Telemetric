@@ -220,7 +220,7 @@ public final class EntityVisualsAdapter {
 
     // ================================================================== hitboxes
 
-    public enum BoxKind { SELF, PLAYER, MOB, ARMOR_STAND, ITEM }
+    public enum BoxKind { SELF, PLAYER, MOB, ARMOR_STAND, ITEM, OTHER }
 
     @FunctionalInterface
     public interface BoxConsumer {
@@ -230,8 +230,8 @@ public final class EntityVisualsAdapter {
     /**
      * Interpolated bounding boxes of the entities within {@code range} blocks (your own only in third person).
      * Telos mobs / dummies ({@link Interaction} hitbox with a model and an HP stack, see
-     * {@link #forEachHittableBox}) count as {@link BoxKind#MOB}; other interaction and paper-thin display boxes are
-     * skipped.
+     * {@link #forEachHittableBox}) count as {@link BoxKind#MOB}; every other entity is {@link BoxKind#OTHER}.
+     * Paper-thin (display) boxes are skipped.
      */
     public static void forEachBox(double range, BoxConsumer out) {
         Minecraft mc = Minecraft.getInstance();
@@ -241,6 +241,7 @@ public final class EntityVisualsAdapter {
         float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double r2 = range * range;
         List<Display.TextDisplay> tags = hpTags(level, self, range);
+        boolean boss = BossBarAdapter.hasBossBar();
         for (Entity e : level.entitiesForRendering()) {
             BoxKind kind;
             if (e == self) {
@@ -250,11 +251,13 @@ public final class EntityVisualsAdapter {
             else if (e instanceof ArmorStand) kind = BoxKind.ARMOR_STAND;
             else if (e instanceof LivingEntity) kind = BoxKind.MOB;
             else if (e instanceof ItemEntity) kind = BoxKind.ITEM;
-            else if (e instanceof Interaction h && e.distanceToSqr(self) <= r2 && hasModel(h) && hasHpTag(h, tags)) {
+            else if (e instanceof Interaction h && e.distanceToSqr(self) <= r2 && isTelosMob(h, tags, boss)) {
                 kind = BoxKind.MOB;
-            } else continue;
+            } else kind = BoxKind.OTHER;
             if (e != self && e.distanceToSqr(self) > r2) continue;
             AABB b = e.getBoundingBox();
+            // Telos spawns marker armor stands (no hitbox) to carry ability / projectile models: show a small box.
+            if (kind == BoxKind.ARMOR_STAND && b.getXsize() < 0.01) b = b.inflate(MARKER_HALF, 0, MARKER_HALF).expandTowards(0, MARKER_HALF * 2, 0);
             if (b.getXsize() < 0.01 || b.getYsize() < 0.01 || b.getZsize() < 0.01) continue;
             double dx = (e.xo - e.getX()) * (1 - pt), dy = (e.yo - e.getY()) * (1 - pt), dz = (e.zo - e.getZ()) * (1 - pt);
             out.box(kind, b.minX + dx, b.minY + dy, b.minZ + dz, b.maxX + dx, b.maxY + dy, b.maxZ + dz);
@@ -280,10 +283,11 @@ public final class EntityVisualsAdapter {
         float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double r2 = range * range;
         List<Display.TextDisplay> tags = hpTags(level, self, range);
+        boolean boss = BossBarAdapter.hasBossBar();
         for (Entity e : level.entitiesForRendering()) {
             if (e.distanceToSqr(self) > r2) continue;
             if (e instanceof Interaction hitbox) {
-                if (!hasModel(hitbox) || !hasHpTag(hitbox, tags)) continue;
+                if (!isTelosMob(hitbox, tags, boss)) continue;
             } else if (!(e instanceof Mob mob) || !mob.isAlive() || mob.getHealth() <= 0 || mob.isInvisible()
                     || mob.isNoAi() || !mob.isPickable() || !mob.isAttackable()) {
                 continue;
@@ -293,6 +297,25 @@ public final class EntityVisualsAdapter {
             double dx = (e.xo - e.getX()) * (1 - pt), dy = (e.yo - e.getY()) * (1 - pt), dz = (e.zo - e.getZ()) * (1 - pt);
             out.box(BoxKind.MOB, b.minX + dx, b.minY + dy, b.minZ + dz, b.maxX + dx, b.maxY + dy, b.maxZ + dz);
         }
+    }
+
+    /** Half size (blocks) of the box drawn for a marker armor stand, which has no hitbox of its own. */
+    private static final double MARKER_HALF = 0.25;
+    /** A boss hitbox (HP in the boss bar, no HP text stack) is at least this wide. */
+    private static final double BOSS_MIN_WIDTH = 2.0;
+    /** ... or at least this tall (Sylvaris: a 1.25-wide, ~80-tall box; minions are under 2 tall). */
+    private static final double BOSS_MIN_HEIGHT = 4.0;
+
+    /**
+     * A Telos mob hitbox: has a model and either an HP text stack, or — while a boss bar is shown — a boss-sized
+     * box, wide or tall (bosses like Sylvaris carry their HP in the boss bar only, so they have no HP stack).
+     */
+    private static boolean isTelosMob(Interaction hitbox, List<Display.TextDisplay> tags, boolean bossBar) {
+        if (!hasModel(hitbox)) return false;
+        if (hasHpTag(hitbox, tags)) return true;
+        AABB b = hitbox.getBoundingBox();
+        if (!bossBar || b.getYsize() < 0.5) return false;
+        return Math.min(b.getXsize(), b.getZsize()) >= BOSS_MIN_WIDTH || b.getYsize() >= BOSS_MIN_HEIGHT;
     }
 
     /** Text displays near enough to be the HP stack of a hitbox within {@code range}. */
@@ -319,10 +342,13 @@ public final class EntityVisualsAdapter {
     private static boolean hasHpTag(Interaction hitbox, List<Display.TextDisplay> tags) {
         AABB b = hitbox.getBoundingBox();
         double cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+        // Big mobs (bosses like Valus) carry their HP stack further out: scale the tolerance with the box.
+        double side = Math.max(HP_TAG_SIDE, Math.max(b.getXsize(), b.getZsize()) / 2);
+        double above = HP_TAG_ABOVE + b.getYsize() / 2;
         for (Display.TextDisplay t : tags) {
             double dx = t.getX() - cx, dz = t.getZ() - cz;
-            if (dx * dx + dz * dz > HP_TAG_SIDE * HP_TAG_SIDE) continue;
-            if (t.getY() >= b.minY && t.getY() <= b.maxY + HP_TAG_ABOVE) return true;
+            if (dx * dx + dz * dz > side * side) continue;
+            if (t.getY() >= b.minY && t.getY() <= b.maxY + above) return true;
         }
         return false;
     }

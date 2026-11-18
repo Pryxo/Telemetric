@@ -87,7 +87,7 @@ public final class BossTrackerModule extends LinesHudModule {
 
     public BossTrackerModule() {
         super("Boss Tracker", "Realm bosses: list on the HUD + waypoints (alive, fought by, portal timer)",
-                Category.VISUAL, 0.0, 0.30, false);
+                Category.HUD, 0.0, 0.30, false);
         addUseServerColor();
         WorldLabelAdapter.addSource(this::labels);
         WorldRenderAdapter.addDrawer(this::drawBeams);

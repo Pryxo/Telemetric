@@ -5,6 +5,10 @@ import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -43,7 +47,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * outline / fill, camera-facing rectangles). Everything is batched into four render types once per frame:
  * lines / quads, each depth-tested or see-through (no depth test). Drawers added with {@link #addUnderDrawer}
  * (e.g. Hitboxes) form a separate layer that is drawn first and never writes depth, so everything else (health
- * bars, ranges) stays on top of it. {@link WorldLabelAdapter} labels are drawn right after, from the same hook.
+ * bars, ranges) stays on top of it. {@link WorldLabelAdapter} labels are drawn right after.
+ * <p>
+ * Everything is drawn at {@code END_MAIN}, after translucent terrain (water, stained glass, ice) and translucent
+ * particles, so those never cover the overlays. The depth test uses a copy of the depth buffer taken right before
+ * translucent terrain ({@link #snapshotDepth}): only opaque blocks hide the shapes, translucent ones never do.
  */
 public final class WorldRenderAdapter {
 
@@ -129,7 +137,8 @@ public final class WorldRenderAdapter {
     public static void register() {
         if (registered) return;
         registered = true;
-        LevelRenderEvents.BEFORE_GIZMOS.register(WorldRenderAdapter::render);
+        LevelRenderEvents.BEFORE_TRANSLUCENT_TERRAIN.register(ctx -> snapshotDepth());
+        LevelRenderEvents.END_MAIN.register(WorldRenderAdapter::render);
     }
 
     public static void addDrawer(Drawer drawer) {
@@ -143,8 +152,54 @@ public final class WorldRenderAdapter {
 
     private static void render(LevelRenderContext ctx) {
         captureView(ctx.levelState().cameraRenderState);
-        renderShapes(ctx);
-        WorldLabelAdapter.render(ctx);
+        GpuTextureView depth = depthReady ? opaqueDepthView : null;
+        depthReady = false;
+        GpuTextureView prevDepth = RenderSystem.outputDepthTextureOverride;
+        if (depth != null) RenderSystem.outputDepthTextureOverride = depth;
+        try {
+            renderShapes(ctx);
+            WorldLabelAdapter.render(ctx);
+        } finally {
+            if (depth != null) RenderSystem.outputDepthTextureOverride = prevDepth;
+        }
+    }
+
+    // ------------------------------------------------------------------ opaque-only depth
+
+    private static GpuTexture opaqueDepth;
+    private static GpuTextureView opaqueDepthView;
+    private static boolean depthReady, depthFailed;
+
+    /**
+     * Copies the main depth buffer right before translucent terrain, i.e. depth of opaque blocks and entities only.
+     * The overlays drawn at {@code END_MAIN} test against this copy (via {@link RenderSystem#outputDepthTextureOverride},
+     * the same mechanism vanilla's late debug pass uses), so water / glass / ice / translucent particles neither hide
+     * nor tint them. If the copy fails, they test against the live depth buffer instead.
+     */
+    private static void snapshotDepth() {
+        depthReady = false;
+        if (depthFailed) return;
+        try {
+            RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
+            GpuTexture src = main.getDepthTexture();
+            if (src == null) return;
+            int w = src.getWidth(0), h = src.getHeight(0);
+            if (opaqueDepth == null || opaqueDepth.isClosed() || opaqueDepth.getWidth(0) != w
+                    || opaqueDepth.getHeight(0) != h || opaqueDepth.getFormat() != src.getFormat()) {
+                if (opaqueDepthView != null) opaqueDepthView.close();
+                if (opaqueDepth != null) opaqueDepth.close();
+                var device = RenderSystem.getDevice();
+                opaqueDepth = device.createTexture(Telemetric.MOD_ID + " opaque depth",
+                        GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_TEXTURE_BINDING,
+                        src.getFormat(), w, h, 1, 1);
+                opaqueDepthView = device.createTextureView(opaqueDepth);
+            }
+            RenderSystem.getDevice().createCommandEncoder().copyTextureToTexture(src, opaqueDepth, 0, 0, 0, 0, 0, w, h);
+            depthReady = true;
+        } catch (RuntimeException | LinkageError e) {
+            depthFailed = true;
+            Telemetric.LOGGER.error("Opaque depth copy unavailable, world overlays use the live depth buffer", e);
+        }
     }
 
     // ------------------------------------------------------------------ world → screen
