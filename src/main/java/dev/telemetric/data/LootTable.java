@@ -21,10 +21,9 @@ import java.util.Set;
  *                 minibosses and bosses outside dungeons)
  */
 public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<BossLoot>> bossesByKey,
-                        Map<String, Drop> byModel, Map<String, List<Drop>> byName, Map<String, Drop> byKey,
-                        Map<String, String> aliases) {
+                        Map<String, Drop> byModel, Map<String, List<Drop>> byName, Map<String, Drop> byKey) {
 
-    static final LootTable EMPTY = new LootTable(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+    static final LootTable EMPTY = new LootTable(Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
 
     /** Bucket of minibosses and bosses outside any dungeon. */
     public static final String REALM = "Realm";
@@ -107,7 +106,7 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
      * From the {@code bosses} array of Boss.json: every boss with a {@code drops} list, dungeon bosses by their
      * {@code dungeon}, every other boss in {@value #REALM} (kept last, see {@link #ownerOf}).
      */
-    static LootTable parse(JsonArray bosses, JsonObject aliasTable) {
+    static LootTable parse(JsonArray bosses) {
         Map<String, List<BossLoot>> dungeons = new LinkedHashMap<>();
         List<BossLoot> realm = new ArrayList<>();
         Map<String, List<BossLoot>> byBoss = new HashMap<>();
@@ -147,17 +146,11 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         }
         dungeons.replaceAll((k, v) -> List.copyOf(v));
         dungeons.put(Names.key(REALM), List.copyOf(realm));
-        Map<String, String> aliases = new HashMap<>();
-        if (aliasTable != null) {
-            for (Map.Entry<String, JsonElement> e : aliasTable.entrySet()) {
-                if (e.getValue().isJsonPrimitive()) aliases.put(Names.placeKey(e.getKey()), Names.placeKey(e.getValue().getAsString()));
-            }
-        }
         byBoss.replaceAll((k, v) -> List.copyOf(v));
         byName.replaceAll((k, v) -> List.copyOf(v));
         // dungeons keeps the file order (realm bosses last, see ownerOf) — Map.copyOf would scramble it
         return new LootTable(Collections.unmodifiableMap(dungeons), Map.copyOf(byBoss), Map.copyOf(byModel), Map.copyOf(byName),
-                Map.copyOf(byKey), Map.copyOf(aliases));
+                Map.copyOf(byKey));
     }
 
     /**
@@ -211,7 +204,6 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         if (key.isEmpty() || key.equals(Names.key(REALM))) return List.of();
         List<BossLoot> list = dungeons.get(Names.partKey(placeName));
         if (list == null) list = dungeons.get(key);
-        if (list == null && aliases.containsKey(key)) list = dungeons.get(aliases.get(key));
         return list == null ? List.of() : list;
     }
 

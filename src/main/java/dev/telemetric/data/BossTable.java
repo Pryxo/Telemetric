@@ -78,7 +78,7 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
             if (b.tracker() != null) tracked.add(b);
         }
         return new BossTable(List.copyOf(all), Map.copyOf(realm), List.copyOf(tracked), defaultPortal, List.copyOf(zones),
-                LootTable.parse(bosses, root.getAsJsonObject("aliases")), TelosData.BossBars.parse(bosses));
+                LootTable.parse(bosses), TelosData.BossBars.parse(bosses));
     }
 
     /**
