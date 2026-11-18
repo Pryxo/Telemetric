@@ -33,6 +33,11 @@ public class TabStatsHud extends LinesHudModule {
     private final Map<String, BooleanSetting> stats = new LinkedHashMap<>();
     /** Per-stat "show real value" toggles (only stats with a known formula). */
     private final Map<String, BooleanSetting> real = new LinkedHashMap<>();
+    /**
+     * Stats Info: the stat colour lives on the label (kept); the server's plain value colour is dropped so values
+     * follow Theme → HUD Value.
+     */
+    private final boolean themeValues;
 
     /** @param serverColorToggle add "Use Server Color" (not for Stats Info: every stat has its own colour) */
     public TabStatsHud(String name, String description, String title, List<String> labels,
@@ -41,6 +46,7 @@ public class TabStatsHud extends LinesHudModule {
         this.title = title;
         this.showTitle = add(new BooleanSetting("Show Title", "Show the \"" + title + "\" heading", true));
         if (serverColorToggle) addUseServerColor();
+        this.themeValues = !serverColorToggle;
         for (String label : labels) {
             String desc = "Show " + label + " from the Tab list";
             if (StatFormulas.supported(label)) {
@@ -138,6 +144,19 @@ public class TabStatsHud extends LinesHudModule {
         return label.toLowerCase(Locale.ROOT).endsWith("fragments");
     }
 
+    /** Mirrored rows read right-to-left: the " (real %)" extra goes in front of the value — "(12%) 5 :Attack". */
+    @Override
+    protected List<TextRun> mirroredValueRuns(Line line) {
+        List<TextRun> runs = line.valueRuns();
+        if (real.isEmpty() || runs == null || runs.size() < 2) return runs;
+        TextRun last = runs.getLast();
+        if (!last.text().startsWith(" (") || !last.text().endsWith(")")) return runs;
+        List<TextRun> out = new ArrayList<>(runs.size());
+        out.add(new TextRun(last.text().substring(1) + " ", last.color(), last.font()));
+        out.addAll(runs.subList(0, runs.size() - 1));
+        return out;
+    }
+
     private Line line(String label, TabStat s) {
         String key = label.toLowerCase(Locale.ROOT);
         String value = s.value();
@@ -165,6 +184,12 @@ public class TabStatsHud extends LinesHudModule {
                 runs = List.of();
                 break;
             }
+        }
+        if (themeValues) {
+            valueColor = 0;
+            List<TextRun> plain = new ArrayList<>(runs.size());
+            for (TextRun r : runs) plain.add(new TextRun(r.text(), 0, r.font()));
+            runs = plain;
         }
         BooleanSetting realToggle = real.get(label);
         String extra = realToggle != null && realToggle.get() ? StatFormulas.real(label, s.value()) : null;

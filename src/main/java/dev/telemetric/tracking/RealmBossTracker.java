@@ -89,7 +89,7 @@ public final class RealmBossTracker {
     private final Map<String, Tracked> tracked = new LinkedHashMap<>();
     /** n/m of the counter bosses (Cog Sentinel, Tenebris Portal, Defender), by {@link Names#key}. */
     private final Map<String, int[]> counts = new LinkedHashMap<>();
-    private int progress, progressMax = 10;
+    private int progress, progressMax;
     private long realmJoinedAt;
     private Object world;
     private boolean wasDungeon;
@@ -145,7 +145,8 @@ public final class RealmBossTracker {
         tracked.clear();
         counts.clear();
         progress = 0;
-        progressMax = 10;
+        Boss pb = TelosData.BOSSES.get().progressBoss();
+        progressMax = pb == null ? 0 : pb.tracker().counterMax(); // Boss.json counterMax until a line names it
         for (Boss b : TelosData.BOSSES.get().tracked()) {
             BossTable.Tracker tr = b.tracker();
             if (tr.counted() && !tr.progress()) counts.put(Names.key(b.name()), new int[] {0, tr.counterMax()});
@@ -181,8 +182,7 @@ public final class RealmBossTracker {
     private synchronized void expirePortals(long now) {
         for (Tracked t : tracked.values()) {
             if (t.state != State.PORTAL || now < t.portalUntil) continue;
-            t.state = State.DEFEATED;
-            if (t.boss.tracker() != null && t.boss.tracker().progress()) progress = 0;
+            t.state = State.DEFEATED; // progress was reset when the portal opened; kills since then stay
         }
     }
 
@@ -200,9 +200,11 @@ public final class RealmBossTracker {
 
     private synchronized void readMenu(List<MenuItem> items) {
         if (!isBossMenu(items)) return;
+        BossTable.MenuText text = TelosData.BOSSES.get().menu();
         for (MenuItem i : items) {
             Matcher name = MENU_NAME.matcher(i.name());
-            if (i.name().contains("Raphael") || i.lore().contains("Raphael")) {
+            Boss pb = TelosData.BOSSES.get().progressBoss();
+            if (pb != null && (i.name().contains(pb.name()) || i.lore().contains(pb.name()))) {
                 Matcher p = PROGRESS.matcher(i.lore());
                 if (p.find()) {
                     progress = Integer.parseInt(p.group(1));
@@ -223,14 +225,13 @@ public final class RealmBossTracker {
                 if (p.find()) {
                     c[0] = Integer.parseInt(p.group(1));
                     c[1] = Integer.parseInt(p.group(2));
-                } else if (!i.lore().contains("not spawned") && !i.lore().contains("hasn't")
-                        && !i.lore().contains("invulnerable")) {
+                } else if (!text.waiting(i.lore())) {
                     c[0] = c[1]; // no count left: it is up / open
                 }
             }
-            if (i.lore().contains("This boss is alive")) set(boss, State.ALIVE);
-            else if (i.lore().contains("This boss has been defeated")) set(boss, State.DEFEATED);
-            else if (i.lore().contains("This boss has not spawned")) remove(boss);
+            if (i.lore().contains(text.alive())) set(boss, State.ALIVE);
+            else if (i.lore().contains(text.defeated())) set(boss, State.DEFEATED);
+            else if (i.lore().contains(text.notSpawned())) remove(boss);
         }
     }
 
@@ -269,6 +270,7 @@ public final class RealmBossTracker {
         progress = Integer.parseInt(m.group(2));
         progressMax = Integer.parseInt(m.group(3));
         if (progress < progressMax) return;
+        progress = 0; // full: the portal opens and the next round counts from here
         for (Boss b : TelosData.BOSSES.get().tracked()) {
             if (b.tracker().progress()) openPortal(b.name(), b);
         }
@@ -306,12 +308,18 @@ public final class RealmBossTracker {
         }
     }
 
-    /** A counter boss's {@code ready} line: its count is full (Tenebris portal opened). */
+    /** A counter boss's {@code ready} line (count full) or {@code down} line (cooldown starts). */
     private synchronized void onReadyLine(String line) {
         for (Boss b : TelosData.BOSSES.get().tracked()) {
             if (b.tracker().ready() == null || !b.tracker().ready().matcher(line).matches()) continue;
             int[] c = counts.computeIfAbsent(Names.key(b.name()), k -> new int[] {0, b.tracker().counterMax()});
             c[0] = c[1];
+        }
+        for (Boss b : TelosData.BOSSES.get().tracked()) {
+            if (b.tracker().down() == null || !b.tracker().down().matcher(line).matches()) continue;
+            openPortal(b.name(), b); // its cooldown; the counter keeps counting meanwhile
+            int[] own = counts.get(Names.key(b.name()));
+            if (own != null) own[0] = 0;
         }
     }
 
@@ -333,6 +341,7 @@ public final class RealmBossTracker {
         Tracked t = tracked.get(Names.key(name));
         if (t == null) {
             Boss boss = TelosData.BOSSES.get().realm(name);
+            if (boss == null || boss.tracker() == null) boss = TelosData.BOSSES.get().trackedBoss(name); // dungeon boss
             if (boss == null || boss.tracker() == null) return null;
             t = add(boss, state);
         }

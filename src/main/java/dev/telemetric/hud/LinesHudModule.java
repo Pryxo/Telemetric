@@ -93,12 +93,18 @@ public abstract class LinesHudModule extends HudModule {
 
     /**
      * Adds the "Use Server Color" toggle (on by default): rows without their own server colour are drawn in
-     * {@link #SERVER_LABEL}/{@link #SERVER_VALUE}; off = theme colours (and Tab-list row colours are ignored).
+     * {@link #SERVER_LABEL}/{@link #SERVER_VALUE}; off = Theme's HUD Index / HUD Value colours (and Tab-list row
+     * colours are ignored).
      */
     protected final BooleanSetting addUseServerColor() {
         useServerColor = add(new BooleanSetting("Use Server Color",
                 "Draw this element in the server's colours (yellow labels, green values) instead of the theme", true));
         return useServerColor;
+    }
+
+    /** Value runs of a mirrored (right-aligned, "Value :Label") row; same width as the normal runs. */
+    protected List<TextRun> mirroredValueRuns(Line line) {
+        return line.valueRuns();
     }
 
     /** The "Use Server Color" toggle this element follows (null = none); split-off parts return their owner's. */
@@ -212,8 +218,8 @@ public abstract class LinesHudModule extends HudModule {
         BooleanSetting useServerColor = serverColorToggle();
         boolean serverPalette = useServerColor != null && useServerColor.get();
         boolean serverColors = style.serverColors.get() && (useServerColor == null || serverPalette);
-        int defaultLabel = serverPalette ? SERVER_LABEL : p.accent();
-        int defaultValue = serverPalette ? SERVER_VALUE : p.text();
+        int defaultLabel = serverPalette ? SERVER_LABEL : Telemetric.get().theme().hudIndex();
+        int defaultValue = serverPalette ? SERVER_VALUE : Telemetric.get().theme().hudValue();
         int slot = iconSlot(r, lines);
         int y = PAD_Y;
         if (title() != null) {
@@ -246,7 +252,7 @@ public abstract class LinesHudModule extends HudModule {
                     r.text(sep, x, y, p.textMuted());
                 }
                 x -= valueWidth(r, line);
-                if (line.styled()) r.runs(line.valueRuns(), x, y, vc, runColors);
+                if (line.styled()) r.runs(mirroredValueRuns(line), x, y, vc, runColors);
                 else r.text(line.value(), x, y, vc);
                 y += lineHeight(r);
                 continue;

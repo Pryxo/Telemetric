@@ -1,6 +1,7 @@
 package dev.telemetric.dungeon.rules;
 
 import dev.telemetric.chat.ChatPattern;
+import dev.telemetric.data.TelosData;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -26,16 +27,6 @@ public final class DungeonRulebook {
         // clear mobs: "Dyerftum Overlord" (nameplate read in game, 2026-11-14). No boss drop: spawn + 2 clear mobs
         // (user, 2026-11-14); its boss bar ("The Creator") sits on a mob at y 30 under the spawn, not a boss level
         rule("Illarius' Hideout", DungeonRules.DEFAULT.withGoalMob("Dyerftum Overlord").withBossLevel(false));
-        // no Wayfinder / Dungeon Map (user request, 2026-11-14). Names are location names (game/TelosLocations:
-        // HUD box + biome part). Celestial's Province parts share one biome, so the base name covers both.
-        for (String name : new String[]{
-                "Omnipotent's Citadel", "Fungal Cavern", "Tartarus", "Raphael's Castle", "Aurora Sanctum",
-                "The Aviary", "Raphael's Chamber",
-                "Rustborn Kingdom", "Rustborn Kingdom: Part I", "Rustborn Kingdom: Part II", "Rustborn Kingdom: Part III",
-                "Resounding Ruins", "Celestial's Province", "Celestial's Province: Part I", "Celestial's Province: Part II",
-                "Seraph's Domain", "Dawn of Creation", "Neo Eden", "Tenebris"}) {
-            rule(name, DungeonRules.DEFAULT.withMapped(false));
-        }
         // books: each pick-up sends a random line + "(x/5)" (read in game, 2026-11-14): line italic, "(x/5)" bold
         rule("Resounding Ruins", rulesFor("Resounding Ruins").withChatCounter(new ChatCounter("Books", 5,
                 ChatPattern.builder("Resounding Ruins book", "(?<line>[^()\\n]+) \\((?<n>\\d+)/(?<total>\\d+)\\)")
@@ -57,7 +48,7 @@ public final class DungeonRulebook {
                 java.util.regex.Pattern.compile("\\((?<n>\\d+)/\\d+\\)"))));
         // 3 puzzle rooms, 2 spawn the boss; no Wayfinder / Dungeon Map (user, 2026-11-14). Messages (read live
         // 2026-11-14) are colour-only runs, no bold/italic → one plain run
-        rule("Dreadwood Thicket", DungeonRules.DEFAULT.withMapped(false).withChatPuzzles(new ChatPuzzles(
+        rule("Dreadwood Thicket", DungeonRules.DEFAULT.withChatPuzzles(new ChatPuzzles(
                 "Completed Room", 3,
                 dreadwood("Dreadwood room attempt", "is attempting the "),
                 dreadwood("Dreadwood room complete", "has completed the "),
@@ -84,7 +75,11 @@ public final class DungeonRulebook {
     /** Rules for this dungeon, {@link DungeonRules#DEFAULT} if it has none (or the name is unknown). */
     public static DungeonRules rulesFor(String dungeon) {
         if (dungeon == null) return DungeonRules.DEFAULT;
-        return RULES.getOrDefault(normalize(dungeon), DungeonRules.DEFAULT);
+        String key = normalize(dungeon);
+        DungeonRules r = RULES.getOrDefault(key, DungeonRules.DEFAULT);
+        // no Wayfinder / Dungeon Map: dungeons.json → unmapped (location names, matched normalised)
+        for (String u : TelosData.DUNGEON_TABLE.get().unmapped()) if (normalize(u).equals(key)) return r.withMapped(false);
+        return r;
     }
 
     static String normalize(String name) {

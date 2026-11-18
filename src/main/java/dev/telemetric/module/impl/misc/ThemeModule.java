@@ -32,6 +32,13 @@ public final class ThemeModule extends Module {
     public final ColorSetting accentAlt = add(customAccent.child(new ColorSetting(
             "Accent 2", "Secondary accent used in gradients", DEFAULTS.accentAlt(), false)));
 
+    public final ActionSetting copyAccentPreset = add(customAccent.child(new ActionSetting(
+            "Copy From Preset", "Fill the custom accents with the selected preset's accents", () -> {
+                accent.set(preset.get().theme().accent());
+                accentAlt.set(preset.get().theme().accentAlt());
+                Toasts.info("Copied accents from " + preset.get().displayName());
+            })));
+
     // ---- full palette override ----
     public final GroupToggleSetting customColors = add(new GroupToggleSetting(
             "Custom Colors", "Use your own colours for every part of the interface instead of the preset's "
@@ -57,6 +64,17 @@ public final class ThemeModule extends Module {
                 copyColorsFrom(preset.get().theme());
                 Toasts.info("Copied colours from " + preset.get().displayName());
             })));
+
+    // ---- HUD text colours (elements with "Use Server Color" off) ----
+    public final GroupToggleSetting customHudColors = add(new GroupToggleSetting(
+            "Custom HUD Colors", "Your own index (label) and value colours for every HUD element that doesn't use "
+            + "the server colours (right-click to edit; off = accent / text colour)", false));
+
+    public final ColorSetting hudIndexColor = add(customHudColors.child(new ColorSetting(
+            "HUD Index", "Labels of HUD rows (\"Kills\" in \"Kills: 12\")", DEFAULTS.accent(), false)));
+
+    public final ColorSetting hudValueColor = add(customHudColors.child(new ColorSetting(
+            "HUD Value", "Values of HUD rows (\"12\" in \"Kills: 12\")", DEFAULTS.text(), false)));
 
     // ---- look ----
     public final BooleanSetting headerGradient = add(new BooleanSetting(
@@ -88,6 +106,14 @@ public final class ThemeModule extends Module {
         customColors.onChange(on -> {
             if (on && paletteColors().stream().allMatch(c -> c.get().equals(c.getDefault()))) {
                 copyColorsFrom(preset.get().theme());
+            }
+        });
+        customHudColors.onChange(on -> {
+            if (on && hudIndexColor.get().equals(hudIndexColor.getDefault())
+                    && hudValueColor.get().equals(hudValueColor.getDefault())) {
+                Theme t = resolvedPalette();
+                hudIndexColor.set(t.accent());
+                hudValueColor.set(t.text());
             }
         });
     }

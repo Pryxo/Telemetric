@@ -189,7 +189,7 @@ public class CalloutsModule extends Module {
                 String model = portal == null ? null
                         : portal.model().isEmpty() && table.unmodelledArea().equalsIgnoreCase(area) ? table.unmodelledPortal()
                         : portal.model();
-                String label = model == null || model.isEmpty() ? null : table.portalLabel(model, TelosLocations.DUNGEONS);
+                String label = model == null || model.isEmpty() ? null : table.portalLabel(model, TelosLocations.dungeons());
                 if (label != null) {
                     target = label;
                     message = Callouts.portal(label, portal.secondsLeft());

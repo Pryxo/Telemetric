@@ -196,7 +196,8 @@ public final class BossTrackerModule extends LinesHudModule {
         String value;
         int vc;
         if (s == State.PORTAL) {
-            value = "Portal " + t.portalSeconds(now) + "s";
+            // the count keeps running during the cooldown: show both
+            value = t.portalSeconds(now) + "s · " + (c == null ? 0 : c[0]) + "/" + (c == null ? b.tracker().counterMax() : c[1]);
             vc = portalColor.get();
         } else if (s == State.ALIVE && t.calledBy() != null) {
             value = t.calledBy();
@@ -241,8 +242,8 @@ public final class BossTrackerModule extends LinesHudModule {
 
     private Line progressLine(Boss b, Tracked t, long now) {
         boolean portal = t != null && t.state() == State.PORTAL;
-        String value = portal ? "Portal " + t.portalSeconds(now) + "s"
-                : tracker.progress() + "/" + tracker.progressMax();
+        String count = tracker.progress() + "/" + tracker.progressMax();
+        String value = portal ? t.portalSeconds(now) + "s · " + count : count; // kills keep counting during the portal
         int c = portal || tracker.progress() >= tracker.progressMax() ? portalColor.get() : availableColor.get();
         return new Line(b.name(), value, t == null ? availableColor.get() : color(t), c, List.of(), icon(b));
     }

@@ -80,4 +80,16 @@ public final class ThemeManager {
     public boolean headerGradient() {
         return Telemetric.get().modules().get(ThemeModule.class).headerGradient.get();
     }
+
+    /** Label ("index") colour of HUD rows that don't use the server colours: Theme → Custom HUD Colors, else accent. */
+    public int hudIndex() {
+        ThemeModule module = Telemetric.get().modules().get(ThemeModule.class);
+        return module.customHudColors.get() ? module.hudIndexColor.get() : current.accent();
+    }
+
+    /** Value colour of HUD rows that don't use the server colours: Theme → Custom HUD Colors, else text. */
+    public int hudValue() {
+        ThemeModule module = Telemetric.get().modules().get(ThemeModule.class);
+        return module.customHudColors.get() ? module.hudValueColor.get() : current.text();
+    }
 }

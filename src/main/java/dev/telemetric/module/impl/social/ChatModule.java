@@ -242,7 +242,7 @@ public class ChatModule extends Module implements ChatView {
         for (BossTable.Boss b : TelosData.BOSSES.get().all()) if (!b.isDungeonBoss() && !b.name().isBlank()) bosses.add(b.name());
         bosses.sort(String.CASE_INSENSITIVE_ORDER);
         out.addAll(bosses);
-        List<String> portals = new ArrayList<>(TelosLocations.DUNGEONS);
+        List<String> portals = new ArrayList<>(TelosLocations.dungeons());
         portals.sort(String.CASE_INSENSITIVE_ORDER);
         out.addAll(portals);
         return List.copyOf(out);

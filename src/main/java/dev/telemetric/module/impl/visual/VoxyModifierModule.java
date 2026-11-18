@@ -159,7 +159,7 @@ public final class VoxyModifierModule extends Module {
     }
 
     private List<String> options() {
-        List<String> options = new ArrayList<>(TelosLocations.DUNGEONS);
+        List<String> options = new ArrayList<>(TelosLocations.dungeons());
         for (String entry : whitelist.get()) {
             if (options.stream().noneMatch(o -> DungeonTracker.normalize(o).equals(DungeonTracker.normalize(entry)))) {
                 options.add(entry);
@@ -187,7 +187,7 @@ public final class VoxyModifierModule extends Module {
             Toasts.info(name + " removed from the Voxy whitelist");
         } else {
             String entry = name;
-            for (String option : TelosLocations.DUNGEONS) {
+            for (String option : TelosLocations.dungeons()) {
                 if (DungeonTracker.normalize(option).equals(DungeonTracker.normalize(name))) entry = option;
             }
             whitelist.toggle(entry);

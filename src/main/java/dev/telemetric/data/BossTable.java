@@ -19,10 +19,32 @@ import java.util.regex.PatternSyntaxException;
  * @param bars the boss bar hashes of the same file ({@link TelosData#BOSS_BARS})
  */
 public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss> tracked, int portalSeconds,
-                        List<String> zones, LootTable loot, TelosData.BossBars bars) {
+                        List<String> zones, LootTable loot, TelosData.BossBars bars, MenuText menu) {
 
     static final BossTable EMPTY = new BossTable(List.of(), Map.of(), List.of(), 30, List.of(), LootTable.EMPTY,
-            TelosData.BossBars.EMPTY);
+            TelosData.BossBars.EMPTY, MenuText.DEFAULT);
+
+    /**
+     * {@code /bosses} lore texts (root {@code menuText}): {@code alive}, {@code defeated}, {@code notSpawned} set the
+     * state; {@code waiting} = parts of a lore without a count that still mean "not up yet".
+     */
+    public record MenuText(String alive, String defeated, String notSpawned, List<String> waiting) {
+        static final MenuText DEFAULT = new MenuText("This boss is alive", "This boss has been defeated",
+                "This boss has not spawned", List.of("not spawned", "hasn't", "invulnerable"));
+
+        static MenuText parse(JsonObject o) {
+            if (o == null) return DEFAULT;
+            String a = JsonFields.str(o, "alive"), d = JsonFields.str(o, "defeated"), n = JsonFields.str(o, "notSpawned");
+            List<String> w = JsonFields.strings(o, "waiting");
+            return new MenuText(a.isEmpty() ? DEFAULT.alive : a, d.isEmpty() ? DEFAULT.defeated : d,
+                    n.isEmpty() ? DEFAULT.notSpawned : n, w.isEmpty() ? DEFAULT.waiting : List.copyOf(w));
+        }
+
+        public boolean waiting(String lore) {
+            for (String w : waiting) if (lore.contains(w)) return true;
+            return false;
+        }
+    }
 
     /** A fixed world spot (spawn point or extra waypoint). */
     public record Spot(String name, int x, int y, int z) {}
@@ -45,10 +67,12 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
      * @param readyText     shown once the count is full ("Spawned", "Open", …)
      * @param menuName      its {@code /bosses} item name when that differs ("Tenebris Portal"), or empty
      * @param ready         whole server line that fills the count ("A portal to Tenebris has opened in …"), or null
+     * @param down          whole server line that marks it down and starts its {@code portalSeconds} cooldown
+     *                      ("A tear in reality reveals …" for Cog Sentinel), or null
      */
     public record Tracker(Pattern call, Pattern spawn, Pattern defeat, boolean idle, int portalSeconds,
                           boolean progress, List<Spot> waypoints, Pattern counter, List<String> countFrom,
-                          int counterMax, String readyText, Pattern ready, String menuName) {
+                          int counterMax, String readyText, Pattern ready, String menuName, Pattern down) {
         /** Listed in the Boss Tracker's bottom section (Raphael and the n/m counter bosses). */
         public boolean counted() {
             return progress || counter != null || !countFrom.isEmpty();
@@ -100,7 +124,8 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
             }
         }
         return new BossTable(List.copyOf(all), Map.copyOf(realm), List.copyOf(tracked), defaultPortal, List.copyOf(zones),
-                LootTable.parse(bosses), TelosData.BossBars.parse(bosses));
+                LootTable.parse(bosses), TelosData.BossBars.parse(bosses),
+                MenuText.parse(JsonFields.obj(root, "menuText")));
     }
 
     /**
@@ -136,6 +161,19 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
     }
 
     /** Realm (non-dungeon) boss by name, any spelling ("cog sentinel", "Cog Sentinel"), or null. */
+    /** A tracked boss by name (realm or dungeon, e.g. Voided Omnipotent / Raphael), or null. */
+    public Boss trackedBoss(String name) {
+        String key = Names.key(name);
+        for (Boss b : tracked) if (b.id().equals(key)) return b;
+        return null;
+    }
+
+    /** The boss whose portal opens once every world boss is down ({@code progress}: Raphael), or null. */
+    public Boss progressBoss() {
+        for (Boss b : tracked) if (b.tracker().progress()) return b;
+        return null;
+    }
+
     public Boss realm(String name) {
         return name == null ? null : realmByKey.get(Names.key(name));
     }
@@ -168,7 +206,8 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
                 t.has("progress") && t.get("progress").getAsBoolean(), spots(t, "waypoints", boss),
                 regex(t, "counter", boss), names(t, "countFrom"),
                 t.has("counterMax") ? t.get("counterMax").getAsInt() : 5,
-                t.has("readyText") ? t.get("readyText").getAsString() : "Spawned", regex(t, "ready", boss), JsonFields.str(t, "menuName"));
+                t.has("readyText") ? t.get("readyText").getAsString() : "Spawned", regex(t, "ready", boss), JsonFields.str(t, "menuName"),
+                regex(t, "down", boss));
     }
 
     private static List<String> names(JsonObject o, String key) {

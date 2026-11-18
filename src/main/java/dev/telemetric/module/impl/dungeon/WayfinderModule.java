@@ -68,7 +68,6 @@ public final class WayfinderModule extends Module {
     }
 
     /** Telos dungeons (from the server resource pack's portal list) — blacklist options before you visit them. */
-    static final List<String> KNOWN_DUNGEONS = dev.telemetric.game.TelosLocations.DUNGEONS;
 
     private static final int MAX_NODES = 400_000;
     private static final long REPLAN_MIN_MS = 400;
@@ -411,7 +410,7 @@ public final class WayfinderModule extends Module {
     // ------------------------------------------------------------------ blacklist
 
     private List<String> blacklistOptions() {
-        List<String> options = new ArrayList<>(KNOWN_DUNGEONS);
+        List<String> options = new ArrayList<>(dev.telemetric.game.TelosLocations.dungeons());
         Set<String> keys = new HashSet<>();
         for (String s : options) keys.add(DungeonTracker.normalize(s));
         for (String seen : DungeonTracker.get().seenDungeons()) {

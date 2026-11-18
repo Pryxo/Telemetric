@@ -307,6 +307,28 @@ public final class TelosData {
         }
     }
 
+    /** {@code locations.json} — biome id → location name, all dungeon names (game/TelosLocations). */
+    public static final SharedFile<Locations> LOCATIONS = SharedData.file(DIR + "locations.json", Locations::parse, Locations.EMPTY);
+
+    public record Locations(Map<String, String> biomes, List<String> dungeons) {
+        static final Locations EMPTY = new Locations(Map.of(), List.of());
+
+        static Locations parse(JsonObject root) {
+            return new Locations(Map.copyOf(JsonFields.stringMap(root, "biomes")), List.copyOf(JsonFields.strings(root, "dungeons")));
+        }
+    }
+
+    /** {@code dungeons.json} — dungeon lists for DungeonRulebook ({@code unmapped}: no Wayfinder / Dungeon Map). */
+    public static final SharedFile<DungeonTable> DUNGEON_TABLE = SharedData.file(DIR + "dungeons.json", DungeonTable::parse, DungeonTable.EMPTY);
+
+    public record DungeonTable(List<String> unmapped) {
+        static final DungeonTable EMPTY = new DungeonTable(List.of());
+
+        static DungeonTable parse(JsonObject root) {
+            return new DungeonTable(List.copyOf(JsonFields.strings(root, "unmapped")));
+        }
+    }
+
     /** {@code realms.json} — realm / hub names per region (Keybinds → Realm Selector). */
     public static final SharedFile<Realms> REALMS = SharedData.file(DIR + "realms.json", Realms::parse, Realms.EMPTY);
 
