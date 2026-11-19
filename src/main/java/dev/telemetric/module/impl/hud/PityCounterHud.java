@@ -1,7 +1,6 @@
 package dev.telemetric.module.impl.hud;
 
 import dev.telemetric.chat.ChatBus;
-import dev.telemetric.chat.ChatPattern;
 import dev.telemetric.chat.ChatText;
 import dev.telemetric.data.BossTable;
 import dev.telemetric.data.BossTable.Spot;
@@ -72,14 +71,9 @@ public final class PityCounterHud extends LinesHudModule {
     private final BooleanSetting icons = add(chat.child(new BooleanSetting("Icons",
             "Rarity icon in front of the drop line and the item's picture before its name (needs the Telos pack)", true)
             .visibleWhen(dropMessage::get)));
-    private final BooleanSetting hideBonusChest = add(chat.child(new BooleanSetting("Hide Bonus Chest Messages",
-            "Hide the server's bonus chest spawned / unlocked lines (the unlock still counts)", false)));
     private final ActionSetting resetSeasonal = add(new ActionSetting("Reset Seasonal Pity",
             "New season: set every seasonal pity back to 0 (click twice to confirm)", this::resetSeasonal));
 
-    private static final ChatPattern BONUS_SPAWNED = ChatPattern.builder("Bonus chest spawned",
-            "(?:[A-Za-z' ]{1,40})?[^A-Za-z0-9:\\n]*Bonus (?:dungeon )?chest has (?:spawned|been unlocked)[^\\n]*(?:\\n[^\\n]*)?")
-            .anyRuns().build();
 
     private record Context(String title, List<Drop> drops) {}
 
@@ -104,7 +98,6 @@ public final class PityCounterHud extends LinesHudModule {
             }
         });
         ChatBus.replace(LootTracker.DROP_LINE, m -> isEnabled() && dropMessage.get() && LootTracker.get().ownDrop(m) != null);
-        ChatBus.hide(BONUS_SPAWNED, m -> isEnabled() && hideBonusChest.get());
     }
 
     /** First click arms, a second one within {@link #RESET_CONFIRM_MS} clears the seasonal pity pool. */

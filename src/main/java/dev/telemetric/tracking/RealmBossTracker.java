@@ -233,6 +233,7 @@ public final class RealmBossTracker {
             else if (i.lore().contains(text.defeated())) set(boss, State.DEFEATED);
             else if (i.lore().contains(text.notSpawned())) remove(boss);
         }
+        trackOpenCounters();
     }
 
     private synchronized void onBossLine(String name, String text) {
@@ -304,6 +305,7 @@ public final class RealmBossTracker {
             int[] c = counts.computeIfAbsent(Names.key(b.name()), k -> new int[2]);
             c[0] = n;
             c[1] = max;
+            trackOpenCounters();
             return;
         }
     }
@@ -315,6 +317,7 @@ public final class RealmBossTracker {
             int[] c = counts.computeIfAbsent(Names.key(b.name()), k -> new int[] {0, b.tracker().counterMax()});
             c[0] = c[1];
         }
+        trackOpenCounters();
         for (Boss b : TelosData.BOSSES.get().tracked()) {
             if (b.tracker().down() == null || !b.tracker().down().matcher(line).matches()) continue;
             openPortal(b.name(), b); // its cooldown; the counter keeps counting meanwhile
@@ -348,6 +351,15 @@ public final class RealmBossTracker {
         t.state = state;
         if (state == State.IDLE || state == State.DEFEATED) t.calledBy = null;
         return t;
+    }
+
+    /** A counter boss whose count is full ("Open") gets an entry, so its waypoint can show. */
+    private void trackOpenCounters() {
+        for (Boss b : TelosData.BOSSES.get().tracked()) {
+            if (b.tracker().idle() || tracked.containsKey(Names.key(b.name()))) continue;
+            int[] c = counts.get(Names.key(b.name()));
+            if (c != null && c[1] > 0 && c[0] >= c[1]) add(b, State.IDLE);
+        }
     }
 
     private Tracked add(Boss boss, State state) {

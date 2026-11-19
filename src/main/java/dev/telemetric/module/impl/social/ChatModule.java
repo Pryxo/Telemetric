@@ -35,8 +35,8 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Social → Chat: chat tabs sorted by {@code chat.json}, hidden
- * utility lines, censored guild / group lines, right-click copy, longer history and chat-mode keys. The tab bar is
+ * Social → Chat: chat tabs sorted by {@code chat.json},
+ * censored guild / group lines, right-click copy, longer history and chat-mode keys. The tab bar is
  * {@code ui/chat/ChatScreenHooks}; lines are filtered through {@link ChatView} on {@code game/ChatHudAdapter}, so a
  * tab switch never loses lines. Server chat mode + {@code /ac /gc /grc}: {@link #channels()}.
  */
@@ -52,10 +52,8 @@ public class ChatModule extends Module implements ChatView {
             "Tabs in the bar ('All' is always there)", () -> TelosData.CHAT.get().tabNames(),
             TelosData.CHAT.get().defaultShown())));
     private final BooleanSetting allChatTab = add(tabsGroup.child(new BooleanSetting("All Chat Tab",
-            "'All' tab shows every message since the game started (hidden utility lines too) — never trimmed or cleared", true)));
+            "'All' tab shows every message since the game started (hidden server messages too) — never trimmed or cleared", true)));
 
-    private final BooleanSetting hideUtility = add(new BooleanSetting("Hide Utility Messages",
-            "Hides auction updates, auto-sell earnings and fame gains", true));
     private final BooleanSetting copy = add(new BooleanSetting("Right-Click Copy",
             "Right-click a chat line to copy its text", true));
     private final NumberSetting history = add(new NumberSetting("History",
@@ -107,7 +105,7 @@ public class ChatModule extends Module implements ChatView {
     });
 
     public ChatModule() {
-        super("Chat", "Chat tabs, hidden utility lines, censoring, copy and chat-mode keys", Category.SOCIAL);
+        super("Chat", "Chat tabs, censoring, copy and chat-mode keys", Category.SOCIAL);
         ChatBus.hide(MODE_SET, m -> isEnabled() && channels.expectsConfirmation(System.currentTimeMillis()));
         ChatBus.on(MODE_SET, m -> onModeSet(m.group("mode")));
         // /ac /gc /grc <message>: send in all / guild / group chat without leaving your chat mode
@@ -118,8 +116,6 @@ public class ChatModule extends Module implements ChatView {
                 return true;
             });
         }
-        TelosData.CHAT.onChange(rules -> rebuildUtility());
-        rebuildUtility();
         syncOn(this::sync, tabsGroup, shownTabs, allChatTab, history, censorGuild, censorGroupChat);
     }
 
@@ -274,7 +270,7 @@ public class ChatModule extends Module implements ChatView {
         return NotificationSoundAdapter.play(notifyVolume.getFloat() / 100f);
     }
 
-    // ------------------------------------------------------------------ copy / utility
+    // ------------------------------------------------------------------ copy
 
     /** Right-click on a chat line: copies its text (pack glyphs removed). True if something was copied. */
     public boolean copyLine(String plain) {
@@ -284,18 +280,6 @@ public class ChatModule extends Module implements ChatView {
         InputUtil.setClipboard(text);
         Toasts.success("Copied chat line");
         return true;
-    }
-
-    private final List<ChatBus.Subscription> utilityHides = new ArrayList<>();
-
-    private void rebuildUtility() {
-        utilityHides.forEach(ChatBus.Subscription::cancel);
-        utilityHides.clear();
-        int i = 0;
-        for (String regex : TelosData.CHAT.get().utility()) {
-            ChatPattern p = ChatPattern.builder("Utility line " + (i++), regex).anyRuns().build();
-            utilityHides.add(ChatBus.hide(p, m -> isEnabled() && hideUtility.get()));
-        }
     }
 
     private static void flip(BooleanSetting s) {

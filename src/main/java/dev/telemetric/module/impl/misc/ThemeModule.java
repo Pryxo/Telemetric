@@ -33,7 +33,7 @@ public final class ThemeModule extends Module {
             "Accent 2", "Secondary accent used in gradients", DEFAULTS.accentAlt(), false)));
 
     public final ActionSetting copyAccentPreset = add(customAccent.child(new ActionSetting(
-            "Copy From Preset", "Fill the custom accents with the selected preset's accents", () -> {
+            "Copy Accents From Preset", "Fill the custom accents with the selected preset's accents", () -> {
                 accent.set(preset.get().theme().accent());
                 accentAlt.set(preset.get().theme().accentAlt());
                 Toasts.info("Copied accents from " + preset.get().displayName());
@@ -60,7 +60,7 @@ public final class ThemeModule extends Module {
     public final ColorSetting dimColor = color("Screen Dim", "Full-screen dim behind the GUI (its alpha is scaled by Background Dim)", DEFAULTS.backdrop(), true);
 
     public final ActionSetting copyPreset = add(customColors.child(new ActionSetting(
-            "Copy From Preset", "Fill the custom colours with the selected preset's colours", () -> {
+            "Copy Colors From Preset", "Fill the custom colours with the selected preset's colours", () -> {
                 copyColorsFrom(preset.get().theme());
                 Toasts.info("Copied colours from " + preset.get().displayName());
             })));

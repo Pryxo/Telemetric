@@ -229,16 +229,19 @@ public final class TelosData {
     /** {@code callouts.json} — boss / portal call-out data (Callouts). */
     public static final SharedFile<CalloutTable> CALLOUTS = SharedData.file(DIR + "callouts.json", CalloutTable::parse, CalloutTable.EMPTY);
 
-    /** {@code chat.json} — chat tab categories + utility lines (Chat). */
+    /** {@code chat.json} — chat tab categories (Chat). */
     public static final SharedFile<ChatRules> CHAT = SharedData.file(DIR + "chat.json", ChatRules::parse, ChatRules.EMPTY);
+
+    /** {@code serverMessages.json} — boss + misc server lines that can be hidden (Server Messages). */
+    public static final SharedFile<ServerMessageTable> SERVER_MESSAGES =
+            SharedData.file(DIR + "serverMessages.json", ServerMessageTable::parse, ServerMessageTable.EMPTY);
 
     /**
      * @param categories message categories, first match wins ({@code builtin} = a code check such as {@code callout})
      * @param tabs       chat tabs in bar order (after "All")
-     * @param utility    whole-message regexes of the server's utility lines
      */
-    public record ChatRules(List<Category> categories, List<Tab> tabs, List<String> utility) {
-        static final ChatRules EMPTY = new ChatRules(List.of(), List.of(), List.of());
+    public record ChatRules(List<Category> categories, List<Tab> tabs) {
+        static final ChatRules EMPTY = new ChatRules(List.of(), List.of());
 
         public record Category(String key, List<Pattern> patterns, String builtin) {}
 
@@ -263,7 +266,7 @@ public final class TelosData {
                 tabs.add(new Tab(name, JsonFields.str(t, "category"), Set.copyOf(JsonFields.strings(t, "also")),
                         JsonFields.str(t, "channel"), JsonFields.bool(t, "shown", true)));
             }
-            return new ChatRules(List.copyOf(categories), List.copyOf(tabs), JsonFields.strings(root, "utility"));
+            return new ChatRules(List.copyOf(categories), List.copyOf(tabs));
         }
 
         public Tab tab(String name) {

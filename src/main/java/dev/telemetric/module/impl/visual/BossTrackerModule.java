@@ -1,6 +1,5 @@
 package dev.telemetric.module.impl.visual;
 
-import dev.telemetric.chat.ChatBus;
 import dev.telemetric.chat.ChatText;
 import dev.telemetric.data.BossTable;
 import dev.telemetric.data.BossTable.Boss;
@@ -48,8 +47,6 @@ public final class BossTrackerModule extends LinesHudModule {
             "Run /bosses when you enter a realm and read the list (the menu closes by itself)", true));
     private final BooleanSetting showList = add(new BooleanSetting("Show List",
             "Show the boss list on the HUD (waypoints work without it)", true));
-    private final BooleanSetting hideDefeatLines = add(new BooleanSetting("Hide Defeat Messages",
-            "Hide the server's \"<Boss> has been defeated\" lines while the list shows them", true));
 
     private final GroupSetting waypointGroup = add(new GroupSetting("Waypoints", "Markers at the bosses' spots"));
     private final BooleanSetting waypoints = add(waypointGroup.child(new BooleanSetting("Show Waypoints",
@@ -94,8 +91,6 @@ public final class BossTrackerModule extends LinesHudModule {
         addUseServerColor();
         WorldLabelAdapter.addSource(this::labels);
         WorldRenderAdapter.addDrawer(this::drawBeams);
-        ChatBus.hide(RealmBossTracker.DEFEATED, m -> isEnabled() && hideDefeatLines.get() && showList.get()
-                && !DungeonAdapter.isInDungeon());
     }
 
     @Override
@@ -291,13 +286,18 @@ public final class BossTrackerModule extends LinesHudModule {
             if (t.spot() == null) continue;
             boolean show = switch (t.state()) {
                 case DEFEATED -> false;
-                case IDLE -> true;
+                case IDLE -> t.boss.tracker() == null || t.boss.tracker().idle() || open(t); // counter boss: only when "Open"
                 case PORTAL -> showPortal.get();
                 case ALIVE -> t.marker || (t.calledBy() != null ? showFighting.get() : showAvailable.get());
             };
             if (show) out.add(t);
         }
         return out;
+    }
+
+    private boolean open(Tracked t) {
+        int[] c = tracker.count(t.boss.name());
+        return c != null && c[1] > 0 && c[0] >= c[1];
     }
 
     private static double fade(double distance) {

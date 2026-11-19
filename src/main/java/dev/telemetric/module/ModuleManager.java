@@ -32,6 +32,7 @@ import dev.telemetric.module.impl.player.KeybindsModule;
 import dev.telemetric.module.impl.social.CalloutsModule;
 import dev.telemetric.module.impl.social.ChatModule;
 import dev.telemetric.module.impl.social.DiscordRpcModule;
+import dev.telemetric.module.impl.social.ServerMessagesModule;
 import dev.telemetric.module.impl.visual.BossBarScaleModule;
 import dev.telemetric.module.impl.visual.BossStageTrackerModule;
 import dev.telemetric.module.impl.visual.CameraModule;
@@ -115,6 +116,7 @@ public final class ModuleManager {
         // Social (chat, call-outs, Discord)
         register(new ChatModule());
         register(new CalloutsModule());
+        register(new ServerMessagesModule());
         register(new DiscordRpcModule());
 
         // HUD (elements drawn in-game; layout edited via Misc → HUD → Edit HUD)
