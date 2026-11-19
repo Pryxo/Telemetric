@@ -101,7 +101,7 @@ public final class NametagAdapter {
             out.append(colored(line.rank(), line.tier(), ChatFormatting.WHITE, chars));
             out.append(" ");
         }
-        Component icon = icon(line.icon());
+        Component icon = icon(line.icon(), line.tier() != null && line.tier().wave ? chars[0]++ : -1);
         if (icon != null) out.append(icon).append(" ");
         out.append(colored(line.text(), line.tier(), ChatFormatting.GRAY, chars));
         return out;
@@ -121,14 +121,17 @@ public final class NametagAdapter {
         return out;
     }
 
-    private static Component icon(TelosData.StatusIcon icon) {
+    /** {@code waveIndex} ≥ 0 = the icon bobs with the title's wave as that character. */
+    private static Component icon(TelosData.StatusIcon icon, int waveIndex) {
         if (icon == null) return null;
+        Style style = waveIndex >= 0 ? Style.EMPTY.withColor(AnimatedTextAdapter.waveOnly(waveIndex))
+                : Style.EMPTY.withColor(ChatFormatting.WHITE);
         if (icon.sprite() != null) {
             Identifier id = Identifier.tryParse(icon.sprite());
             return id == null ? null
-                    : Component.object(new AtlasSprite(AtlasSprite.DEFAULT_ATLAS, id), Component.literal(""));
+                    : Component.object(new AtlasSprite(AtlasSprite.DEFAULT_ATLAS, id), Component.literal(""))
+                            .withStyle(style);
         }
-        Style style = Style.EMPTY.withColor(ChatFormatting.WHITE);
         Identifier font = icon.font() == null ? null : Identifier.tryParse(icon.font());
         if (font != null) style = style.withFont(new FontDescription.Resource(font));
         return Component.literal(icon.glyph()).withStyle(style);

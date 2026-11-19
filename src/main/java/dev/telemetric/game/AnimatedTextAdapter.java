@@ -38,7 +38,14 @@ public final class AnimatedTextAdapter {
     private static final TextColor[] SHINY = markers(ShinyColors.CYCLE, false, true);
     private static final TextColor[][] STATUS = new TextColor[StatusRankColors.Tier.values().length][];
 
+    /** White wave-only markers (no colour change): icons that bob with a wave title. */
+    private static final TextColor[] WAVE_ONLY = new TextColor[ShinyColors.CYCLE.cycleChars()];
+
     static {
+        for (int i = 0; i < WAVE_ONLY.length; i++) {
+            WAVE_ONLY[i] = TextColor.fromRgb(0xFFFFFF);
+            MARKERS.put(WAVE_ONLY[i], new Marker(null, i, true, false));
+        }
         for (StatusRankColors.Tier t : StatusRankColors.Tier.values()) {
             STATUS[t.ordinal()] = markers(t.cycle, t.wave, false);
         }
@@ -73,11 +80,16 @@ public final class AnimatedTextAdapter {
         return set[Math.floorMod(index, set.length)];
     }
 
+    /** White marker of the {@code index}-th character that only bobs (wave), e.g. an icon inside a #1 title. */
+    public static TextColor waveOnly(int index) {
+        return WAVE_ONLY[Math.floorMod(index, WAVE_ONLY.length)];
+    }
+
     /** Hook: colour (0xRRGGBB) to draw for {@code color}; {@code value} = what Minecraft would use. */
     public static int color(TextColor color, int value) {
         if (color == null) return value;
         Marker m = MARKERS.get(color);
-        if (m == null || (m.chat && !animate)) return value;
+        if (m == null || m.cycle == null || (m.chat && !animate)) return value;
         return m.cycle.rgbNow(m.index);
     }
 

@@ -13,6 +13,7 @@ import dev.telemetric.setting.impl.BooleanSetting;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
@@ -70,8 +71,15 @@ public final class NametagsModule extends Module {
      * count; coloured by position ({@link StatusRankColors}). Single place that decides the status text.
      */
     static TitleLine statusLine(HeadStatusApi.HeadStatus status) {
-        String name = HeadStatusApi.statusName(status.text());
+        // the API may send the text already formatted ("#25 Miraj - 172 kills"): drop its own rank / count
+        String name = HeadStatusApi.statusName(status.text()).replaceFirst("^#\\d+\\s*", "");
+        int dash = name.indexOf(" - ");
         String unit = "";
+        if (dash > 0) {
+            String rest = name.substring(dash + 3).replaceFirst("^[\\d,.]+", "").trim(); // "172 kills" → "kills"
+            if (!rest.isEmpty()) unit = " " + rest;
+            name = name.substring(0, dash).trim();
+        }
         if (name.endsWith(" Kills") && status.count() > 0) {
             name = name.substring(0, name.length() - " Kills".length());
             unit = " kills";
@@ -80,8 +88,22 @@ public final class NametagsModule extends Module {
                 ? name + " - " + String.format(Locale.ROOT, "%,d", status.count()) + unit
                 : name;
         String rank = status.position() > 0 ? "#" + status.position() : "";
-        return new TitleLine(rank, TelosData.STATUS_ICONS.get().of(status.text()), text,
+        return new TitleLine(rank, TelosData.STATUS_ICONS.get().of(boardId(status.text(), name)), text,
                 StatusRankColors.forPosition(status.position()));
+    }
+
+    /**
+     * Leaderboard ID of a status for the icon table: the text itself when it is an ID, else the ID whose display name
+     * is {@code name} or "{@code name} Kills" (the API sends formatted texts like "#25 Miraj - 172 kills").
+     */
+    private static String boardId(String text, String name) {
+        Map<String, String> all = HeadStatusApi.statuses();
+        if (all.containsKey(text)) return text;
+        for (Map.Entry<String, String> e : all.entrySet()) {
+            String n = e.getValue();
+            if (n.equalsIgnoreCase(name) || n.equalsIgnoreCase(name + " Kills")) return e.getKey();
+        }
+        return "STATUS-" + name.trim().toUpperCase(Locale.ROOT).replace(' ', '-');
     }
 
     /** Adds a rule that hides the name tags it matches (called from other modules' {@code onPostInit}). */
