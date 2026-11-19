@@ -3,13 +3,19 @@ package dev.telemetric.game;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import dev.telemetric.data.TelosData;
+import dev.telemetric.hud.StatusRankColors;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.contents.objects.AtlasSprite;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -47,15 +53,22 @@ public final class NametagAdapter {
     // ------------------------------------------------------------------ title line
 
     /**
-     * A title line for a name tag: grey {@code label}, then (when not empty) ": " and a white {@code value} — the same
-     * look as Telos' own "HP: 20" line. A label alone is drawn white.
+     * A status title line for a name tag: {@code "#1 <icon> Miraj - 1,234 kills"}. {@code rank} ("#1", may be empty)
+     * and {@code text} are coloured by {@code tier} (animated; null = white rank, grey text), the icon is drawn as is.
+     *
+     * @param icon null = none
      */
-    public record TitleLine(String label, String value) {}
+    public record TitleLine(String rank, TelosData.StatusIcon icon, String text, StatusRankColors.Tier tier) {}
 
-    private static volatile Function<String, TitleLine> titleSource;
+    /** Source of a title: (owner UUID dashed, is it you) → line, or null for none. */
+    public interface TitleSource {
+        TitleLine titleFor(String ownerId, boolean self);
+    }
 
-    /** Owner UUID (dashed) → title line, or null for none. Null source = no titles. */
-    public static void setTitleSource(Function<String, TitleLine> source) {
+    private static volatile TitleSource titleSource;
+
+    /** Null source = no titles. */
+    public static void setTitleSource(TitleSource source) {
         titleSource = source;
     }
 
@@ -64,22 +77,61 @@ public final class NametagAdapter {
 
     /**
      * Mixin hook ({@code TextDisplayTitleMixin}, every time the display's lines are needed): the line to put on top
-     * of this Telos name tag, or null. Returns the same instance while the title is unchanged.
+     * of this Telos name tag, or null. Returns the same instance while the title is unchanged — the animation runs
+     * in the font hook ({@link AnimatedTextAdapter}), so the line never needs rebuilding.
      */
     public static Component titleFor(Display.TextDisplay display) {
-        Function<String, TitleLine> source = titleSource;
+        TitleSource source = titleSource;
         if (source == null || !ServerGate.onTelos() || nametagText(display) == null) return null;
         Player owner = owner(display);
-        TitleLine line = owner == null ? null : source.apply(owner.getUUID().toString());
+        TitleLine line = owner == null ? null
+                : source.titleFor(owner.getUUID().toString(), owner == Minecraft.getInstance().player);
         if (line == null) return null;
         Object[] cached = TITLE_CACHE.get(display);
         if (cached != null && cached[0].equals(line)) return (Component) cached[1];
-        Component built = line.value().isEmpty()
-                ? Component.literal(line.label()).withStyle(ChatFormatting.WHITE)
-                : Component.literal(line.label() + ": ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(line.value()).withStyle(ChatFormatting.WHITE));
+        Component built = build(line);
         TITLE_CACHE.put(display, new Object[]{line, built});
         return built;
+    }
+
+    private static Component build(TitleLine line) {
+        MutableComponent out = Component.empty();
+        int[] chars = {0}; // animated characters so far: the gradient runs on across rank and text
+        if (!line.rank().isEmpty()) {
+            out.append(colored(line.rank(), line.tier(), ChatFormatting.WHITE, chars));
+            out.append(" ");
+        }
+        Component icon = icon(line.icon());
+        if (icon != null) out.append(icon).append(" ");
+        out.append(colored(line.text(), line.tier(), ChatFormatting.GRAY, chars));
+        return out;
+    }
+
+    /** {@code text} in the tier's animated gradient (one marker per character), or plain {@code plain}. */
+    private static Component colored(String text, StatusRankColors.Tier tier, ChatFormatting plain, int[] chars) {
+        if (tier == null) return Component.literal(text).withStyle(plain);
+        MutableComponent out = Component.empty();
+        for (int c = 0; c < text.length(); ) {
+            int cp = text.codePointAt(c);
+            int n = Character.charCount(cp);
+            out.append(Component.literal(text.substring(c, c + n))
+                    .withStyle(Style.EMPTY.withColor(AnimatedTextAdapter.status(tier, chars[0]++))));
+            c += n;
+        }
+        return out;
+    }
+
+    private static Component icon(TelosData.StatusIcon icon) {
+        if (icon == null) return null;
+        if (icon.sprite() != null) {
+            Identifier id = Identifier.tryParse(icon.sprite());
+            return id == null ? null
+                    : Component.object(new AtlasSprite(AtlasSprite.DEFAULT_ATLAS, id), Component.literal(""));
+        }
+        Style style = Style.EMPTY.withColor(ChatFormatting.WHITE);
+        Identifier font = icon.font() == null ? null : Identifier.tryParse(icon.font());
+        if (font != null) style = style.withFont(new FontDescription.Resource(font));
+        return Component.literal(icon.glyph()).withStyle(style);
     }
 
     // ------------------------------------------------------------------ detection

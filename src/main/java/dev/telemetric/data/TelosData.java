@@ -402,4 +402,56 @@ public final class TelosData {
             return t;
         }
     }
+
+    // ------------------------------------------------------------------ head status icons
+
+    /** {@code statusIcons.json} — icon per HeadStatus leaderboard ID, drawn in the Nametags status title. */
+    public static final SharedFile<StatusIcons> STATUS_ICONS =
+            SharedData.file(DIR + "statusIcons.json", StatusIcons::parse, StatusIcons.EMPTY);
+
+    /**
+     * One status title icon: a block-atlas picture ({@code sprite}, an item model id like
+     * {@code telos:material/boss/anubis}) or a {@code glyph} text in {@code font} (null = default font).
+     */
+    public record StatusIcon(String glyph, String font, String sprite) {}
+
+    /**
+     * @param byId leaderboard ID ({@code STATUS-MIRAJ}) → icon. JSON value: a string (contains ":" = sprite id, else a
+     *             glyph in the default font) or {@code {"glyph": "…", "font": "telos:misc"}} / {@code {"sprite": "…"}};
+     *             empty = no icon.
+     */
+    public record StatusIcons(Map<String, StatusIcon> byId) {
+        static final StatusIcons EMPTY = new StatusIcons(Map.of());
+
+        static StatusIcons parse(JsonObject root) {
+            JsonObject icons = JsonFields.obj(root, "icons");
+            if (icons == null) return EMPTY;
+            Map<String, StatusIcon> out = new HashMap<>();
+            for (Map.Entry<String, JsonElement> e : icons.entrySet()) {
+                StatusIcon icon = icon(e.getValue());
+                if (icon != null) out.put(e.getKey(), icon);
+            }
+            return new StatusIcons(Map.copyOf(out));
+        }
+
+        private static StatusIcon icon(JsonElement v) {
+            if (v.isJsonPrimitive()) {
+                String s = v.getAsString().trim();
+                if (s.isEmpty()) return null;
+                return s.indexOf(':') > 0 ? new StatusIcon(null, null, s) : new StatusIcon(s, null, null);
+            }
+            if (!v.isJsonObject()) return null;
+            JsonObject o = v.getAsJsonObject();
+            String sprite = JsonFields.str(o, "sprite").trim(), glyph = JsonFields.str(o, "glyph");
+            if (!sprite.isEmpty()) return new StatusIcon(null, null, sprite);
+            if (glyph.isEmpty()) return null;
+            String font = JsonFields.str(o, "font").trim();
+            return new StatusIcon(glyph, font.isEmpty() ? null : font, null);
+        }
+
+        /** Icon of a leaderboard ID, or null. */
+        public StatusIcon of(String id) {
+            return id == null ? null : byId.get(id);
+        }
+    }
 }
