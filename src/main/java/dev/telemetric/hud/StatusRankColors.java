@@ -1,11 +1,16 @@
 package dev.telemetric.hud;
 
+import dev.telemetric.data.TelosData;
 import dev.telemetric.ui.animation.Durations;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Animated colours of a HeadStatus title by leaderboard position (Nametags → Show Status): #1 shiny + wave, #2
- * Unholy, #3 Bloodshot, #4–10 Legendary orange, #11–20 purple, #21–25 blue; everything below stays plain. Each tier is
- * a moving {@link ColorCycle} around its base colour (Unholy / Bloodshot from Telos' rarity colours). Pure Java.
+ * Animated colours of a HeadStatus title by leaderboard position (Nametags → Show Status). Positions map to a
+ * {@link Tier} slot (#1, #2, #3, #4–10, #11–20, #21–25; everything below stays plain); the selected {@link Theme}
+ * (Nametags → Status Theme, from {@code StatusColor.json}) gives each slot its {@link ColorCycle} (one colour = solid). The theme is read at draw time, so switching
+ * it recolours existing name tags at once. Pure Java.
  */
 public final class StatusRankColors {
 
@@ -14,41 +19,113 @@ public final class StatusRankColors {
     /** Per-character step of the tier gradients (frames). */
     private static final double STEP = 0.35;
 
-    private static ColorCycle cycle(int... frames) {
+    private static ColorCycle gradient(int... frames) {
         return new ColorCycle(frames, STEP, Durations.STATUS_GRADIENT_LOOP);
     }
 
-    /** One colour tier. {@code wave} = characters also bob up and down. */
+    /** Leaderboard slot. {@code wave} = characters also bob up and down (Nametags → Top 1 Wave). */
     public enum Tier {
-        SHINY(ShinyColors.CYCLE, true),
-        UNHOLY(cycle(0x94B0B1, 0xB9D0D1, 0xE6F2F2, 0xB9D0D1, 0x94B0B1, 0x728D8E)),
-        BLOODSHOT(cycle(0x87060B, 0xB80E16, 0xE8222B, 0xFF5A5A, 0xE8222B, 0xB80E16, 0x87060B, 0x6E0409)),
-        LEGENDARY(cycle(0xFF8C00, 0xFFAA00, 0xFFC846, 0xFFE08A, 0xFFC846, 0xFFAA00)),
-        EPIC(cycle(0x8D15F0, 0xAA44FF, 0xCC77FF, 0xE6AAFF, 0xCC77FF, 0xAA44FF)),
-        RARE(cycle(0x2E6BFF, 0x4C8DFF, 0x6FB4FF, 0xA3D8FF, 0x6FB4FF, 0x4C8DFF));
+        TOP_1(true, "#1"), TOP_2(false, "#2"), TOP_3(false, "#3"), TOP_10(false, "#4-10"),
+        TOP_20(false, "#11-20"), TOP_25(false, "#21-25");
 
-        public final ColorCycle cycle;
         public final boolean wave;
+        /** Slot key in {@code StatusColor.json}. */
+        public final String key;
 
-        Tier(ColorCycle cycle) {
-            this(cycle, false);
-        }
-
-        Tier(ColorCycle cycle, boolean wave) {
-            this.cycle = cycle;
+        Tier(boolean wave, String key) {
             this.wave = wave;
+            this.key = key;
         }
+    }
+
+    /**
+     * A colour set for all slots, in {@link Tier} order. Themes come from {@code data/tables/StatusColor.json}
+     * ({@link TelosData#STATUS_COLORS}); add new ones there and they show up in the Status Theme dropdown.
+     */
+    public static final class Theme {
+        private static final ColorCycle WHITE = gradient(0xFFFFFF);
+        /** Used when the table is missing / empty: #1 shiny, the rest white. */
+        private static final Theme FALLBACK = new Theme("Telos Realms", new ColorCycle[]{
+                ShinyColors.CYCLE, WHITE, WHITE, WHITE, WHITE, WHITE});
+
+        public final String displayName;
+        private final ColorCycle[] cycles;
+
+        private Theme(String displayName, ColorCycle[] cycles) {
+            this.displayName = displayName;
+            this.cycles = cycles;
+        }
+
+        public ColorCycle cycle(Tier tier) {
+            return cycles[tier.ordinal()];
+        }
+
+        private static TelosData.StatusColors builtFrom;
+        private static List<Theme> built = List.of(FALLBACK);
+
+        /** All themes of the current table snapshot (rebuilt when the table is swapped). */
+        public static synchronized List<Theme> all() {
+            TelosData.StatusColors table = TelosData.STATUS_COLORS.get();
+            if (table != builtFrom) {
+                List<Theme> out = new ArrayList<>();
+                table.themes().forEach((name, slots) -> {
+                    ColorCycle[] c = new ColorCycle[Tier.values().length];
+                    for (Tier t : Tier.values()) c[t.ordinal()] = toCycle(slots.get(t.key));
+                    out.add(new Theme(name, c));
+                });
+                built = out.isEmpty() ? List.of(FALLBACK) : List.copyOf(out);
+                builtFrom = table;
+            }
+            return built;
+        }
+
+        private static ColorCycle toCycle(TelosData.StatusSlot slot) {
+            if (slot == null) return WHITE;
+            if (slot.shiny()) return ShinyColors.CYCLE;
+            return gradient(slot.rgb());
+        }
+
+        /** Theme with that display name (case-insensitive), else the first one. */
+        public static Theme byName(String name) {
+            List<Theme> all = all();
+            for (Theme t : all) if (t.displayName.equalsIgnoreCase(name)) return t;
+            return all.get(0);
+        }
+
+        /** Name of the first (default) theme. */
+        public static String defaultName() {
+            return all().get(0).displayName;
+        }
+
+        public static List<String> names() {
+            return all().stream().map(t -> t.displayName).toList();
+        }
+    }
+
+    private static volatile String themeName = "";
+
+    public static Theme theme() {
+        return Theme.byName(themeName);
+    }
+
+    public static void setTheme(String name) {
+        themeName = name == null ? "" : name;
+    }
+
+    /** Current theme's cycle for {@code tier}. */
+    public static ColorCycle cycle(Tier tier) {
+        return theme().cycle(tier);
     }
 
     /** Tier of a leaderboard position, or null (no position / below #25). */
     public static Tier forPosition(int position) {
         if (position <= 0) return null;
-        if (position == 1) return Tier.SHINY;
-        if (position == 2) return Tier.UNHOLY;
-        if (position == 3) return Tier.BLOODSHOT;
-        if (position <= 10) return Tier.LEGENDARY;
-        if (position <= 20) return Tier.EPIC;
-        if (position <= 25) return Tier.RARE;
+        if (position == 1) return Tier.TOP_1;
+        if (position == 2) return Tier.TOP_2;
+        if (position == 3) return Tier.TOP_3;
+        if (position <= 10) return Tier.TOP_10;
+        if (position <= 20) return Tier.TOP_20;
+        if (position <= 25) return Tier.TOP_25;
         return null;
     }
 }

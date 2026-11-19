@@ -18,7 +18,8 @@ import java.util.Map;
  * moving colour, everything else passes through after one identity-map check.
  * <p>
  * Marker sets: the shiny chat cycle ({@link #shiny}, switched by {@link #setAnimated} — Misc → Chat Colors) and one
- * set per {@link StatusRankColors.Tier} ({@link #status}, always moving unless animations are off).
+ * set per {@link StatusRankColors.Tier} ({@link #status}, always moving unless animations are off). Status markers
+ * keep only their tier: the colour comes from the current {@link StatusRankColors.Theme} at draw time.
  * <p>
  * If another mod replaces text rendering the hook simply doesn't apply and the markers show their still colours;
  * anything that re-creates the colour (e.g. a JSON round trip) does the same.
@@ -26,7 +27,10 @@ import java.util.Map;
 public final class AnimatedTextAdapter {
 
     /** What a marker stands for: the {@code index}-th character of {@code cycle}. */
-    private record Marker(ColorCycle cycle, int index, boolean wave, boolean chat) {}
+    private record Marker(ColorCycle cycle, StatusRankColors.Tier tier, int index, boolean wave, boolean chat) {}
+
+    /** Markers per status tier: longer than any status line, so the gradient never seams inside one. */
+    private static final int STATUS_CHARS = 64;
 
     /** Wave height (text pixels, up and down) and phase step per character (radians). */
     private static final float WAVE_PX = 1.0f;
@@ -44,10 +48,15 @@ public final class AnimatedTextAdapter {
     static {
         for (int i = 0; i < WAVE_ONLY.length; i++) {
             WAVE_ONLY[i] = TextColor.fromRgb(0xFFFFFF);
-            MARKERS.put(WAVE_ONLY[i], new Marker(null, i, true, false));
+            MARKERS.put(WAVE_ONLY[i], new Marker(null, null, i, true, false));
         }
         for (StatusRankColors.Tier t : StatusRankColors.Tier.values()) {
-            STATUS[t.ordinal()] = markers(t.cycle, t.wave, false);
+            TextColor[] set = new TextColor[STATUS_CHARS];
+            for (int i = 0; i < set.length; i++) {
+                set[i] = TextColor.fromRgb(StatusRankColors.cycle(t).still(i));
+                MARKERS.put(set[i], new Marker(null, t, i, t.wave, false));
+            }
+            STATUS[t.ordinal()] = set;
         }
     }
 
@@ -55,14 +64,21 @@ public final class AnimatedTextAdapter {
         TextColor[] out = new TextColor[cycle.cycleChars()];
         for (int i = 0; i < out.length; i++) {
             out[i] = TextColor.fromRgb(cycle.still(i)); // fromRgb always returns a new instance
-            MARKERS.put(out[i], new Marker(cycle, i, wave, chat));
+            MARKERS.put(out[i], new Marker(cycle, null, i, wave, chat));
         }
         return out;
     }
 
     private static volatile boolean animate = true;
 
+    private static volatile boolean wave = true;
+
     private AnimatedTextAdapter() {}
+
+    /** Turns the #1 status title's wave bob on/off (Nametags → Top 1 Wave). */
+    public static void setWave(boolean on) {
+        wave = on;
+    }
 
     /** Turns the shiny chat animation on/off (off = those markers keep their still gradient). */
     public static void setAnimated(boolean on) {
@@ -89,7 +105,9 @@ public final class AnimatedTextAdapter {
     public static int color(TextColor color, int value) {
         if (color == null) return value;
         Marker m = MARKERS.get(color);
-        if (m == null || m.cycle == null || (m.chat && !animate)) return value;
+        if (m == null) return value;
+        if (m.tier != null) return StatusRankColors.cycle(m.tier).rgbNow(m.index);
+        if (m.cycle == null || (m.chat && !animate)) return value;
         return m.cycle.rgbNow(m.index);
     }
 
@@ -98,7 +116,7 @@ public final class AnimatedTextAdapter {
         TextColor color = style == null ? null : style.getColor();
         if (color == null) return 0;
         Marker m = MARKERS.get(color);
-        if (m == null || !m.wave) return 0;
+        if (m == null || !m.wave || !wave) return 0;
         int period = Durations.loop(Durations.STATUS_WAVE_LOOP);
         if (period <= 0) return 0;
         double t = (System.currentTimeMillis() % period) / (double) period * Math.PI * 2;

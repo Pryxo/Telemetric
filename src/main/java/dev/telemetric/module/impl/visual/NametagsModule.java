@@ -3,6 +3,7 @@ package dev.telemetric.module.impl.visual;
 import dev.telemetric.api.HeadStatusApi;
 import dev.telemetric.api.HeadStatusCache;
 import dev.telemetric.data.TelosData;
+import dev.telemetric.game.AnimatedTextAdapter;
 import dev.telemetric.game.NametagAdapter;
 import dev.telemetric.game.NametagAdapter.PlayerNametag;
 import dev.telemetric.game.NametagAdapter.TitleLine;
@@ -10,6 +11,7 @@ import dev.telemetric.hud.StatusRankColors;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ModeSetting;
 
 import java.util.List;
 import java.util.Locale;
@@ -31,13 +33,21 @@ public final class NametagsModule extends Module {
             "Hide your own name tag in third person", false));
     private final BooleanSetting showStatus = add(new BooleanSetting("Show Status",
             "Show each player's head status (e.g. Luna Kills) above their name tag", true));
+    private final BooleanSetting topWave = add(new BooleanSetting("Top 1 Wave",
+            "Let the #1 status title bob up and down in a wave", true));
+    private final ModeSetting statusTheme = add(new ModeSetting("Status Theme",
+            "Colour set of the status titles by leaderboard position", StatusRankColors.Theme.defaultName(),
+            StatusRankColors.Theme::names));
+    private final ModeSetting statusPosition = add(new ModeSetting("Status Position",
+            "Where the status line sits: Top (above the name), Middle (between name and HP) or Bottom (under everything)",
+            "Top", "Top", "Middle", "Bottom"));
 
     /** Rules from other modules; each checks its own module's state. */
     private final List<Predicate<PlayerNametag>> hideRules = new CopyOnWriteArrayList<>();
 
     public NametagsModule() {
         super("Nametags", "Edits Telos player name tags (other modules like Hide Players use it too)", Category.VISUAL);
-        syncOn(this::sync, hideOwn);
+        syncOn(this::sync, hideOwn, topWave, statusTheme, statusPosition);
         sync();
         NametagAdapter.setTitleSource(this::statusLine);
     }
@@ -80,16 +90,24 @@ public final class NametagsModule extends Module {
             if (!rest.isEmpty()) unit = " " + rest;
             name = name.substring(0, dash).trim();
         }
-        if (name.endsWith(" Kills") && status.count() > 0) {
+        String id = boardId(status.text(), name);
+        TelosData.StatusIcons table = TelosData.STATUS_ICONS.get();
+        TelosData.StatusCategory cat = table.category(id);
+        if (cat != null) {
+            // "Miraj Kills" → "Miraj", unit from the category ("1 kill" / "2 kills")
+            String suffix = " " + cat.name();
+            if (name.regionMatches(true, name.length() - suffix.length(), suffix, 0, suffix.length()))
+                name = name.substring(0, name.length() - suffix.length());
+            if (status.count() > 0) unit = " " + cat.unit(status.count());
+        } else if (name.endsWith(" Kills") && status.count() > 0) {
             name = name.substring(0, name.length() - " Kills".length());
-            unit = " kills";
+            unit = status.count() == 1 ? " Kill" : " Kills"; // same words as the "Kills" category
         }
         String text = status.count() > 0
                 ? name + " - " + String.format(Locale.ROOT, "%,d", status.count()) + unit
                 : name;
         String rank = status.position() > 0 ? "#" + status.position() : "";
-        return new TitleLine(rank, TelosData.STATUS_ICONS.get().of(boardId(status.text(), name)), text,
-                StatusRankColors.forPosition(status.position()));
+        return new TitleLine(rank, table.of(id), text, StatusRankColors.forPosition(status.position()));
     }
 
     /**
@@ -113,6 +131,13 @@ public final class NametagsModule extends Module {
     }
 
     private void sync() {
+        AnimatedTextAdapter.setWave(topWave.get());
+        StatusRankColors.setTheme(statusTheme.get());
+        NametagAdapter.setTitlePosition(switch (statusPosition.get()) {
+            case "Middle" -> NametagAdapter.TitlePosition.MIDDLE;
+            case "Bottom" -> NametagAdapter.TitlePosition.BOTTOM;
+            default -> NametagAdapter.TitlePosition.TOP;
+        });
         boolean own = isEnabled() && hideOwn.get();
         NametagAdapter.setHideRule(!own && hideRules.isEmpty() ? null : tag -> hides(tag, own));
     }

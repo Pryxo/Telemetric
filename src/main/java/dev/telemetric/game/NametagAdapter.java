@@ -72,6 +72,65 @@ public final class NametagAdapter {
         titleSource = source;
     }
 
+    /** Where the title line goes in the name tag. */
+    public enum TitlePosition { TOP, MIDDLE, BOTTOM }
+
+    private static volatile TitlePosition titlePosition = TitlePosition.TOP;
+
+    public static void setTitlePosition(TitlePosition position) {
+        titlePosition = position == null ? TitlePosition.TOP : position;
+    }
+
+    public static TitlePosition titlePosition() {
+        return titlePosition;
+    }
+
+    /**
+     * Mixin hook: the name tag text with {@code title} put in as its own line — Top = first line, Middle = right
+     * before the "HP:" line (after the first line when there is none), Bottom = last line. Styles are kept.
+     */
+    public static Component withTitle(Component text, Component title, TitlePosition position) {
+        if (position == TitlePosition.TOP) return Component.empty().append(title).append("\n").append(text);
+        if (position == TitlePosition.BOTTOM) return Component.empty().append(text).append("\n").append(title);
+        java.util.List<MutableComponent> lines = new java.util.ArrayList<>();
+        java.util.List<StringBuilder> plain = new java.util.ArrayList<>();
+        lines.add(Component.empty());
+        plain.add(new StringBuilder());
+        text.visit((style, s) -> {
+            String[] parts = s.split("\n", -1);
+            for (int i = 0; i < parts.length; i++) {
+                if (i > 0) {
+                    lines.add(Component.empty());
+                    plain.add(new StringBuilder());
+                }
+                if (!parts[i].isEmpty()) {
+                    lines.getLast().append(Component.literal(parts[i]).withStyle(style));
+                    plain.getLast().append(parts[i]);
+                }
+            }
+            return java.util.Optional.empty();
+        }, net.minecraft.network.chat.Style.EMPTY);
+        int at = Math.min(1, lines.size());
+        for (int i = 0; i < plain.size(); i++) {
+            if (plain.get(i).indexOf("HP:") >= 0) {
+                at = i;
+                break;
+            }
+        }
+        MutableComponent out = Component.empty();
+        for (int i = 0; i <= lines.size(); i++) {
+            if (i == at) {
+                if (i > 0) out.append("\n");
+                out.append(title);
+            }
+            if (i < lines.size()) {
+                if (i > 0 || at == 0) out.append("\n");
+                out.append(lines.get(i));
+            }
+        }
+        return out;
+    }
+
     /** Per display: {TitleLine, Component} last built, so the same title stays the same instance. */
     private static final Map<Display.TextDisplay, Object[]> TITLE_CACHE = new WeakHashMap<>();
 

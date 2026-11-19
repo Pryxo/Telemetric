@@ -23,13 +23,16 @@ public abstract class TextDisplayTitleMixin {
 
     /** Title baked into {@link #clientDisplayCache}; null = none. Same instance while the title is unchanged. */
     @Unique private Component telemetric$title;
+    @Unique private NametagAdapter.TitlePosition telemetric$position = NametagAdapter.TitlePosition.TOP;
 
     @Inject(method = "cacheDisplay", at = @At("HEAD"))
     private void telemetric$refreshTitle(Display.TextDisplay.LineSplitter splitter,
                                          CallbackInfoReturnable<Display.TextDisplay.CachedInfo> cir) {
         Component title = NametagAdapter.titleFor((Display.TextDisplay) (Object) this);
-        if (title != telemetric$title) {
+        NametagAdapter.TitlePosition position = NametagAdapter.titlePosition();
+        if (title != telemetric$title || position != telemetric$position) {
             telemetric$title = title;
+            telemetric$position = position;
             clientDisplayCache = null; // re-split with (or without) the title line
         }
     }
@@ -40,6 +43,6 @@ public abstract class TextDisplayTitleMixin {
             index = 0)
     private Component telemetric$prependTitle(Component text) {
         Component title = telemetric$title;
-        return title == null ? text : Component.empty().append(title).append("\n").append(text);
+        return title == null ? text : NametagAdapter.withTitle(text, title, telemetric$position);
     }
 }

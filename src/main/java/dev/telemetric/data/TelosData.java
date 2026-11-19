@@ -403,6 +403,52 @@ public final class TelosData {
         }
     }
 
+    // ------------------------------------------------------------------ head status colour themes
+
+    /**
+     * {@code StatusColor.json} — Nametags → Status Theme presets: theme name → leaderboard slot ({@code "#1"},
+     * {@code "#2"}, {@code "#3"}, {@code "#4-10"}, {@code "#11-20"}, {@code "#21-25"}) → colours. A slot value is one
+     * {@code "#RRGGBB"} (solid, no gradient), a list of them (moving gradient) or {@code "shiny"} (the shiny cycle).
+     */
+    public static final SharedFile<StatusColors> STATUS_COLORS =
+            SharedData.file(DIR + "StatusColor.json", StatusColors::parse, StatusColors.EMPTY);
+
+    /** One slot's colours: {@code shiny} = shiny cycle, else {@code rgb} frames (one = solid colour). */
+    public record StatusSlot(boolean shiny, int[] rgb) {}
+
+    /** Theme name → slot key → colours, in file order. */
+    public record StatusColors(Map<String, Map<String, StatusSlot>> themes) {
+        public static final StatusColors EMPTY = new StatusColors(Map.of());
+
+        static StatusColors parse(JsonObject root) {
+            Map<String, Map<String, StatusSlot>> out = new LinkedHashMap<>();
+            for (Map.Entry<String, JsonElement> t : root.entrySet()) {
+                if (!t.getValue().isJsonObject()) continue;
+                Map<String, StatusSlot> slots = new HashMap<>();
+                for (Map.Entry<String, JsonElement> s : t.getValue().getAsJsonObject().entrySet()) {
+                    StatusSlot slot = slot(s.getValue());
+                    if (slot != null) slots.put(s.getKey().replace(" ", ""), slot);
+                }
+                if (!slots.isEmpty()) out.put(t.getKey().trim(), Collections.unmodifiableMap(slots));
+            }
+            return new StatusColors(Collections.unmodifiableMap(out));
+        }
+
+        private static StatusSlot slot(JsonElement v) {
+            if (v.isJsonPrimitive()) {
+                String s = v.getAsString().trim();
+                if (s.equalsIgnoreCase("shiny")) return new StatusSlot(true, new int[0]);
+                return s.isEmpty() ? null : new StatusSlot(false, new int[]{JsonFields.rgb(s)});
+            }
+            if (!v.isJsonArray()) return null;
+            JsonArray a = v.getAsJsonArray();
+            List<Integer> rgb = new ArrayList<>();
+            for (JsonElement e : a) if (e.isJsonPrimitive()) rgb.add(JsonFields.rgb(e.getAsString().trim()));
+            if (rgb.isEmpty()) return null;
+            return new StatusSlot(false, rgb.stream().mapToInt(Integer::intValue).toArray());
+        }
+    }
+
     // ------------------------------------------------------------------ head status icons
 
     /** {@code statusIcons.json} — icon per HeadStatus leaderboard ID, drawn in the Nametags status title. */
@@ -415,23 +461,57 @@ public final class TelosData {
      */
     public record StatusIcon(String glyph, String font, String sprite) {}
 
+    /** A status category's unit words ({@code "kill"} / {@code "kills"}). */
+    public record StatusCategory(String name, String singular, String plural) {
+        /** Unit word for {@code count}. */
+        public String unit(long count) {
+            return count == 1 ? singular : plural;
+        }
+    }
+
     /**
-     * @param byId leaderboard ID ({@code STATUS-MIRAJ}) → icon. JSON value: a string (contains ":" = sprite id, else a
-     *             glyph in the default font) or {@code {"glyph": "…", "font": "telos:misc"}} / {@code {"sprite": "…"}};
-     *             empty = no icon.
+     * @param byId       leaderboard ID ({@code STATUS-MIRAJ}) → icon (missing = no icon).
+     * @param categoryOf leaderboard ID → its category ({@code "Kills"}).
+     * JSON: {@code "categories": {"Kills": {"singular": "kill", "plural": "kills"}}} and
+     * {@code "icons": {"STATUS-MIRAJ": {"icon": "telos:material/bosses/miraj", "category": "Kills"}}}; {@code icon} is
+     * a string (contains ":" = sprite id, else a glyph in the default font) or {@code {"glyph", "font"}} /
+     * {@code {"sprite"}}; empty = no icon.
      */
-    public record StatusIcons(Map<String, StatusIcon> byId) {
-        static final StatusIcons EMPTY = new StatusIcons(Map.of());
+    public record StatusIcons(Map<String, StatusIcon> byId, Map<String, StatusCategory> categoryOf) {
+        static final StatusIcons EMPTY = new StatusIcons(Map.of(), Map.of());
 
         static StatusIcons parse(JsonObject root) {
             JsonObject icons = JsonFields.obj(root, "icons");
             if (icons == null) return EMPTY;
+            Map<String, StatusCategory> cats = new HashMap<>();
+            JsonObject catsJson = JsonFields.obj(root, "categories");
+            if (catsJson != null) for (Map.Entry<String, JsonElement> e : catsJson.entrySet()) {
+                if (!e.getValue().isJsonObject()) continue;
+                JsonObject c = e.getValue().getAsJsonObject();
+                String plural = JsonFields.str(c, "plural").trim(), singular = JsonFields.str(c, "singular").trim();
+                if (plural.isEmpty()) plural = singular;
+                if (singular.isEmpty()) singular = plural;
+                cats.put(e.getKey(), new StatusCategory(e.getKey(), singular, plural));
+            }
             Map<String, StatusIcon> out = new HashMap<>();
+            Map<String, StatusCategory> catOf = new HashMap<>();
             for (Map.Entry<String, JsonElement> e : icons.entrySet()) {
-                StatusIcon icon = icon(e.getValue());
+                JsonElement v = e.getValue();
+                if (v.isJsonObject() && v.getAsJsonObject().has("icon")) {
+                    JsonObject o = v.getAsJsonObject();
+                    StatusCategory c = cats.get(JsonFields.str(o, "category").trim());
+                    if (c != null) catOf.put(e.getKey(), c);
+                    v = o.get("icon");
+                }
+                StatusIcon icon = icon(v);
                 if (icon != null) out.put(e.getKey(), icon);
             }
-            return new StatusIcons(Map.copyOf(out));
+            return new StatusIcons(Map.copyOf(out), Map.copyOf(catOf));
+        }
+
+        /** Category of a leaderboard ID, or null. */
+        public StatusCategory category(String id) {
+            return id == null ? null : categoryOf.get(id);
         }
 
         private static StatusIcon icon(JsonElement v) {
