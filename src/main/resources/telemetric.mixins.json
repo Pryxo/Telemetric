@@ -35,7 +35,8 @@
 		"SoundEngineMixin",
 		"StashBackgroundMixin",
 		"StashScreenMixin",
-		"TextDisplayAccessor"
+		"TextDisplayAccessor",
+		"TextDisplayTitleMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

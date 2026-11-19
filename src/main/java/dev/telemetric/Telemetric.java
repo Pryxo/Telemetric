@@ -63,6 +63,7 @@ public final class Telemetric implements ClientModInitializer {
 
         ModPaths.migrate(); // first: old flat config folder -> settings/ saved/ custom/ data/
         TelosData.init(); // shared tables: cache / bundled copy now, one update check per start
+        dev.telemetric.api.HeadStatusApi.refreshRealms(); // one live realm list request per start (Realm Selector)
         moduleManager = new ModuleManager();
         moduleManager.registerAll();
         // Add-ons register extra categories, palettes and modules here,
@@ -91,6 +92,8 @@ public final class Telemetric implements ClientModInitializer {
         RealmBossTracker.get().start();
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
+        // once the client (and its session services) is up: one load of the settable head statuses per start
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> dev.telemetric.api.HeadStatusApi.refreshStatuses());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             configManager.onShutdown();
             TrackingStore.saveAll();
@@ -115,6 +118,7 @@ public final class Telemetric implements ClientModInitializer {
         RealmBossTracker.get().tick();
         LootTracker.get().tick();
         WikiStatsScan.get().tick();
+        dev.telemetric.api.HeadStatusCache.tick(); // head statuses of loaded players, every 10 s, 15 min cache
         try {
             CooldownTracker.get().tick();
         } catch (RuntimeException e) {

@@ -1,5 +1,6 @@
 package dev.telemetric.game;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.network.chat.Component;
@@ -8,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -15,7 +17,7 @@ import java.util.function.Predicate;
  * {@code nameTagVisibility: NEVER}) and instead puts a text display on the player as a passenger, e.g.
  * {@code "<rank glyph> [Member] Name\nHP: 20"}. This class finds those displays, works out whose they are and asks the
  * Nametags module's rule whether to draw them. Hook: {@link #hidden} from {@code EntityRenderDispatcherMixin} via
- * {@link PlayerVisibilityAdapter}. Everything is off away from Telos.
+ * {@link PlayerVisibilityAdapter}; title line on top: {@link #titleFor} from {@code TextDisplayTitleMixin}. Everything is off away from Telos.
  */
 public final class NametagAdapter {
 
@@ -40,6 +42,44 @@ public final class NametagAdapter {
         Player owner = owner(display);
         if (owner == null) return false;
         return rule.test(new PlayerNametag(owner.getScoreboardName(), owner == Minecraft.getInstance().player, text));
+    }
+
+    // ------------------------------------------------------------------ title line
+
+    /**
+     * A title line for a name tag: grey {@code label}, then (when not empty) ": " and a white {@code value} — the same
+     * look as Telos' own "HP: 20" line. A label alone is drawn white.
+     */
+    public record TitleLine(String label, String value) {}
+
+    private static volatile Function<String, TitleLine> titleSource;
+
+    /** Owner UUID (dashed) → title line, or null for none. Null source = no titles. */
+    public static void setTitleSource(Function<String, TitleLine> source) {
+        titleSource = source;
+    }
+
+    /** Per display: {TitleLine, Component} last built, so the same title stays the same instance. */
+    private static final Map<Display.TextDisplay, Object[]> TITLE_CACHE = new WeakHashMap<>();
+
+    /**
+     * Mixin hook ({@code TextDisplayTitleMixin}, every time the display's lines are needed): the line to put on top
+     * of this Telos name tag, or null. Returns the same instance while the title is unchanged.
+     */
+    public static Component titleFor(Display.TextDisplay display) {
+        Function<String, TitleLine> source = titleSource;
+        if (source == null || !ServerGate.onTelos() || nametagText(display) == null) return null;
+        Player owner = owner(display);
+        TitleLine line = owner == null ? null : source.apply(owner.getUUID().toString());
+        if (line == null) return null;
+        Object[] cached = TITLE_CACHE.get(display);
+        if (cached != null && cached[0].equals(line)) return (Component) cached[1];
+        Component built = line.value().isEmpty()
+                ? Component.literal(line.label()).withStyle(ChatFormatting.WHITE)
+                : Component.literal(line.label() + ": ").withStyle(ChatFormatting.GRAY)
+                        .append(Component.literal(line.value()).withStyle(ChatFormatting.WHITE));
+        TITLE_CACHE.put(display, new Object[]{line, built});
+        return built;
     }
 
     // ------------------------------------------------------------------ detection

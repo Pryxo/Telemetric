@@ -199,6 +199,21 @@ public final class PlayerAdapter {
         return p == null ? null : p.getUUID().toString();
     }
 
+    /**
+     * UUIDs (dashed) of every real player the client has loaded around you, yourself included; empty outside a world.
+     * Only version-4 (Mojang account) UUIDs — server NPCs shown as players use other versions and are left out.
+     */
+    public static java.util.List<String> loadedPlayerIds() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return java.util.List.of();
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (net.minecraft.world.entity.player.Player pl : mc.level.players()) {
+            java.util.UUID id = pl.getUUID();
+            if (id.version() == 4) out.add(id.toString());
+        }
+        return out;
+    }
+
     /** Eye position, or null. */
     public static Point eyes() {
         LocalPlayer p = player();

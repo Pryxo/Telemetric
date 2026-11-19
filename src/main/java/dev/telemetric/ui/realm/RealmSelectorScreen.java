@@ -1,6 +1,7 @@
 package dev.telemetric.ui.realm;
 
 import dev.telemetric.Telemetric;
+import dev.telemetric.api.HeadStatusApi;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.data.TelosData.Realms;
 import dev.telemetric.game.PlayerAdapter;
@@ -18,15 +19,20 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
- * MC ADAPTER (UI) — Player → Keybinds → Realm Selector: one button per realm of a region (tabs on top, your region
- * first), hubs / missions in their own row and "Previous" (the realm before this one). A click runs
- * {@code /joinq <name>}. Realm lists: {@code realms.json}. Theme colours, open fade {@link Durations#SCREEN},
- * button hover {@link Durations#HOVER}.
+ * MC ADAPTER (UI) — Player → Keybinds → Realm Selector: one button per online realm of a region with its player
+ * count ("Astra (8)"; tabs on top, your region selected), hubs / missions in their own row and "Previous" (the realm
+ * before this one, only if it is live). A click runs {@code /joinq <name>}. Only servers the live HeadStatus list
+ * ({@link HeadStatusApi}) returns are shown, plus a Missions button in every live region; {@code realms.json} only
+ * gives tab order, display names and the hub split. Theme colours, open fade
+ * {@link Durations#SCREEN}, button hover {@link Durations#HOVER}.
  */
 public class RealmSelectorScreen extends Screen {
 
@@ -43,25 +49,110 @@ public class RealmSelectorScreen extends Screen {
     private final Map<String, Animation> hover = new HashMap<>();
     private final String previous;
     private final TelosServer here;
+    /** Region name of the server you are on ({@code realms.json} prefix match), null = unknown. */
+    private final String myRegion;
     private int region;
+    private boolean regionPicked;
     private final List<Button> buttons = new ArrayList<>();
     private final List<Button> tabs = new ArrayList<>();
+
+    /** API region id → tab name. */
+    private static final Map<String, String> REGION_NAMES = Map.of("de", "EU", "ny", "NA", "sg", "SG");
+
+    /** Always offered in every region, even when the API does not list it. */
+    private static final String MISSIONS = "Missions";
+
+    /** @param name realm / hub name for {@code /joinq}; @param players online players, -1 = not in the API list */
+    private record Entry(String name, int players) {
+        String label() {
+            return players < 0 ? name : name + " (" + players + ")";
+        }
+    }
+
+    private record LiveRegion(String name, List<Entry> realms, List<Entry> hubs) {}
 
     /** @param previous realm you were on before this one (null = none) */
     public RealmSelectorScreen(String previous) {
         super(Component.literal("Realm Selector"));
         this.previous = previous;
         this.here = TelosServer.current();
-        Realms realms = TelosData.REALMS.get();
-        Realms.Region mine = realms.forServerRegion(here == null ? null : here.region());
-        region = Math.max(0, realms.regions().indexOf(mine));
+        Realms.Region mine = TelosData.REALMS.get().forServerRegion(here == null ? null : here.region());
+        this.myRegion = mine == null ? null : mine.name();
         open.animateTo(1);
     }
 
-    /** Opens the selector (on the client thread). */
+    /**
+     * Opens the selector (on the client thread). The live realm list is only asked for again here, and only once the
+     * {@link HeadStatusApi#REALM_TTL_MS 5 min} cache ran out; otherwise the cached list is shown.
+     */
     public static void open(String previous) {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         mc.execute(() -> mc.setScreen(new RealmSelectorScreen(previous)));
+        HeadStatusApi.refreshRealmsIfStale().thenRun(() -> mc.execute(() -> {
+            if (mc.screen instanceof RealmSelectorScreen s) s.rebuild();
+        }));
+    }
+
+    /**
+     * Regions with only the servers the API lists, tab order and names / hub split from {@code realms.json}
+     * (unknown names: capitalised, {@code hub…} / {@code missions…} count as hubs).
+     */
+    private static List<LiveRegion> liveRegions() {
+        List<Realms.Region> known = TelosData.REALMS.get().regions();
+        Map<String, LiveRegion> byName = new LinkedHashMap<>();
+        for (Realms.Region k : known) {
+            byName.put(k.name().toUpperCase(Locale.ROOT), new LiveRegion(k.name(), new ArrayList<>(), new ArrayList<>()));
+        }
+        for (HeadStatusApi.LiveRealm lr : HeadStatusApi.realms()) {
+            if (lr.name().startsWith("tutorial")) continue; // tutorial servers are never offered
+            String rn = REGION_NAMES.getOrDefault(lr.region(), lr.region().toUpperCase(Locale.ROOT));
+            LiveRegion reg = byName.computeIfAbsent(rn.toUpperCase(Locale.ROOT),
+                    n -> new LiveRegion(rn, new ArrayList<>(), new ArrayList<>()));
+            Realms.Region k = known.stream().filter(x -> x.name().equalsIgnoreCase(reg.name())).findFirst().orElse(null);
+            String hubName = k == null ? null : match(k.hubs(), lr.name());
+            String realmName = k == null ? null : match(k.realms(), lr.name());
+            if (hubName != null) reg.hubs().add(new Entry(hubName, lr.players()));
+            else if (realmName != null) reg.realms().add(new Entry(realmName, lr.players()));
+            else if (lr.name().startsWith("hub") || lr.name().startsWith("missions")) {
+                reg.hubs().add(new Entry(capitalise(lr.name()), lr.players()));
+            } else reg.realms().add(new Entry(capitalise(lr.name()), lr.players()));
+        }
+        List<LiveRegion> out = new ArrayList<>();
+        for (LiveRegion reg : byName.values()) {
+            if (reg.realms().isEmpty() && reg.hubs().isEmpty()) continue;
+            if (reg.hubs().stream().noneMatch(e -> e.name().equalsIgnoreCase(MISSIONS))) {
+                reg.hubs().add(new Entry(MISSIONS, -1));
+            }
+            Realms.Region k = known.stream().filter(x -> x.name().equalsIgnoreCase(reg.name())).findFirst().orElse(null);
+            reg.realms().sort(order(k == null ? List.of() : k.realms()));
+            reg.hubs().sort(order(k == null ? List.of() : k.hubs()));
+            out.add(reg);
+        }
+        return out;
+    }
+
+    private static String match(List<String> names, String id) {
+        for (String n : names) if (n.equalsIgnoreCase(id)) return n;
+        return null;
+    }
+
+    /** {@code realms.json} order first, unknown names after it alphabetically. */
+    private static Comparator<Entry> order(List<String> known) {
+        return Comparator.<Entry>comparingInt(e -> {
+            for (int i = 0; i < known.size(); i++) if (known.get(i).equalsIgnoreCase(e.name())) return i;
+            return Integer.MAX_VALUE;
+        }).thenComparing(Entry::name, String.CASE_INSENSITIVE_ORDER);
+    }
+
+    /** {@code hub-1} → {@code Hub-1}. */
+    private static String capitalise(String id) {
+        StringBuilder sb = new StringBuilder(id.length());
+        boolean up = true;
+        for (char c : id.toCharArray()) {
+            sb.append(up ? Character.toUpperCase(c) : c);
+            up = c == '-' || c == '_' || c == ' ';
+        }
+        return sb.toString();
     }
 
     @Override
@@ -74,26 +165,50 @@ public class RealmSelectorScreen extends Screen {
         layout();
     }
 
+    /** Re-lays the buttons when a realm request lands while the screen is open. */
+    private void rebuild() {
+        if (font != null) layout();
+    }
+
     private void layout() {
         buttons.clear();
         tabs.clear();
-        List<Realms.Region> regions = TelosData.REALMS.get().regions();
+        List<LiveRegion> regions = liveRegions();
         if (regions.isEmpty()) return;
+        if (!regionPicked) {
+            region = 0;
+            for (int i = 0; i < regions.size(); i++) {
+                if (regions.get(i).name().equalsIgnoreCase(myRegion)) region = i;
+            }
+        }
         region = Math.min(region, regions.size() - 1);
-        Realms.Region g = regions.get(region);
-        int bw = 70;
-        for (String s : g.realms()) bw = Math.max(bw, font.width(s) + 16);
-        for (String s : g.hubs()) bw = Math.max(bw, font.width(s) + 16);
+        LiveRegion g = regions.get(region);
+        int bw = 90; // fixed so buttons do not resize as counts / servers change (grows only for very long names)
+        for (Entry e : g.realms()) bw = Math.max(bw, font.width(e.label()) + 16);
+        for (Entry e : g.hubs()) bw = Math.max(bw, font.width(e.label()) + 16);
         int cols = Math.max(1, Math.min(6, (width - PAD * 2 + GAP) / (bw + GAP)));
         int gridW = cols * bw + (cols - 1) * GAP;
         int rows = (g.realms().size() + cols - 1) / cols;
-        int totalH = TAB_H + GAP * 2 + rows * (BTN_H + GAP) + GAP + BTN_H + (previous != null ? GAP + BTN_H : 0);
+        // "Previous" only when that server is in this region's live list
+        String prev = null;
+        if (previous != null) {
+            for (List<Entry> list : List.of(g.realms(), g.hubs())) {
+                for (Entry e : list) if (e.name().equalsIgnoreCase(previous)) prev = e.name();
+            }
+        }
+        // "Previous" is not part of the centred block: it hangs below, so the grid never jumps when it appears
+        int totalH = TAB_H + GAP * 2 + rows * (BTN_H + GAP) + GAP + BTN_H;
         int left = (width - gridW) / 2, y = Math.max(PAD + 12, (height - totalH) / 2);
 
         // region tabs
         int tx = left;
         for (int i = 0; i < regions.size(); i++) {
-            String name = regions.get(i).name();
+            LiveRegion lr = regions.get(i);
+            int total = 0;
+            for (List<Entry> list : List.of(lr.realms(), lr.hubs())) {
+                for (Entry e : list) total += Math.max(0, e.players());
+            }
+            String name = lr.name() + " (" + total + ")";
             int w = font.width(name) + 12;
             tabs.add(new Button(name, Integer.toString(i), tx, y, w, TAB_H, i == region));
             tx += w + GAP;
@@ -101,20 +216,24 @@ public class RealmSelectorScreen extends Screen {
         y += TAB_H + GAP * 2;
 
         for (int i = 0; i < g.realms().size(); i++) {
-            String realm = g.realms().get(i);
-            buttons.add(new Button(realm, realm, left + (i % cols) * (bw + GAP), y + (i / cols) * (BTN_H + GAP), bw, BTN_H,
-                    isHere(realm)));
+            Entry e = g.realms().get(i);
+            buttons.add(new Button(e.label(), e.name(), left + (i % cols) * (bw + GAP), y + (i / cols) * (BTN_H + GAP), bw,
+                    BTN_H, isHere(e.name())));
         }
         y += rows * (BTN_H + GAP) + GAP;
-        int hubW = g.hubs().size() * bw + Math.max(0, g.hubs().size() - 1) * GAP;
-        for (int i = 0; i < g.hubs().size(); i++) {
-            String hub = g.hubs().get(i);
-            buttons.add(new Button(hub, hub, (width - hubW) / 2 + i * (bw + GAP), y, bw, BTN_H, isHere(hub)));
+        // hubs row (hubs, Missions) centred
+        int rowN = g.hubs().size();
+        int hx = (width - (rowN * bw + Math.max(0, rowN - 1) * GAP)) / 2;
+        for (List<Entry> list : List.of(g.hubs())) {
+            for (Entry e : list) {
+                buttons.add(new Button(e.label(), e.name(), hx, y, bw, BTN_H, isHere(e.name())));
+                hx += bw + GAP;
+            }
         }
-        if (previous != null) {
-            String label = "Previous: " + previous;
+        if (prev != null) {
+            String label = "Previous: " + prev;
             int w = Math.max(bw, font.width(label) + 16);
-            buttons.add(new Button(label, previous, (width - w) / 2, y + BTN_H + GAP, w, BTN_H, false));
+            buttons.add(new Button(label, prev, (width - w) / 2, y + BTN_H + GAP, w, BTN_H, false));
         }
     }
 
@@ -137,8 +256,10 @@ public class RealmSelectorScreen extends Screen {
         r.begin(graphics, mod.theme().textShadow());
         try {
             r.pushAlpha(open.get());
-            if (buttons.isEmpty()) {
-                r.textCentered("No realm list (realms.json)", width / 2, height / 2, p.textMuted());
+            if (tabs.isEmpty()) {
+                String msg = HeadStatusApi.realmsLoading() ? "Loading realms…"
+                        : HeadStatusApi.realmsLoaded() ? "No realms online" : "Realm list unavailable";
+                r.textCentered(msg, width / 2, height / 2, p.textMuted());
             } else {
                 int titleY = Math.max(4, tabs.getFirst().y() - 14);
                 r.textCentered(here == null ? "Realm Selector" : "Realm Selector — " + here.display(), width / 2, titleY, p.text());
@@ -157,7 +278,8 @@ public class RealmSelectorScreen extends Screen {
     }
 
     private void draw(Button b, int mouseX, int mouseY, Theme p, int bg, int text) {
-        Animation h = hover.computeIfAbsent(b.label(), k -> new Animation(Durations.HOVER, Easing.OUT_CUBIC, 0));
+        // keyed without the player count so a count change keeps the hover state
+        Animation h = hover.computeIfAbsent(b.label().replaceFirst(" \\(\\d+\\)$", ""), k -> new Animation(Durations.HOVER, Easing.OUT_CUBIC, 0));
         h.animateTo(!b.current() && b.contains(mouseX, mouseY) ? 1 : 0);
         r.roundedRect(b.x(), b.y(), b.w(), b.h(), 3, ColorUtil.lerp(bg, p.surfaceHover(), h.get()));
         r.outline(b.x(), b.y(), b.w(), b.h(), ColorUtil.lerp(p.border(), p.accent(), h.get()));
@@ -170,6 +292,7 @@ public class RealmSelectorScreen extends Screen {
         for (Button t : tabs) {
             if (t.contains(event.x(), event.y())) {
                 region = Integer.parseInt(t.target());
+                regionPicked = true;
                 layout();
                 return true;
             }
