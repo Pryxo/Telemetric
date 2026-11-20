@@ -1,4 +1,12 @@
-# Telemetric
+﻿<h1 align = "center">
+	Telemetric
+</h1>
+
+<div align="center">
+
+[![Discord](https://img.shields.io/discord/1571198689953845258?style=for-the-badge&logo=discord&logoColor=white&color=5865F2&label=Discord)](https://discord.gg/dqjD94x3Ra)
+[![Version](https://img.shields.io/github/v/release/Pryxo/Telemetric?include_prereleases&style=for-the-badge&logo=github&color=4078c0&label=Version)](https://github.com/Pryxo/Telemetric/releases/latest)
+</div>
 
 Client-side [Fabric](https://fabricmc.net/) utility mod for the **Telos Realms** Minecraft server, with a fully
 animated ClickGUI, movable HUD elements and many QoL features.
