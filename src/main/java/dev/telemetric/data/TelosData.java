@@ -406,12 +406,12 @@ public final class TelosData {
     // ------------------------------------------------------------------ head status colour themes
 
     /**
-     * {@code StatusColor.json} — Nametags → Status Theme presets: theme name → leaderboard slot ({@code "#1"},
+     * {@code statusColor.json} — Nametags → Status Theme presets: theme name → leaderboard slot ({@code "#1"},
      * {@code "#2"}, {@code "#3"}, {@code "#4-10"}, {@code "#11-20"}, {@code "#21-25"}) → colours. A slot value is one
      * {@code "#RRGGBB"} (solid, no gradient), a list of them (moving gradient) or {@code "shiny"} (the shiny cycle).
      */
     public static final SharedFile<StatusColors> STATUS_COLORS =
-            SharedData.file(DIR + "StatusColor.json", StatusColors::parse, StatusColors.EMPTY);
+            SharedData.file(DIR + "statusColor.json", StatusColors::parse, StatusColors.EMPTY);
 
     /** One slot's colours: {@code shiny} = shiny cycle, else {@code rgb} frames (one = solid colour). */
     public record StatusSlot(boolean shiny, int[] rgb) {}
@@ -472,13 +472,15 @@ public final class TelosData {
     /**
      * @param byId       leaderboard ID ({@code STATUS-MIRAJ}) → icon (missing = no icon).
      * @param categoryOf leaderboard ID → its category ({@code "Kills"}).
+     * @param nameOf     leaderboard ID → its hand-written {@code "Name"} ({@code "Miraj"}), used instead of the API name.
      * JSON: {@code "categories": {"Kills": {"singular": "kill", "plural": "kills"}}} and
-     * {@code "icons": {"STATUS-MIRAJ": {"icon": "telos:material/bosses/miraj", "category": "Kills"}}}; {@code icon} is
+     * {@code "icons": {"STATUS-MIRAJ": {"Name": "Miraj", "icon": "telos:material/bosses/miraj", "category": "Kills"}}}; {@code icon} is
      * a string (contains ":" = sprite id, else a glyph in the default font) or {@code {"glyph", "font"}} /
      * {@code {"sprite"}}; empty = no icon.
      */
-    public record StatusIcons(Map<String, StatusIcon> byId, Map<String, StatusCategory> categoryOf) {
-        static final StatusIcons EMPTY = new StatusIcons(Map.of(), Map.of());
+    public record StatusIcons(Map<String, StatusIcon> byId, Map<String, StatusCategory> categoryOf,
+                              Map<String, String> nameOf) {
+        static final StatusIcons EMPTY = new StatusIcons(Map.of(), Map.of(), Map.of());
 
         static StatusIcons parse(JsonObject root) {
             JsonObject icons = JsonFields.obj(root, "icons");
@@ -495,18 +497,26 @@ public final class TelosData {
             }
             Map<String, StatusIcon> out = new HashMap<>();
             Map<String, StatusCategory> catOf = new HashMap<>();
+            Map<String, String> names = new HashMap<>();
             for (Map.Entry<String, JsonElement> e : icons.entrySet()) {
                 JsonElement v = e.getValue();
-                if (v.isJsonObject() && v.getAsJsonObject().has("icon")) {
+                if (v.isJsonObject()) {
                     JsonObject o = v.getAsJsonObject();
+                    String name = JsonFields.str(o, o.has("Name") ? "Name" : "name").trim();
+                    if (!name.isEmpty()) names.put(e.getKey(), name);
                     StatusCategory c = cats.get(JsonFields.str(o, "category").trim());
                     if (c != null) catOf.put(e.getKey(), c);
-                    v = o.get("icon");
+                    if (o.has("icon")) v = o.get("icon");
                 }
                 StatusIcon icon = icon(v);
                 if (icon != null) out.put(e.getKey(), icon);
             }
-            return new StatusIcons(Map.copyOf(out), Map.copyOf(catOf));
+            return new StatusIcons(Map.copyOf(out), Map.copyOf(catOf), Map.copyOf(names));
+        }
+
+        /** Hand-written display name of a leaderboard ID ({@code "Name"}), or null. */
+        public String name(String id) {
+            return id == null ? null : nameOf.get(id);
         }
 
         /** Category of a leaderboard ID, or null. */

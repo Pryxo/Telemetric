@@ -135,6 +135,15 @@ public final class NametagAdapter {
     private static final Map<Display.TextDisplay, Object[]> TITLE_CACHE = new WeakHashMap<>();
 
     /**
+     * Line width for a text display carrying {@code title}: at least the title's own width, so the status title is
+     * never wrapped (cut) mid-text — e.g. a long {@code "Name"} like "True Ophanim".
+     */
+    public static int lineWidthFor(Component title, int width) {
+        if (title == null) return width;
+        return Math.max(width, Minecraft.getInstance().font.width(title) + 1);
+    }
+
+    /**
      * Mixin hook ({@code TextDisplayTitleMixin}, every time the display's lines are needed): the line to put on top
      * of this Telos name tag, or null. Returns the same instance while the title is unchanged — the animation runs
      * in the font hook ({@link AnimatedTextAdapter}), so the line never needs rebuilding.
@@ -151,6 +160,15 @@ public final class NametagAdapter {
         Component built = build(line);
         TITLE_CACHE.put(display, new Object[]{line, built});
         return built;
+    }
+
+    /** Built previews by line (Nametags → Show Status Colors HUD); same instance while the line is unchanged. */
+    private static final Map<TitleLine, Component> PREVIEW_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The status title exactly as it is put into a name tag, for drawing on the HUD ({@code Render2D#statusTitle}). */
+    public static Component titleComponent(TitleLine line) {
+        if (PREVIEW_CACHE.size() > 64) PREVIEW_CACHE.clear();
+        return PREVIEW_CACHE.computeIfAbsent(line, NametagAdapter::build);
     }
 
     private static Component build(TitleLine line) {

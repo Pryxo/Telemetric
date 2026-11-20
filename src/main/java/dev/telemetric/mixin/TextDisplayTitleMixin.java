@@ -45,4 +45,13 @@ public abstract class TextDisplayTitleMixin {
         Component title = telemetric$title;
         return title == null ? text : NametagAdapter.withTitle(text, title, telemetric$position);
     }
+
+    /** Widens the wrap width to fit the title, so it is never split across lines mid-text. */
+    @ModifyArg(method = "cacheDisplay",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/Display$TextDisplay$LineSplitter;split(Lnet/minecraft/network/chat/Component;I)Lnet/minecraft/world/entity/Display$TextDisplay$CachedInfo;"),
+            index = 1)
+    private int telemetric$fitTitle(int width) {
+        return NametagAdapter.lineWidthFor(telemetric$title, width);
+    }
 }

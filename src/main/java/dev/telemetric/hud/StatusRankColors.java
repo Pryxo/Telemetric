@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Animated colours of a HeadStatus title by leaderboard position (Nametags → Show Status). Positions map to a
  * {@link Tier} slot (#1, #2, #3, #4–10, #11–20, #21–25; everything below stays plain); the selected {@link Theme}
- * (Nametags → Status Theme, from {@code StatusColor.json}) gives each slot its {@link ColorCycle} (one colour = solid). The theme is read at draw time, so switching
+ * (Nametags → Status Theme, from {@code statusColor.json}) gives each slot its {@link ColorCycle} (one colour = solid). The theme is read at draw time, so switching
  * it recolours existing name tags at once. Pure Java.
  */
 public final class StatusRankColors {
@@ -29,17 +29,22 @@ public final class StatusRankColors {
         TOP_20(false, "#11-20"), TOP_25(false, "#21-25");
 
         public final boolean wave;
-        /** Slot key in {@code StatusColor.json}. */
+        /** Slot key in {@code statusColor.json}. */
         public final String key;
 
         Tier(boolean wave, String key) {
             this.wave = wave;
             this.key = key;
         }
+
+        /** Display label, e.g. {@code "#21-#25"} (Nametags → Show Status Colors HUD). */
+        public String label() {
+            return key.replace("-", "-#");
+        }
     }
 
     /**
-     * A colour set for all slots, in {@link Tier} order. Themes come from {@code data/tables/StatusColor.json}
+     * A colour set for all slots, in {@link Tier} order. Themes come from {@code data/tables/statusColor.json}
      * ({@link TelosData#STATUS_COLORS}); add new ones there and they show up in the Status Theme dropdown.
      */
     public static final class Theme {

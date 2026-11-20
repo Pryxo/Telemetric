@@ -3,6 +3,7 @@ package dev.telemetric.ui.render;
 import dev.telemetric.Telemetric;
 import dev.telemetric.game.GameItem;
 import dev.telemetric.game.ItemIcons;
+import dev.telemetric.game.NametagAdapter;
 import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.TextRun;
 import dev.telemetric.mixin.GuiGraphicsExtractorAccessor;
@@ -298,6 +299,15 @@ public final class Render2D {
     public void glyph(HudIcon.Glyph glyph, int x, int y, int tint) {
         if (ColorUtil.alpha(c(tint)) < 5) return;
         g.text(font, Component.literal(glyph.text()).withStyle(style(0, glyph.font())), x, y, c(tint), false);
+    }
+
+    /** A Nametags status title as it looks in a name tag (animated gradient, wave, icon), no shadow like a text display. */
+    public void statusTitle(NametagAdapter.TitleLine line, int x, int y) {
+        g.text(font, NametagAdapter.titleComponent(line), x, y, c(0xFFFFFFFF), false);
+    }
+
+    public int statusTitleWidth(NametagAdapter.TitleLine line) {
+        return font.width(NametagAdapter.titleComponent(line));
     }
 
     public int glyphWidth(HudIcon.Glyph glyph) {

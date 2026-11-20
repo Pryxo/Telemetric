@@ -41,6 +41,15 @@ public final class NametagsModule extends Module {
     private final ModeSetting statusPosition = add(new ModeSetting("Status Position",
             "Where the status line sits: Top (above the name), Middle (between name and HP) or Bottom (under everything)",
             "Top", "Top", "Middle", "Bottom"));
+    private final BooleanSetting showColors = add(new BooleanSetting("Show Status Colors",
+            "Show a HUD element with every colour of each status position (#1 … #21-#25) in the current Status Theme",
+            false));
+    private final StatusColorsHud colorsHud = new StatusColorsHud(showColors);
+
+    /** The Show Status Colors HUD element; register it after this module. */
+    public StatusColorsHud colorsHud() {
+        return colorsHud;
+    }
 
     /** Rules from other modules; each checks its own module's state. */
     private final List<Predicate<PlayerNametag>> hideRules = new CopyOnWriteArrayList<>();
@@ -77,7 +86,7 @@ public final class NametagsModule extends Module {
 
     /**
      * "#1 <icon> Miraj - 1,234 kills" — position (when the API sends one), the leaderboard's icon from
-     * {@code statusIcons.json}, its name (a "… Kills" board drops "Kills" and puts "kills" after the count) and the
+     * {@code statusIcons.json}, its name (the table's {@code "Name"} when set; else a "… Kills" board drops "Kills" and puts "kills" after the count) and the
      * count; coloured by position ({@link StatusRankColors}). Single place that decides the status text.
      */
     static TitleLine statusLine(HeadStatusApi.HeadStatus status) {
@@ -103,6 +112,8 @@ public final class NametagsModule extends Module {
             name = name.substring(0, name.length() - " Kills".length());
             unit = status.count() == 1 ? " Kill" : " Kills"; // same words as the "Kills" category
         }
+        String custom = table.name(id);
+        if (custom != null) name = custom; // hand-written "Name" beats the auto name
         String text = status.count() > 0
                 ? name + " - " + String.format(Locale.ROOT, "%,d", status.count()) + unit
                 : name;

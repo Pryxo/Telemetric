@@ -102,7 +102,8 @@ public final class ModuleManager {
         register(new HitboxesModule());
         register(new PlayerSizeModule());
         register(new HideArmorModule());
-        register(new NametagsModule());
+        NametagsModule nametags = register(new NametagsModule());
+        register(nametags.colorsHud()); // hidden HUD element, toggled by Show Status Colors
         register(new HidePlayersModule());
         register(new ItemRarityModule());
         register(new TraitDetailsModule());
