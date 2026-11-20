@@ -5,9 +5,11 @@ import dev.telemetric.dungeon.Hole;
 import dev.telemetric.dungeon.Point;
 import dev.telemetric.dungeon.RoomLayout;
 import dev.telemetric.game.DungeonAdapter;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import dev.telemetric.hud.HudColor;
 import dev.telemetric.hud.HudModule;
 import dev.telemetric.module.Category;
-import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupSetting;
@@ -32,19 +34,20 @@ public final class DungeonMapHud extends HudModule {
 
     private final NumberSetting size = add(new NumberSetting("Map Size",
             "Width and height of the map", 100, 50, 220, 2).withSuffix("px"));
-    private final GroupSetting colors = add(new GroupSetting("Colors", "Colours of the map's rooms"));
-    private final ColorSetting roomColor = add(colors.child(new ColorSetting("Room Color",
+    { addFrameSettings(true); } // HUD Settings → Background / Bg Opacity / Accent Bar first, then the colours
+
+    private final ColorSetting roomColor = addHudColor((new ColorSetting("Room Color",
             "Normal rooms and connections", 0xFF7A5230)));
-    private final ColorSetting spawnColor = add(colors.child(new ColorSetting("Spawn Color",
+    private final ColorSetting spawnColor = addHudColor((new ColorSetting("Spawn Color",
             "The room you entered the dungeon in", 0xFF3FAE4A)));
-    private final ColorSetting bossColor = add(colors.child(new ColorSetting("Boss Drop Color",
+    private final ColorSetting bossColor = addHudColor((new ColorSetting("Boss Drop Color",
             "The room with the drop down to the boss", 0xFFE0332B)));
-    private final ColorSetting treasureColor = add(colors.child(new ColorSetting("Treasure Color",
+    private final ColorSetting treasureColor = addHudColor((new ColorSetting("Treasure Color",
             "Rooms that still hold a treasure", 0xFFE8C93A)));
-    private final ColorSetting goalColor = add(colors.child(new ColorSetting("Dungeon Goal Color",
+    private final ColorSetting goalColor = addHudColor((new ColorSetting("Dungeon Goal Color",
             "Rooms with a clear mob still alive (dungeons that have them, e.g. Midnight Stronghold)", 0xFF9B4DDB)));
-    private final BooleanSetting showBackground = add(new BooleanSetting("Background",
-            "Draw the dark backdrop behind the map (off: only the rooms)", true));
+    private final HudColor selfBorder = paletteColor("Your Head Border", "Frame around your own face", Theme::text);
+    private final HudColor otherBorder = paletteColor("Others' Head Border", "Frame around other players' faces", Theme::shadow);
     private final BooleanSetting showLinks = add(new BooleanSetting("Show Connections",
             "Draw the walkable connections between rooms", true));
     private final NumberSetting linkLength = add(new NumberSetting("Connection Length",
@@ -109,6 +112,24 @@ public final class DungeonMapHud extends HudModule {
     }
 
     @Override
+    protected boolean drawsOwnFrame() {
+        return true;
+    }
+
+    /** The old map-only "Background" toggle (before HUD Settings) still turns the backdrop off. */
+    @Override
+    public void fromJson(JsonObject json) {
+        super.fromJson(json);
+        if (json.has("settings") && json.get("settings").isJsonObject()) {
+            JsonObject values = json.getAsJsonObject("settings");
+            JsonElement old = values.get("Background");
+            if (!values.has("HUD Background") && old != null && old.isJsonPrimitive() && !old.getAsBoolean()) {
+                applyGlobalBackground(false);
+            }
+        }
+    }
+
+    @Override
     public int contentWidth(Render2D r, boolean preview) {
         return size.getInt();
     }
@@ -131,11 +152,8 @@ public final class DungeonMapHud extends HudModule {
     @Override
     public void draw(Render2D r, boolean preview, boolean alignRight) {
         Theme p = Telemetric.get().theme().palette();
-        HudSettingsModule style = Telemetric.get().modules().get(HudSettingsModule.class);
         int s = size.getInt();
-        if (showBackground.get() && style.background.get()) {
-            r.roundedRect(0, 0, s, s, 3, ColorUtil.fade(p.panel(), style.backgroundOpacity.get() / 100.0));
-        }
+        drawFrame(r, s, s, alignRight);
 
         List<Box> rooms;
         List<long[]> links;
@@ -307,9 +325,9 @@ public final class DungeonMapHud extends HudModule {
         DungeonAdapter.PlayerMarker self = null;
         for (DungeonAdapter.PlayerMarker m : players) {
             if (m.self()) self = m; // drawn last, so it's on top
-            else if (showOthers.get()) drawHead(r, proj, m, hs, s, p.shadow());
+            else if (showOthers.get()) drawHead(r, proj, m, hs, s, otherBorder.get());
         }
-        if (self != null) drawHead(r, proj, self, hs, s, p.text());
+        if (self != null) drawHead(r, proj, self, hs, s, selfBorder.get());
     }
 
     /** The face (plus hat layer) centred on the player, kept inside the map square. */

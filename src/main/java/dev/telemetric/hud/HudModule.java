@@ -1,11 +1,24 @@
 package dev.telemetric.hud;
 
+import com.google.gson.JsonObject;
+import dev.telemetric.Telemetric;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
+import dev.telemetric.module.impl.misc.HudSettingsModule;
+import dev.telemetric.setting.Setting;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ColorSetting;
+import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.ModeSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
+import dev.telemetric.ui.theme.Theme;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.IntSupplier;
+import java.util.function.ToIntFunction;
 
 /**
  * Base class for every HUD element. A HUD element is a toggleable module in the {@link Category#HUD} panel. While
@@ -16,20 +29,45 @@ import dev.telemetric.ui.render.Render2D;
  * anchored in a corner in their corner on any window size or GUI scale.
  * The <b>size</b> is the visible {@code Scale} setting (the editor's resize handle changes it too).
  * <p>
+ * Every element has a <b>HUD Settings</b> dropdown (Text Align, Mirror Text, and what the element supports: Value
+ * Align, Background / Bg Opacity / Accent Bar, Icons, and a Colors section). Misc → HUD changes the shared ones on
+ * every element at once.
+ * <p>
  * Subclasses only measure and draw their content at the origin in unscaled units. The overlay and editor apply the
- * translation and scale.
+ * translation and scale. Elements that don't draw their own panel ({@link #drawsOwnFrame()} false) get the background
+ * and accent bar drawn around their content by {@link #render}.
  */
 public abstract class HudModule extends Module {
 
     /** Gap kept between elements and the screen edge (GUI units). */
     public static final int MARGIN = 2;
     public static final double MIN_SCALE = 0.5, MAX_SCALE = 3.0;
+    /** Padding between the content and the background panel drawn by {@link #render}. */
+    public static final int FRAME_PAD = 3;
+
+    public static final String ALIGN_LEFT = "Left", ALIGN_MID = "Mid", ALIGN_RIGHT = "Right";
+    /** Value Align: values pushed to the far edge of the element, or drawn right after their label. */
+    public static final String VALUE_EDGE = "Right", VALUE_INLINE = "Next to Label";
 
     private final boolean enabledByDefault;
 
     private final NumberSetting posX;
     private final NumberSetting posY;
     public final NumberSetting scale;
+
+    /** The "HUD Settings" dropdown. */
+    protected final GroupSetting hudSettings;
+    private final ModeSetting align;
+    private final BooleanSetting mirrorText;
+
+    private ModeSetting valueAlign;
+    private BooleanSetting background, accentBar, icons, title;
+    private NumberSetting bgOpacity;
+    private HudColor bgColor, accentColor;
+
+    private GroupSetting colorGroup;
+    private BooleanSetting themeColors;
+    private final List<HudColor> colors = new ArrayList<>();
 
     protected HudModule(String name, String description, double defaultX, double defaultY, boolean enabledByDefault) {
         this(name, description, Category.HUD, defaultX, defaultY, enabledByDefault);
@@ -52,14 +90,204 @@ public abstract class HudModule extends Module {
                 .visibleWhen(() -> false));
         this.scale = add(new NumberSetting("Scale", "Size of this element (also: HUD editor resize handle)",
                 Math.clamp(defaultScale, MIN_SCALE, MAX_SCALE), MIN_SCALE, MAX_SCALE, 0.05).withSuffix("x"));
-        this.align = add(new ModeSetting("Text Align", "Rows aligned left, centred or right (HUD editor: M cycles)",
-                defaultX > 0.66 ? ALIGN_RIGHT : ALIGN_LEFT, ALIGN_LEFT, ALIGN_MID, ALIGN_RIGHT));
-        this.mirrorText = add(new BooleanSetting("Mirror Text",
+        this.hudSettings = add(new GroupSetting("HUD Settings", "Look of this HUD element: alignment, background, icons and colours"));
+        this.align = add(hudSettings.child(new ModeSetting("Text Align", "Rows aligned left, centred or right (HUD editor: M cycles)",
+                defaultX > 0.66 ? ALIGN_RIGHT : ALIGN_LEFT, ALIGN_LEFT, ALIGN_MID, ALIGN_RIGHT)));
+        this.mirrorText = add(hudSettings.child(new BooleanSetting("Mirror Text",
                 "Right align mirrors rows (\"Arcanist :Class <icon>\"); off keeps \"<icon> Class: Arcanist\" (HUD editor: N)", true)
-                .visibleWhen(() -> align.is(ALIGN_RIGHT)));
+                .visibleWhen(() -> align.is(ALIGN_RIGHT))));
     }
 
-    private final BooleanSetting mirrorText;
+    // ================================================================== HUD Settings (registered by subclasses)
+
+    /**
+     * Adds a setting to the HUD Settings dropdown, in front of its Colors section. Use it in constructors and field
+     * initialisers, like {@code add}.
+     */
+    protected final <S extends Setting<?>> S addHudSetting(S setting) {
+        hudSettings.child(setting);
+        return colorGroup == null ? add(setting) : addBefore(colorGroup, setting);
+    }
+
+    /** Adds Value Align (rows with a label: value at the far edge, or right after the label). */
+    protected final void addValueAlign() {
+        if (valueAlign != null) return;
+        valueAlign = addHudSetting(new ModeSetting("Value Align",
+                "Right: values line up at the far edge of the element (left edge for mirrored rows); "
+                        + "Next to Label: each value follows its label", VALUE_EDGE, VALUE_EDGE, VALUE_INLINE)
+                .visibleWhen(() -> !isCentered() && (!isMirrored() || isTextMirrored())));
+    }
+
+    /** Adds Background, Bg Opacity and Accent Bar, plus their colours. */
+    protected final void addFrameSettings(boolean backgroundByDefault) {
+        if (background != null) return;
+        background = addHudSetting(new BooleanSetting("HUD Background", "Draw a panel behind this element",
+                backgroundByDefault).withLabel("Background"));
+        bgOpacity = addHudSetting(new NumberSetting("HUD Bg Opacity", "Opacity of this element's background", 70, 0, 100, 1)
+                .withSuffix("%").withLabel("Bg Opacity").visibleWhen(background::get));
+        accentBar = addHudSetting(new BooleanSetting("HUD Accent Bar", "Thin accent-coloured edge on this element", true)
+                .withLabel("Accent Bar").visibleWhen(background::get));
+        bgColor = paletteColor("Background", "Panel behind the element", Theme::panel);
+        accentColor = paletteColor("Accent Bar", "The thin edge of the panel", Theme::accent);
+    }
+
+    /** Adds Show Title (the element's title row can be turned off). */
+    protected final void addTitleSetting() {
+        if (title != null) return;
+        title = addHudSetting(new BooleanSetting("HUD Show Title", "Show this element's title row", true)
+                .withLabel("Show Title").visibleWhen(this::hasTitle));
+    }
+
+    /** Whether this element has a title row (Show Title is hidden otherwise). */
+    protected boolean hasTitle() {
+        return true;
+    }
+
+    /** Show Title on (true for elements without the toggle). */
+    public boolean showTitle() {
+        HudModule o = styleOwner();
+        return o.title == null || o.title.get();
+    }
+
+    /** Adds Icons (stat / row icons in front of the text). */
+    protected final void addIconSetting() {
+        if (icons != null) return;
+        icons = addHudSetting(new BooleanSetting("HUD Icons", "Show icons in front of this element's rows", true)
+                .withLabel("Icons"));
+    }
+
+    /** The Colors section (made on first use). */
+    protected final GroupSetting colorGroup() {
+        if (colorGroup == null) {
+            colorGroup = add(hudSettings.child(new GroupSetting("HUD Colors", "Colours of this element").withLabel("Colors")));
+            themeColors = add(colorGroup.child(new BooleanSetting("HUD Theme Colors",
+                    "On: the colours below follow the Theme (and the server colours); off: your own colours", true)
+                    .withLabel("Theme Colors")));
+            // switching to own colours starts from what's on screen instead of the defaults
+            themeColors.onChange(on -> {
+                if (on) return;
+                for (HudColor c : colors) if (c.setting.get().equals(c.setting.getDefault())) c.setting.set(c.themeColor());
+            });
+        }
+        return colorGroup;
+    }
+
+    /** A theme-derived colour in the Colors section (shown while Theme Colors is off). */
+    protected final HudColor hudColor(String label, String description, IntSupplier themeColor) {
+        GroupSetting group = colorGroup();
+        ColorSetting setting = add(group.child(new ColorSetting("HUD " + label + " Color", description,
+                0xFFFFFFFF, false).withLabel(label).visibleWhen(() -> !themeColors.get())));
+        HudColor color = new HudColor(setting, themeColor, () -> !themeColors.get());
+        colors.add(color);
+        return color;
+    }
+
+    /** Same, with the colour taken from the current theme palette. */
+    protected final HudColor paletteColor(String label, String description, ToIntFunction<Theme> paletteColor) {
+        return hudColor(label, description, () -> paletteColor.applyAsInt(palette()));
+    }
+
+    /** A fixed-default colour of this element (e.g. map rooms) in the Colors section, always shown. */
+    protected final ColorSetting addHudColor(ColorSetting setting) {
+        return add(colorGroup().child(setting));
+    }
+
+    protected static Theme palette() {
+        return Telemetric.get().theme().palette();
+    }
+
+    // ================================================================== style read by the drawing code
+
+    /** The element whose HUD Settings this one follows (split-off parts follow their owner). */
+    protected HudModule styleOwner() {
+        return this;
+    }
+
+    /** True for elements that draw their own background panel ({@link LinesHudModule}, DPS Log, Dungeon Map). */
+    protected boolean drawsOwnFrame() {
+        return false;
+    }
+
+    public boolean hasBackground() {
+        HudModule o = styleOwner();
+        return o.background != null && o.background.get();
+    }
+
+    /** The background colour with its opacity applied. */
+    public int backgroundColor() {
+        HudModule o = styleOwner();
+        int c = o.bgColor == null ? palette().panel() : o.bgColor.get();
+        double opacity = o.bgOpacity == null ? 0.7 : o.bgOpacity.get() / 100.0;
+        return ColorUtil.fade(c, opacity);
+    }
+
+    public boolean hasAccentBar() {
+        HudModule o = styleOwner();
+        return hasBackground() && o.accentBar != null && o.accentBar.get();
+    }
+
+    public int accentBarColor() {
+        HudModule o = styleOwner();
+        return o.accentColor == null ? palette().accent() : o.accentColor.get();
+    }
+
+    /** Row icons on (elements without their own Icons toggle follow Misc → HUD → Stat Icons). */
+    public boolean showIcons() {
+        HudModule o = styleOwner();
+        if (o.icons != null) return o.icons.get();
+        HudSettingsModule global = Telemetric.get().modules().get(HudSettingsModule.class);
+        return global == null || global.statIcons.get();
+    }
+
+    /** Value Align = Right: values pushed to the far edge. */
+    public boolean valuesAtEdge() {
+        HudModule o = styleOwner();
+        return o.valueAlign != null && o.valueAlign.is(VALUE_EDGE);
+    }
+
+    /** Draws the background panel and the accent bar (on the left, the right when right-aligned, none when centred). */
+    protected final void drawFrame(Render2D r, int w, int h, boolean alignRight) {
+        if (!hasBackground()) return;
+        r.roundedRect(0, 0, w, h, 3, backgroundColor());
+        if (hasAccentBar() && (alignRight || !isCentered())) r.rect(alignRight ? w - 1 : 0, 2, 1, h - 4, accentBarColor());
+    }
+
+    // ================================================================== Misc → HUD (universal)
+
+    /** Misc → HUD changed a shared setting: copy it onto this element. */
+    public void applyGlobalBackground(boolean on) {
+        if (background != null) background.set(on);
+    }
+
+    public void applyGlobalBgOpacity(double value) {
+        if (bgOpacity != null) bgOpacity.set(value);
+    }
+
+    public void applyGlobalAccentBar(boolean on) {
+        if (accentBar != null) accentBar.set(on);
+    }
+
+    public void applyGlobalIcons(boolean on) {
+        if (icons != null) icons.set(on);
+    }
+
+    /** Profiles from before the per-element HUD Settings take the old shared Misc → HUD values. */
+    @Override
+    public void fromJson(JsonObject json) {
+        super.fromJson(json);
+        JsonObject values = json.has("settings") && json.get("settings").isJsonObject()
+                ? json.getAsJsonObject("settings") : new JsonObject();
+        HudSettingsModule global = Telemetric.get().modules().get(HudSettingsModule.class);
+        if (global == null) return;
+        if (drawsOwnFrame() && background != null && !values.has(background.getName())) {
+            background.set(global.background.get());
+            bgOpacity.set(global.backgroundOpacity.get());
+            accentBar.set(global.accentBar.get());
+        }
+        if (icons != null && !values.has(icons.getName())) icons.set(global.statIcons.get());
+    }
+
+    // ================================================================== alignment
 
     /** Right-aligned rows drawn mirrored ("Value :Label <icon>") instead of in normal reading order. */
     public boolean isTextMirrored() {
@@ -70,10 +298,6 @@ public abstract class HudModule extends Module {
     public void toggleMirrorText() {
         mirrorText.set(!mirrorText.get());
     }
-
-    public static final String ALIGN_LEFT = "Left", ALIGN_MID = "Mid", ALIGN_RIGHT = "Right";
-
-    private final ModeSetting align;
 
     /** Right-aligned layout: text right-aligned, icons in a column at the right edge. */
     public boolean isMirrored() {
@@ -127,6 +351,37 @@ public abstract class HudModule extends Module {
         return true;
     }
 
+    /** Padding added around the content for the background {@link #render} draws (0 without one). */
+    private int framePad() {
+        return !drawsOwnFrame() && hasBackground() ? FRAME_PAD : 0;
+    }
+
+    /** Unscaled width including the background {@link #render} draws. */
+    public final int frameWidth(Render2D r, boolean preview) {
+        return contentWidth(r, preview) + framePad() * 2;
+    }
+
+    /** Unscaled height including the background {@link #render} draws. */
+    public final int frameHeight(Render2D r, boolean preview) {
+        return contentHeight(r, preview) + framePad() * 2;
+    }
+
+    /** Draws the element: its background (if it doesn't draw its own) and then its content. */
+    public final void render(Render2D r, boolean preview, boolean alignRight) {
+        int pad = framePad();
+        if (pad == 0) {
+            draw(r, preview, alignRight);
+            return;
+        }
+        drawFrame(r, frameWidth(r, preview), frameHeight(r, preview), alignRight);
+        r.pushTransform(pad, pad, 1f);
+        try {
+            draw(r, preview, alignRight);
+        } finally {
+            r.popTransform();
+        }
+    }
+
     // ================================================================== geometry (GUI units)
 
     public float getScale() {
@@ -138,11 +393,11 @@ public abstract class HudModule extends Module {
     }
 
     public int scaledWidth(Render2D r, boolean preview) {
-        return Math.round(contentWidth(r, preview) * getScale());
+        return Math.round(frameWidth(r, preview) * getScale());
     }
 
     public int scaledHeight(Render2D r, boolean preview) {
-        return Math.round(contentHeight(r, preview) * getScale());
+        return Math.round(frameHeight(r, preview) * getScale());
     }
 
     public int left(int screenWidth, int width) {

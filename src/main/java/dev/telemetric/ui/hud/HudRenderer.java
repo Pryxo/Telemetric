@@ -34,7 +34,7 @@ public final class HudRenderer {
         int[] b = bounds(r, m, sw, sh, preview);
         r.pushTransform(b[0], b[1], m.getScale());
         try {
-            m.draw(r, preview, m.isMirrored());
+            m.render(r, preview, m.isMirrored());
         } finally {
             r.popTransform();
         }

@@ -1,6 +1,7 @@
 package dev.telemetric.module.impl.hud;
 
 import dev.telemetric.Telemetric;
+import dev.telemetric.hud.HudColor;
 import dev.telemetric.hud.HudModule;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.ui.render.ColorUtil;
@@ -15,8 +16,15 @@ public final class WatermarkHud extends HudModule {
     private final BooleanSetting showVersion = add(new BooleanSetting(
             "Show Version", "Append the mod version", true));
 
+    private final HudColor nameColor, versionColor, underlineColor, underlineFade;
+
     public WatermarkHud() {
         super("Watermark", "Shows the Telemetric name on screen, also outside the ClickGUI", 1.0, 0.0, true);
+        addFrameSettings(false);
+        nameColor = paletteColor("Name", "\"Telemetric\"", Theme::accent);
+        versionColor = paletteColor("Version", "The version after the name", Theme::textMuted);
+        underlineColor = paletteColor("Underline", "Start of the underline", Theme::accent);
+        underlineFade = paletteColor("Underline Fade", "End of the underline (fades out)", Theme::accentAlt);
     }
 
     private String version() {
@@ -35,13 +43,12 @@ public final class WatermarkHud extends HudModule {
 
     @Override
     public void draw(Render2D r, boolean preview, boolean alignRight) {
-        Theme p = Telemetric.get().theme().palette();
         String name = Telemetric.NAME;
         String version = version();
         int total = r.textWidth(name) + r.textWidth(version);
-        r.text(name, PAD, PAD, p.accent());
-        r.text(version, PAD + r.textWidth(name), PAD, p.textMuted());
-        r.gradientH(PAD, PAD + r.fontHeight() + UNDERLINE_GAP, total, 1, p.accent(),
-                ColorUtil.withAlpha(p.accentAlt(), 0));
+        r.text(name, PAD, PAD, nameColor.get());
+        r.text(version, PAD + r.textWidth(name), PAD, versionColor.get());
+        r.gradientH(PAD, PAD + r.fontHeight() + UNDERLINE_GAP, total, 1, underlineColor.get(),
+                ColorUtil.withAlpha(underlineFade.get(), 0));
     }
 }

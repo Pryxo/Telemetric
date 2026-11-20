@@ -46,6 +46,7 @@ public final class HeldCooldownHud extends HudModule {
         this.slotLabel = slotLabel;
         this.cue = addBundle(new ReadyCue(readyText, readySound));
         this.bar = addBundle(new CooldownBar());
+        addFrameSettings(false);
         CooldownTracker.get().addListener(this::onReady);
     }
 

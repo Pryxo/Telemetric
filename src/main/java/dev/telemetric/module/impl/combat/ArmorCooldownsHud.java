@@ -61,6 +61,7 @@ public final class ArmorCooldownsHud extends HudModule {
     public ArmorCooldownsHud() {
         super("Armor Cooldowns", "Your armor with cooldown bars for armor abilities, a popup and sound when ready",
                 Category.COMBAT, 0.0, 0.75, false);
+        addFrameSettings(false);
         CooldownTracker.get().addListener(this::onReady);
     }
 

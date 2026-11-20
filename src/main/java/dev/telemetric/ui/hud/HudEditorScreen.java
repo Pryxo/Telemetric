@@ -164,7 +164,7 @@ public class HudEditorScreen extends Screen {
         guides.clear();
         if (dragging == null) return;
         if (resizing) {
-            int baseW = dragging.contentWidth(r, true), baseH = dragging.contentHeight(r, true);
+            int baseW = dragging.frameWidth(r, true), baseH = dragging.frameHeight(r, true);
             double ratio = Math.max((mx - resizeLeft) / (double) Math.max(1, baseW),
                     (my - resizeTop) / (double) Math.max(1, baseH));
             dragging.setScale(ratio);

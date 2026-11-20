@@ -68,9 +68,37 @@ public abstract class Module implements JsonSerializable {
                 throw new IllegalStateException("Duplicate setting '" + setting.getName() + "' in " + name);
             }
         }
-        settings.add(setting);
+        // a group's child lands right after the group's last setting, so children added later (e.g. by a subclass)
+        // still show under their group
+        int at = settings.size();
+        if (setting.getGroup() != null) {
+            int last = settings.lastIndexOf(setting.getGroup());
+            for (int i = 0; i < settings.size(); i++) if (isInside(settings.get(i), setting.getGroup())) last = i;
+            if (last >= 0) at = last + 1;
+        }
+        settings.add(at, setting);
         if (setting.isMovable()) order.add(setting);
         return setting;
+    }
+
+    /** Registers {@code setting} directly in front of {@code anchor} (or at the end if the anchor isn't registered). */
+    protected <S extends Setting<?>> S addBefore(Setting<?> anchor, S setting) {
+        int at = anchor == null ? -1 : settings.indexOf(anchor);
+        if (at < 0) return add(setting);
+        for (Setting<?> existing : settings) {
+            if (existing.getName().equalsIgnoreCase(setting.getName())) {
+                throw new IllegalStateException("Duplicate setting '" + setting.getName() + "' in " + name);
+            }
+        }
+        settings.add(at, setting);
+        if (setting.isMovable()) order.add(setting);
+        return setting;
+    }
+
+    /** Whether {@code setting} sits (directly or deeper) under {@code group}. */
+    private static boolean isInside(Setting<?> setting, Setting<?> group) {
+        for (Setting<?> g = setting.getGroup(); g != null; g = g.getGroup()) if (g == group) return true;
+        return false;
     }
 
     /** Registers every setting of a reusable {@link SettingBundle} (e.g. a sound picker) and returns the bundle. */

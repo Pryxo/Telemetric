@@ -81,14 +81,53 @@ public abstract class LinesHudModule extends HudModule {
     /** The element's own "Use Server Color" toggle, or null if it doesn't have one (theme colours only). */
     private BooleanSetting useServerColor;
 
+    private final HudColor titleColor, labelColor, valueColor, separatorColor, dividerColor;
+
     protected LinesHudModule(String name, String description, double defaultX, double defaultY, boolean enabledByDefault) {
-        super(name, description, defaultX, defaultY, enabledByDefault);
+        this(name, description, Category.HUD, defaultX, defaultY, enabledByDefault);
     }
 
     /** A row element listed in another panel (e.g. Combat → Assassin Stacks). */
     protected LinesHudModule(String name, String description, Category category, double defaultX, double defaultY,
                              boolean enabledByDefault) {
         super(name, description, category, defaultX, defaultY, enabledByDefault);
+        addValueAlign();
+        addTitleSetting();
+        addFrameSettings(true);
+        addIconSetting();
+        titleColor = paletteColor("Title", "The title row", Theme::accent);
+        labelColor = hudColor("Label", "Labels (\"Kills\" in \"Kills: 12\")",
+                () -> serverPalette() ? SERVER_LABEL : Telemetric.get().theme().hudIndex());
+        valueColor = hudColor("Value", "Values (\"12\" in \"Kills: 12\")",
+                () -> serverPalette() ? SERVER_VALUE : Telemetric.get().theme().hudValue());
+        separatorColor = paletteColor("Separator", "The \": \" between label and value", Theme::textMuted);
+        dividerColor = paletteColor("Divider", "Lines between row groups", t -> ColorUtil.fade(t.textMuted(), 0.5));
+    }
+
+    @Override
+    protected boolean hasTitle() {
+        return title() != null;
+    }
+
+    /** The title row to draw (null without one or with Show Title off). */
+    private String shownTitle() {
+        return showTitle() ? title() : null;
+    }
+
+    @Override
+    protected boolean drawsOwnFrame() {
+        return true;
+    }
+
+    /** The element whose colours this one uses (split-off parts use their owner's). */
+    private LinesHudModule colorSource() {
+        return styleOwner() instanceof LinesHudModule l ? l : this;
+    }
+
+    /** "Use Server Color" is on (the server palette is the default label / value colour). */
+    private boolean serverPalette() {
+        BooleanSetting toggle = serverColorToggle();
+        return toggle != null && toggle.get();
     }
 
     /**
@@ -97,7 +136,7 @@ public abstract class LinesHudModule extends HudModule {
      * Tab-list row colours are ignored.
      */
     protected final BooleanSetting addUseServerColor() {
-        useServerColor = add(new BooleanSetting("Use Server Color",
+        useServerColor = addHudSetting(new BooleanSetting("Use Server Color",
                 "Draw this element in the server's colours (yellow labels, green values) instead of the theme", true));
         return useServerColor;
     }
@@ -143,8 +182,8 @@ public abstract class LinesHudModule extends HudModule {
         return r.fontHeight() + LINE_GAP;
     }
 
-    private static boolean icons() {
-        return style().statIcons.get();
+    private boolean icons() {
+        return showIcons();
     }
 
     private static int iconWidth(Render2D r, HudIcon icon) {
@@ -184,7 +223,8 @@ public abstract class LinesHudModule extends HudModule {
     @Override
     public int contentWidth(Render2D r, boolean preview) {
         List<Line> lines = lines(preview);
-        int w = title() == null ? 0 : r.textWidth(title());
+        String title = shownTitle();
+        int w = title == null ? 0 : r.textWidth(title);
         int slot = iconSlot(r, lines);
         for (Line line : lines) w = Math.max(w, slot + rowWidth(r, line));
         return w + PAD_X * 2;
@@ -195,41 +235,38 @@ public abstract class LinesHudModule extends HudModule {
         List<Line> lines = lines(preview);
         int dividers = 0;
         for (Line line : lines) if (line.divider()) dividers++;
-        int rows = lines.size() - dividers + (title() == null ? 0 : 1);
+        int rows = lines.size() - dividers + (shownTitle() == null ? 0 : 1);
         return Math.max(1, rows) * lineHeight(r) + dividers * DIVIDER_H - LINE_GAP + PAD_Y * 2;
     }
 
     @Override
     public void draw(Render2D r, boolean preview, boolean alignRight) {
-        Theme p = Telemetric.get().theme().palette();
         HudSettingsModule style = style();
         List<Line> lines = lines(preview);
         int w = contentWidth(r, preview), h = contentHeight(r, preview);
         boolean centered = !alignRight && isCentered();
 
-        if (style.background.get()) {
-            int bg = ColorUtil.fade(p.panel(), style.backgroundOpacity.get() / 100.0);
-            r.roundedRect(0, 0, w, h, 3, bg);
-            if (style.accentBar.get() && !centered) {
-                r.rect(alignRight ? w - 1 : 0, 2, 1, h - 4, p.accent());
-            }
-        }
+        drawFrame(r, w, h, alignRight);
+        LinesHudModule colors = colorSource();
+        int sepColor = colors.separatorColor.get();
+        boolean edge = valuesAtEdge();
 
         BooleanSetting useServerColor = serverColorToggle();
         boolean serverPalette = useServerColor != null && useServerColor.get();
         boolean serverColors = style.serverColors.get() && (useServerColor == null || serverPalette);
-        int defaultLabel = serverPalette ? SERVER_LABEL : Telemetric.get().theme().hudIndex();
-        int defaultValue = serverPalette ? SERVER_VALUE : Telemetric.get().theme().hudValue();
+        int defaultLabel = colors.labelColor.get();
+        int defaultValue = colors.valueColor.get();
         int slot = iconSlot(r, lines);
         int y = PAD_Y;
-        if (title() != null) {
-            int tw = r.textWidth(title());
-            r.text(title(), alignRight ? w - PAD_X - tw : centered ? (w - tw) / 2 : PAD_X, y, p.accent());
+        String title = shownTitle();
+        if (title != null) {
+            int tw = r.textWidth(title);
+            r.text(title, alignRight ? w - PAD_X - tw : centered ? (w - tw) / 2 : PAD_X, y, colors.titleColor.get());
             y += lineHeight(r);
         }
         for (Line line : lines) {
             if (line.divider()) {
-                r.rect(PAD_X, y + 1, w - PAD_X * 2, 1, ColorUtil.fade(p.textMuted(), 0.5));
+                r.rect(PAD_X, y + 1, w - PAD_X * 2, 1, colors.dividerColor.get());
                 y += DIVIDER_H;
                 continue;
             }
@@ -249,9 +286,10 @@ public abstract class LinesHudModule extends HudModule {
                     else r.text(line.label(), x, y, lc);
                     String sep = new StringBuilder(separator()).reverse().toString();
                     x -= r.textWidth(sep);
-                    r.text(sep, x, y, p.textMuted());
+                    r.text(sep, x, y, sepColor);
                 }
                 x -= valueWidth(r, line);
+                if (edge && !line.label().isEmpty()) x = PAD_X; // Value Align Right: mirrored values at the far (left) edge
                 if (line.styled()) r.runs(mirroredValueRuns(line), x, y, vc, runColors);
                 else r.text(line.value(), x, y, vc);
                 y += lineHeight(r);
@@ -274,8 +312,10 @@ public abstract class LinesHudModule extends HudModule {
                 if (line.styledLabel()) r.runs(line.labelRuns(), x, y, lc, runColors);
                 else r.text(line.label(), x, y, lc);
                 x += labelWidth(r, line);
-                r.text(separator(), x, y, p.textMuted());
+                r.text(separator(), x, y, sepColor);
                 x += r.textWidth(separator());
+                // Value Align Right: left-aligned rows push their value to the right edge
+                if (edge && !centered && !alignRight) x = Math.max(x, w - PAD_X - valueWidth(r, line));
             }
             if (line.styled()) r.runs(line.valueRuns(), x, y, vc, runColors);
             else r.text(line.value(), x, y, vc);

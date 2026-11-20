@@ -2,9 +2,9 @@ package dev.telemetric.module.impl.hud;
 
 import dev.telemetric.Telemetric;
 import dev.telemetric.game.DamageNumberAdapter.DamageNumber;
+import dev.telemetric.hud.HudColor;
 import dev.telemetric.hud.HudModule;
 import dev.telemetric.hud.TextRun;
-import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.ModeSetting;
@@ -48,6 +48,8 @@ public final class DpsLogHud extends HudModule {
     private final BooleanSetting compact = add(new BooleanSetting("Compact Numbers", "12.3k instead of 12,345", true));
     private final ActionSetting clearAction = add(new ActionSetting("Clear", "Empty the log", this::clear));
 
+    private final HudColor titleColor, hitColor, ageColor, stripeColor;
+
     /** One logged hit. {@code leftAt} is -1 while it's listed, otherwise the time it started to leave. */
     private static final class Entry {
         final double amount;
@@ -72,6 +74,12 @@ public final class DpsLogHud extends HudModule {
 
     public DpsLogHud() {
         super("DPS Log", "The last hits the DPS Meter registered, coloured and animated by size", 0.0, 0.35, false);
+        addTitleSetting();
+        addFrameSettings(true);
+        titleColor = paletteColor("Title", "The \"DPS Log\" title", Theme::accent);
+        hitColor = paletteColor("Hit", "Hits below the first damage colour (or all hits with Damage Colors off)", Theme::text);
+        ageColor = paletteColor("Age", "Seconds since the hit", Theme::textMuted);
+        stripeColor = paletteColor("Stripe", "Colour stripe of hits below the first damage colour", Theme::accent);
         for (double a : new double[]{18, 64, 120, 230, 410, 512, 720, 1240}) sample.add(new Entry(a, Long.MIN_VALUE / 4));
     }
 
@@ -138,8 +146,9 @@ public final class DpsLogHud extends HudModule {
         return e.born < 0 ? "3s" : Math.max(0, (now - e.born) / 1000) + "s";
     }
 
-    private static HudSettingsModule style() {
-        return Telemetric.get().modules().get(HudSettingsModule.class);
+    @Override
+    protected boolean drawsOwnFrame() {
+        return true;
     }
 
     // ------------------------------------------------------------------ HudModule
@@ -163,7 +172,7 @@ public final class DpsLogHud extends HudModule {
 
     @Override
     public int contentWidth(Render2D r, boolean preview) {
-        int w = r.textWidth("DPS Log");
+        int w = showTitle() ? r.textWidth("DPS Log") : 0;
         for (Entry e : shown(preview)) w = Math.max(w, lead() + r.textWidth(text(e)) + ageWidth(r));
         return w + PAD_X * 2;
     }
@@ -173,7 +182,7 @@ public final class DpsLogHud extends HudModule {
         long now = now();
         double rows = 0;
         for (Entry e : shown(preview)) rows += presence(e, now);
-        return (int) Math.ceil(rowHeight(r) * (1 + rows)) - LINE_GAP + PAD_Y * 2;
+        return (int) Math.ceil(rowHeight(r) * ((showTitle() ? 1 : 0) + Math.max(showTitle() ? 0 : 1, rows))) - LINE_GAP + PAD_Y * 2;
     }
 
     @Override
@@ -181,19 +190,18 @@ public final class DpsLogHud extends HudModule {
         long now = now();
         if (!preview || !entries.isEmpty()) update(now);
         Theme p = Telemetric.get().theme().palette();
-        HudSettingsModule style = style();
         List<Entry> list = shown(preview);
         int w = contentWidth(r, preview), h = contentHeight(r, preview);
         boolean centered = !alignRight && isCentered();
         int rowH = rowHeight(r), fh = r.fontHeight();
 
-        if (style.background.get()) {
-            r.roundedRect(0, 0, w, h, 3, ColorUtil.fade(p.panel(), style.backgroundOpacity.get() / 100.0));
-            if (style.accentBar.get() && !centered) r.rect(alignRight ? w - 1 : 0, 2, 1, h - 4, p.accent());
+        drawFrame(r, w, h, alignRight);
+        int titleH = showTitle() ? rowH : 0;
+        if (showTitle()) {
+            String title = "DPS Log";
+            int tw = r.textWidth(title);
+            r.text(title, alignRight ? w - PAD_X - tw : centered ? (w - tw) / 2 : PAD_X, PAD_Y, titleColor.get());
         }
-        String title = "DPS Log";
-        int tw = r.textWidth(title);
-        r.text(title, alignRight ? w - PAD_X - tw : centered ? (w - tw) / 2 : PAD_X, PAD_Y, p.accent());
 
         r.pushClip(0, 0, w, h);
         boolean top = newHits.is(TOP);
@@ -201,7 +209,7 @@ public final class DpsLogHud extends HudModule {
         for (int k = 0; k < list.size(); k++) {
             Entry e = list.get(top ? list.size() - 1 - k : k); // drawn from top to bottom
             double pres = presence(e, now);
-            float y = PAD_Y + rowH + (float) (offset * rowH);
+            float y = PAD_Y + titleH + (float) (offset * rowH);
             offset += pres;
             if (pres <= 0.001) continue;
             drawRow(r, p, e, now, y, w, rowH, fh, pres, alignRight, centered, preview);
@@ -214,7 +222,7 @@ public final class DpsLogHud extends HudModule {
         boolean anim = hitAnimations.get();
         int tier = tierColors.get() ? e.tier : 0;
         int tierColor = DamageTiers.color(tier);
-        int solid = tierColor == 0 ? p.accent() : tierColor;
+        int solid = tierColor == 0 ? stripeColor.get() : tierColor;
         String value = text(e);
         int vw = r.textWidth(value), aw = ageWidth(r);
 
@@ -261,15 +269,16 @@ public final class DpsLogHud extends HudModule {
             double pop = 1 - Easing.OUT_CUBIC.apply(progress(now, e.born, Durations.COMPLEX));
             scale += (float) (pop * (e.tier >= DamageTiers.TOP ? 0.6 : e.tier >= DamageTiers.FLASH ? 0.45 : 0.3));
         }
-        List<TextRun> runs = DamageTiers.runs(value, tier, p.text());
+        int hit = hitColor.get();
+        List<TextRun> runs = DamageTiers.runs(value, tier, hit);
         r.pushTransform(vx + vw / 2f, y + fh / 2f, scale);
-        r.runs(runs, -vw / 2, -fh / 2, p.text(), true);
+        r.runs(runs, -vw / 2, -fh / 2, hit, true);
         r.popTransform();
 
         if (aw > 0) {
             String age = age(e, now);
             int ax = Math.round(alignRight ? x + aw - AGE_GAP - r.textWidth(age) : x + lead + vw + AGE_GAP);
-            r.text(age, ax, Math.round(y), p.textMuted());
+            r.text(age, ax, Math.round(y), ageColor.get());
         }
         r.popAlpha();
     }

@@ -65,6 +65,7 @@ public final class LowHealthWarningHud extends HudModule {
     public LowHealthWarningHud() {
         super("Low Health Warning", "Warning text and sound while your health is low", Category.COMBAT,
                 0.5, 0.40, false, 2.0);
+        addFrameSettings(false);
     }
 
     @Override

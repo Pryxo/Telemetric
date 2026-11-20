@@ -27,6 +27,7 @@ public final class ReadyAlertsHud extends HudModule {
     public ReadyAlertsHud() {
         super("Ready Alerts", "Where \"Weapon / Ability / Armor Ready!\" popups appear (move it in the HUD editor)",
                 Category.COMBAT, 0.5, 0.32, true, 2.0);
+        addFrameSettings(false);
     }
 
     /** The shared instance (registered once in {@code ModuleManager}). */

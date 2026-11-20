@@ -2,6 +2,7 @@ package dev.telemetric.module.impl.hud;
 
 import dev.telemetric.game.ServerInfoAdapter;
 import dev.telemetric.game.ServerInfoAdapter.TabStat;
+import dev.telemetric.hud.HudModule;
 import dev.telemetric.hud.LinesHudModule;
 import dev.telemetric.setting.Setting;
 import dev.telemetric.setting.impl.BooleanSetting;
@@ -121,6 +122,12 @@ public final class PerformanceHud extends LinesHudModule {
         @Override
         public void hide() {
             stat.set(false);
+        }
+
+        /** Background, icons, Value Align and colours come from the Performance HUD's HUD Settings. */
+        @Override
+        protected HudModule styleOwner() {
+            return owner;
         }
 
         @Override
