@@ -10,10 +10,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@code tables/traits.json}: the unique traits of untiered items with their description template
- * and the value of every placeholder per tier. Feeds Trait Details. Pure Java.
+ * {@code tables/traits.json}: the unique traits of untiered items, with their description template and the value of
+ * every placeholder per tier. Feeds Trait Details. Pure Java.
  *
- * @param byKey trait {@link Names#key} → trait
+ * @param byKey trait {@link Names#key} to trait
  * @param tiers tier letters, lowest first ({@code D C B A S})
  */
 public record TraitTable(Map<String, Trait> byKey, List<String> tiers) {
@@ -21,8 +21,8 @@ public record TraitTable(Map<String, Trait> byKey, List<String> tiers) {
     static final TraitTable EMPTY = new TraitTable(Map.of(), List.of());
 
     /**
-     * Tier glyphs in front of a trait's name in item lore, lowest tier first (pack font, U+16249 … U+16245;
-     * same order as {@link #tiers}, e.g. the wiki's "Royal: max 𖉅" = S).
+     * The tier glyphs shown in front of a trait's name in item lore, lowest tier first (pack font, U+16249 … U+16245).
+     * Same order as {@link #tiers}, so the wiki's "Royal: max 𖉅" means S.
      */
     public static final String TIER_GLYPHS = "𖉉𖉈𖉇𖉆𖉅";
 
@@ -30,11 +30,11 @@ public record TraitTable(Map<String, Trait> byKey, List<String> tiers) {
 
     /**
      * @param slot   {@code weapon} / {@code ability} / {@code armour}
-     * @param values per placeholder {@code {n}}: tier letter → value text
+     * @param values for each placeholder {@code {n}}: tier letter to value text
      */
     public record Trait(String name, String slot, String template, List<Map<String, String>> values) {
 
-        /** The description with every placeholder filled for {@code tier} ({@code "?"} when the table has none). */
+        /** The description with every placeholder filled in for {@code tier} ({@code "?"} where the table has no value). */
         public String describe(String tier) {
             Matcher m = PLACEHOLDER.matcher(template);
             StringBuilder out = new StringBuilder(template.length() + 16);
@@ -73,7 +73,7 @@ public record TraitTable(Map<String, Trait> byKey, List<String> tiers) {
         return byKey.get(Names.key(name));
     }
 
-    /** Tier index (0 = lowest) of the tier glyph at the start of {@code text}, or -1. */
+    /** Tier index (0 is the lowest) of the tier glyph at the start of {@code text}, or -1. */
     public static int tierOfGlyph(String text) {
         if (text == null || text.isEmpty()) return -1;
         int cp = text.codePointAt(0);
@@ -81,7 +81,7 @@ public record TraitTable(Map<String, Trait> byKey, List<String> tiers) {
         return idx < 0 ? -1 : TIER_GLYPHS.codePointCount(0, idx);
     }
 
-    /** Letter of tier {@code index} ({@code 0} = D), or null. */
+    /** The letter of tier {@code index} ({@code 0} is D), or null. */
     public String tier(int index) {
         return index >= 0 && index < tiers.size() ? tiers.get(index) : null;
     }

@@ -6,7 +6,7 @@ import dev.telemetric.setting.Setting;
 
 import java.util.Locale;
 
-/** ARGB colour. Serialised as {@code "#AARRGGBB"}. */
+/** An ARGB colour, saved as {@code "#AARRGGBB"}. */
 public class ColorSetting extends Setting<Integer> {
 
     private final boolean allowAlpha;
@@ -49,7 +49,7 @@ public class ColorSetting extends Setting<Integer> {
             if (raw.length() <= 6) parsed |= 0xFF000000L;
             set((int) parsed);
         } catch (NumberFormatException ignored) {
-            // keep current value
+            // keep the current value
         }
     }
 }

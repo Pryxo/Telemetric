@@ -32,11 +32,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * MC ADAPTER — how entities are drawn: Player Size (scale players and their Telos nametags), Hide Armor (skip worn
- * armor, briefly reveal the real item models under skins) and Hitboxes (entity boxes for the world drawer).
- * Modules push settings with the setters; the render mixins ({@code AvatarRendererMixin}, {@code DisplayRendererMixin},
- * {@code ArmorLayerMixin}, {@code LivingEntityRendererMixin}, {@code ItemModelResolverMixin},
- * {@code HumanoidMobRendererMixin}) call the hooks. Everything is off away from Telos.
+ * MC ADAPTER: how entities are drawn. Covers Player Size (scales players and their Telos nametags), Hide Armor (skips
+ * worn armor and can briefly reveal the real item models under skins) and Hitboxes (entity boxes for the world
+ * drawer). Modules push their settings through the setters, and the render mixins ({@code AvatarRendererMixin},
+ * {@code DisplayRendererMixin}, {@code ArmorLayerMixin}, {@code LivingEntityRendererMixin},
+ * {@code ItemModelResolverMixin}, {@code HumanoidMobRendererMixin}) call the hooks. All of it is off away from Telos.
  */
 public final class EntityVisualsAdapter {
 
@@ -52,27 +52,27 @@ public final class EntityVisualsAdapter {
 
     // ================================================================== player size
 
-    /** Scale per axis (negative y = upside down). */
+    /** Scale per axis (a negative y means upside down). */
     public record Scale(float x, float y, float z) {
-        /** Render-state marker for "not scaled" (render-state data cannot be cleared to null). */
+        /** Render-state marker for "not scaled", because render-state data can't be cleared to null. */
         public static final Scale NONE = new Scale(1, 1, 1);
     }
 
-    /** Separate sizes for you and for other players; a null side keeps its vanilla size. */
+    /** Separate sizes for you and for other players. A null side keeps its vanilla size. */
     public record PlayerSize(Scale self, Scale others) {
         Scale of(boolean isSelf) {
             return isSelf ? self : others;
         }
     }
 
-    /** Each player's / nametag's scale this frame ({@link Scale#NONE} = vanilla size). */
+    /** Each player's and nametag's scale this frame ({@link Scale#NONE} means vanilla size). */
     public static final RenderStateDataKey<Scale> SCALED = RenderStateDataKey.create(() -> "telemetric:scaled");
-    /** Set on a Telos nametag's render state: the scale of its player. */
+    /** Set on a Telos nametag's render state: the scale of the player it belongs to. */
     public static final RenderStateDataKey<Scale> SCALED_TAG = RenderStateDataKey.create(() -> "telemetric:scaled_tag");
 
     private static volatile PlayerSize playerSize;
 
-    /** Null = vanilla size. */
+    /** Null means vanilla size. */
     public static void setPlayerSize(PlayerSize size) {
         playerSize = size;
     }
@@ -93,14 +93,14 @@ public final class EntityVisualsAdapter {
         return size.of(isSelf(owner));
     }
 
-    /** Scales a player's model (call where vanilla applies the model scale); null / NONE = no-op. */
+    /** Scales a player's model. Call it where vanilla applies the model scale. Null or NONE does nothing. */
     public static void scalePlayer(PoseStack pose, Scale size) {
         if (size == null || size == Scale.NONE) return;
-        if (size.y() < 0) pose.translate(0, size.y() * 2, 0); // flipped: keep the feet on the ground
+        if (size.y() < 0) pose.translate(0, size.y() * 2, 0); // flipped, so keep the feet on the ground
         pose.scale(size.x(), size.y(), size.z());
     }
 
-    /** Moves a nametag up/down with the scaled player's head and scales it the same way. */
+    /** Moves a nametag up or down with the scaled player's head and scales it the same way. */
     public static void scaleNametag(PoseStack pose, Scale size) {
         if (size == null || size == Scale.NONE) return;
         pose.translate(0, 1.8 * (size.y() - 1), 0);
@@ -119,7 +119,7 @@ public final class EntityVisualsAdapter {
     private static volatile long revealUntil;
     private static EquipmentAssetManager equipmentAssets;
 
-    /** Null = armor drawn as usual. */
+    /** Null means armor is drawn as usual. */
     public static void setArmorHiding(ArmorHiding hiding) {
         armorHiding = hiding;
     }
@@ -142,7 +142,7 @@ public final class EntityVisualsAdapter {
         equipmentAssets = manager;
     }
 
-    /** Armor-layer hook: skip this worn piece of the player with this entity id? */
+    /** Armor-layer hook: should this worn piece of the player with this entity id be skipped? */
     public static boolean hideArmorPiece(int entityId, EquipmentSlot slot) {
         ArmorHiding h = armorHiding;
         if (h == null || isRevealing() || !ServerGate.onTelos()) return false;
@@ -157,8 +157,8 @@ public final class EntityVisualsAdapter {
     }
 
     /**
-     * Head-item hook: Telos helmets are items drawn on the head (not armor models) — hide them like a helmet, and hide
-     * the skin while revealing a helmet that has a real armor model.
+     * Head-item hook. Telos helmets are items drawn on the head rather than armor models, so we hide them like a
+     * helmet, and hide the skin while revealing a helmet that has a real armor model.
      */
     public static boolean hideHeadItem(LivingEntity entity) {
         if (!(entity instanceof Player)) return false;
@@ -195,7 +195,7 @@ public final class EntityVisualsAdapter {
         return copy;
     }
 
-    /** {@code telos:armour/<weight>/<slot>/<name>} → equipment asset {@code telos:<weight>/<name>}, if it exists. */
+    /** Maps {@code telos:armour/<weight>/<slot>/<name>} to the equipment asset {@code telos:<weight>/<name>}, if it exists. */
     @SuppressWarnings("unchecked")
     private static ResourceKey<EquipmentAsset> trueWornAsset(ItemStack stack) {
         Identifier type = telosItemType(stack);
@@ -229,8 +229,8 @@ public final class EntityVisualsAdapter {
 
     /**
      * Interpolated bounding boxes of the entities within {@code range} blocks (your own only in third person).
-     * Telos mobs / dummies ({@link Interaction} hitbox with a model and an HP stack, see
-     * {@link #forEachHittableBox}) count as {@link BoxKind#MOB}; every other entity is {@link BoxKind#OTHER}.
+     * Telos mobs and dummies (an {@link Interaction} hitbox with a model and an HP stack, see
+     * {@link #forEachHittableBox}) count as {@link BoxKind#MOB}, and every other entity is {@link BoxKind#OTHER}.
      * Paper-thin (display) boxes are skipped.
      */
     public static void forEachBox(double range, BoxConsumer out) {
@@ -256,7 +256,7 @@ public final class EntityVisualsAdapter {
             } else kind = BoxKind.OTHER;
             if (e != self && e.distanceToSqr(self) > r2) continue;
             AABB b = e.getBoundingBox();
-            // Telos spawns marker armor stands (no hitbox) to carry ability / projectile models: show a small box.
+            // Telos spawns marker armor stands (no hitbox) to carry ability and projectile models, so show a small box for them.
             if (kind == BoxKind.ARMOR_STAND && b.getXsize() < 0.01) b = b.inflate(MARKER_HALF, 0, MARKER_HALF).expandTowards(0, MARKER_HALF * 2, 0);
             if (b.getXsize() < 0.01 || b.getYsize() < 0.01 || b.getZsize() < 0.01) continue;
             double dx = (e.xo - e.getX()) * (1 - pt), dy = (e.yo - e.getY()) * (1 - pt), dz = (e.zo - e.getZ()) * (1 - pt);
@@ -264,16 +264,16 @@ public final class EntityVisualsAdapter {
         }
     }
 
-    /** How far (blocks) a Telos HP text stack may sit beside / above its mob's hitbox top. */
+    /** How far (in blocks) a Telos HP text stack can sit beside or above its mob's hitbox top. */
     private static final double HP_TAG_SIDE = 0.75, HP_TAG_ABOVE = 2.5;
 
     /**
      * Interpolated boxes of the mobs you can actually hit within {@code range} blocks.
      * <p>
-     * Telos mobs (and training dummies) are not vanilla mobs: an {@link Interaction} hitbox riding a carrier
+     * Telos mobs (and training dummies) aren't vanilla mobs. They're an {@link Interaction} hitbox riding a carrier
      * entity next to its {@link Display.ItemDisplay} model, plus a stack of text displays (the HP bar) just above.
-     * Such a hitbox counts when it has a model (not invisible) and an HP stack (static props / NPC hitboxes have
-     * none). Vanilla mobs count when alive, visible and AI-driven. Players and armor stands never count.
+     * A hitbox like that counts when it has a model (isn't invisible) and an HP stack; static props and NPC hitboxes
+     * have neither. Vanilla mobs count when they're alive, visible and AI-driven. Players and armor stands never count.
      */
     public static void forEachHittableBox(double range, BoxConsumer out) {
         Minecraft mc = Minecraft.getInstance();
@@ -301,14 +301,14 @@ public final class EntityVisualsAdapter {
 
     /** Half size (blocks) of the box drawn for a marker armor stand, which has no hitbox of its own. */
     private static final double MARKER_HALF = 0.25;
-    /** A boss hitbox (HP in the boss bar, no HP text stack) is at least this wide. */
+    /** A boss hitbox (HP in the boss bar, no HP text stack) is at least this wide... */
     private static final double BOSS_MIN_WIDTH = 2.0;
-    /** ... or at least this tall (Sylvaris: a 1.25-wide, ~80-tall box; minions are under 2 tall). */
+    /** ...or at least this tall (Sylvaris has a 1.25-wide, roughly 80-tall box; minions are under 2 tall). */
     private static final double BOSS_MIN_HEIGHT = 4.0;
 
     /**
-     * A Telos mob hitbox: has a model and either an HP text stack, or — while a boss bar is shown — a boss-sized
-     * box, wide or tall (bosses like Sylvaris carry their HP in the boss bar only, so they have no HP stack).
+     * A Telos mob hitbox: it has a model and either an HP text stack or, while a boss bar is showing, a boss-sized box
+     * that's wide or tall. Bosses like Sylvaris only carry their HP in the boss bar, so they have no HP stack.
      */
     private static boolean isTelosMob(Interaction hitbox, List<Display.TextDisplay> tags, boolean bossBar) {
         if (!hasModel(hitbox)) return false;
@@ -328,7 +328,7 @@ public final class EntityVisualsAdapter {
         return tags;
     }
 
-    /** The hitbox shares its carrier with an item-display model. */
+    /** True if the hitbox shares its carrier with an item-display model. */
     private static boolean hasModel(Interaction hitbox) {
         Entity carrier = hitbox.getVehicle();
         if (carrier == null) return false;
@@ -338,11 +338,11 @@ public final class EntityVisualsAdapter {
         return false;
     }
 
-    /** A text display (HP bar) floats right above the hitbox. */
+    /** True if a text display (the HP bar) floats right above the hitbox. */
     private static boolean hasHpTag(Interaction hitbox, List<Display.TextDisplay> tags) {
         AABB b = hitbox.getBoundingBox();
         double cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
-        // Big mobs (bosses like Valus) carry their HP stack further out: scale the tolerance with the box.
+        // Big mobs (bosses like Valus) carry their HP stack further out, so the tolerance scales with the box.
         double side = Math.max(HP_TAG_SIDE, Math.max(b.getXsize(), b.getZsize()) / 2);
         double above = HP_TAG_ABOVE + b.getYsize() / 2;
         for (Display.TextDisplay t : tags) {

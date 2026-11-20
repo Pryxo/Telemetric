@@ -5,22 +5,22 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Your current character, from the Tab list "Class" value (mode glyph + {@code Lvl 70 Knight}). Pure parsing;
+ * Your current character, from the Tab list "Class" value (mode glyph + {@code Lvl 70 Knight}). This is pure parsing;
  * {@link #current()} reads the Tab list through {@link ServerInfoAdapter}.
  *
- * @param level     character level, -1 when not shown
- * @param className class name ("Knight"), "" when unknown
- * @param mode      {@code normal} / {@code seasonal} / {@code hardcore} / {@code group}, "" when the mode glyph is unknown
+ * @param level     character level, -1 if it isn't shown
+ * @param className class name ("Knight"), "" if unknown
+ * @param mode      {@code normal} / {@code seasonal} / {@code hardcore} / {@code group}, "" if the mode glyph is unknown
  */
 public record TelosCharacter(int level, String className, String mode) {
 
-    /** Telos classes, lower case. */
+    /** Telos classes in lower case. */
     public static final List<String> CLASSES = List.of("arcanist", "assassin", "huntress", "knight", "necromancer", "samurai");
 
     /**
-     * Mode glyphs in the Class value ({@code telos:misc} → {@code telos:icon/ruleset/...}, checked in the server pack
+     * Mode glyphs in the Class value ({@code telos:misc} → {@code telos:icon/ruleset/...}, checked in the server pack on
      * 2026-11-17). Each ruleset has a plain and a {@code glowing/} icon: normal U+0370 / U+18056, hardcore (ironman)
-     * U+0371 / U+18055, seasonal U+0372 / U+18057; {@code group_type/<colour>} (16 colours) U+15DFC–U+15E0D /
+     * U+0371 / U+18055, seasonal U+0372 / U+18057, and {@code group_type/<colour>} (16 colours) U+15DFC–U+15E0D /
      * U+18058–U+18069.
      */
     private static final int NORMAL = 0x370, HARDCORE = 0x371, SEASONAL = 0x372,
@@ -34,7 +34,7 @@ public record TelosCharacter(int level, String className, String mode) {
     }
 
     public static Optional<TelosCharacter> current() {
-        // TabStat.value has its glyphs removed: the mode glyph is only in the styled runs.
+        // TabStat.value has its glyphs removed, so the mode glyph is only in the styled runs.
         return ServerInfoAdapter.tabStat("Class").map(s -> {
             StringBuilder b = new StringBuilder();
             for (var run : s.valueRuns()) b.append(run.text());
@@ -42,7 +42,7 @@ public record TelosCharacter(int level, String className, String mode) {
         });
     }
 
-    /** Capitalised class name found in {@code text} ("Knight"), or "". */
+    /** The capitalised class name found in {@code text} ("Knight"), or "". */
     public static String className(String text) {
         String lower = text.toLowerCase(Locale.ROOT);
         for (String c : CLASSES) {

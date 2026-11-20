@@ -42,16 +42,16 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * MC ADAPTER — the only place that draws shapes in the 3D world. Features register a {@link Drawer} and emit plain
- * world-space shapes through a {@link LineSink}: line segments, filled quads, and the helpers built on them (box
- * outline / fill, camera-facing rectangles). Everything is batched into four render types once per frame:
- * lines / quads, each depth-tested or see-through (no depth test). Drawers added with {@link #addUnderDrawer}
- * (e.g. Hitboxes) form a separate layer that is drawn first and never writes depth, so everything else (health
- * bars, ranges) stays on top of it. {@link WorldLabelAdapter} labels are drawn right after.
+ * MC ADAPTER: the only place that draws shapes in the 3D world. Features register a {@link Drawer} and emit plain
+ * world-space shapes through a {@link LineSink}: line segments, filled quads, and the helpers built on those (box
+ * outline and fill, camera-facing rectangles). Once per frame everything is batched into four render types: lines and
+ * quads, each either depth-tested or see-through (no depth test). Drawers added with {@link #addUnderDrawer} (e.g.
+ * Hitboxes) form a separate layer that's drawn first and never writes depth, so everything else (health bars, ranges)
+ * stays on top of it. {@link WorldLabelAdapter} labels are drawn right after.
  * <p>
  * Everything is drawn at {@code END_MAIN}, after translucent terrain (water, stained glass, ice) and translucent
- * particles, so those never cover the overlays. The depth test uses a copy of the depth buffer taken right before
- * translucent terrain ({@link #snapshotDepth}): only opaque blocks hide the shapes, translucent ones never do.
+ * particles, so those never cover the overlays. The depth test uses a copy of the depth buffer taken just before
+ * translucent terrain ({@link #snapshotDepth}). That way only opaque blocks hide the shapes, never translucent ones.
  */
 public final class WorldRenderAdapter {
 
@@ -60,13 +60,13 @@ public final class WorldRenderAdapter {
         void line(double x1, double y1, double z1, double x2, double y2, double z2, int argb, float width,
                   boolean throughWalls);
 
-        /** Filled quad (corners in order). Translucent colours blend; both sides are drawn. */
+        /** A filled quad (corners in order). Translucent colours blend, and both sides are drawn. */
         void quad(double x1, double y1, double z1, double x2, double y2, double z2,
                   double x3, double y3, double z3, double x4, double y4, double z4, int argb, boolean throughWalls);
 
         /**
-         * Rectangle that faces the camera (like a nameplate), anchored at a world point. {@code left/right} go
-         * along the screen's right axis, {@code bottom/top} along its up axis, in blocks.
+         * A rectangle that faces the camera (like a nameplate), anchored at a world point. {@code left/right} run
+         * along the screen's right axis and {@code bottom/top} along its up axis, in blocks.
          */
         void billboard(double x, double y, double z, double left, double bottom, double right, double top, int argb,
                        boolean throughWalls);
@@ -145,7 +145,7 @@ public final class WorldRenderAdapter {
         DRAWERS.add(drawer);
     }
 
-    /** Drawer for the bottom layer: drawn before all others and without writing depth, so it never covers them. */
+    /** A drawer for the bottom layer. It's drawn before all the others and doesn't write depth, so it never covers them. */
     public static void addUnderDrawer(Drawer drawer) {
         UNDER_DRAWERS.add(drawer);
     }
@@ -171,10 +171,11 @@ public final class WorldRenderAdapter {
     private static boolean depthReady, depthFailed;
 
     /**
-     * Copies the main depth buffer right before translucent terrain, i.e. depth of opaque blocks and entities only.
-     * The overlays drawn at {@code END_MAIN} test against this copy (via {@link RenderSystem#outputDepthTextureOverride},
-     * the same mechanism vanilla's late debug pass uses), so water / glass / ice / translucent particles neither hide
-     * nor tint them. If the copy fails, they test against the live depth buffer instead.
+     * Copies the main depth buffer right before translucent terrain, which gives the depth of opaque blocks and
+     * entities only. The overlays drawn at {@code END_MAIN} test against this copy (via
+     * {@link RenderSystem#outputDepthTextureOverride}, the same mechanism vanilla's late debug pass uses), so water,
+     * glass, ice and translucent particles neither hide nor tint them. If the copy fails, they test against the live
+     * depth buffer instead.
      */
     private static void snapshotDepth() {
         depthReady = false;
@@ -219,25 +220,25 @@ public final class WorldRenderAdapter {
         viewAt = System.nanoTime();
     }
 
-    /** Camera yaw of the last world frame (degrees, vanilla convention; 0 = south). Set before drawers run. */
+    /** Camera yaw of the last world frame (degrees, vanilla convention, 0 = south). Set before the drawers run. */
     public static float cameraYaw() {
         return viewYaw;
     }
 
-    /** Camera pitch of the last world frame (degrees; −90 = up, 90 = down). Set before drawers run. */
+    /** Camera pitch of the last world frame (degrees, −90 = up, 90 = down). Set before the drawers run. */
     public static float cameraPitch() {
         return viewPitch;
     }
 
-    /** Camera position of the last world frame (set before drawers and labels run), or null before the first one. */
+    /** Camera position of the last world frame (set before drawers and labels run), or null before the first frame. */
     public static Point cameraPos() {
         Vec3 cam = viewCam;
         return cam == null ? null : new Point(cam.x, cam.y, cam.z);
     }
 
     /**
-     * Where a world point appears on screen this frame, in GUI units {x, y}; null when it is behind the camera or
-     * no world frame was drawn recently. Call from HUD rendering (after the world of the same frame).
+     * Where a world point shows up on screen this frame, in GUI units {x, y}. Null if it's behind the camera or no world
+     * frame was drawn recently. Call it from HUD rendering (after the world of the same frame).
      */
     public static double[] toScreen(double x, double y, double z) {
         Vec3 cam = viewCam;
@@ -281,7 +282,7 @@ public final class WorldRenderAdapter {
         }
     }
 
-    /** One layer: fills first so outlines drawn on the same box stay on top. */
+    /** One layer. Fills go first so outlines drawn on the same box stay on top. */
     private static void emitBatch(MultiBufferSource.BufferSource buffers, PoseStack.Pose pose, Batch b,
                                   RenderType depthLines) {
         if (!b.quadsDepth.isEmpty() || !b.quadsSeeThrough.isEmpty()) buildQuadTypes();
@@ -368,7 +369,7 @@ public final class WorldRenderAdapter {
         buffers.endBatch(type);
     }
 
-    /** Vanilla's line pipeline with depth test off, built once. Null if that fails (falls back to depth-tested). */
+    /** Vanilla's line pipeline with the depth test off, built once. Null if that fails (then we fall back to depth-tested). */
     private static RenderType seeThroughLines() {
         if (seeThroughLines != null || seeThroughFailed) return seeThroughLines;
         try {
@@ -384,7 +385,7 @@ public final class WorldRenderAdapter {
         return seeThroughLines;
     }
 
-    /** Vanilla's line pipeline, depth-tested but not writing depth (bottom layer), built once. Null if that fails. */
+    /** Vanilla's line pipeline, depth-tested but without writing depth (bottom layer), built once. Null if that fails. */
     private static RenderType underLines() {
         if (underLines != null || underFailed) return underLines;
         try {
@@ -400,7 +401,7 @@ public final class WorldRenderAdapter {
         return underLines;
     }
 
-    /** Translucent position-colour quads (vanilla's debug-fill shaders), depth-tested and see-through, built once. */
+    /** Translucent position-colour quads (vanilla's debug-fill shaders), both depth-tested and see-through, built once. */
     private static void buildQuadTypes() {
         if (quadsDepth != null || quadsFailed) return;
         try {

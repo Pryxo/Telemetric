@@ -21,8 +21,8 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * Loads and saves module settings + GUI layout in {@code .minecraft/config/telemetric/settings/}
- * (paths in {@link ModPaths}):
+ * Loads and saves module settings and the GUI layout in {@code .minecraft/config/telemetric/settings/}
+ * (paths come from {@link ModPaths}):
  * <pre>
  * settings/
  * ├─ meta.json            active profile, auto-save flag
@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
  * └─ profiles/
  *    └─ &lt;name&gt;.json      module states + setting values
  * </pre>
- * All writes are atomic (temp file + move) so a crash never leaves a half-written config.
+ * Every write is atomic (temp file, then move), so a crash can't leave a half-written config behind.
  * See docs/config.md.
  */
 public final class ConfigManager {
@@ -91,8 +91,8 @@ public final class ConfigManager {
     // ================================================================== profiles
 
     /**
-     * Copies entries of modules that are not registered right now (e.g. an add-on that isn't installed this
-     * session) from the existing profile file into {@code moduleJson}, so saving never wipes their settings.
+     * Copies the entries of modules that aren't registered right now (an add-on that isn't installed this session,
+     * say) from the existing profile file into {@code moduleJson}, so saving never wipes their settings.
      */
     private void keepUnloadedModules(Path file, JsonObject moduleJson) {
         if (!Files.exists(file)) return;
@@ -126,8 +126,8 @@ public final class ConfigManager {
     }
 
     /**
-     * Loads a profile. Modules missing from the file are reset to defaults so the result is exactly
-     * the saved state. Returns {@code false} if the profile does not exist or is unreadable.
+     * Loads a profile. Modules missing from the file are reset to their defaults, so the result is exactly the saved
+     * state. Returns {@code false} if the profile doesn't exist or can't be read.
      */
     public boolean loadProfile(String name) {
         String profile = sanitizeName(name);
@@ -168,7 +168,7 @@ public final class ConfigManager {
         return profile != null && Files.isRegularFile(profileFile(profile));
     }
 
-    /** Sorted list of profile names on disk (always contains the active profile). */
+    /** Sorted list of the profile names on disk. Always includes the active profile. */
     public List<String> listProfiles() {
         List<String> names = new ArrayList<>();
         if (Files.isDirectory(profilesDir)) {
@@ -186,7 +186,7 @@ public final class ConfigManager {
         return names;
     }
 
-    /** @return a valid profile name or {@code null}. */
+    /** @return a valid profile name, or {@code null} */
     public static String sanitizeName(String name) {
         if (name == null) return null;
         String trimmed = name.trim();

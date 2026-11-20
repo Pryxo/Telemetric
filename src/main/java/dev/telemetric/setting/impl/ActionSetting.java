@@ -6,7 +6,7 @@ import dev.telemetric.setting.Setting;
 
 import java.util.Objects;
 
-/** A clickable button. Holds no value and is never persisted. */
+/** A clickable button. It holds no value and is never saved. */
 public class ActionSetting extends Setting<Boolean> {
 
     private final Runnable action;

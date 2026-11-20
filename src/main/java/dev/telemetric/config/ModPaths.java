@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Every folder / file the mod keeps under {@code config/telemetric/}. Nothing else builds config paths.
+ * Every folder and file the mod keeps under {@code config/telemetric/}. No other class builds config paths.
  * <pre>
  * config/telemetric/
  *   README.txt         what lives where
@@ -20,7 +20,7 @@ import java.util.List;
  *   data/overrides/    hand-placed copies of shared data tables (win over everything)
  *   data/cache/        downloaded shared data tables (safe to delete)
  * </pre>
- * {@link #migrate()} moves files from the old flat layout once, on the first start with this version.
+ * {@link #migrate()} moves files over from the old flat layout once, on the first start with this version.
  * See docs/config.md.
  */
 public final class ModPaths {
@@ -66,10 +66,10 @@ public final class ModPaths {
 
     private ModPaths() {}
 
-    /** Call first thing on start: moves the old flat layout into the folders above and writes README.txt. */
+    /** Call this first thing on start. It moves the old flat layout into the folders above and writes README.txt. */
     public static void migrate() {
         if (Files.isDirectory(ROOT) && !Files.exists(SETTINGS)) {
-            // Old data/ held overrides directly: park it before data/ becomes the parent folder.
+            // The old data/ folder held the overrides directly, so move it out of the way before data/ becomes the parent folder.
             Path oldOverrides = ROOT.resolve("data");
             Path parked = ROOT.resolve("data-overrides-old");
             if (Files.isDirectory(oldOverrides)) move(oldOverrides, parked);

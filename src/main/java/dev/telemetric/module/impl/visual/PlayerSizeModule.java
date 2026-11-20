@@ -7,9 +7,9 @@ import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 
 /**
- * Draws players bigger, smaller or squashed (purely visual — hitboxes and reach are unchanged), with separate sizes
- * for you and for other players. Their Telos nametags move with the head. A negative height flips the player upside
- * down.
+ * Draws players bigger, smaller or squashed, with separate sizes for you and for other players. It's purely visual,
+ * so hitboxes and reach don't change. Their Telos nametags move with the head. A negative height flips the player
+ * upside down.
  */
 public final class PlayerSizeModule extends Module {
 

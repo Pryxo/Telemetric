@@ -1,11 +1,10 @@
 package dev.telemetric.ui.animation;
 
 /**
- * Time-based scalar animation (frame-rate independent).
+ * A time-based scalar animation that doesn't depend on the frame rate.
  * <p>
- * Call {@link #animateTo(double)} whenever the target might change — it is a no-op if the target is
- * unchanged, and re-targets smoothly from the current value if an animation is in flight.
- * Read with {@link #get()}.
+ * Call {@link #animateTo(double)} whenever the target might change. It does nothing if the target is the same, and
+ * re-targets smoothly from the current value if an animation is already running. Read it with {@link #get()}.
  * <pre>{@code
  * Animation hover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
  * hover.animateTo(isHovered ? 1 : 0);
@@ -35,7 +34,7 @@ public final class Animation {
         this.startNanos = System.nanoTime();
     }
 
-    /** Animates towards {@code target} (no-op if already heading there). */
+    /** Animates towards {@code target} (does nothing if it's already heading there). */
     public Animation animateTo(double target) {
         return animateTo(target, 0);
     }
@@ -70,7 +69,7 @@ public final class Animation {
         return (float) get();
     }
 
-    /** Linear progress 0..1 of the current transition. */
+    /** The linear progress 0..1 of the current transition. */
     public double progress() {
         if (duration <= 0) return 1;
         long elapsed = System.nanoTime() - startNanos - delayNanos;
@@ -86,7 +85,7 @@ public final class Animation {
         return to;
     }
 
-    /** True when settled at {@code value}. */
+    /** True when it has settled at {@code value}. */
     public boolean isAt(double value) {
         return to == value && !isRunning();
     }

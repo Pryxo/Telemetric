@@ -4,8 +4,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;
 
 /**
- * MC ADAPTER — joins a server id with Mojang's session server (the same call vanilla makes when joining an online-mode
- * server). Used by the HeadStatus API challenge auth: the access token only ever goes to Mojang, never to the API.
+ * MC ADAPTER: joins a server id with Mojang's session server, the same call vanilla makes when joining an online-mode
+ * server. The HeadStatus API challenge auth uses it. The access token only ever goes to Mojang, never to the API.
  */
 public final class MojangSessionAdapter {
 
@@ -22,8 +22,8 @@ public final class MojangSessionAdapter {
     }
 
     /**
-     * Joins {@code serverId} on Mojang's session server for the signed-in account. Blocking (network) — call off the
-     * client thread.
+     * Joins {@code serverId} on Mojang's session server for the signed-in account. This blocks on the network, so call
+     * it off the client thread.
      *
      * @return the account name that joined
      * @throws Exception if Mojang refuses (offline account, bad token, …)

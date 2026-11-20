@@ -11,19 +11,19 @@ import dev.telemetric.ui.theme.Theme;
 import java.util.List;
 
 /**
- * HUD element made of "label value" rows (optionally with a title row) on a shared panel style.
- * Subclasses only provide {@link #lines(boolean)}.
+ * A HUD element made of "label value" rows (optionally with a title row) in a shared panel style.
+ * Subclasses only have to provide {@link #lines(boolean)}.
  */
 public abstract class LinesHudModule extends HudModule {
 
     /**
-     * One row. Colours are ARGB or 0 for "theme default".
+     * One row. Colours are ARGB, or 0 for "theme default".
      *
-     * @param valueRuns server-styled value (drawn instead of {@code value} when non-empty), may be empty
+     * @param valueRuns server-styled value (drawn instead of {@code value} when not empty), may be empty
      * @param icon      icon in front of the label, or null
      * @param tintIcon  tint the icon with the row's value colour (for white symbols)
-     * @param labelRuns styled label (drawn instead of {@code label} when non-empty; {@code label} stays its plain text)
-     * @param ownColors the runs keep their colours even with "Use Server Color" off (e.g. the shiny animation)
+     * @param labelRuns styled label (drawn instead of {@code label} when not empty; {@code label} stays its plain text)
+     * @param ownColors the runs keep their colours even when "Use Server Color" is off (e.g. the shiny animation)
      */
     public record Line(String label, String value, int labelColor, int valueColor, List<TextRun> valueRuns, HudIcon icon,
                        boolean tintIcon, List<TextRun> labelRuns, boolean ownColors) {
@@ -36,7 +36,7 @@ public abstract class LinesHudModule extends HudModule {
             this(label, value, labelColor, valueColor, valueRuns, icon, false);
         }
 
-        /** Same row with a styled label and/or value whose run colours always apply. */
+        /** The same row with a styled label and/or value whose run colours always apply. */
         public Line styledRuns(List<TextRun> label, List<TextRun> value) {
             StringBuilder plain = new StringBuilder();
             for (TextRun r : label) plain.append(r.text());
@@ -67,34 +67,34 @@ public abstract class LinesHudModule extends HudModule {
         }
     }
 
-    /** Height of a {@link Line#DIVIDER} row (the 1 px rule sits in its middle). */
+    /** Height of a {@link Line#DIVIDER} row (the 1 px rule sits in the middle). */
     private static final int DIVIDER_H = 5;
 
     protected static final int PAD_X = 4, PAD_Y = 3, LINE_GAP = 2, ICON_GAP = 3;
 
     /**
-     * Telos Realms' Tab-list palette (General / Character Info): yellow labels, green values. Server data, not
-     * a theme colour — read off the live Tab list (2026-11-14).
+     * Telos Realms' Tab-list palette (General / Character Info): yellow labels and green values. This is server data,
+     * not a theme colour, read off the live Tab list (2026-11-14).
      */
     public static final int SERVER_LABEL = 0xFFDFE560, SERVER_VALUE = 0xFF55FF55;
 
-    /** Per-element "Use Server Color" toggle, or null when the element has none (theme colours only). */
+    /** The element's own "Use Server Color" toggle, or null if it doesn't have one (theme colours only). */
     private BooleanSetting useServerColor;
 
     protected LinesHudModule(String name, String description, double defaultX, double defaultY, boolean enabledByDefault) {
         super(name, description, defaultX, defaultY, enabledByDefault);
     }
 
-    /** Row element listed in another panel (e.g. Combat → Assassin Stacks). */
+    /** A row element listed in another panel (e.g. Combat → Assassin Stacks). */
     protected LinesHudModule(String name, String description, Category category, double defaultX, double defaultY,
                              boolean enabledByDefault) {
         super(name, description, category, defaultX, defaultY, enabledByDefault);
     }
 
     /**
-     * Adds the "Use Server Color" toggle (on by default): rows without their own server colour are drawn in
-     * {@link #SERVER_LABEL}/{@link #SERVER_VALUE}; off = Theme's HUD Index / HUD Value colours (and Tab-list row
-     * colours are ignored).
+     * Adds the "Use Server Color" toggle (on by default). When on, rows without their own server colour are drawn in
+     * {@link #SERVER_LABEL}/{@link #SERVER_VALUE}. When off, the Theme's HUD Index / HUD Value colours are used and
+     * Tab-list row colours are ignored.
      */
     protected final BooleanSetting addUseServerColor() {
         useServerColor = add(new BooleanSetting("Use Server Color",
@@ -102,20 +102,20 @@ public abstract class LinesHudModule extends HudModule {
         return useServerColor;
     }
 
-    /** Value runs of a mirrored (right-aligned, "Value :Label") row; same width as the normal runs. */
+    /** Value runs of a mirrored (right-aligned, "Value :Label") row, the same width as the normal runs. */
     protected List<TextRun> mirroredValueRuns(Line line) {
         return line.valueRuns();
     }
 
-    /** The "Use Server Color" toggle this element follows (null = none); split-off parts return their owner's. */
+    /** The "Use Server Color" toggle this element follows (null for none). Split-off parts return their owner's. */
     protected BooleanSetting serverColorToggle() {
         return useServerColor;
     }
 
-    /** Rows to show. In preview mode, return placeholder rows when real data is missing (never empty). */
+    /** The rows to show. In preview mode, return placeholder rows when the real data is missing (never empty). */
     protected abstract List<Line> lines(boolean preview);
 
-    /** Optional title row (null = none). */
+    /** Optional title row (null for none). */
     protected String title() {
         return null;
     }
@@ -125,7 +125,7 @@ public abstract class LinesHudModule extends HudModule {
         return ICON_GAP;
     }
 
-    /** Text between label and value. */
+    /** The text between label and value. */
     protected String separator() {
         return ": ";
     }
@@ -160,7 +160,7 @@ public abstract class LinesHudModule extends HudModule {
         return r.fontHeight();
     }
 
-    /** Width reserved in front of every row's label (0 when no row has an icon). */
+    /** The width reserved in front of every row's label (0 if no row has an icon). */
     private int iconSlot(Render2D r, List<Line> lines) {
         if (!icons()) return 0;
         int w = 0;
@@ -177,7 +177,7 @@ public abstract class LinesHudModule extends HudModule {
     }
 
     private int rowWidth(Render2D r, Line line) {
-        if (line.label().isEmpty()) return valueWidth(r, line); // icon-only row
+        if (line.label().isEmpty()) return valueWidth(r, line); // a row that's only an icon
         return labelWidth(r, line) + r.textWidth(separator()) + valueWidth(r, line);
     }
 
@@ -239,7 +239,7 @@ public abstract class LinesHudModule extends HudModule {
             boolean runColors = serverColors || line.ownColors();
             int x;
             if (alignRight && isTextMirrored()) {
-                // right-aligned: the whole row mirrored — "Value :Label <icon>", icons in a column at the right edge
+                // right-aligned: the whole row is mirrored ("Value :Label <icon>"), with icons in a column at the right edge
                 if (slot > 0 && line.icon() != null)
                     drawIcon(r, line.icon(), w - PAD_X - (slot - iconGap() + iconWidth(r, line.icon())) / 2, y, tint);
                 x = w - PAD_X - slot;
@@ -257,14 +257,14 @@ public abstract class LinesHudModule extends HudModule {
                 y += lineHeight(r);
                 continue;
             } else if (centered || alignRight) {
-                // centred / unmirrored right: each whole row (its own icon + text) aligned as one block
+                // centred, or right without mirroring: each whole row (its own icon plus text) is aligned as one block
                 int iw = slot > 0 && line.icon() != null ? iconWidth(r, line.icon()) + iconGap() : 0;
                 int rw = iw + rowWidth(r, line);
                 x = alignRight ? w - PAD_X - rw : (w - rw) / 2;
                 if (iw > 0) drawIcon(r, line.icon(), x, y, tint);
                 x += iw;
             } else {
-                // icons centred in the shared column, so narrow ones (Server/Glory PNGs) line up with the glyphs
+                // icons are centred in the shared column, so narrow ones (Server/Glory PNGs) line up with the glyphs
                 if (slot > 0 && line.icon() != null)
                     drawIcon(r, line.icon(), PAD_X + (slot - iconGap() - iconWidth(r, line.icon())) / 2, y, tint);
                 x = PAD_X + slot;
@@ -284,8 +284,8 @@ public abstract class LinesHudModule extends HudModule {
     }
 
     /**
-     * Stat colour for a tinted icon: the server's label colour (Telos colours the label, the value is
-     * white), else a coloured value, else the drawn value colour. Pure white/grey counts as "no colour".
+     * The stat colour for a tinted icon: the server's label colour (Telos colours the label and leaves the value white),
+     * or else a coloured value, or else the drawn value colour. Pure white or grey counts as "no colour".
      */
     private static int iconTint(Line line, int drawnValueColor) {
         if (isColored(line.labelColor())) return line.labelColor();

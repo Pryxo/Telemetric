@@ -5,7 +5,7 @@ import net.minecraft.client.renderer.RenderPipelines;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-/** Exposes vanilla's private line-pipeline snippet so a see-through variant can reuse its shaders/format. */
+/** Exposes vanilla's private line-pipeline snippet so a see-through variant can reuse its shaders and format. */
 @Mixin(RenderPipelines.class)
 public interface RenderPipelinesAccessor {
 

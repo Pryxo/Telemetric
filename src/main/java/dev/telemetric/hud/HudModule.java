@@ -8,16 +8,16 @@ import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.render.Render2D;
 
 /**
- * Base class for every HUD element. A HUD element is a toggleable module in the {@link Category#HUD}
- * panel; while enabled it is drawn in-game by the HUD overlay and can be moved / resized in the HUD editor.
+ * Base class for every HUD element. A HUD element is a toggleable module in the {@link Category#HUD} panel. While
+ * it's enabled, the HUD overlay draws it in-game, and you can move and resize it in the HUD editor.
  * <p>
- * <b>Position</b> is stored as two fractions (hidden settings {@code X}/{@code Y}) of the free space
- * {@code screen - margins - element size}: 0 = left/top edge, 1 = right/bottom edge. That keeps
- * corner-anchored elements in their corner on any window size or GUI scale.
- * <b>Size</b> is the visible {@code Scale} setting (also changed by the editor's resize handle).
+ * The <b>position</b> is stored as two fractions (hidden settings {@code X}/{@code Y}) of the free space
+ * {@code screen - margins - element size}: 0 is the left/top edge and 1 the right/bottom edge. That keeps elements
+ * anchored in a corner in their corner on any window size or GUI scale.
+ * The <b>size</b> is the visible {@code Scale} setting (the editor's resize handle changes it too).
  * <p>
- * Subclasses only measure and draw their content at the origin in unscaled units; the overlay /
- * editor applies translation and scale.
+ * Subclasses only measure and draw their content at the origin in unscaled units. The overlay and editor apply the
+ * translation and scale.
  */
 public abstract class HudModule extends Module {
 
@@ -35,13 +35,13 @@ public abstract class HudModule extends Module {
         this(name, description, Category.HUD, defaultX, defaultY, enabledByDefault);
     }
 
-    /** HUD element listed in another panel (e.g. the Dungeon minimap); still drawn / edited like every HUD element. */
+    /** A HUD element listed in another panel (e.g. the Dungeon minimap). It's still drawn and edited like every HUD element. */
     protected HudModule(String name, String description, Category category, double defaultX, double defaultY,
                         boolean enabledByDefault) {
         this(name, description, category, defaultX, defaultY, enabledByDefault, 1.0);
     }
 
-    /** Like above, with a default {@code Scale} other than 1× (e.g. large alert text). */
+    /** Same as above, with a default {@code Scale} other than 1× (e.g. large alert text). */
     protected HudModule(String name, String description, Category category, double defaultX, double defaultY,
                         boolean enabledByDefault, double defaultScale) {
         super(name, description, category);
@@ -66,7 +66,7 @@ public abstract class HudModule extends Module {
         return mirrorText.get();
     }
 
-    /** HUD editor N: toggle mirrored text for this element. */
+    /** HUD editor N: toggles mirrored text for this element. */
     public void toggleMirrorText() {
         mirrorText.set(!mirrorText.get());
     }
@@ -80,12 +80,12 @@ public abstract class HudModule extends Module {
         return align.is(ALIGN_RIGHT);
     }
 
-    /** Centred layout: each row centred in the element (icons stay in front of their row). */
+    /** Centred layout: each row is centred in the element (icons stay in front of their row). */
     public boolean isCentered() {
         return align.is(ALIGN_MID);
     }
 
-    /** HUD editor M: Left → Mid → Right → Left. */
+    /** HUD editor M: cycles Left → Mid → Right → Left. */
     public void cycleAlign() {
         align.set(isMirrored() ? ALIGN_LEFT : isCentered() ? ALIGN_RIGHT : ALIGN_MID);
     }
@@ -95,12 +95,12 @@ public abstract class HudModule extends Module {
         return enabledByDefault;
     }
 
-    /** Drawn in-game / in the HUD editor (default: enabled). Split elements (Performance HUD parts) override this. */
+    /** Whether it's drawn in-game and in the HUD editor (default: when enabled). Split elements (Performance HUD parts) override this. */
     public boolean isShown() {
         return isEnabled();
     }
 
-    /** HUD editor "Del": hides the element (default: turns the module off). */
+    /** HUD editor "Del": hides the element (by default that turns the module off). */
     public void hide() {
         setEnabled(false);
     }
@@ -116,13 +116,13 @@ public abstract class HudModule extends Module {
     /**
      * Draws the content with its top-left corner at (0, 0).
      *
-     * @param preview     true in the HUD editor: show placeholder data when the real data is missing
-     * @param alignRight  right-aligned layout ({@link #isMirrored()}) — right-align text, icons on the right;
-     *                    centred ({@link #isCentered()}) is read by the element itself
+     * @param preview     true in the HUD editor, where placeholder data is shown when the real data is missing
+     * @param alignRight  right-aligned layout ({@link #isMirrored()}): text right-aligned, icons on the right. The
+     *                    centred layout ({@link #isCentered()}) is read by the element itself
      */
     public abstract void draw(Render2D r, boolean preview, boolean alignRight);
 
-    /** False hides the element in-game (e.g. no Tab-list data on this server). The editor always shows it. */
+    /** False hides the element in-game (e.g. this server has no Tab-list data). The editor always shows it. */
     public boolean hasData() {
         return true;
     }
@@ -153,7 +153,7 @@ public abstract class HudModule extends Module {
         return MARGIN + (int) Math.round(posY.get() * Math.max(0, screenHeight - 2 * MARGIN - height));
     }
 
-    /** Stores a new top-left corner (clamped to the screen). */
+    /** Stores a new top-left corner, clamped to the screen. */
     public void setTopLeft(double left, double top, int screenWidth, int screenHeight, int width, int height) {
         double freeX = screenWidth - 2.0 * MARGIN - width;
         double freeY = screenHeight - 2.0 * MARGIN - height;

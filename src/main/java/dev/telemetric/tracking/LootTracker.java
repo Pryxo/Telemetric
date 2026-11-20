@@ -28,45 +28,45 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Pity and loot counting. Always on while on Telos — the Pity Counter,
- * Lifetime Stats and drop messages only <i>show</i> what is counted here, so nothing is missed while they are off.
+ * Pity and loot counting. It's always on while you're on Telos. The Pity Counter, Lifetime Stats and the drop
+ * messages only <i>show</i> what gets counted here, so nothing is missed while they're off.
  * <ul>
- *   <li><b>Boss kill</b> — the kill leaderboard (multi-line server message; {@code Defeated <boss> in <time>} in
- *       dungeons, just {@code Defeated <boss>} at realm bosses — read live 2026-11-16):
- *       every pity drop of that boss ({@link LootTable#forDefeat}, current dungeon first) gets +1, shiny variants
- *       too; {@link #STAT_KILLS} +1, {@link #STAT_RUNS} +1 when it is the dungeon's final boss or a realm boss.</li>
- *   <li><b>Bonus chest</b> ({@code Bonus chest has been unlocked}) — one more roll of the last killed boss: +1.</li>
- *   <li><b>Drop</b> — your glowing loot after a bag opens ({@link DropAdapter}) or the server's
- *       {@code [realm-3] ͱ <you> got <item>[telos:<model>] from <place>} line (read live 2026-11-16; the model id
- *       picks the drop, {@code -shiny} included): that drop's pity goes back to 0 and {@link Listener#onDrop} fires once.</li>
- *   <li><b>Mob kill</b> — a dungeon mob that has drops of its own (Boss.json {@code mob}, e.g. Dyerftum Overlord →
- *       Wild Wisps in Illarius' Hideout): its nameplate (a text display in the Telos plate font) vanishing within
- *       {@value #MOB_KILL_RANGE} blocks of you, chunk still loaded = killed near you: its drops get +1
- *       ({@link Listener#onMobKill}). A plate that shows up again right there within {@value #MOB_RESENT_MS} ms was
- *       only re-sent: the kill is taken back.</li>
- *   <li><b>Bag</b> — a loot bag's totem pop: {@code bag:<group>} +1 ({@code tables/rarities.json} bags).</li>
+ *   <li><b>Boss kill</b>: the kill leaderboard, a multi-line server message ({@code Defeated <boss> in <time>} in
+ *       dungeons, just {@code Defeated <boss>} at realm bosses; read live 2026-11-16). Every pity drop of that boss
+ *       ({@link LootTable#forDefeat}, current dungeon first) gets +1, shiny variants too. {@link #STAT_KILLS} gets +1,
+ *       and {@link #STAT_RUNS} +1 when it's the dungeon's final boss or a realm boss.</li>
+ *   <li><b>Bonus chest</b> ({@code Bonus chest has been unlocked}): one more roll of the last killed boss, so +1.</li>
+ *   <li><b>Drop</b>: your glowing loot after a bag opens ({@link DropAdapter}), or the server's
+ *       {@code [realm-3] ͱ <you> got <item>[telos:<model>] from <place>} line (read live 2026-11-16; the model id picks
+ *       the drop, {@code -shiny} included). That drop's pity goes back to 0 and {@link Listener#onDrop} fires once.</li>
+ *   <li><b>Mob kill</b>: a dungeon mob with drops of its own (Boss.json {@code mob}, e.g. Dyerftum Overlord → Wild
+ *       Wisps in Illarius' Hideout). If its nameplate (a text display in the Telos plate font) vanishes within
+ *       {@value #MOB_KILL_RANGE} blocks of you while the chunk is still loaded, it was killed near you and its drops get
+ *       +1 ({@link Listener#onMobKill}). If a plate shows up again right there within {@value #MOB_RESENT_MS} ms, it was
+ *       only re-sent and the kill is taken back.</li>
+ *   <li><b>Bag</b>: a loot bag's totem pop gives {@code bag:<group>} +1 ({@code tables/rarities.json} bags).</li>
  * </ul>
- * Counters live in {@link TrackingStore} (per account). Chat layouts were not read live yet ({@code anyRuns}).
+ * The counters live in {@link TrackingStore} (per account). The chat layouts haven't been read live yet ({@code anyRuns}).
  */
 public final class LootTracker {
 
     public static final String STAT_KILLS = "bossKills", STAT_RUNS = "runs", BAG_PREFIX = "bag:";
 
-    /** Events for the HUD / chat modules (client thread). */
+    /** Events for the HUD and chat modules (client thread). */
     public interface Listener {
-        /** A boss kill was counted. {@code contributionBoost} = your loot boost from damage on the leaderboard (%). */
+        /** A boss kill was counted. {@code contributionBoost} is your loot boost from damage on the leaderboard (%). */
         default void onKill(BossLoot loot, int contributionBoost) {}
 
-        /** A pity drop came at {@code pityAt} (its counter is 0 now); {@code from} = dungeon or boss name. */
+        /** A pity drop came at {@code pityAt} (its counter is 0 now). {@code from} is the dungeon or boss name. */
         default void onDrop(Drop drop, int pityAt, String from) {}
 
-        /** A kill of a named dungeon mob near you was counted: {@code drops} got +1. */
+        /** A kill of a named dungeon mob near you was counted, and {@code drops} got +1. */
         default void onMobKill(String mob, List<Drop> drops) {}
     }
 
     /**
-     * Kill leaderboard: several lines, one of them {@code Defeated <boss> in <time>} (dungeon) or {@code Defeated <boss>}
-     * (realm boss, no timer). Player names may be hoverable.
+     * The kill leaderboard: several lines, one of which is {@code Defeated <boss> in <time>} (dungeon) or
+     * {@code Defeated <boss>} (realm boss, no timer). Player names can be hoverable.
      */
     static final ChatPattern LEADERBOARD = ChatPattern.builder("Kill leaderboard",
                     "(?=[^\\n]*\\n).*?\\bDefeated [^\\n]+.*")
@@ -78,26 +78,26 @@ public final class LootTracker {
     private static final String SELF_ARROW = "⬅";
 
     /**
-     * {@code Skull Cavern𕴫 Bonus chest has been unlocked!} — sent when you open the boss's bonus chest with a key
-     * (read live 0.37.15). Only a place name (letters / spaces, no {@code :}) and glyphs before it.
+     * {@code Skull Cavern𕴫 Bonus chest has been unlocked!}, sent when you open the boss's bonus chest with a key (read
+     * live in 0.37.15). Only a place name (letters and spaces, no {@code :}) and glyphs come before it.
      */
     static final ChatPattern BONUS_CHEST = ChatPattern.builder("Bonus chest unlocked",
             "(?:[A-Za-z' ]{1,40})?[^A-Za-z0-9:\\n]*Bonus chest has been unlocked[^\\n]*").anyRuns().build();
 
     /**
-     * {@code [realm-3] ͱ <player> got <item>[telos:<model>] from <place>} — an optional {@code [server]} tag, then only
-     * glyphs / spaces before the name; the item can have a tooltip.
+     * {@code [realm-3] ͱ <player> got <item>[telos:<model>] from <place>}: an optional {@code [server]} tag, then only
+     * glyphs and spaces before the name. The item can have a tooltip.
      */
     public static final ChatPattern DROP_LINE = ChatPattern.builder("Drop line",
                     "(?:\\[[^\\]\\n]*]\\s*)?[^A-Za-z0-9\\n]*(?<player>[A-Za-z0-9_]{3,16}) got (?<item>[^\\n]+)")
             .anyRuns().allowInteractive().build();
 
-    /** The same drop seen twice (glow scan + chat line) within this time counts once. */
+    /** If the same drop is seen twice (glow scan and chat line) within this time, it counts once. */
     private static final long SAME_DROP_MS = 60_000, BONUS_AFTER_KILL_MS = 30 * 60_000;
 
-    /** A mob nameplate vanishing within this many blocks (horizontal) of you counts as a kill. */
+    /** A mob nameplate that vanishes within this many blocks (horizontal) of you counts as a kill. */
     static final int MOB_KILL_RANGE = 16;
-    /** A plate showing up within {@link #MOB_SAME_SQ} of a kill this soon after it = the same mob (plate re-sent). */
+    /** A plate that shows up within {@link #MOB_SAME_SQ} of a kill this soon after it is the same mob (the plate was re-sent). */
     static final long MOB_RESENT_MS = 5_000;
     private static final double MOB_SAME_SQ = 3 * 3, MOB_TELEPORT_SQ = 32 * 32;
     private static final int MOB_SCAN_TICKS = 4;
@@ -110,10 +110,10 @@ public final class LootTracker {
     private long lastKillAt;
     private boolean started;
 
-    /** A named-mob plate being followed: which mob (name key), where it was last seen. */
+    /** A named-mob plate being followed: which mob (name key), and where it was last seen. */
     private record MobPlate(String mob, Point pos) {}
 
-    /** A counted mob kill, kept {@link #MOB_RESENT_MS} to take it back if the plate comes back. */
+    /** A counted mob kill, kept for {@link #MOB_RESENT_MS} so it can be taken back if the plate comes back. */
     private record MobKill(Point pos, long at, List<Drop> drops) {}
 
     private final Map<Integer, MobPlate> mobPlates = new HashMap<>();
@@ -128,7 +128,7 @@ public final class LootTracker {
         return INSTANCE;
     }
 
-    /** Subscribes the chat lines and bag events (once, at start). */
+    /** Subscribes to the chat lines and bag events (once, at start). */
     public void start() {
         if (started) return;
         started = true;
@@ -153,7 +153,7 @@ public final class LootTracker {
         listeners.add(listener);
     }
 
-    /** Counters of the account playing now, set to the pity scope of the character played now ({@link PityScopes}). */
+    /** The counters of the account playing now, set to the pity scope of the character you're playing ({@link PityScopes}). */
     public TrackingStore store() {
         TrackingStore s = TrackingStore.of(PlayerAdapter.accountId());
         s.setPityScope(PityScopes.get().scope());
@@ -166,14 +166,14 @@ public final class LootTracker {
 
     // ------------------------------------------------------------------ named-mob kills
 
-    /** Client tick (on Telos): follows the nameplates of this dungeon's named mobs every few ticks. */
+    /** Client tick (on Telos): every few ticks it follows the nameplates of this dungeon's named mobs. */
     public void tick() {
         if (++mobTicks % MOB_SCAN_TICKS != 0) return;
         PityScopes.get().tick(TrackingStore.of(PlayerAdapter.accountId()));
         String place = DungeonAdapter.isInDungeon() ? DungeonAdapter.dungeonName() : null;
         Map<String, List<Drop>> drops = place == null ? Map.of() : TelosData.LOOT.get().mobDrops(place);
         Point player = DungeonAdapter.playerPos();
-        // new dungeon / no dungeon / teleport (death, portal, world change): forget the plates without counting
+        // a new dungeon, no dungeon, or a teleport (death, portal, world change): forget the plates without counting
         boolean jumped = player == null || mobLastPlayer == null
                 || player.distanceSq(mobLastPlayer.x(), mobLastPlayer.y(), mobLastPlayer.z()) > MOB_TELEPORT_SQ;
         if (drops.isEmpty() || jumped || !place.equals(mobPlace)) {
@@ -211,7 +211,7 @@ public final class LootTracker {
         }
     }
 
-    /** A new plate right where a mob was just counted as killed: the same mob, re-sent — take the kill back. */
+    /** A new plate right where a mob was just counted as killed is the same mob, re-sent, so take the kill back. */
     private void undoResent(Point pos) {
         for (Iterator<MobKill> it = mobKills.iterator(); it.hasNext(); ) {
             MobKill k = it.next();
@@ -264,7 +264,7 @@ public final class LootTracker {
         for (Drop d : lastKill.pityDrops()) if (counts(d)) store.addPity(d.key());
     }
 
-    /** Your row of the leaderboard (marked ⬅ or with your name): its last percentage. */
+    /** Your row of the leaderboard (marked with ⬅ or your name): its last percentage. */
     private static int contributionBoost(String[] lines) {
         String me = PlayerAdapter.name();
         String row = null;
@@ -281,7 +281,7 @@ public final class LootTracker {
         }
     }
 
-    /** Your loot boost from the Tab list (%), 0 if not shown. */
+    /** Your loot boost from the Tab list (%), or 0 if it isn't shown. */
     public static int tabLootBoost() {
         return ServerInfoAdapter.tabStat("Loot Boost").map(s -> {
             String digits = s.value().replaceAll("[^0-9]", "");
@@ -291,7 +291,7 @@ public final class LootTracker {
 
     // ------------------------------------------------------------------ drops
 
-    /** The drop a {@link #DROP_LINE} match is about, if it is yours and in the loot table; else null. */
+    /** The drop a {@link #DROP_LINE} match is about, if it's yours and in the loot table. Otherwise null. */
     public Drop ownDrop(MatchResult m) {
         String me = PlayerAdapter.name();
         if (me == null || !me.equals(m.group(1))) return null;
@@ -312,8 +312,8 @@ public final class LootTracker {
     }
 
     /**
-     * False on Normal: Normal characters cannot drop shinies, so shiny pity is neither shown nor counted there.
-     * Only a mode actually read from the Tab list counts — an unknown mode glyph never hides shinies.
+     * False on Normal. Normal characters can't drop shinies, so shiny pity isn't shown or counted there. Only a mode
+     * that was actually read from the Tab list counts, so an unknown mode glyph never hides shinies.
      */
     public static boolean shiniesDrop() {
         PityScopes s = PityScopes.get();
@@ -333,7 +333,7 @@ public final class LootTracker {
     private void dropped(Drop drop) {
         long now = System.currentTimeMillis();
         recentDrops.values().removeIf(t -> now - t > SAME_DROP_MS);
-        if (recentDrops.putIfAbsent(drop.key(), now) != null) return; // glow scan + chat line: count once
+        if (recentDrops.putIfAbsent(drop.key(), now) != null) return; // seen by both the glow scan and the chat line, so count it once
         if (!counts(drop)) return;
         int at = store().resetPity(drop.key());
         String place = DungeonAdapter.isInDungeon() ? DungeonAdapter.dungeonName() : null;

@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Player Size: marks scaled players while extracting, then scales their model (and vanilla name tag). */
+/** Player Size: marks scaled players while extracting, then scales their model (and the vanilla name tag). */
 @Mixin(AvatarRenderer.class)
 public abstract class AvatarRendererMixin {
 

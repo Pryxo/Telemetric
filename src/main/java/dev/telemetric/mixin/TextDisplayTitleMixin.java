@@ -12,16 +12,16 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Nametags → Show Status: puts a title line on top of a Telos name tag inside the text display itself, so it is laid
- * out, backed and billboarded exactly like the lines Telos sends. Only the client's line cache changes — the synced
- * text stays untouched. Logic: {@link NametagAdapter#titleFor}.
+ * Nametags → Show Status: puts a title line on top of a Telos name tag, inside the text display itself, so it's laid
+ * out, backed and billboarded exactly like the lines Telos sends. Only the client's line cache changes, and the
+ * synced text stays untouched. The logic is in {@link NametagAdapter#titleFor}.
  */
 @Mixin(Display.TextDisplay.class)
 public abstract class TextDisplayTitleMixin {
 
     @Shadow private Display.TextDisplay.CachedInfo clientDisplayCache;
 
-    /** Title baked into {@link #clientDisplayCache}; null = none. Same instance while the title is unchanged. */
+    /** The title baked into {@link #clientDisplayCache}, or null for none. Same instance as long as the title doesn't change. */
     @Unique private Component telemetric$title;
     @Unique private NametagAdapter.TitlePosition telemetric$position = NametagAdapter.TitlePosition.TOP;
 
@@ -33,7 +33,7 @@ public abstract class TextDisplayTitleMixin {
         if (title != telemetric$title || position != telemetric$position) {
             telemetric$title = title;
             telemetric$position = position;
-            clientDisplayCache = null; // re-split with (or without) the title line
+            clientDisplayCache = null; // split again with (or without) the title line
         }
     }
 
@@ -46,7 +46,7 @@ public abstract class TextDisplayTitleMixin {
         return title == null ? text : NametagAdapter.withTitle(text, title, telemetric$position);
     }
 
-    /** Widens the wrap width to fit the title, so it is never split across lines mid-text. */
+    /** Widens the wrap width to fit the title, so it never gets split across lines. */
     @ModifyArg(method = "cacheDisplay",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/entity/Display$TextDisplay$LineSplitter;split(Lnet/minecraft/network/chat/Component;I)Lnet/minecraft/world/entity/Display$TextDisplay$CachedInfo;"),

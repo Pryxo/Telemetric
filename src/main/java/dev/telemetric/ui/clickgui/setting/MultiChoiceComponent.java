@@ -16,12 +16,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Inline multi-select dropdown (accordion like {@link ChoiceComponent}) with a check box per option.
- * Left-click header: open/close. Right-click header: clear all. Left-click option: tick/untick
- * (the list stays open so several entries can be ticked in a row).
+ * An inline multi-select dropdown (an accordion like {@link ChoiceComponent}) with a check box per option.
+ * Left-click the header to open or close it, right-click it to clear everything. Left-clicking an option ticks or
+ * unticks it, and the list stays open so you can tick several entries in a row.
  * <p>
- * Searchable settings ({@code .searchable()}) get a search field on top of the list (focused on open; Enter ticks
- * the first match, Esc clears / unfocuses) and show at most {@link DropdownSearch#MAX_ROWS} rows (scroll wheel for more).
+ * Searchable settings ({@code .searchable()}) get a search field on top of the list (focused on open; Enter ticks the
+ * first match, Esc clears or unfocuses) and show at most {@link DropdownSearch#MAX_ROWS} rows (scroll wheel for more).
  */
 public class MultiChoiceComponent extends SettingComponent<MultiChoiceSetting> {
 
@@ -42,7 +42,7 @@ public class MultiChoiceComponent extends SettingComponent<MultiChoiceSetting> {
         return setting.isSearchable();
     }
 
-    /** Option indices currently listed (filtered for searchable settings). */
+    /** The option indices listed right now (filtered for searchable settings). */
     private List<Integer> matches(List<String> options) {
         if (searchable()) return search.matches(options);
         List<Integer> all = new ArrayList<>(options.size());
@@ -112,7 +112,7 @@ public class MultiChoiceComponent extends SettingComponent<MultiChoiceSetting> {
             c.animateTo(selected ? 1 : 0);
             if (h.get() > 0.01) r.rect(boxX, oy, boxW, Layout.OPTION_HEIGHT, ColorUtil.fade(p.surfaceHover(), h.get()));
 
-            // check box: outlined square that fills with the accent when ticked
+            // check box: an outlined square that fills with the accent when ticked
             int bx = left() + 2;
             int by = oy + (Layout.OPTION_HEIGHT - BOX) / 2;
             r.outline(bx, by, BOX, BOX, ColorUtil.lerp(p.border(), p.accent(), c.get()));

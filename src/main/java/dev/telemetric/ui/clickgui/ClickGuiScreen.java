@@ -29,21 +29,21 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * MC ADAPTER — the ClickGUI screen. Converts Minecraft's input records into framework primitives
- * (in ClickGUI units, i.e. divided by UI scale) and drives the open/close sequence:
+ * MC ADAPTER: the ClickGUI screen. It converts Minecraft's input records into framework primitives (in ClickGUI units,
+ * i.e. divided by the UI scale) and drives the open/close sequence:
  * <ul>
- *   <li>open: backdrop fades in over {@link Durations#SCREEN}, panels slide/fade in staggered,</li>
- *   <li>close: everything fades out over {@link Durations#MODAL} before the screen is actually removed.</li>
+ *   <li>on open, the backdrop fades in over {@link Durations#SCREEN} and the panels slide and fade in, staggered;</li>
+ *   <li>on close, everything fades out over {@link Durations#MODAL} before the screen is actually removed.</li>
  * </ul>
- * Rendering order: backdrop → panels (one stratum each, topmost last) → tooltip → toasts → watermark.
+ * Rendering order: backdrop, then panels (one stratum each, topmost last), then tooltip, toasts and watermark.
  */
 public class ClickGuiScreen extends Screen {
 
     private final GuiContext ctx;
     private final Render2D r = new Render2D();
-    /** Stacking order, bottom-most first (last = top, gets input first). */
+    /** Stacking order, bottom-most first (the last one is on top and gets input first). */
     private final List<Panel> panels = new ArrayList<>();
-    /** Same panels in category order — used for auto-arranging. */
+    /** The same panels in category order, used for auto-arranging. */
     private final List<Panel> categoryOrder = new ArrayList<>();
     private final TooltipRenderer tooltip;
     private final ToastRenderer toasts;
@@ -77,7 +77,7 @@ public class ClickGuiScreen extends Screen {
         search.playAppear(panels.size() * Durations.STAGGER);
     }
 
-    /** Re-stacks panels as they were when the GUI was last closed (panels not listed stay at the bottom). */
+    /** Re-stacks the panels the way they were when the GUI was last closed (panels not in the list stay at the bottom). */
     private void restoreZOrder(List<String> saved) {
         panels.sort(Comparator.comparingInt(p -> saved.indexOf(p.getId())));
     }
@@ -85,16 +85,16 @@ public class ClickGuiScreen extends Screen {
     // ================================================================== helpers
 
     private float appliedScale;
-    private int heldButtons; // bitmask of mouse buttons currently pressed inside this screen
+    private int heldButtons; // bitmask of the mouse buttons currently held down inside this screen
 
     private InterfaceModule ui() {
         return ctx.ui();
     }
 
     /**
-     * Scale actually applied to the GUI. Frozen while a mouse button is held: the UI Scale slider maps the mouse
-     * in scaled coordinates, so rescaling live mid-drag would feed back into the slider and make it jump.
-     * The new value is applied on release.
+     * The scale that's actually applied to the GUI. It's frozen while a mouse button is held: the UI Scale slider maps
+     * the mouse in scaled coordinates, so rescaling live mid-drag would feed back into the slider and make it jump. The
+     * new value gets applied on release.
      */
     private float scale() {
         if (heldButtons == 0 || appliedScale <= 0) appliedScale = ui().uiScale.getFloat() * fitFactor();
@@ -102,9 +102,9 @@ public class ClickGuiScreen extends Screen {
     }
 
     /**
-     * Reference canvas for "Fit to Screen": 4K at GUI scale 3 (1280×720 GUI pixels). Any other resolution /
-     * GUI scale is scaled so the ClickGUI covers the same share of the screen, and saved panel positions
-     * (stored in canvas pixels) land in the same place.
+     * Reference canvas for "Fit to Screen": 4K at GUI scale 3 (1280×720 GUI pixels). Every other resolution or GUI scale
+     * is scaled so the ClickGUI covers the same share of the screen, and saved panel positions (stored in canvas
+     * pixels) end up in the same place.
      */
     private static final float REF_WIDTH = 1280f, REF_HEIGHT = 720f;
 
@@ -126,9 +126,9 @@ public class ClickGuiScreen extends Screen {
     }
 
     /**
-     * Places panels that have never been positioned (first launch, new category, or "Reset Layout").
-     * Each one goes into the left-most column slot that no placed panel overlaps, so a newly added
-     * category never lands on top of panels the user already arranged.
+     * Places the panels that have never been positioned (first launch, a new category, or "Reset Layout"). Each one goes
+     * into the left-most column slot that no placed panel overlaps, so a newly added category never lands on top of
+     * panels the user already arranged.
      */
     private void arrangeUnplaced() {
         int panelWidth = ui().panelWidth.getInt();
@@ -167,7 +167,7 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        // Own backdrop instead of vanilla blur: tinted dim, fades with the open/close animation.
+        // our own backdrop instead of vanilla's blur: a tinted dim that fades with the open/close animation
         Theme p = Telemetric.get().theme().palette();
         double dim = ui().backgroundDim.get() / 100.0;
         int top = ColorUtil.fade(p.backdrop(), dim * screenAlpha());
@@ -207,7 +207,7 @@ public class ClickGuiScreen extends Screen {
 
         r.popAlpha();
         r.popScale();
-        // HUD watermark: same spot as in-game, drawn above the backdrop at full opacity (no blink on open)
+        // HUD watermark: same spot as in-game, drawn above the backdrop at full opacity (so it doesn't blink on open)
         if (hudWatermark.isEnabled()) HudRenderer.render(r, hudWatermark, this.width, this.height, false);
         r.end();
     }
@@ -236,7 +236,7 @@ public class ClickGuiScreen extends Screen {
         return ui().pauseGame.get();
     }
 
-    /** Esc / programmatic close: play the close animation first. */
+    /** Esc or a close from code: play the close animation first. */
     @Override
     public void onClose() {
         if (closing) return;
@@ -252,7 +252,7 @@ public class ClickGuiScreen extends Screen {
         Minecraft.getInstance().setScreen(null);
     }
 
-    /** Also covers the screen being replaced externally (disconnect, another mod opening a screen…). */
+    /** This also covers the screen being replaced from outside (disconnect, another mod opening a screen…). */
     @Override
     public void removed() {
         persist();
@@ -263,12 +263,12 @@ public class ClickGuiScreen extends Screen {
         if (finished) return;
         finished = true;
         search.onClose();
-        panels.forEach(UIComponent::onClose); // panels write open/scroll state into GuiLayout here
+        panels.forEach(UIComponent::onClose); // the panels write their open/scroll state into GuiLayout here
         Telemetric.get().config().getLayout().setZOrder(panels.stream().map(Panel::getId).toList());
         Telemetric.get().config().onGuiClosed();
     }
 
-    // ================================================================== input (MC records → primitives)
+    // ================================================================== input (MC records to primitives)
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
@@ -278,11 +278,11 @@ public class ClickGuiScreen extends Screen {
         if (button >= 0 && button < 31) heldButtons |= 1 << button;
 
         UIComponent focused = ctx.getFocused();
-        // a listening key binder takes middle / side buttons wherever the mouse is
+        // a key binder that's listening takes middle and side buttons wherever the mouse is
         if (focused != null && focused.focusedMouseButton(button)) return true;
         if (focused != null && !focused.isHovered(mx, my)) ctx.clearFocus();
 
-        if (search.mouseClicked(mx, my, button)) return true; // drawn above the panels → gets input first
+        if (search.mouseClicked(mx, my, button)) return true; // drawn above the panels, so it gets input first
         for (int i = panels.size() - 1; i >= 0; i--) {
             Panel panel = panels.get(i);
             if (panel.mouseClicked(mx, my, button)) {
@@ -319,7 +319,7 @@ public class ClickGuiScreen extends Screen {
         if (closing) return true;
         UIComponent focused = ctx.getFocused();
         if (focused != null && focused.keyPressed(event.key(), event.scancode(), event.modifiers())) return true;
-        return super.keyPressed(event); // Esc → onClose()
+        return super.keyPressed(event); // Esc goes to onClose()
     }
 
     @Override

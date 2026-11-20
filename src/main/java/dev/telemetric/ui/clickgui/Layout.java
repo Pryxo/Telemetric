@@ -1,6 +1,6 @@
 package dev.telemetric.ui.clickgui;
 
-/** Spacing constants for the ClickGUI (GUI units). Tweak here, not in components. */
+/** Spacing constants for the ClickGUI (GUI units). Tweak them here, not in the components. */
 public final class Layout {
 
     public static final int HEADER_HEIGHT = 20;
@@ -24,7 +24,7 @@ public final class Layout {
 
     private Layout() {}
 
-    /** Y offset that vertically centres a line of text in a row of {@code rowHeight}. */
+    /** The Y offset that vertically centres a line of text in a row of {@code rowHeight}. */
     public static int textY(int rowHeight) {
         return (rowHeight - 8) / 2;
     }

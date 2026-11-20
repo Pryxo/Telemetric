@@ -18,9 +18,9 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Piece size per dungeon, in {@code config/telemetric/saved/dungeon-sizes.json} — a plain file meant to be shared
- * (copy it into another player's config folder). Each Telos dungeon always uses the same piece size, so once
- * it is known the room detector no longer has to guess it.
+ * Piece size per dungeon, stored in {@code config/telemetric/saved/dungeon-sizes.json}. It's a plain file meant for
+ * sharing (copy it into another player's config folder). Each Telos dungeon always uses the same piece size, so once
+ * we know it the room detector doesn't have to guess anymore.
  * <pre>
  * { "format": 1,
  *   "dungeons": {
@@ -28,12 +28,13 @@ import java.util.TreeMap;
  *     "Corvus Crypt":  { "size": 24, "locked": false, "runs": { "24": 3, "25": 1 } } } }
  * </pre>
  * <ul>
- *   <li>{@code size} — used for the grid (0 / missing = still unknown, measured each run).</li>
- *   <li>{@code runs} — piece size the detector measured at the end of each run (votes).</li>
- *   <li>{@code locked} — never changed by votes (verified built-ins, or set by hand).</li>
+ *   <li>{@code size} is what the grid uses (0 or missing means still unknown, so it's measured every run).</li>
+ *   <li>{@code runs} holds the piece size the detector measured at the end of each run (votes).</li>
+ *   <li>{@code locked} sizes are never changed by votes (verified built-ins, or set by hand).</li>
  * </ul>
- * Learning: an unlocked size follows the most-voted size once it has {@link #LEARN_RUNS} votes and more than
- * the current one. Built-in verified sizes are merged in when missing. Names match ignoring case/punctuation.
+ * How it learns: an unlocked size switches to the most-voted size once that one has {@link #LEARN_RUNS} votes and
+ * more votes than the current size. Built-in verified sizes are merged in when missing. Names are matched ignoring
+ * case and punctuation.
  */
 public final class PieceSizeTable {
 
@@ -41,7 +42,7 @@ public final class PieceSizeTable {
     /** Votes a measured size needs before an unlocked entry adopts it. */
     static final int LEARN_RUNS = 2;
 
-    /** Verified in game (see docs/dungeon.md); locked so a systematic mis-measure cannot override them. */
+    /** Checked in game (see docs/dungeon.md). Locked so a consistent mis-measure can't override them. */
     private static final Map<String, Integer> BUILT_IN = new LinkedHashMap<>();
 
     static {
@@ -56,7 +57,7 @@ public final class PieceSizeTable {
 
     private final Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private final Path file;
-    /** Display name → entry, insertion ordered. */
+    /** Display name to entry, in insertion order. */
     private final Map<String, Entry> entries = new LinkedHashMap<>();
     private boolean loaded;
 
@@ -74,14 +75,14 @@ public final class PieceSizeTable {
         return INSTANCE;
     }
 
-    /** Piece size to use for this dungeon, 0 when unknown. */
+    /** The piece size to use for this dungeon, or 0 when unknown. */
     public synchronized int size(String dungeon) {
         ensureLoaded();
         Entry e = find(dungeon);
         return e == null ? 0 : e.size;
     }
 
-    /** Records one run's measured piece size (0 = nothing measured, ignored) and saves. */
+    /** Records one run's measured piece size and saves. 0 means nothing was measured and is ignored. */
     public synchronized void recordRun(String dungeon, int measured) {
         if (dungeon == null || dungeon.isBlank() || measured <= 0) return;
         ensureLoaded();
@@ -153,7 +154,7 @@ public final class PieceSizeTable {
                         try {
                             e.runs.put(Integer.parseInt(r.getKey()), r.getValue().getAsInt());
                         } catch (RuntimeException ignored) {
-                            // skip a hand-edited bad vote
+                            // skip a bad vote someone edited in by hand
                         }
                     }
                 }

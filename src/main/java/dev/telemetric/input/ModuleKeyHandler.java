@@ -9,11 +9,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Fires keys on their rising edge, polled once per client tick and only while no screen is open (typing in chat
- * never triggers anything):
+ * Fires keys on their rising edge. It's polled once per client tick, and only while no screen is open, so typing in
+ * chat never triggers anything.
  * <ul>
- *   <li>a module's {@code Bind} toggles the module;</li>
- *   <li>an <b>action key</b> ({@link KeybindSetting#onPress}) runs its action while its module is enabled
+ *   <li>A module's {@code Bind} toggles the module.</li>
+ *   <li>An <b>action key</b> ({@link KeybindSetting#onPress}) runs its action while its module is enabled
  *       (e.g. Hide Armor → Toggle Hiding).</li>
  * </ul>
  */
@@ -48,7 +48,7 @@ public final class ModuleKeyHandler {
         heldLastTick.addAll(heldNow);
     }
 
-    /** True on the tick {@code key} goes down (a key shared by several binds fires all of them). */
+    /** True on the tick {@code key} goes down. A key shared by several binds fires all of them. */
     private boolean pressed(int key, Set<Integer> heldNow) {
         boolean down = heldNow.contains(key) || InputUtil.isKeyDown(key);
         if (!down) return false;

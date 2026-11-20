@@ -24,12 +24,12 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Persistent counters of one Minecraft account: pity per drop, per pity scope ({@code pity}: {@code normal} /
- * {@code seasonal} / {@code hardcore:<id>}, see {@link PityScopes}), the known hardcore characters
- * ({@code hardcore}) and lifetime stats ({@code stats}, account-wide),
- * in {@code config/telemetric/saved/tracking/<account uuid>.json}. Pity calls use the active scope
- * ({@link #setPityScope}). Version 1 files (one flat pity map) load as the {@code normal} scope. Changes are saved 2 s after the last one (background
- * thread) and on game exit. Pure Java (no Minecraft imports). Thread-safe.
+ * Persistent counters for one Minecraft account, stored in {@code config/telemetric/saved/tracking/<account uuid>.json}.
+ * That's the pity per drop for each pity scope ({@code pity}: {@code normal} / {@code seasonal} /
+ * {@code hardcore:<id>}, see {@link PityScopes}), the known hardcore characters ({@code hardcore}), and the lifetime
+ * stats ({@code stats}, account-wide). Pity calls use the active scope ({@link #setPityScope}). Version 1 files (one
+ * flat pity map) load as the {@code normal} scope. Changes are saved 2 s after the last one (on a background thread)
+ * and on game exit. Pure Java (no Minecraft imports) and thread-safe.
  */
 public final class TrackingStore {
 
@@ -44,12 +44,12 @@ public final class TrackingStore {
     });
 
     private static final Map<String, TrackingStore> STORES = new HashMap<>();
-    /** Store of the account seen last (kept while no world is loaded) and its id. */
+    /** The store of the account seen last (kept while no world is loaded), and its id. */
     private static volatile TrackingStore current;
     private static volatile String currentId;
 
     private final Path file;
-    /** scope -> drop key -> kills without it. */
+    /** Scope to drop key to the kills without it. */
     private final Map<String, Map<String, Integer>> pity = new HashMap<>();
     private final Map<String, PityScopes.HardcoreChar> hardcore = new LinkedHashMap<>();
     private String scope = PityScopes.NORMAL;
@@ -61,10 +61,10 @@ public final class TrackingStore {
         load();
     }
 
-    /** The store of this account (loaded on first use); null account = the last one, or a shared "default". */
+    /** The store for this account (loaded on first use). A null account means the last one, or a shared "default". */
     public static TrackingStore of(String accountId) {
         TrackingStore c = current;
-        if (c != null && (accountId == null || accountId.equals(currentId))) return c; // the per-frame path
+        if (c != null && (accountId == null || accountId.equals(currentId))) return c; // this is the per-frame path
         synchronized (TrackingStore.class) {
             String key = accountId == null || accountId.isBlank() ? "default" : accountId.replaceAll("[^A-Za-z0-9-]", "");
             TrackingStore store = STORES.computeIfAbsent(key, k -> new TrackingStore(DIR.resolve(k + ".json")));
@@ -74,14 +74,14 @@ public final class TrackingStore {
         }
     }
 
-    /** Writes every store with unsaved changes now (game exit). */
+    /** Writes every store that has unsaved changes right now (game exit). */
     public static synchronized void saveAll() {
         for (TrackingStore s : STORES.values()) s.saveNow();
     }
 
     // ------------------------------------------------------------------ pity
 
-    /** Scope the pity calls below use (from {@link PityScopes}). */
+    /** The scope that the pity calls below use (from {@link PityScopes}). */
     public synchronized void setPityScope(String scope) {
         this.scope = scope == null || scope.isBlank() ? PityScopes.NORMAL : scope;
     }
@@ -99,14 +99,14 @@ public final class TrackingStore {
         return p == null ? 0 : p.getOrDefault(dropKey, 0);
     }
 
-    /** +1 kill without the drop; returns the new count. */
+    /** Adds one kill without the drop and returns the new count. */
     public synchronized int addPity(String dropKey) {
         int n = pool().merge(dropKey, 1, Integer::sum);
         changed();
         return n;
     }
 
-    /** Takes back one {@link #addPity} (a kill counted by mistake); never below 0. */
+    /** Takes back one {@link #addPity} (a kill counted by mistake). Never goes below 0. */
     public synchronized void removePity(String dropKey) {
         Map<String, Integer> p = pity.get(scope);
         Integer n = p == null ? null : p.get(dropKey);
@@ -116,7 +116,7 @@ public final class TrackingStore {
         changed();
     }
 
-    /** The drop came: back to 0. Returns the count it dropped at. */
+    /** The drop came, so it goes back to 0. Returns the count it dropped at. */
     public synchronized int resetPity(String dropKey) {
         Map<String, Integer> p = pity.get(scope);
         Integer old = p == null ? null : p.remove(dropKey);
@@ -124,7 +124,7 @@ public final class TrackingStore {
         return old == null ? 0 : old;
     }
 
-    /** Clears a whole scope (new season: every seasonal character starts at 0). Returns how many counters it had. */
+    /** Clears a whole scope (a new season, where every seasonal character starts at 0). Returns how many counters it had. */
     public synchronized int clearPityScope(String scope) {
         Map<String, Integer> old = pity.remove(scope);
         changed();
@@ -158,7 +158,7 @@ public final class TrackingStore {
         changed();
     }
 
-    /** Overwrites a stat (the /wiki update: the server's own all-time numbers replace the tracked ones). */
+    /** Overwrites a stat (from the /wiki update, where the server's own all-time numbers replace the tracked ones). */
     public synchronized void setStat(String key, int value) {
         stats.put(key, value);
         changed();
@@ -232,7 +232,7 @@ public final class TrackingStore {
             pity.clear();
             hardcore.clear();
             stats.clear();
-            AtomicFiles.backupCorrupt(file); // the next save would overwrite it
+            AtomicFiles.backupCorrupt(file); // keep a copy, because the next save would overwrite it
         }
     }
 

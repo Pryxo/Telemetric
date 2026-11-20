@@ -30,7 +30,7 @@ public abstract class DisplayRendererMixin {
             at = @At("HEAD"))
     private void telemetric$scaleNametag(DisplayEntityRenderState state, PoseStack pose, SubmitNodeCollector collector,
                                          CameraRenderState camera, CallbackInfo ci) {
-        // The dispatcher pushes/pops the pose around each entity, so this transform ends with the entity.
+        // The dispatcher pushes and pops the pose around each entity, so this transform ends with the entity.
         EntityVisualsAdapter.scaleNametag(pose, state.getData(EntityVisualsAdapter.SCALED_TAG));
     }
 }

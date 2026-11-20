@@ -6,12 +6,12 @@ import com.google.gson.JsonPrimitive;
 import java.util.List;
 
 /**
- * Enum choice. If the enum implements {@link Nameable}, its display name is used in the UI.
- * Serialised by {@link Enum#name()} so renaming display names never breaks configs.
+ * An enum choice. If the enum implements {@link Nameable}, its display name is used in the UI. It's saved by
+ * {@link Enum#name()}, so renaming display names never breaks configs.
  */
 public class EnumSetting<E extends Enum<E>> extends ChoiceSetting<E> {
 
-    /** Optional interface for enums with a pretty UI label. */
+    /** Optional interface for enums that want a nicer UI label. */
     public interface Nameable {
         String displayName();
     }

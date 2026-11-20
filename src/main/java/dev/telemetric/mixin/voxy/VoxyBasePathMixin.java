@@ -10,8 +10,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Voxy (optional): Voxy saves LODs per server address ({@code .voxy/saves/<ip>/}), so every Telos region address
- * gets its own copy. On Telos (any address, {@code ServerGate}) use one folder instead: {@code .voxy/saves/telosrealms/}.
- * Read once when Voxy's instance is created (on join).
+ * would get its own copy. On Telos (any address, {@code ServerGate}) we use one folder instead:
+ * {@code .voxy/saves/telosrealms/}. It's read once when Voxy's instance is created (on join).
  */
 @Pseudo
 @Mixin(targets = "me.cortex.voxy.client.VoxyClientInstance", remap = false)

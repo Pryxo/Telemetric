@@ -1,12 +1,12 @@
 package dev.telemetric.ui.animation;
 
 /**
- * Easing curves mapping linear progress {@code t ∈ [0,1]} to eased progress.
+ * Easing curves that map linear progress {@code t ∈ [0,1]} to eased progress.
  * <ul>
- *   <li>{@link #OUT_CUBIC} — default for things entering / reacting to the user.</li>
- *   <li>{@link #IN_OUT_CUBIC} — state changes of things already on screen (accordions).</li>
- *   <li>{@link #IN_CUBIC} — things leaving the screen.</li>
- *   <li>{@link #OUT_BACK} — small playful overshoot (switch knobs). Use sparingly.</li>
+ *   <li>{@link #OUT_CUBIC}: the default for things entering or reacting to the user.</li>
+ *   <li>{@link #IN_OUT_CUBIC}: state changes of things already on screen (accordions).</li>
+ *   <li>{@link #IN_CUBIC}: things leaving the screen.</li>
+ *   <li>{@link #OUT_BACK}: a small playful overshoot (switch knobs). Use it sparingly.</li>
  * </ul>
  */
 public enum Easing {

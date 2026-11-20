@@ -15,15 +15,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MC ADAPTER — plain-text view of the open server menu plus clicks, for walking Telos' {@code /wiki}
- * ({@code tracking/WikiStatsScan}). Only the menu's own slots are read (the player inventory is left out).
+ * MC ADAPTER: a plain-text view of the open server menu, plus clicks, for walking through Telos' {@code /wiki}
+ * ({@code tracking/WikiStatsScan}). Only the menu's own slots are read; the player inventory is left out.
  */
 public final class WikiMenuAdapter {
 
     /** One menu slot: item name and lore lines (plain text). */
     public record Slot(String name, List<String> lore) {}
 
-    /** The open menu: its container id (a new one per page the server opens) and its non-empty slots. */
+    /** The open menu: its container id (the server opens a new one per page) and its non-empty slots. */
     public record Page(int containerId, Map<Integer, Slot> slots) {
         public Slot at(int slot) {
             return slots.get(slot);
@@ -34,12 +34,12 @@ public final class WikiMenuAdapter {
 
     private WikiMenuAdapter() {}
 
-    /** Any screen open (ClickGUI, chat, a menu…)? */
+    /** True if any screen is open (ClickGUI, chat, a menu…). */
     public static boolean screenOpen() {
         return Minecraft.getInstance().screen != null;
     }
 
-    /** The open container menu, or null when none is open. */
+    /** The open container menu, or null if none is open. */
     public static Page current() {
         Minecraft mc = Minecraft.getInstance();
         if (!(mc.screen instanceof AbstractContainerScreen<?> screen)) return null;
@@ -57,11 +57,11 @@ public final class WikiMenuAdapter {
             }
             return new Page(menu.containerId, Map.copyOf(out));
         } catch (RuntimeException e) {
-            return null; // menu changing while it is read: try again next tick
+            return null; // the menu changed while we read it, so try again next tick
         }
     }
 
-    /** Left-clicks a slot of the open menu (the server answers with the next page). */
+    /** Left-clicks a slot of the open menu. The server answers with the next page. */
     public static void click(int slot) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameMode == null || mc.player == null) return;
@@ -69,7 +69,7 @@ public final class WikiMenuAdapter {
         mc.gameMode.handleContainerInput(screen.getMenu().containerId, slot, 0, ContainerInput.PICKUP, mc.player);
     }
 
-    /** Closes whatever is open (a server menu is closed properly, so the server knows). */
+    /** Closes whatever is open. A server menu is closed properly, so the server knows about it. */
     public static void closeScreen() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null && mc.screen instanceof AbstractContainerScreen<?>) mc.player.closeContainer();

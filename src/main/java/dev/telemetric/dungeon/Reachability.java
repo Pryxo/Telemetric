@@ -4,20 +4,20 @@ import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 /**
- * Which standable cells the player can actually walk to — the same moves as {@link PathFinder}.
+ * Which standable cells the player can actually walk to, using the same moves as {@link PathFinder}.
  * <p>
- * The walk map also contains surfaces nobody can reach: the top of the dungeon's roof, ledges in the
- * walls, the inside of sealed rooms. Hole detection and the room grid only look at reachable cells, so the
- * roof never becomes a "floor" or a "boss drop". Callers keep a running union (the area reachable from
- * every position the player stood at), so dropping into an arena does not forget the level above it.
+ * The walk map also has surfaces nobody can reach: the top of the dungeon's roof, ledges in the walls, the inside of
+ * sealed rooms. Hole detection and the room grid only look at reachable cells, so the roof never turns into a "floor"
+ * or a "boss drop". Callers keep a running union (the area reachable from every position the player has stood at),
+ * so dropping into an arena doesn't forget the level above it.
  */
 public final class Reachability {
 
     /**
-     * Deepest fall that still counts as "you can get there" (blocks). Routes stop at {@link PathFinder#MAX_FALL}
-     * (fall damage), but Telos hides whole sections under a drop you are meant to take: Frozen Ruins has a pad room
-     * at y 99 under 14-deep holes in the y 113 floor, its jump pads lead back up, and the boss shaft starts in it.
-     * As deep as a pad throws you; deeper falls (boss shafts, ~70) stay holes, never "walkable".
+     * The deepest fall (in blocks) that still counts as "you can get there". Routes stop at {@link PathFinder#MAX_FALL}
+     * because of fall damage, but Telos hides whole sections under drops you're meant to take. Frozen Ruins has a pad
+     * room at y 99 under 14-deep holes in the y 113 floor; its jump pads lead back up and the boss shaft starts in it.
+     * So this is as deep as a pad throws you. Deeper falls (boss shafts, around 70) stay holes and are never "walkable".
      */
     static final int MAX_REACH_FALL = PathFinder.MAX_LIFT;
     private static final int[][] DIRS4 = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
@@ -25,7 +25,7 @@ public final class Reachability {
     private Reachability() {}
 
     /**
-     * Breadth-first flood from {@code start}: every cell reachable from it (at most {@code maxNodes}).
+     * Breadth-first flood from {@code start}: every cell reachable from it (up to {@code maxNodes}).
      * Empty if {@code start} is {@link Long#MIN_VALUE}.
      */
     public static LongOpenHashSet flood(DungeonMap map, long start, int maxNodes) {
@@ -59,7 +59,7 @@ public final class Reachability {
 
     /**
      * Falls deeper than {@link PathFinder#MAX_FALL} (up to {@link #MAX_REACH_FALL}) off the stand into a straight
-     * neighbour column; the shorter ones are already walking moves. Fills {@code out}, returns how many.
+     * neighbour column. The shorter ones are already walking moves. Fills {@code out} and returns how many.
      */
     static int longFalls(DungeonMap map, long cell, long[] out) {
         int x = Cell.x(cell), y = Cell.y(cell), z = Cell.z(cell);

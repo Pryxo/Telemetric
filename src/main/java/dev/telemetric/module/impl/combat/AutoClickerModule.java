@@ -9,8 +9,8 @@ import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.BooleanSetting;
 
 /**
- * Auto Clicker: while the attack key is held, swings every tick (Telos fires weapons on the swing), so holding
- * left click attacks as fast as the weapon allows.
+ * Auto Clicker: while the attack key is held it swings every tick (Telos fires weapons on the swing), so holding left
+ * click attacks as fast as the weapon allows.
  */
 public final class AutoClickerModule extends Module {
 
@@ -32,7 +32,7 @@ public final class AutoClickerModule extends Module {
         PlayerAdapter.swingMainHand();
     }
 
-    /** Tracker first (keeps running across world changes), vanilla's live cooldown as a fallback. */
+    /** Asks the tracker first (it keeps running across world changes), with vanilla's live cooldown as a fallback. */
     private static boolean onCooldown(ItemInfo main) {
         return (main != null && CooldownTracker.get().get(main.group()) != null) || CombatAdapter.mainHandOnCooldown();
     }

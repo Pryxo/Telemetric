@@ -4,25 +4,25 @@ import java.util.Locale;
 
 /**
  * Badge fonts for floating world labels (pure logic, no MC). The fonts {@code telemetric:pill} and
- * {@code telemetric:ribbon} ({@code assets/telemetric/font/*.json}) are bitmap fonts whose badge glyphs each
- * carry their own slice of background: white body (becomes the tint colour) with the character cut in grey.
- * A label is encoded as {@code [left cap][glyph]…[right cap]} with U+200C between every glyph; that character
- * has an advance of −1 in the font and cancels the 1 px gap Minecraft puts after each bitmap glyph, so the
- * slices join into one solid badge. Draw the result as normal text in that font (see {@code game/WorldLabelAdapter}).
+ * {@code telemetric:ribbon} ({@code assets/telemetric/font/*.json}) are bitmap fonts where each badge glyph carries its
+ * own slice of background: a white body (which becomes the tint colour) with the character cut out in grey.
+ * A label is encoded as {@code [left cap][glyph]…[right cap]} with U+200C between every glyph. That character has an
+ * advance of −1 in the font and cancels the 1 px gap Minecraft puts after each bitmap glyph, so the slices join into
+ * one solid badge. Draw the result as normal text in that font (see {@code game/WorldLabelAdapter}).
  * <p>
  * Atlas (128×256, 8×8 cells): rows 4–7 hold the badge glyphs, mapped to U+E030… in this order:
- * {@code ABCDEFGHIJKLMNOP}, {@code QRSTUVWXYZ?[]/%&}, {@code 0123456789!()<=>}, then {@code +-.} at U+E080 and the
+ * {@code ABCDEFGHIJKLMNOP}, {@code QRSTUVWXYZ?[]/%&}, {@code 0123456789!()<=>}, then {@code +-.} at U+E080, and the
  * left cap / filler / right cap at U+E060–E062.
  */
 public final class BadgeText {
 
-    /** Font of a world label. {@link #PLAIN} = Minecraft's normal font, no badge. */
+    /** The font of a world label. {@link #PLAIN} is Minecraft's normal font, with no badge. */
     public enum Style {
         PILL("pill"),
         RIBBON("ribbon"),
         PLAIN(null);
 
-        /** Font id path in the {@code telemetric} namespace, null for the vanilla font. */
+        /** The font id path in the {@code telemetric} namespace, or null for the vanilla font. */
         public final String font;
 
         Style(String font) {
@@ -37,8 +37,8 @@ public final class BadgeText {
     private BadgeText() {}
 
     /**
-     * Badge glyph string for {@code text} (case-insensitive). Characters the font lacks (spaces too) become
-     * filler. An empty text gives a small blank badge.
+     * The badge glyph string for {@code text} (case-insensitive). Characters the font doesn't have (spaces too) become
+     * filler. Empty text gives a small blank badge.
      */
     public static String encode(String text) {
         String s = text == null ? "" : text.toUpperCase(Locale.ROOT);

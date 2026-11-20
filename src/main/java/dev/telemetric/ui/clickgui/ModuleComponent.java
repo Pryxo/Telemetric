@@ -28,15 +28,15 @@ import java.util.Set;
 /**
  * One module row plus its settings accordion.
  * <ul>
- *   <li>Left-click row: toggle (toggleable modules) or expand (settings groups).</li>
- *   <li>Right-click row: expand / collapse settings.</li>
- *   <li>Left-drag the grip (dots) of a movable setting: reorder it; other rows slide out of the way.</li>
+ *   <li>Left-click the row to toggle it (toggleable modules) or expand it (settings groups).</li>
+ *   <li>Right-click the row to expand or collapse the settings.</li>
+ *   <li>Left-drag the grip (dots) of a movable setting to reorder it, while the other rows slide out of the way.</li>
  * </ul>
- * Accordion uses {@link Durations#ACCORDION} with in-out easing; content is clipped to the animated height.
+ * The accordion uses {@link Durations#ACCORDION} with in-out easing, and the content is clipped to the animated height.
  */
 public class ModuleComponent extends UIComponent {
 
-    /** Alpha factor of the open settings area's background (the world shows through a little). */
+    /** Alpha factor for the background of the open settings area (the world shows through a little). */
     private static final double SETTINGS_BG_OPACITY = 0.72;
     /** Hue step (0..1) between the lines of nested group-toggle levels. */
     private static final float GROUP_HUE_STEP = 0.12f;
@@ -48,16 +48,16 @@ public class ModuleComponent extends UIComponent {
     private final Animation enabled;
     private final Animation expand = new Animation(Durations.ACCORDION, Easing.IN_OUT_CUBIC);
     private boolean expanded;
-    /** Opened by the ClickGUI search because a setting matched; never persisted (see {@link #isExpanded()}). */
+    /** True when the ClickGUI search opened it because a setting matched. Never saved (see {@link #isExpanded()}). */
     private boolean searchOpen;
 
     // ---- reordering of movable settings (Setting#movable)
     private int orderVersion;
-    /** Head component being dragged, or null. */
+    /** The head component being dragged, or null. */
     private SettingComponent<?> dragging;
-    /** Unanimated layout Y of each component this frame (drag hit-testing ignores slides). */
+    /** The unanimated layout Y of each component this frame (drag hit-testing ignores the slides). */
     private final Map<SettingComponent<?>, Integer> layoutY = new IdentityHashMap<>();
-    /** Visual Y of each component just before a reorder; consumed by the next layout to start slides. */
+    /** The visual Y of each component just before a reorder. The next layout uses it up to start the slides. */
     private Map<SettingComponent<?>, Integer> slideFrom;
     private final Map<SettingComponent<?>, Slide> slides = new IdentityHashMap<>();
 
@@ -76,7 +76,7 @@ public class ModuleComponent extends UIComponent {
 
     /**
      * @param open         whether the settings accordion starts open (restored from {@link dev.telemetric.config.GuiLayout})
-     * @param openSettings names of expandable settings (dropdowns, pickers) that start open
+     * @param openSettings names of the expandable settings (dropdowns, pickers) that start open
      */
     public ModuleComponent(GuiContext ctx, Module module, boolean open, Set<String> openSettings) {
         super(ctx);
@@ -92,7 +92,7 @@ public class ModuleComponent extends UIComponent {
         this.expand.snapTo(this.expanded ? 1 : 0);
     }
 
-    /** Whether the user opened the settings accordion (a search-only open does not count, so it is not saved). */
+    /** Whether the user opened the settings accordion. An open caused only by the search doesn't count, so it isn't saved. */
     public boolean isExpanded() {
         return expanded;
     }
@@ -107,9 +107,9 @@ public class ModuleComponent extends UIComponent {
     }
 
     /**
-     * Applies the ClickGUI search. A module whose name matches shows normally; otherwise only the settings whose
-     * label matches stay, together with their parent group toggles (the children of a matching group follow it),
-     * and the accordion opens to show them. Empty query = everything back to normal.
+     * Applies the ClickGUI search. A module whose name matches shows normally. Otherwise only the settings whose label
+     * matches stay, together with their parent group toggles (the children of a matching group come along), and the
+     * accordion opens to show them. An empty query puts everything back to normal.
      *
      * @return whether this module stays listed
      */
@@ -136,7 +136,7 @@ public class ModuleComponent extends UIComponent {
                 c.setSearchVisibility(s::isVisibleIgnoringGroups);
                 continue;
             }
-            Setting<?> root = null; // nearest matching group above this setting
+            Setting<?> root = null; // the nearest matching group above this setting
             for (Setting<?> g = s.getGroup(); g != null && root == null; g = g.getGroup()) if (matches.contains(g)) root = g;
             Setting<?> r = root;
             c.setSearchVisibility(r == null ? () -> false : () -> s.isVisibleUnder(r));
@@ -145,7 +145,7 @@ public class ModuleComponent extends UIComponent {
         return searchOpen;
     }
 
-    /** Names of expandable settings that are currently open. */
+    /** The names of the expandable settings that are open right now. */
     public Set<String> openSettingNames() {
         Set<String> names = new LinkedHashSet<>();
         for (SettingComponent<?> c : settings) {
@@ -181,12 +181,12 @@ public class ModuleComponent extends UIComponent {
         expand.animateTo(isOpen() ? 1 : 0);
         double h = hover.get(), e = enabled.get(), ex = expand.get();
 
-        // row background: surface → hover, tinted when enabled
+        // row background goes from surface to hover, tinted when enabled
         int bg = ColorUtil.lerp(p.surface(), p.surfaceActive(), e);
         bg = ColorUtil.lerp(bg, p.surfaceHover(), h * 0.7);
         r.rect(x, y, width, Layout.MODULE_HEIGHT, bg);
 
-        // enabled accent bar grows from the centre; while the settings open it stretches down to join their line
+        // the enabled accent bar grows from the centre, and while the settings open it stretches down to join their line
         int barY = 0, barH = 0;
         boolean open = ex > 0.001 && hasSettings();
         if (e > 0.01) {
@@ -203,7 +203,7 @@ public class ModuleComponent extends UIComponent {
         int nx = x + Layout.PAD + (int) Math.round(h * 2);
         r.text(r.trim(module.getName(), width - Layout.PAD * 2 - 12), nx, y + Layout.textY(Layout.MODULE_HEIGHT), nameColor);
 
-        // expand indicator: plus that morphs into a minus
+        // expand indicator: a plus that morphs into a minus
         if (hasSettings()) Icons.plusMinus(r, x + width - Layout.PAD - 3, y + Layout.MODULE_HEIGHT / 2, ex,
                 ColorUtil.lerp(p.textDisabled(), p.textMuted(), Math.max(h, ex)));
 
@@ -250,7 +250,7 @@ public class ModuleComponent extends UIComponent {
             if (dragging != null) updateDrag(mouseY);
         }
 
-        // light pulse: down the bar, and on through the settings line while they are open (drawn last = on top)
+        // light pulse down the bar, and on through the settings line while they're open (drawn last, so it's on top)
         if (barH > 0) {
             int end = open ? y + getHeight() - 1 : barY + barH;
             sweep(r, x, barY, 2, end - barY, p.accent(), e);
@@ -274,13 +274,13 @@ public class ModuleComponent extends UIComponent {
             SettingComponent<?> c = bySetting.get(s);
             if (c != null) next.add(c);
         }
-        if (next.size() != settings.size()) return; // settings never change at runtime; be defensive
+        if (next.size() != settings.size()) return; // settings never change at runtime, but be defensive
         settings.clear();
         settings.addAll(next);
         if (expand.get() > 0.001) slideFrom = before;
     }
 
-    /** Visual offset of {@code c} at layout position {@code cy}; starts a slide when the row just moved. */
+    /** The visual offset of {@code c} at layout position {@code cy}. Starts a slide if the row just moved. */
     private int slideOffset(SettingComponent<?> c, int cy) {
         Slide slide = slides.get(c);
         if (slideFrom != null) {
@@ -306,13 +306,13 @@ public class ModuleComponent extends UIComponent {
         return h;
     }
 
-    /** Vertical neon line: clean bright core (tinted towards white), no halo. */
+    /** A vertical neon line: a clean bright core (tinted towards white), no halo. */
     private static void neonLine(Render2D r, int lx, int ly, int w, int h, int color, double strength) {
         if (h <= 0 || strength <= 0.001) return;
         r.rect(lx, ly, w, h, ColorUtil.fade(ColorUtil.lerp(color, 0xFFFFFFFF, 0.25), strength));
     }
 
-    /** Light pulse travelling down a line top → bottom, then again from the top ({@link Durations#AMBIENT_LOOP}). */
+    /** A light pulse that travels down a line from top to bottom, then starts again at the top ({@link Durations#AMBIENT_LOOP}). */
     private static void sweep(Render2D r, int lx, int ly, int w, int h, int color, double strength) {
         int period = Durations.loop(Durations.AMBIENT_LOOP);
         if (period <= 0 || h < 4) return;
@@ -327,7 +327,7 @@ public class ModuleComponent extends UIComponent {
         r.popClip();
     }
 
-    /** Line colour of group-toggle nesting level {@code depth} (1+): the accent, hue-shifted per level. */
+    /** The line colour for group-toggle nesting level {@code depth} (1 and up): the accent, hue-shifted per level. */
     private static int groupLineColor(Theme p, int depth) {
         float[] hsv = ColorUtil.toHsv(p.accent());
         float hue = (hsv[0] + depth * GROUP_HUE_STEP) % 1f;
@@ -343,7 +343,7 @@ public class ModuleComponent extends UIComponent {
                 && mouseY >= c.getY() && mouseY < c.getY() + gripRowHeight(c);
     }
 
-    /** 2x3 dot grip: faint at rest, brighter on row hover, accent while dragged. */
+    /** A 2x3 dot grip: faint at rest, brighter when the row is hovered, accent-coloured while dragged. */
     private void renderGrip(Render2D r, Theme p, SettingComponent<?> c, int mouseX, int mouseY) {
         int rh = gripRowHeight(c);
         if (rh < 6) return;
@@ -362,9 +362,9 @@ public class ModuleComponent extends UIComponent {
     }
 
     /**
-     * Moves the dragged group past every neighbour whose toggle row (its head row, not its whole group) the mouse
-     * reached: the move happens the moment the cursor is over the neighbour's toggle. Both directions test the
-     * neighbour's head row, so a swap never immediately undoes itself (no flicker).
+     * Moves the dragged group past every neighbour whose toggle row (its head row, not the whole group) the mouse has
+     * reached, the moment the cursor is over the neighbour's toggle. Both directions test the neighbour's head row, so
+     * a swap never undoes itself right away (no flicker).
      */
     private void updateDrag(int mouseY) {
         Setting<?> head = dragging.getSetting();
@@ -385,7 +385,7 @@ public class ModuleComponent extends UIComponent {
         }
     }
 
-    /** {top, bottom, headRowHeight} layout span of a movable setting plus its followers, or null when hidden. */
+    /** The {top, bottom, headRowHeight} layout span of a movable setting plus its followers, or null if it's hidden. */
     private int[] span(Setting<?> head) {
         SettingComponent<?> hc = null;
         for (SettingComponent<?> c : settings) {

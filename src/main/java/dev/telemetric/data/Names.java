@@ -7,7 +7,7 @@ public final class Names {
 
     private Names() {}
 
-    /** Match key: lower-case letters and digits only ("Golden Freddy" → "goldenfreddy", "Kobold's Den" → "koboldsden"). */
+    /** Match key, only lower-case letters and digits ("Golden Freddy" → "goldenfreddy", "Kobold's Den" → "koboldsden"). */
     public static String key(String s) {
         if (s == null) return "";
         StringBuilder b = new StringBuilder(s.length());
@@ -19,8 +19,8 @@ public final class Names {
     }
 
     /**
-     * Match key of a place name as the HUD shows it: {@link #key} without a leading "The" and a trailing
-     * ": Part …" ("The Aviary" → "aviary", "Rustborn Kingdom: Part II" → "rustbornkingdom").
+     * Match key of a place name as the HUD shows it: {@link #key} without a leading "The" or a trailing ": Part …"
+     * ("The Aviary" → "aviary", "Rustborn Kingdom: Part II" → "rustbornkingdom").
      */
     public static String placeKey(String s) {
         if (s == null) return "";
@@ -31,8 +31,8 @@ public final class Names {
     }
 
     /**
-     * Like {@link #placeKey} but keeps a trailing ": Part …" ("Rustborn Kingdom: Part II" → "rustbornkingdompartii",
-     * "The Aviary" → "aviary"). Equals {@link #placeKey} for names without a part.
+     * Like {@link #placeKey}, but keeps a trailing ": Part …" ("Rustborn Kingdom: Part II" → "rustbornkingdompartii",
+     * "The Aviary" → "aviary"). Same as {@link #placeKey} for names without a part.
      */
     public static String partKey(String s) {
         if (s == null) return "";

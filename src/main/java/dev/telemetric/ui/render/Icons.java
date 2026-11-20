@@ -1,6 +1,6 @@
 package dev.telemetric.ui.render;
 
-/** Tiny pixel icons drawn from rects (no textures needed). All accept an animation progress {@code t}. */
+/** Tiny pixel icons drawn from rects, no textures needed. All of them take an animation progress {@code t}. */
 public final class Icons {
 
     private Icons() {}
@@ -15,7 +15,7 @@ public final class Icons {
         }
     }
 
-    /** "+" that collapses into "−" as {@code t} goes 0 → 1. */
+    /** A "+" that collapses into a "−" as {@code t} goes from 0 to 1. */
     public static void plusMinus(Render2D r, int cx, int cy, double t, int color) {
         r.rect(cx - 3, cy, 7, 1, color);
         int half = round(3 * (1 - t));

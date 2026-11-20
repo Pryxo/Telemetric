@@ -18,9 +18,9 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Armor HUD with ability cooldowns: every worn piece, a cooldown bar under the pieces that have an ability, and
- * pieces you swapped off while their cooldown still runs (next to the piece that replaced them). Each slot can
- * pop a Ready Alert ({@code {slot} Ready!}) and sound; data comes from {@link CooldownTracker}.
+ * Armor HUD with ability cooldowns. It shows every worn piece, a cooldown bar under the pieces that have an ability,
+ * and pieces you swapped off while their cooldown is still running (next to the piece that replaced them). Each slot
+ * can pop a Ready Alert ({@code {slot} Ready!}) and play a sound. The data comes from {@link CooldownTracker}.
  */
 public final class ArmorCooldownsHud extends HudModule {
 
@@ -53,7 +53,7 @@ public final class ArmorCooldownsHud extends HudModule {
             "No Ready Alert / Sound for these slots", () -> SLOT_LABELS));
     private final CooldownBar bar = addBundle(new CooldownBar());
 
-    /** One drawn piece; {@code cooldown} null = ready (or no ability). */
+    /** One drawn piece. A null {@code cooldown} means it's ready (or has no ability). */
     private record Piece(GameItem item, boolean ability, Cooldown cooldown) {}
 
     private volatile List<Piece> current = List.of();
@@ -81,7 +81,7 @@ public final class ArmorCooldownsHud extends HudModule {
                 boolean ability = worn.hasAbility() || c != null;
                 if (ability || pieces.get() == Pieces.ALL) list.add(new Piece(worn.item(), ability, c));
             }
-            for (Cooldown c : tracker.active()) { // swapped-off pieces of this slot still cooling down
+            for (Cooldown c : tracker.active()) { // swapped-off pieces of this slot that are still cooling down
                 if (c.is(Kind.ARMOR) && c.info().slot() == slot && (worn == null || !c.group().equals(worn.group()))) {
                     list.add(new Piece(c.info().item(), true, c));
                 }

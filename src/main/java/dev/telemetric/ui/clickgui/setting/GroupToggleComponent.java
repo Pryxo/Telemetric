@@ -13,8 +13,8 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 /**
- * Toggle row of a {@link GroupToggleSetting}: left-click toggles, right-click opens/closes its sub-settings
- * (chevron left of the switch). The children are laid out by the module accordion, indented.
+ * The toggle row of a {@link GroupToggleSetting}. Left-click toggles it, right-click opens or closes its sub-settings
+ * (the chevron left of the switch). The module accordion lays out the children, indented.
  */
 public class GroupToggleComponent extends BooleanComponent {
 

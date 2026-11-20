@@ -12,7 +12,7 @@ import dev.telemetric.ui.render.Icons;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
-/** Dropdown row of a {@link GroupSetting}: label + chevron; left- or right-click opens/closes its sub-settings. */
+/** The dropdown row of a {@link GroupSetting}: a label and a chevron. Left- or right-click opens or closes its sub-settings. */
 public class GroupComponent extends SettingComponent<GroupSetting> {
 
     private final Animation open;

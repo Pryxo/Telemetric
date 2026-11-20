@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Voxy (optional): every LOD write (chunk ingest, block-change ingest) asks
- * {@code VoxyClientInstance#isIngestEnabled(WorldIdentifier)} first. While {@link VoxyAdapter#ingestLocked()} answer
- * false, so saved LODs are only read, never updated.
+ * {@code VoxyClientInstance#isIngestEnabled(WorldIdentifier)} first. While {@link VoxyAdapter#ingestLocked()} is on
+ * we answer false, so saved LODs are only read and never updated.
  */
 @Pseudo
 @Mixin(targets = "me.cortex.voxy.client.VoxyClientInstance", remap = false)
@@ -18,7 +18,7 @@ public abstract class VoxyIngestLockMixin {
 
     @Inject(method = "isIngestEnabled(Lme/cortex/voxy/commonImpl/WorldIdentifier;)Z",
             at = @At("HEAD"), cancellable = true, require = 0)
-    private void telemetric$lockLods(CallbackInfoReturnable<Boolean> cir) { // args omitted: WorldIdentifier isn't on our classpath
+    private void telemetric$lockLods(CallbackInfoReturnable<Boolean> cir) { // no args here, because WorldIdentifier isn't on our classpath
         if (VoxyAdapter.ingestLocked()) cir.setReturnValue(false);
     }
 }

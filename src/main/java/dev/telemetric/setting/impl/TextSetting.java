@@ -7,7 +7,7 @@ import dev.telemetric.setting.Setting;
 import java.util.function.Consumer;
 import java.util.function.IntPredicate;
 
-/** Free text input with an optional character filter and max length. */
+/** Free text input with an optional character filter and a max length. */
 public class TextSetting extends Setting<String> {
 
     private final int maxLength;
@@ -19,7 +19,7 @@ public class TextSetting extends Setting<String> {
         this.maxLength = Math.max(1, maxLength);
     }
 
-    /** Restricts which code points can be typed (e.g. file-name safe characters). */
+    /** Limits which code points can be typed (e.g. characters that are safe in file names). */
     public TextSetting filter(IntPredicate allowed) {
         this.allowedChars = allowed;
         return this;
@@ -31,7 +31,7 @@ public class TextSetting extends Setting<String> {
         return this;
     }
 
-    /** Called by the text field on Enter. */
+    /** The text field calls this on Enter. */
     public void submit() {
         if (submitAction != null) submitAction.accept(get());
     }

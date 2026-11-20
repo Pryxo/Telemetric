@@ -12,42 +12,42 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Finds holes: places where walking off a floor edge drops you at least {@code minDepth} blocks onto
- * another floor. Columns of such drops are clustered (8-neighbourhood, similar rim height) into
- * {@link Hole}s, best boss-drop candidate first.
+ * Finds holes: places where walking off a floor edge drops you at least {@code minDepth} blocks onto another floor.
+ * The columns of these drops are clustered (8-neighbourhood, similar rim height) into {@link Hole}s, best boss-drop
+ * candidate first.
  * <p>
- * Only rims on plausible floor count (see {@link DungeonAnalysis#isFloor}: so the top of the dungeon's roof
- * is never a "drop"), and holes a ladder runs down are skipped — the router climbs those, they are not drops.
+ * Only rims on plausible floor count (see {@link DungeonAnalysis#isFloor}), so the top of the dungeon's roof is
+ * never a "drop". Holes with a ladder running down are skipped too, since the router climbs those.
  * <p>
- * Cost: one pass over every standable cell × 4 neighbours — a few ms on a worker thread even for
- * large dungeons. Drops into the void (no floor below) are ignored, so open dungeon edges never count.
+ * Cost is one pass over every standable cell × 4 neighbours, which takes a few ms on a worker thread even for large
+ * dungeons. Drops into the void (no floor below) are ignored, so open dungeon edges never count.
  */
 public final class DropDetector {
 
     private static final int[][] DIRS4 = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
     private static final int[][] DIRS8 = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
 
-    /** A hole counts as a ladder shaft when one column there has ladder over this share of the drop. */
+    /** A hole counts as a ladder shaft when one of its columns has ladder over more than this share of the drop. */
     private static final double LADDER_SHARE = 0.6;
 
     private DropDetector() {}
 
-    /** @param floor which standable cells count as dungeon floor (rims elsewhere are ignored) */
+    /** @param floor which standable cells count as dungeon floor (rims anywhere else are ignored) */
     public static List<Hole> detect(DungeonMap map, int minDepth, LongPredicate floor) {
         return detect(map, minDepth, floor, cell -> false);
     }
 
-    /** Shallowest fall that still counts when it lands in the boss level (a drop broken by ledges). */
+    /** The shallowest fall that still counts if it lands in the boss level (a drop broken by ledges). */
     private static final int MIN_BOSS_FALL = 3;
 
     /**
-     * @param floor  which standable cells count as dungeon floor (rims elsewhere are ignored)
-     * @param inBoss landing cells in the boss level: a fall into it counts from {@link #MIN_BOSS_FALL} blocks,
-     *               not {@code minDepth} (the boss drop may land on a ledge first, e.g. Treasure Cave)
+     * @param floor  which standable cells count as dungeon floor (rims anywhere else are ignored)
+     * @param inBoss landing cells in the boss level. A fall into it counts from {@link #MIN_BOSS_FALL} blocks instead
+     *               of {@code minDepth}, because the boss drop may land on a ledge first (e.g. Treasure Cave)
      */
     public static List<Hole> detect(DungeonMap map, int minDepth, LongPredicate floor, LongPredicate inBoss) {
-        Long2IntOpenHashMap dropY = new Long2IntOpenHashMap();     // column → rim y
-        Long2IntOpenHashMap dropDepth = new Long2IntOpenHashMap(); // column → depth
+        Long2IntOpenHashMap dropY = new Long2IntOpenHashMap();     // column to rim y
+        Long2IntOpenHashMap dropDepth = new Long2IntOpenHashMap(); // column to depth
         Long2ObjectOpenHashMap<LongArrayList> approach = new Long2ObjectOpenHashMap<>();
 
         for (ChunkCells chunk : map.chunks()) {
@@ -67,7 +67,7 @@ public final class DropDetector {
                             if (map.standNear(nx, y, nz, 1, 1) != Integer.MIN_VALUE) continue;
                             if (!map.isOpen(nx, y, nz) || !map.isOpen(nx, y + 1, nz)) continue;
                             int land = map.landingY(nx, nz, y);
-                            if (land == Integer.MIN_VALUE) continue; // void, not a hole
+                            if (land == Integer.MIN_VALUE) continue; // that's the void, not a hole
                             int depth = y - land;
                             if (depth < minDepth && !(depth >= MIN_BOSS_FALL && inBoss.test(Cell.pack(nx, land, nz)))) continue;
                             long col = Cell.columnKey(nx, nz);
@@ -83,7 +83,7 @@ public final class DropDetector {
         }
         if (dropY.isEmpty()) return List.of();
 
-        // also mark the hole's interior columns (no floor edge next to them) so the size is the real size
+        // also mark the hole's interior columns (with no floor edge next to them) so we get its real size
         LongOpenHashSet visited = new LongOpenHashSet();
         List<Hole> holes = new ArrayList<>();
         LongArrayFIFOQueue queue = new LongArrayFIFOQueue();
@@ -110,7 +110,7 @@ public final class DropDetector {
                 }
                 LongArrayList a = approach.get(col);
                 if (a != null) rim.addAll(a);
-                if (size > 4096) continue; // safety: a giant open pit, stop growing
+                if (size > 4096) continue; // safety: this is a giant open pit, stop growing
                 for (int[] d : DIRS8) {
                     int nx = x + d[0], nz = z + d[1];
                     long n = Cell.columnKey(nx, nz);
@@ -132,8 +132,9 @@ public final class DropDetector {
             }
             int depth = depthCount == 0 ? minDepth : (int) (depthSum / depthCount);
             if (rim.isEmpty()) continue;
-            // a ladder shaft is normally climbed, not a drop — unless it leads into the boss level: that is the
-            // way into the arena (Treasure Cave: ladder shaft y 98→71, ladder, barrier chute down to the arena)
+            // A ladder shaft is normally climbed, not dropped down. The exception is one that leads into the boss level,
+            // because then it's the way into the arena (Treasure Cave: ladder shaft y 98→71, ladder, barrier chute
+            // down to the arena).
             if (hasLadder(map, members, rimY, rimY - depth) && !landsInBoss(map, members, rimY, inBoss)) continue;
             holes.add(new Hole(minX, minZ, maxX, maxZ, rimY, depth, size, rim.toLongArray()));
         }
@@ -141,7 +142,7 @@ public final class DropDetector {
         return holes;
     }
 
-    /** True if a ladder/vine column inside the hole (or right next to it) covers most of the drop. */
+    /** True if a ladder or vine column inside the hole (or right next to it) covers most of the drop. */
     private static boolean hasLadder(DungeonMap map, LongArrayList members, int rimY, int landY) {
         int need = (int) Math.ceil((rimY - landY) * LADDER_SHARE);
         LongOpenHashSet checked = new LongOpenHashSet();
@@ -169,7 +170,7 @@ public final class DropDetector {
         return false;
     }
 
-    /** Falling from {@code rimY} in this column lands {@code minDepth} down, or at least 3 down into the boss level. */
+    /** True if falling from {@code rimY} in this column lands {@code minDepth} down, or at least 3 down into the boss level. */
     private static boolean deepEnough(DungeonMap map, int x, int z, int rimY, int minDepth, LongPredicate inBoss) {
         int land = map.landingY(x, z, rimY);
         if (land == Integer.MIN_VALUE) return false;

@@ -5,8 +5,8 @@ import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 
 /**
- * Auto Sprint: acts as if the sprint key were always held. Vanilla still decides when sprinting is possible
- * (moving forward, enough hunger, not blind / using an item), so it behaves exactly like holding the key.
+ * Auto Sprint: acts as if the sprint key were always held. Vanilla still decides when you can sprint (moving forward,
+ * enough hunger, not blind or using an item), so it behaves exactly like holding the key.
  */
 public final class AutoSprintModule extends Module {
 

@@ -9,45 +9,45 @@ import java.util.PriorityQueue;
 import java.util.function.BooleanSupplier;
 
 /**
- * Multi-goal A* over the standable cells of a {@link DungeonMap}. Pure Java, safe to run on a worker
- * thread. Moves: 8 directions, walk, step/jump up 1, drop down up to {@link #MAX_FALL} blocks, and
- * climb up/down ladders and vines, and ride known <b>jump pads</b> ({@link #lifts}: straight up the pad's
- * shaft until a block — barrier ceilings included — stops it, then sideways onto a ledge).
- * Also sprint-jumps straight across 1..{@link #MAX_GAP} wide gaps ({@link #gapJumps}).
- * Diagonals may not cut corners. Cost ≈ distance walked (+ penalties for jumps and falls). Only real
- * player moves — no flying through air; unreachable goals give a partial route to the closest cell.
+ * Multi-goal A* over the standable cells of a {@link DungeonMap}. Pure Java and safe to run on a worker thread.
+ * Moves: 8 directions, walking, stepping or jumping up 1, dropping up to {@link #MAX_FALL} blocks, climbing up and down
+ * ladders and vines, and riding known <b>jump pads</b> ({@link #lifts}: straight up the pad's shaft until a block
+ * stops it, barrier ceilings included, then sideways onto a ledge). It also sprint-jumps straight across gaps
+ * 1..{@link #MAX_GAP} wide ({@link #gapJumps}).
+ * Diagonals can't cut corners. The cost is roughly the distance walked, plus penalties for jumps and falls. Only real
+ * player moves are allowed, so no flying through the air. Unreachable goals give a partial route to the closest cell.
  */
 public final class PathFinder {
 
-    /** Highest drop the router takes on purpose (the boss hole is deeper and is only ever a goal). */
+    /** The highest drop the router takes on purpose. The boss hole is deeper and is only ever a goal. */
     public static final int MAX_FALL = 6;
     private static final double DIAG = Math.sqrt(2);
-    /** Hops/drops cost about a short detour, so walking around a bump beats hopping over it. */
+    /** Hops and drops cost about as much as a short detour, so walking around a bump beats hopping over it. */
     private static final double JUMP_COST = 1.5;
     private static final double FALL_COST = 0.8;
     /** Extra cost per block of fall damage (falls over 3 blocks hurt). */
     private static final double FALL_DAMAGE_COST = 0.6;
-    /** Ladders are ~half walking speed. */
+    /** Ladders are about half walking speed. */
     private static final double CLIMB_COST = 1.8;
     private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
-    /** Highest a jump pad counts as throwing the player (blocks above the pad's feet height). */
+    /** The highest a jump pad is assumed to throw the player (blocks above the pad's feet height). */
     static final int MAX_LIFT = 16;
     /** A lift lands on ledges up to this many columns from the pad (Chebyshev distance). */
     static final int LIFT_REACH = 3;
     /** At most this many landings per pad (nearest columns first). */
     static final int MAX_LANDINGS = 8;
-    /** Riding a pad: a little more than walking the same distance (walking stays preferred). */
+    /** Riding a pad costs a little more than walking the same distance, so walking stays preferred. */
     private static final double LIFT_COST = 2.0;
 
     private PathFinder() {}
 
-    /** Horizontal target used for the heuristic: goal area centre and its radius. */
+    /** Horizontal target for the heuristic: the goal area's centre and radius. */
     public record Anchor(double x, double z, double radius) {}
 
     /**
-     * A found path. {@code complete} = it ends on a goal; otherwise no goal is reachable from the start
-     * (sealed section, unexplored chunks) and the path ends at the reachable cell closest to the goals.
-     * {@code capped}: the search stopped at its node limit (the goal may still be walkable).
+     * A found path. {@code complete} means it ends on a goal. Otherwise no goal is reachable from the start (a sealed
+     * section, unexplored chunks) and the path ends at the reachable cell closest to the goals.
+     * {@code capped} means the search hit its node limit, so the goal may still be walkable.
      */
     public record Result(long[] cells, boolean complete, boolean capped) {}
 
@@ -64,8 +64,8 @@ public final class PathFinder {
     }
 
     /**
-     * @return cells from start to the reached goal (inclusive); if no goal can be reached, a partial path
-     *         to the closest reachable cell ({@link Result#complete()} false). Null if there are no goals or
+     * @return cells from the start to the reached goal (inclusive). If no goal can be reached, a partial path to the
+     *         closest reachable cell ({@link Result#complete()} false). Null if there are no goals or
      *         {@code cancelled} turned true.
      */
     public static Result find(DungeonMap map, long start, LongSet goals, List<Anchor> anchors, int maxNodes,
@@ -103,7 +103,7 @@ public final class PathFinder {
             if ((expanded & 1023) == 0 && cancelled.getAsBoolean()) return null;
 
             int n = neighbours(map, current.cell, neighbour, cost);
-            // the deep drops Reachability (minimap) counts as reachable: same move set, just expensive
+            // the deep drops that Reachability (minimap) counts as reachable: same move set, just expensive
             int deep = Reachability.longFalls(map, current.cell, longFall);
             for (int i = 0; i < deep; i++) {
                 int fall = Cell.y(current.cell) - Cell.y(longFall[i]);
@@ -122,7 +122,7 @@ public final class PathFinder {
                 next.g = g;
                 next.f = g + weight * heuristic(next.cell, anchors);
                 next.parent = current;
-                open.add(next); // lazy decrease-key: stale entries are skipped via `closed`
+                open.add(next); // lazy decrease-key: stale entries get skipped through `closed`
             }
         }
         return new Result(reconstruct(best), false, capped);
@@ -136,8 +136,8 @@ public final class PathFinder {
     private static final double GAP_WIDTH_COST = 0.5;
 
     /**
-     * Cell the player stands on (or just above, while jumping), or {@link Long#MIN_VALUE} when there is
-     * no floor near the given feet position (mid-air, unscanned chunk).
+     * The cell the player stands on (or just above, while jumping), or {@link Long#MIN_VALUE} when there's no floor
+     * near the given feet position (mid-air, unscanned chunk).
      */
     public static long startCell(DungeonMap map, Point p) {
         int x = (int) Math.floor(p.x()), y = (int) Math.floor(p.y() + 1e-3), z = (int) Math.floor(p.z());
@@ -152,7 +152,7 @@ public final class PathFinder {
         return Long.MIN_VALUE;
     }
 
-    /** Fills reachable neighbour cells + step costs; returns how many. Arrays need ≥ {@link #NEIGHBOURS} slots. */
+    /** Fills in reachable neighbour cells and step costs, and returns how many. Arrays need at least {@link #NEIGHBOURS} slots. */
     static int neighbours(DungeonMap map, long cell, long[] out, double[] cost) {
         int x = Cell.x(cell);
         int y = Cell.y(cell);
@@ -201,8 +201,8 @@ public final class PathFinder {
     }
 
     /**
-     * Sprint jumps straight across a 1..{@link #MAX_GAP} wide gap (4 axis directions, shortest gap only),
-     * landing on the same level or 1 lower. The arc (feet..head+1) over the gap must be open.
+     * Sprint jumps straight across a gap 1..{@link #MAX_GAP} wide (4 axis directions, shortest gap only), landing on
+     * the same level or 1 lower. The arc over the gap (feet up to head+1) has to be open.
      */
     private static int gapJumps(DungeonMap map, int x, int y, int z, long[] out, double[] cost, int count) {
         for (int dir = 0; dir < 4; dir++) {
@@ -211,15 +211,15 @@ public final class PathFinder {
                 int gx = x + dx * w, gz = z + dz * w;
                 if (!map.isKnown(gx, gz)) break;
                 if (!map.isOpen(gx, y, gz) || !map.isOpen(gx, y + 1, gz) || !map.isOpen(gx, y + 2, gz)) break;
-                if (map.isStand(gx, y, gz)) break; // floor, not a gap: walking covers it
+                if (map.isStand(gx, y, gz)) break; // that's floor, not a gap, and walking covers it
                 int below = map.landingY(gx, gz, y);
-                if (below != Integer.MIN_VALUE && y - below <= 1) break; // shallow dip: just walk through
+                if (below != Integer.MIN_VALUE && y - below <= 1) break; // shallow dip, just walk through it
                 int lx = gx + dx, lz = gz + dz;
                 if (!map.isKnown(lx, lz)) break;
                 int ty;
                 if (map.isStand(lx, y, lz)) ty = y;
                 else if (map.isStand(lx, y - 1, lz) && map.isOpen(lx, y + 1, lz)) ty = y - 1;
-                else continue; // gap goes on: try one wider
+                else continue; // the gap keeps going, so try one wider
                 out[count] = Cell.pack(lx, ty, lz);
                 cost[count++] = (w + 1) + GAP_JUMP_COST + w * GAP_WIDTH_COST;
                 break;
@@ -229,12 +229,12 @@ public final class PathFinder {
     }
 
     /**
-     * Jump pad moves from the stand (x,y,z), appended at {@code count}; returns the new count. Only from a
-     * pad the client has seen ({@link DungeonMap#isPad}): the player is thrown straight up the pad's column
-     * while the block above the head is open — any block stops it, so a barrier ceiling over an open-air
-     * dungeon (or a cave roof) is the limit, never "through" it — at most {@link #MAX_LIFT}. Landings: stands
-     * 2+ blocks above the pad, within {@link #LIFT_REACH} columns, reached sideways at that height through
-     * open air, and not on the roof top (sky-exposed). The way back down is an ordinary drop (or none).
+     * Jump pad moves from the stand (x,y,z), appended at {@code count}. Returns the new count. Only works from a pad
+     * the client has seen ({@link DungeonMap#isPad}). The player gets thrown straight up the pad's column while the
+     * block above their head is open, up to {@link #MAX_LIFT}. Any block stops it, so a barrier ceiling over an
+     * open-air dungeon (or a cave roof) is the limit and we never go "through" it. Landings are stands at least 2
+     * blocks above the pad, within {@link #LIFT_REACH} columns, reached sideways at that height through open air, and
+     * not on the roof top (sky-exposed). The way back down is an ordinary drop, if there is one.
      */
     static int lifts(DungeonMap map, int x, int y, int z, long[] out, double[] cost, int count) {
         if (!map.isPad(x, y, z)) return count;
@@ -262,7 +262,7 @@ public final class PathFinder {
         return count;
     }
 
-    /** Sideways at feet height y from column (x,z) to the stand column (tx,tz): feet + head open on the way. */
+    /** Moving sideways at feet height y from column (x,z) to the stand column (tx,tz), with feet and head open on the way. */
     private static boolean airLeg(DungeonMap map, int x, int z, int tx, int tz, int y) {
         int dx = tx - x, dz = tz - z;
         int n = Math.max(Math.abs(dx), Math.abs(dz));
@@ -307,7 +307,7 @@ public final class PathFinder {
             long c = cells.getLong(i);
             if (!path.isEmpty()) {
                 long p = path.getLong(path.size() - 1);
-                // a jump pad lift: up the pad's shaft first, then across (the drawn line never cuts the ledge)
+                // a jump pad lift: up the pad's shaft first, then across, so the drawn line never cuts through the ledge
                 if (Cell.y(c) - Cell.y(p) >= 2 && (Cell.x(c) != Cell.x(p) || Cell.z(c) != Cell.z(p))) {
                     path.add(Cell.pack(Cell.x(p), Cell.y(c), Cell.z(p)));
                 }

@@ -6,12 +6,12 @@ import java.util.List;
 
 /**
  * Counts Assassin stacks from the server's particles (pure logic, no Minecraft). Telos draws each stack as an
- * electric spark + a dust particle at the same spot on a ring around the player; stacks sit 22.5° apart and fill
- * up to {@value #LAYERS} rings stacked {@value #LAYER_SPACING} blocks apart from the feet up.
+ * electric spark plus a dust particle at the same spot on a ring around the player. Stacks sit 22.5° apart and fill
+ * up to {@value #LAYERS} rings, stacked {@value #LAYER_SPACING} blocks apart from the feet up.
  * <p>
- * Feed every spark / dust with {@link #accept} (position relative to the player's feet); a stack counts once both
- * particles were seen at one spot within {@value #LIFETIME_MS} ms. No particle for {@value #TIMEOUT_MS} ms = 0.
- * The ring-wrap spacing check and layer pick are Telemetric's.
+ * Feed every spark and dust particle to {@link #accept} (position relative to the player's feet). A stack counts once
+ * both particles have been seen at one spot within {@value #LIFETIME_MS} ms. No particle for {@value #TIMEOUT_MS} ms
+ * means 0. The ring-wrap spacing check and the layer pick are our own.
  */
 final class AssassinStackCounter {
 
@@ -53,13 +53,13 @@ final class AssassinStackCounter {
         double angle = Math.toDegrees(Math.atan2(dz, dx));
         Mark mark = new Mark(angle < 0 ? angle + 360 : angle, horizontal, now);
         List<Mark> into = spark ? sparks[layer] : dust[layer];
-        for (Mark m : into) if (m.near(mark)) return; // already seen this spot
+        for (Mark m : into) if (m.near(mark)) return; // this spot was already seen
         into.add(mark);
         lastAdded = now;
         recount(now);
     }
 
-    /** Current stack count (0 after {@value #TIMEOUT_MS} ms without particles). */
+    /** The current stack count (0 after {@value #TIMEOUT_MS} ms without particles). */
     int stacks(long now) {
         if (total != 0 && now - lastAdded > TIMEOUT_MS) reset();
         return total;
@@ -88,14 +88,14 @@ final class AssassinStackCounter {
                     }
                 }
             }
-            // a half-seen ring (odd spacing) keeps the last good count instead of flickering
+            // a half-seen ring (odd spacing) keeps the last good count so it doesn't flicker
             if (angles.size() < 2 || evenlySpaced(angles)) layerStacks[i] = angles.size();
             sum += layerStacks[i];
         }
         total = sum;
     }
 
-    /** True if the angles sit {@value #STACK_SPACING}° apart around the ring, allowing one open gap (the unfilled part). */
+    /** True if the angles sit {@value #STACK_SPACING}° apart around the ring, allowing one open gap (the part that isn't filled). */
     private static boolean evenlySpaced(List<Double> angles) {
         angles.sort(null);
         int odd = 0;

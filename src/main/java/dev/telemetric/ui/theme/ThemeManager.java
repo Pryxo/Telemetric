@@ -12,8 +12,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Resolves the active {@link Theme} from {@link ThemeModule} and cross-fades between palettes when the
- * user changes preset / accent / opacity (no hard colour jumps).
+ * Works out the active {@link Theme} from {@link ThemeModule} and cross-fades between palettes when the user changes
+ * the preset, accent or opacity, so colours never jump.
  * <p>
  * Call {@link #update()} once per frame (ClickGuiScreen does), then read {@link #palette()} anywhere.
  */
@@ -42,14 +42,14 @@ public final class ThemeManager {
     private static final Map<Category, Theme> FIXED_PALETTES = new HashMap<>();
 
     /**
-     * Makes {@code category}'s panel always use {@code palette}: no preset, custom accent, panel opacity or
-     * cross-fade applies to it.
+     * Makes {@code category}'s panel always use {@code palette}. No preset, custom accent, panel opacity or cross-fade
+     * applies to it.
      */
     public static void registerFixedPalette(Category category, Theme palette) {
         FIXED_PALETTES.put(Objects.requireNonNull(category), Objects.requireNonNull(palette));
     }
 
-    /** Current (possibly mid-transition) palette. */
+    /** The current palette (possibly mid-transition). */
     public Theme palette() {
         return current;
     }
@@ -81,13 +81,13 @@ public final class ThemeManager {
         return Telemetric.get().modules().get(ThemeModule.class).headerGradient.get();
     }
 
-    /** Label ("index") colour of HUD rows that don't use the server colours: Theme → Custom HUD Colors, else accent. */
+    /** The label ("index") colour of HUD rows that don't use the server colours: Theme → Custom HUD Colors, or else the accent. */
     public int hudIndex() {
         ThemeModule module = Telemetric.get().modules().get(ThemeModule.class);
         return module.customHudColors.get() ? module.hudIndexColor.get() : current.accent();
     }
 
-    /** Value colour of HUD rows that don't use the server colours: Theme → Custom HUD Colors, else text. */
+    /** The value colour of HUD rows that don't use the server colours: Theme → Custom HUD Colors, or else the text colour. */
     public int hudValue() {
         ThemeModule module = Telemetric.get().modules().get(ThemeModule.class);
         return module.customHudColors.get() ? module.hudValueColor.get() : current.text();

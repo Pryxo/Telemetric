@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Chat screen hooks for {@code ui/chat/ChatScreenHooks}: tab bar, tab keys, right-click actions, queued sends. */
+/** Chat screen hooks for {@code ui/chat/ChatScreenHooks}: the tab bar, tab keys, right-click actions and queued sends. */
 @Mixin(ChatScreen.class)
 public abstract class ChatScreenMixin {
 

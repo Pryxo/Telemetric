@@ -27,12 +27,12 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * MC ADAPTER (UI) — Player → Keybinds → Realm Selector: one button per online realm of a region with its player
- * count ("Astra (8)"; tabs on top, your region selected), hubs / missions in their own row and "Previous" (the realm
- * before this one, only if it is live). A click runs {@code /joinq <name>}. Only servers the live HeadStatus list
- * ({@link HeadStatusApi}) returns are shown, plus a Missions button in every live region; {@code realms.json} only
- * gives tab order, display names and the hub split. Theme colours, open fade
- * {@link Durations#SCREEN}, button hover {@link Durations#HOVER}.
+ * MC ADAPTER (UI) for Player → Keybinds → Realm Selector. There's one button per online realm of a region, with its
+ * player count ("Astra (8)"). Region tabs sit on top with your region selected, hubs and missions get their own row, and
+ * there's a "Previous" button (the realm before this one, only if it's live). Clicking runs {@code /joinq <name>}.
+ * Only the servers the live HeadStatus list ({@link HeadStatusApi}) returns are shown, plus a Missions button in every
+ * live region. {@code realms.json} only provides the tab order, display names and the hub split. Theme colours, an
+ * open fade of {@link Durations#SCREEN}, and a button hover of {@link Durations#HOVER}.
  */
 public class RealmSelectorScreen extends Screen {
 
@@ -49,20 +49,20 @@ public class RealmSelectorScreen extends Screen {
     private final Map<String, Animation> hover = new HashMap<>();
     private final String previous;
     private final TelosServer here;
-    /** Region name of the server you are on ({@code realms.json} prefix match), null = unknown. */
+    /** The region name of the server you're on ({@code realms.json} prefix match), or null if unknown. */
     private final String myRegion;
     private int region;
     private boolean regionPicked;
     private final List<Button> buttons = new ArrayList<>();
     private final List<Button> tabs = new ArrayList<>();
 
-    /** API region id → tab name. */
+    /** API region id to tab name. */
     private static final Map<String, String> REGION_NAMES = Map.of("de", "EU", "ny", "NA", "sg", "SG");
 
-    /** Always offered in every region, even when the API does not list it. */
+    /** Always offered in every region, even when the API doesn't list it. */
     private static final String MISSIONS = "Missions";
 
-    /** @param name realm / hub name for {@code /joinq}; @param players online players, -1 = not in the API list */
+    /** @param name realm / hub name for {@code /joinq}; @param players online players, -1 if not in the API list */
     private record Entry(String name, int players) {
         String label() {
             return players < 0 ? name : name + " (" + players + ")";
@@ -71,7 +71,7 @@ public class RealmSelectorScreen extends Screen {
 
     private record LiveRegion(String name, List<Entry> realms, List<Entry> hubs) {}
 
-    /** @param previous realm you were on before this one (null = none) */
+    /** @param previous the realm you were on before this one (null for none) */
     public RealmSelectorScreen(String previous) {
         super(Component.literal("Realm Selector"));
         this.previous = previous;
@@ -82,8 +82,8 @@ public class RealmSelectorScreen extends Screen {
     }
 
     /**
-     * Opens the selector (on the client thread). The live realm list is only asked for again here, and only once the
-     * {@link HeadStatusApi#REALM_TTL_MS 5 min} cache ran out; otherwise the cached list is shown.
+     * Opens the selector (on the client thread). This is the only place the live realm list gets requested again, and
+     * only once the {@link HeadStatusApi#REALM_TTL_MS 5 min} cache has run out. Otherwise the cached list is shown.
      */
     public static void open(String previous) {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
@@ -94,8 +94,8 @@ public class RealmSelectorScreen extends Screen {
     }
 
     /**
-     * Regions with only the servers the API lists, tab order and names / hub split from {@code realms.json}
-     * (unknown names: capitalised, {@code hub…} / {@code missions…} count as hubs).
+     * The regions, with only the servers the API lists. The tab order, names and hub split come from {@code realms.json}
+     * (unknown names get capitalised, and {@code hub…} / {@code missions…} count as hubs).
      */
     private static List<LiveRegion> liveRegions() {
         List<Realms.Region> known = TelosData.REALMS.get().regions();
@@ -136,7 +136,7 @@ public class RealmSelectorScreen extends Screen {
         return null;
     }
 
-    /** {@code realms.json} order first, unknown names after it alphabetically. */
+    /** {@code realms.json} order first, then unknown names alphabetically. */
     private static Comparator<Entry> order(List<String> known) {
         return Comparator.<Entry>comparingInt(e -> {
             for (int i = 0; i < known.size(); i++) if (known.get(i).equalsIgnoreCase(e.name())) return i;
@@ -144,7 +144,7 @@ public class RealmSelectorScreen extends Screen {
         }).thenComparing(Entry::name, String.CASE_INSENSITIVE_ORDER);
     }
 
-    /** {@code hub-1} → {@code Hub-1}. */
+    /** Turns {@code hub-1} into {@code Hub-1}. */
     private static String capitalise(String id) {
         StringBuilder sb = new StringBuilder(id.length());
         boolean up = true;
@@ -165,7 +165,7 @@ public class RealmSelectorScreen extends Screen {
         layout();
     }
 
-    /** Re-lays the buttons when a realm request lands while the screen is open. */
+    /** Lays the buttons out again when a realm request comes back while the screen is open. */
     private void rebuild() {
         if (font != null) layout();
     }
@@ -183,20 +183,20 @@ public class RealmSelectorScreen extends Screen {
         }
         region = Math.min(region, regions.size() - 1);
         LiveRegion g = regions.get(region);
-        int bw = 90; // fixed so buttons do not resize as counts / servers change (grows only for very long names)
+        int bw = 90; // fixed, so buttons don't resize as counts or servers change (it only grows for very long names)
         for (Entry e : g.realms()) bw = Math.max(bw, font.width(e.label()) + 16);
         for (Entry e : g.hubs()) bw = Math.max(bw, font.width(e.label()) + 16);
         int cols = Math.max(1, Math.min(6, (width - PAD * 2 + GAP) / (bw + GAP)));
         int gridW = cols * bw + (cols - 1) * GAP;
         int rows = (g.realms().size() + cols - 1) / cols;
-        // "Previous" only when that server is in this region's live list
+        // "Previous" only shows if that server is in this region's live list
         String prev = null;
         if (previous != null) {
             for (List<Entry> list : List.of(g.realms(), g.hubs())) {
                 for (Entry e : list) if (e.name().equalsIgnoreCase(previous)) prev = e.name();
             }
         }
-        // "Previous" is not part of the centred block: it hangs below, so the grid never jumps when it appears
+        // "Previous" isn't part of the centred block. It hangs below, so the grid never jumps when it appears.
         int totalH = TAB_H + GAP * 2 + rows * (BTN_H + GAP) + GAP + BTN_H;
         int left = (width - gridW) / 2, y = Math.max(PAD + 12, (height - totalH) / 2);
 
@@ -221,7 +221,7 @@ public class RealmSelectorScreen extends Screen {
                     BTN_H, isHere(e.name())));
         }
         y += rows * (BTN_H + GAP) + GAP;
-        // hubs row (hubs, Missions) centred
+        // hubs row (hubs, Missions), centred
         int rowN = g.hubs().size();
         int hx = (width - (rowN * bw + Math.max(0, rowN - 1) * GAP)) / 2;
         for (List<Entry> list : List.of(g.hubs())) {
@@ -278,7 +278,7 @@ public class RealmSelectorScreen extends Screen {
     }
 
     private void draw(Button b, int mouseX, int mouseY, Theme p, int bg, int text) {
-        // keyed without the player count so a count change keeps the hover state
+        // keyed without the player count, so a count change keeps the hover state
         Animation h = hover.computeIfAbsent(b.label().replaceFirst(" \\(\\d+\\)$", ""), k -> new Animation(Durations.HOVER, Easing.OUT_CUBIC, 0));
         h.animateTo(!b.current() && b.contains(mouseX, mouseY) ? 1 : 0);
         r.roundedRect(b.x(), b.y(), b.w(), b.h(), 3, ColorUtil.lerp(bg, p.surfaceHover(), h.get()));

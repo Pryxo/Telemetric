@@ -11,7 +11,7 @@ import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
-/** Button. Hover tint + instant press flash (≈75 ms) for immediate feedback. */
+/** A button with a hover tint and an instant press flash (about 75 ms) for immediate feedback. */
 public class ActionComponent extends SettingComponent<ActionSetting> {
 
     private static final int HEIGHT = 16;
@@ -48,7 +48,7 @@ public class ActionComponent extends SettingComponent<ActionSetting> {
     @Override
     protected boolean onClick(double mouseX, double mouseY, int button) {
         if (button != MouseButton.LEFT) return false;
-        // instant feedback: snap to full flash, then fade out
+        // instant feedback: snap to a full flash, then fade out
         press.snapTo(1).animateTo(0);
         setting.run();
         return true;

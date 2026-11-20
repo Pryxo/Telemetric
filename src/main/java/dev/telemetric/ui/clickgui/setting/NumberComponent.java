@@ -13,10 +13,10 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 /**
- * Slider. Left-click/drag sets the value, right-click resets to default.
- * The fill eases towards the real value (micro-interaction timing) so jumps never look abrupt.
- * Clicking the value number opens a text field: type a number, Enter / click-away applies it
- * (clamped to the range and snapped to the step), Esc cancels.
+ * A slider. Left-click or drag sets the value, right-click resets it to the default. The fill eases towards the real
+ * value (micro-interaction timing) so jumps never look abrupt. Clicking the value number opens a text field where you
+ * can type a number. Enter or clicking away applies it (clamped to the range and snapped to the step), and Esc
+ * cancels.
  */
 public class NumberComponent extends SettingComponent<NumberSetting> {
 
@@ -26,7 +26,7 @@ public class NumberComponent extends SettingComponent<NumberSetting> {
     private final Animation knob = new Animation(Durations.MICRO, Easing.OUT_CUBIC);
     private boolean dragging;
 
-    // typed value field
+    // the typed value field
     private String buffer = "";
     private boolean selectAll;
     private long focusTime;
@@ -133,7 +133,7 @@ public class NumberComponent extends SettingComponent<NumberSetting> {
         try {
             if (!t.isEmpty() && !t.equals("-") && !t.equals(".")) setting.set(Double.parseDouble(t));
         } catch (NumberFormatException ignored) {
-            // invalid text: keep the old value
+            // invalid text, so keep the old value
         }
     }
 
@@ -150,7 +150,7 @@ public class NumberComponent extends SettingComponent<NumberSetting> {
         focusTime = System.currentTimeMillis();
         boolean ctrl = (modifiers & CTRL_MASK) != 0;
         if (key == InputUtil.KEY_ENTER) {
-            ctx.clearFocus(); // commits in onFocusLost
+            ctx.clearFocus(); // this commits in onFocusLost
         } else if (key == InputUtil.KEY_ESCAPE) {
             buffer = plainValue();
             ctx.clearFocus();
@@ -173,7 +173,7 @@ public class NumberComponent extends SettingComponent<NumberSetting> {
             else if (!buffer.isEmpty()) buffer = buffer.substring(0, buffer.length() - 1);
             selectAll = false;
         }
-        // swallow every other key so typing never triggers game / GUI shortcuts
+        // swallow every other key so typing never triggers game or GUI shortcuts
         return true;
     }
 

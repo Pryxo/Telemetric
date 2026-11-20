@@ -57,13 +57,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Owns every module. Registration order = order inside its panel. */
+/** Owns every module. The registration order is the order inside each panel. */
 public final class ModuleManager {
 
     private final Map<Class<? extends Module>, Module> byClass = new LinkedHashMap<>();
     private final List<Module> modules = new ArrayList<>();
 
-    /** Single place where modules are listed. Add new modules here. */
+    /** The one place where modules are listed. Add new modules here. */
     public void registerAll() {
         // ---- Misc (UI-only settings) ----
         register(new ThemeModule());
@@ -79,7 +79,7 @@ public final class ModuleManager {
         register(new AutoSprintModule());
         register(new KeybindsModule());
 
-        // Combat (cooldowns come from the shared CooldownTracker; HUD elements listed in the Combat panel)
+        // Combat (cooldowns come from the shared CooldownTracker; these HUD elements are listed in the Combat panel)
         register(HeldCooldownHud.weapon());
         register(HeldCooldownHud.ability());
         register(new ArmorCooldownsHud());
@@ -95,7 +95,7 @@ public final class ModuleManager {
         register(new StashOverlayModule());
         register(new VoxyModifierModule());
         register(new BossStageTrackerModule());
-        register(new BossTrackerModule()); // realm bosses: HUD list + waypoints
+        register(new BossTrackerModule()); // realm bosses: HUD list and waypoints
         register(new FullbrightModule());
         register(new CameraModule());
         register(new BossBarScaleModule());
@@ -110,9 +110,9 @@ public final class ModuleManager {
         register(new HealthBarModule());
         register(new CustomBagsModule());
 
-        // Dungeon (active only in telos:dungeon/<n>)
+        // Dungeon (only active in telos:dungeon/<n>)
         register(new WayfinderModule());
-        register(new DungeonMapHud()); // HUD element listed in the Dungeon panel
+        register(new DungeonMapHud()); // HUD element that's listed in the Dungeon panel
 
         // Social (chat, call-outs, Discord)
         register(new ChatModule());
@@ -120,7 +120,7 @@ public final class ModuleManager {
         register(new ServerMessagesModule());
         register(new DiscordRpcModule());
 
-        // HUD (elements drawn in-game; layout edited via Misc → HUD → Edit HUD)
+        // HUD (elements drawn in-game; the layout is edited through Misc → HUD → Edit HUD)
         register(new WatermarkHud());
         PerformanceHud performance = register(new PerformanceHud());
         performance.parts().forEach(this::register);
@@ -144,7 +144,7 @@ public final class ModuleManager {
                 throw new IllegalStateException("Duplicate module name: " + module.getName());
             }
         }
-        // several instances of one class are allowed (e.g. Performance HUD parts); lookup by class gets the first
+        // Several instances of one class are allowed (e.g. the Performance HUD parts). Looking up by class gets the first.
         byClass.putIfAbsent(module.getClass(), module);
         modules.add(module);
         return module;
@@ -162,12 +162,12 @@ public final class ModuleManager {
 
     private static long tickCount;
 
-    /** Number of {@link #tick()} calls so far (lets several modules share one per-tick poll). */
+    /** How many times {@link #tick()} has been called so far, so several modules can share one per-tick poll. */
     public static long tickCount() {
         return tickCount;
     }
 
-    /** Ticks enabled toggleable modules and all settings-group modules. */
+    /** Ticks the enabled toggleable modules and all settings-group modules. */
     public void tick() {
         tickCount++;
         for (Module module : modules) {
@@ -184,7 +184,7 @@ public final class ModuleManager {
         return Collections.unmodifiableList(modules);
     }
 
-    /** Modules of one category, sorted alphabetically by name (the ClickGUI panel order). */
+    /** The modules of one category, sorted alphabetically by name (the ClickGUI panel order). */
     public List<Module> getByCategory(Category category) {
         List<Module> list = new ArrayList<>();
         for (Module module : modules) if (module.getCategory() == category) list.add(module);

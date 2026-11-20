@@ -1,8 +1,8 @@
 package dev.telemetric.dungeon;
 
 /**
- * Packs a block position into one {@code long} (x: 26 bits, z: 26 bits, y: 12 bits), the same
- * layout as vanilla's {@code BlockPos#asLong}. Used as the node id for path finding and hole detection.
+ * Packs a block position into one {@code long} (x: 26 bits, z: 26 bits, y: 12 bits), using the same layout as
+ * vanilla's {@code BlockPos#asLong}. Serves as the node id for path finding and hole detection.
  */
 public final class Cell {
 

@@ -7,11 +7,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The "shiny" colour animation: the 9-frame pastel cycle of Telos' own shiny textures (one colour per frame of
+ * The "shiny" colour animation: the 9-frame pastel cycle from Telos' own shiny textures (one colour per frame of
  * {@code telos:textures/mob/pouch/shiny_outline.png}; {@code gui/sprites/tooltip/shiny_background.png} and
- * {@code mob/pouch/shiny.png} cycle the same hues). Server data like the rarity colours, not a theme colour.
- * Each character is a step further along the cycle and the whole cycle scrolls once per
- * {@link Durations#SHINY_LOOP}, so shiny text shimmers; with animations off it stands still.
+ * {@code mob/pouch/shiny.png} cycle through the same hues). It's server data like the rarity colours, not a theme
+ * colour. Each character is one step further along the cycle, and the whole cycle scrolls around once per
+ * {@link Durations#SHINY_LOOP}, which makes shiny text shimmer. With animations off it stands still.
  */
 public final class ShinyColors {
 
@@ -19,12 +19,12 @@ public final class ShinyColors {
     private static final int[] FRAMES = {
             0xF7D8E0, 0xE8AEF1, 0xCBDCFC, 0xB5D5FF, 0x89FFE8, 0xADFFF4, 0xBAFFA3, 0xFFF3B8, 0xFFD2BE
     };
-    /** Cycle offset per character (frames). */
+    /** Cycle offset per character, in frames. */
     private static final double CHAR_STEP = 0.45;
 
     private ShinyColors() {}
 
-    /** Static start/end of the cycle for one-off texts (chat): first frame → middle frame. */
+    /** Fixed start and end of the cycle for one-off texts (chat): the first frame and the middle frame. */
     public static final int START = FRAMES[0], MIDDLE = FRAMES[FRAMES.length / 2];
 
     /** Current scroll position in frames (0 when animations are off). */
@@ -34,7 +34,7 @@ public final class ShinyColors {
         return (System.currentTimeMillis() % period) / (double) period * FRAMES.length;
     }
 
-    /** RGB (no alpha) at {@code frame} along the cycle, blended between neighbouring frames. */
+    /** RGB (no alpha) at {@code frame} along the cycle, blended between the neighbouring frames. */
     public static int rgbAt(double frame) {
         double f = ((frame % FRAMES.length) + FRAMES.length) % FRAMES.length;
         int i = (int) f;
@@ -47,7 +47,7 @@ public final class ShinyColors {
         return 0xFF000000 | rgbAt(phase() + index * CHAR_STEP);
     }
 
-    /** One run per character in the moving shiny colours; {@code offset} = characters already drawn before it. */
+    /** One run per character in the moving shiny colours. {@code offset} is how many characters were already drawn before it. */
     public static List<TextRun> runs(String text, int offset) {
         List<TextRun> out = new ArrayList<>(text.length());
         int i = offset;
@@ -60,18 +60,18 @@ public final class ShinyColors {
         return out;
     }
 
-    /** The same shiny cycle as a {@link ColorCycle} (animated text markers, status titles). */
+    /** The same shiny cycle as a {@link ColorCycle}, for animated text markers and status titles. */
     public static final ColorCycle CYCLE = new ColorCycle(FRAMES, CHAR_STEP, Durations.SHINY_LOOP);
 
-    /** Characters until the per-character offset wraps around the whole cycle (9 frames / 0.45 = 20). */
+    /** How many characters until the per-character offset wraps around the whole cycle (9 frames / 0.45 = 20). */
     public static final int CYCLE_CHARS = (int) Math.round(FRAMES.length / CHAR_STEP);
 
-    /** 0xRRGGBB of the {@code index}-th character right now (moving; still when animations are off). */
+    /** 0xRRGGBB of the {@code index}-th character right now (moving, or still when animations are off). */
     public static int rgbNow(int index) {
         return rgbAt(phase() + index * CHAR_STEP);
     }
 
-    /** 0xRRGGBB per character for a still gradient (chat lines cannot move): one step per character. */
+    /** 0xRRGGBB per character for a still gradient, one step per character. Chat lines can't move. */
     public static int[] gradient(int length) {
         int[] out = new int[Math.max(0, length)];
         for (int i = 0; i < out.length; i++) out[i] = rgbAt(i * CHAR_STEP);

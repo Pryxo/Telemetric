@@ -32,15 +32,15 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Boss Tracker: the realm's bosses as a HUD list and as waypoints in
- * the world — alive / being fought (who called it) / portal open (seconds left) / defeated, Raphael's n/m. State
- * comes from {@link RealmBossTracker} ({@code /bosses} menu + server lines); bosses, spots, lines and timers from
- * {@code tables/Boss.json}. Only in the realm; in a zone (Shadowlands, Radiant Isles) only that zone's bosses.
+ * Boss Tracker: the realm's bosses as a HUD list and as waypoints in the world. Each boss shows as alive, being fought
+ * (and who called it), portal open (seconds left) or defeated, plus Raphael's n/m. The state comes from
+ * {@link RealmBossTracker} (the {@code /bosses} menu and server lines), and the bosses, spots, lines and timers from
+ * {@code tables/Boss.json}. Only in the realm, and inside a zone (Shadowlands, Radiant Isles) only that zone's bosses.
  */
 public final class BossTrackerModule extends LinesHudModule {
 
-    /** Waypoints closer than this are hidden (you are there); they fade in over {@link #FADE}. */
     private static final String STYLE_ICON = "Icon", STYLE_TEXT = "Text", STYLE_BOTH = "Both";
+    /** Waypoints closer than NEAR are hidden (you're already there), and they fade in over {@link #FADE}. */
     private static final double NEAR = 20, FADE = 50, MAX_DRAW = 192, LOOK_DOT = 0.995;
 
     private final BooleanSetting autoTrack = add(new BooleanSetting("Auto Track",
@@ -81,7 +81,7 @@ public final class BossTrackerModule extends LinesHudModule {
 
     private final RealmBossTracker tracker = RealmBossTracker.get();
     private long seenRealmJoin;
-    /** Bosses of the place you are in, refreshed each tick (render code reads only this). */
+    /** Bosses of the place you're in, refreshed every tick (render code only reads this). */
     private volatile List<Tracked> here = List.of();
     private volatile boolean realm;
 
@@ -122,7 +122,7 @@ public final class BossTrackerModule extends LinesHudModule {
         return dim != null && dim.startsWith("telos:realm");
     }
 
-    /** Bosses of the place you are in: a zone's own bosses inside it, the open realm's outside. */
+    /** Bosses of the place you're in: a zone's own bosses inside it, the open realm's bosses outside. */
     private List<Tracked> bossesHere() {
         BossTable table = TelosData.BOSSES.get();
         String zone = table.zoneOf(PlayerAdapter.locationName());
@@ -169,7 +169,7 @@ public final class BossTrackerModule extends LinesHudModule {
         return lines;
     }
 
-    /** Bottom section, below the divider: Raphael first, then the n/m counter bosses in table order. */
+    /** The bottom section below the divider: Raphael first, then the n/m counter bosses in table order. */
     private List<Line> countedLines(long now) {
         List<Line> out = new ArrayList<>(4);
         List<Line> counters = new ArrayList<>(3);
@@ -187,11 +187,11 @@ public final class BossTrackerModule extends LinesHudModule {
         State s = t == null ? State.IDLE : t.state();
         int[] c = tracker.count(b.name());
         boolean ready = c != null && c[0] >= c[1] && c[1] > 0
-                || s == State.ALIVE && !b.tracker().idle(); // a spawn-only boss that is up (Defender)
+                || s == State.ALIVE && !b.tracker().idle(); // a spawn-only boss that's up (Defender)
         String value;
         int vc;
         if (s == State.PORTAL) {
-            // the count keeps running during the cooldown: show both
+            // the count keeps running during the cooldown, so show both
             value = t.portalSeconds(now) + "s · " + (c == null ? 0 : c[0]) + "/" + (c == null ? b.tracker().counterMax() : c[1]);
             vc = portalColor.get();
         } else if (s == State.ALIVE && t.calledBy() != null) {
@@ -249,7 +249,7 @@ public final class BossTrackerModule extends LinesHudModule {
 
     private static HudIcon icon(Boss b) {
         if (b.icon().isEmpty()) return null;
-        // an item model when the pack has one, else its texture (Cog Sentinel's gear: material/bosses/, no model)
+        // an item model if the pack has one, otherwise its texture (Cog Sentinel's gear is in material/bosses/ and has no model)
         int colon = b.icon().indexOf(':');
         String ns = colon < 0 ? "minecraft" : b.icon().substring(0, colon), path = b.icon().substring(colon + 1);
         if (!ResourceAdapter.exists(ns + ":items/" + path + ".json")
@@ -278,7 +278,7 @@ public final class BossTrackerModule extends LinesHudModule {
 
     // ------------------------------------------------------------------ waypoints
 
-    /** Waypoints to draw now: shown state, in this place, with a spot. */
+    /** The waypoints to draw now: bosses in a shown state, in this place, with a spot. */
     private List<Tracked> waypointBosses() {
         if (!isEnabled() || !waypoints.get()) return List.of();
         List<Tracked> out = new ArrayList<>();
@@ -286,7 +286,7 @@ public final class BossTrackerModule extends LinesHudModule {
             if (t.spot() == null) continue;
             boolean show = switch (t.state()) {
                 case DEFEATED -> false;
-                case IDLE -> t.boss.tracker() == null || t.boss.tracker().idle() || open(t); // counter boss: only when "Open"
+                case IDLE -> t.boss.tracker() == null || t.boss.tracker().idle() || open(t); // a counter boss only when it's "Open"
                 case PORTAL -> showPortal.get();
                 case ALIVE -> t.marker || (t.calledBy() != null ? showFighting.get() : showAvailable.get());
             };

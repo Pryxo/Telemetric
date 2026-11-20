@@ -14,15 +14,15 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Search field + scrolling row window shared by the searchable dropdowns ({@link ChoiceComponent},
+ * The search field and scrolling row window shared by the searchable dropdowns ({@link ChoiceComponent}, and
  * {@link MultiChoiceComponent} when {@code Setting#isSearchable()}). The owning component takes keyboard focus and
- * forwards keys / chars here. Matching = case-insensitive "contains" on the option label.
+ * forwards keys and chars here. Matching is a case-insensitive "contains" on the option label.
  */
 final class DropdownSearch {
 
-    /** Height of the search field row at the top of the open list. */
+    /** The height of the search field row at the top of the open list. */
     static final int FIELD_H = 14;
-    /** Rows shown at once; the rest scroll. */
+    /** How many rows show at once. The rest scroll. */
     static final int MAX_ROWS = 10;
     private static final int MAX_LENGTH = 32;
     private static final int CTRL_MASK = 0x0002;
@@ -58,30 +58,30 @@ final class DropdownSearch {
         return out;
     }
 
-    /** Rows drawn below the field (at least one, for the "No matches" line). */
+    /** The rows drawn below the field (at least one, for the "No matches" line). */
     int visibleRows(int matchCount) {
         return Math.max(1, Math.min(MAX_ROWS, matchCount));
     }
 
-    /** Full list height below the dropdown header (field + rows + bottom gap). */
+    /** The full list height below the dropdown header (field, rows and bottom gap). */
     int listHeight(int matchCount) {
         return FIELD_H + visibleRows(matchCount) * Layout.OPTION_HEIGHT + 2;
     }
 
-    /** First match shown (clamped to the current match count). */
+    /** The first match shown (clamped to the current match count). */
     int first(int matchCount) {
         scroll = Math.clamp(scroll, 0, Math.max(0, matchCount - MAX_ROWS));
         return scroll;
     }
 
-    /** Scrolls the window; false when everything already fits. */
+    /** Scrolls the window. Returns false if everything already fits. */
     boolean scroll(double amount, int matchCount) {
         if (matchCount <= MAX_ROWS || amount == 0) return false;
         scroll = Math.clamp(scroll - (int) Math.signum(amount) * SCROLL_ROWS, 0, matchCount - MAX_ROWS);
         return true;
     }
 
-    /** Field background, query / placeholder, caret, focus underline. */
+    /** The field background, query or placeholder, caret, and focus underline. */
     void renderField(Render2D r, int x, int y, int w, boolean focused, Theme p) {
         focus.animateTo(focused ? 1 : 0);
         int fy = y + 1, fh = FIELD_H - 2;
@@ -102,7 +102,7 @@ final class DropdownSearch {
         if (caretOn) r.rect(tx, ty - 1, 1, 9, p.accent());
     }
 
-    /** Thin scrollbar on the right edge of the row window (only when the matches overflow). */
+    /** A thin scrollbar on the right edge of the row window (only when there are more matches than fit). */
     void renderScrollbar(Render2D r, int x, int rowsY, int matchCount, Theme p) {
         if (matchCount <= MAX_ROWS) return;
         int trackH = MAX_ROWS * Layout.OPTION_HEIGHT;
@@ -112,7 +112,7 @@ final class DropdownSearch {
         r.rect(x, thumbY, 1, thumbH, p.accent());
     }
 
-    /** Edits the query; every key is consumed so typing never triggers GUI shortcuts. */
+    /** Edits the query. Every key is consumed so typing never triggers GUI shortcuts. */
     Key keyPressed(int key, int modifiers) {
         caretTime = System.currentTimeMillis();
         boolean ctrl = (modifiers & CTRL_MASK) != 0;

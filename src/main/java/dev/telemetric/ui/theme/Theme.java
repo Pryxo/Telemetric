@@ -3,7 +3,7 @@ package dev.telemetric.ui.theme;
 import dev.telemetric.ui.render.ColorUtil;
 
 /**
- * Immutable colour palette (all ARGB). Components read semantic tokens from here — never literals.
+ * An immutable colour palette (all ARGB). Components read semantic tokens from here and never use literals.
  *
  * @param backdrop     full-screen dim behind the GUI (alpha is scaled by the "Background Dim" setting)
  * @param panel        panel body
@@ -41,7 +41,7 @@ public record Theme(
         int shadow
 ) {
 
-    /** Component-wise colour interpolation (used for animated theme switches). */
+    /** Interpolates the colours one component at a time (used for animated theme switches). */
     public static Theme lerp(Theme a, Theme b, double t) {
         if (t <= 0) return a;
         if (t >= 1) return b;
@@ -64,13 +64,13 @@ public record Theme(
                 ColorUtil.lerp(a.shadow, b.shadow, t));
     }
 
-    /** Copy with a different accent pair. */
+    /** A copy with a different accent pair. */
     public Theme withAccent(int newAccent, int newAccentAlt) {
         return new Theme(backdrop, panel, header, headerEnd, surface, surfaceHover, surfaceActive, settingsBg,
                 control, border, text, textMuted, textDisabled, newAccent, newAccentAlt, shadow);
     }
 
-    /** Copy with panel-ish surfaces' alpha multiplied by {@code opacity} (0..1). */
+    /** A copy with the alpha of the panel-like surfaces multiplied by {@code opacity} (0..1). */
     public Theme withSurfaceOpacity(double opacity) {
         return new Theme(backdrop,
                 ColorUtil.fade(panel, opacity), ColorUtil.fade(header, opacity), ColorUtil.fade(headerEnd, opacity),

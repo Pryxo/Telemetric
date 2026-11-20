@@ -3,13 +3,13 @@ package dev.telemetric.stash;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** All saved pages of one stash (one player, one {@link StashMode}). Pages are 1-based. */
+/** All saved pages of one stash (one player, one {@link StashMode}). Pages start at 1. */
 public final class StashBook {
 
     private final TreeMap<Integer, StashPage> pages = new TreeMap<>();
-    /** Real number of pages (scan, arrow edges, conversions); 0 = unknown unless {@link #knownEmpty}. */
+    /** The real number of pages (from scan, arrow edges, conversions). 0 means unknown, unless {@link #knownEmpty}. */
     private int pageCount;
-    /** Telos has no pages in this mode (it refused a switch here, or the last page was converted away). */
+    /** True if Telos has no pages in this mode (it refused a switch here, or the last page got converted away). */
     private boolean knownEmpty;
     private final TreeMap<Integer, String> names = new TreeMap<>();
 
@@ -31,7 +31,7 @@ public final class StashBook {
     /** The page's custom name, or {@code null}. */
     public String name(int index) { return names.get(index); }
 
-    /** Sets (or with a blank name, clears) a page's custom name. */
+    /** Sets a page's custom name, or clears it if the name is blank. */
     public void setName(int index, String name) {
         if (index < 1) return;
         if (name == null || name.isBlank()) names.remove(index);
@@ -49,23 +49,23 @@ public final class StashBook {
 
     public boolean isKnownEmpty() { return knownEmpty; }
 
-    /** This mode has no pages at all (saved copies dropped, names kept). */
+    /** This mode has no pages at all (saved copies are dropped, names kept). */
     public void markEmpty() {
         pageCount = 0;
         pages.clear();
         knownEmpty = true;
     }
 
-    /** The mode was just seen with a page in it: no longer empty (count unknown again unless set). */
+    /** The mode was just seen with a page in it, so it's not empty anymore (the count is unknown again unless set). */
     public void markNotEmpty() { knownEmpty = false; }
 
-    /** Count for display: "18", "0" (known empty) or "?" (unknown). */
+    /** The count for display: "18", "0" (known empty) or "?" (unknown). */
     public String countLabel() {
         if (pageCount > 0) return Integer.toString(pageCount);
         return knownEmpty ? "0" : "?";
     }
 
-    /** Page {@code index} left this book (converted to the other mode): later pages and their names move up one. */
+    /** Page {@code index} left this book (converted to the other mode), so later pages and their names move up one. */
     public void removePage(int index) {
         if (index < 1) return;
         pages.remove(index);
@@ -76,7 +76,7 @@ public final class StashBook {
         else if (pageCount > 0) pageCount--;
     }
 
-    /** A converted page arrived: Telos adds it as a new, empty last page (only tracked if the count is known; 0 → 1). */
+    /** A converted page arrived. Telos adds it as a new, empty last page (only tracked if the count is known; 0 becomes 1). */
     public void appendEmptyPage(long savedAt) {
         if (pageCount == 0 && !knownEmpty) return;
         knownEmpty = false;
@@ -90,7 +90,7 @@ public final class StashBook {
         tail.forEach((k, v) -> map.put(k - 1, v));
     }
 
-    /** Number of pages to show: the real count if known, else the highest saved page. */
+    /** How many pages to show: the real count if known, otherwise the highest saved page. */
     public int displayCount() {
         if (pageCount > 0) return pageCount;
         return pages.isEmpty() ? 0 : pages.lastKey();

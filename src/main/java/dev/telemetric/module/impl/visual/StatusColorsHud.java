@@ -16,17 +16,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Nametags → <i>Show Status Colors</i>: HUD preview of the current Status Theme — one example status title per
+ * Nametags → <i>Show Status Colors</i>: a HUD preview of the current Status Theme. It shows one example status title per
  * leaderboard slot ({@code "#1"} … {@code "#21-#25"}), drawn exactly like on a name tag (same text, animated gradient,
- * #1 wave, icon, text-display background). Uses your own status (board + count) when you have one, else an example.
- * Not listed in the ClickGUI; shown while the Nametags toggle is on, movable in the HUD editor.
+ * #1 wave, icon, text-display background). It uses your own status (board and count) if you have one, otherwise an
+ * example. Not listed in the ClickGUI; shown while the Nametags toggle is on, and movable in the HUD editor.
  */
 public final class StatusColorsHud extends HudModule {
 
     private static final int PAD = 2, GAP = 4, ROW_GAP = 2;
-    /** Vanilla text display background (name tags without their own colour). */
+    /** The vanilla text display background (for name tags without their own colour). */
     private static final int TAG_BG = 0x40000000;
-    /** Example position per slot: the slot's first position. */
+    /** An example position for each slot: the slot's first position. */
     private static final int[] POSITIONS = {1, 2, 3, 4, 11, 21};
     private static final HeadStatusApi.HeadStatus EXAMPLE = new HeadStatusApi.HeadStatus("Luna Kills", 0, 1234);
 
@@ -47,13 +47,13 @@ public final class StatusColorsHud extends HudModule {
         return toggle.get();
     }
 
-    /** HUD editor "Del" turns the Nametags toggle off. */
+    /** HUD editor "Del" turns off the Nametags toggle. */
     @Override
     public void hide() {
         toggle.set(false);
     }
 
-    /** One title per tier, from your own status when known. */
+    /** One title per tier, from your own status if it's known. */
     private static List<TitleLine> lines() {
         HeadStatusApi.HeadStatus own = HeadStatusCache.get(MojangSessionAdapter.playerUuid()).orElse(EXAMPLE);
         List<TitleLine> out = new ArrayList<>(POSITIONS.length);

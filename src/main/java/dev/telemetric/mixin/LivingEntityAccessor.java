@@ -5,8 +5,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 /**
- * MC ADAPTER (mixin) — exposes {@code LivingEntity#noJumpDelay}, the vanilla 10-tick cooldown that
- * {@code aiStep} sets after every ground jump. Only used through {@link dev.telemetric.game.PlayerAdapter}.
+ * MC ADAPTER (mixin): exposes {@code LivingEntity#noJumpDelay}, the vanilla 10-tick cooldown that {@code aiStep}
+ * sets after every ground jump. Only used through {@link dev.telemetric.game.PlayerAdapter}.
  */
 @Mixin(LivingEntity.class)
 public interface LivingEntityAccessor {

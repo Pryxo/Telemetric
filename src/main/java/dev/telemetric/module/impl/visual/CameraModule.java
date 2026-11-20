@@ -6,7 +6,7 @@ import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 
-/** Camera perspective helpers: no front view, and optional automatic third person while looking down. */
+/** Camera perspective helpers: no front view, and an optional automatic third person while looking down. */
 public final class CameraModule extends Module {
 
     private final BooleanSetting noFront = add(new BooleanSetting("No Front Camera",

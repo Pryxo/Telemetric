@@ -23,13 +23,13 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * MC ADAPTER — turns <b>server system messages</b> into {@link ChatMessage}s for {@link ChatBus}, hides the ones a
+ * MC ADAPTER: turns <b>server system messages</b> into {@link ChatMessage}s for {@link ChatBus}, hides the ones a
  * feature asked to hide ({@link ChatBus#hide}) and shows client-side lines ({@link #post}).
  * <p>
- * Only {@code ClientReceiveMessageEvents.GAME} (+ {@code GAME_CANCELED}, so a chat-hiding mod does not blind us) is
- * used: Fabric fires it for {@code ClientboundSystemChatPacket} only. Player chat arrives as
- * {@code ClientboundPlayerChatPacket} / disguised chat ({@code CHAT} event) and is never listened to. Off Telos
- * nothing is dispatched.
+ * We only use {@code ClientReceiveMessageEvents.GAME} (plus {@code GAME_CANCELED}, so a chat-hiding mod can't blind
+ * us), because Fabric fires it for {@code ClientboundSystemChatPacket} only. Player chat comes in as
+ * {@code ClientboundPlayerChatPacket} or disguised chat ({@code CHAT} event), and we never listen to that. Off Telos
+ * nothing gets dispatched.
  */
 public final class ChatAdapter {
 
@@ -47,7 +47,7 @@ public final class ChatAdapter {
         if (message.segments().isEmpty()) return true;
         ChatBus.Visibility visibility = ChatBus.visibility(message);
         if (visibility == ChatBus.Visibility.SHOW) return true;
-        // All Chat still keeps hidden lines; replaced ones are gone (their Telemetric line shows instead)
+        // All Chat still keeps hidden lines. Replaced ones are gone, and their Telemetric line shows instead.
         if (!overlay && visibility == ChatBus.Visibility.HIDE) ChatHudAdapter.onHidden(component);
         return false;
     }
@@ -71,7 +71,7 @@ public final class ChatAdapter {
         return ChatMessage.of(runs, overlay);
     }
 
-    /** null = default font; resource id otherwise ({@code "?"} for non-resource fonts such as sprites). */
+    /** Null for the default font, otherwise the resource id ({@code "?"} for fonts that aren't resources, such as sprites). */
     private static String fontId(Style style) {
         FontDescription font = style.getFont();
         if (font == null || FontDescription.DEFAULT.equals(font)) return null;
@@ -81,7 +81,7 @@ public final class ChatAdapter {
 
     // ------------------------------------------------------------------ client lines
 
-    /** Shows a client-side line in the chat (never sent to the server). Safe from any thread. */
+    /** Shows a client-side line in the chat (it's never sent to the server). Safe to call from any thread. */
     public static void post(ChatText text) {
         if (text == null || text.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
@@ -96,7 +96,7 @@ public final class ChatAdapter {
 
     static Component toComponent(ChatText text) {
         MutableComponent out = Component.empty();
-        int shinyChars = 0; // shiny characters so far: the cycle runs on along the line
+        int shinyChars = 0; // shiny characters so far, so the cycle carries on along the line
         for (ChatText.Span s : text.spans()) {
             Style style = Style.EMPTY;
             boolean shiny = (s.styles() & ChatText.SHINY) != 0 && s.sprite() == null;

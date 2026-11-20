@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * FPS, Ping and TPS, one toggle (drag-to-reorder) per stat. "Combine" on: one HUD element with all stats;
- * off: every stat is its own HUD element ({@link Part}, hidden from the ClickGUI) that is moved separately.
- * Stats without a value (e.g. TPS on servers that don't publish it) are skipped in-game.
+ * FPS, Ping and TPS, with one toggle (drag-to-reorder) per stat. With "Combine" on it's one HUD element with all the
+ * stats. With it off, every stat is its own HUD element ({@link Part}, hidden from the ClickGUI) that you move
+ * separately. Stats without a value (e.g. TPS on servers that don't publish it) are skipped in-game.
  */
 public final class PerformanceHud extends LinesHudModule {
 
@@ -35,7 +35,7 @@ public final class PerformanceHud extends LinesHudModule {
         parts.add(new Part(this, tps, "20", PerformanceHud::tpsValue, 0.14));
     }
 
-    /** The separate per-stat elements; register them after this module. */
+    /** The separate per-stat elements. Register them after this module. */
     public List<Part> parts() {
         return parts;
     }
@@ -78,7 +78,7 @@ public final class PerformanceHud extends LinesHudModule {
         return ServerInfoAdapter.tabStat("TPS").map(TabStat::value).orElse(null);
     }
 
-    /** Latency to the server; Tab-list "Ping" as fallback. */
+    /** Latency to the server, with the Tab-list "Ping" as a fallback. */
     private static String pingValue() {
         int ping = ServerInfoAdapter.ping();
         if (ping > 0) return ping + "ms";
@@ -88,8 +88,8 @@ public final class PerformanceHud extends LinesHudModule {
     }
 
     /**
-     * One stat as its own HUD element (Combine off). Not listed in the ClickGUI; its own module entry only stores
-     * position / scale / mirror. Shown while the Performance HUD is on, Combine is off and the stat's toggle is on.
+     * One stat as its own HUD element (Combine off). It's not listed in the ClickGUI, and its module entry only stores
+     * the position, scale and mirror. Shown while the Performance HUD is on, Combine is off and the stat's toggle is on.
      */
     public static final class Part extends LinesHudModule {
 

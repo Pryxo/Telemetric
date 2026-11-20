@@ -24,15 +24,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MC ADAPTER — the only class that draws. Wraps {@link GuiGraphicsExtractor} (26.1's renamed
- * {@code GuiGraphics}) and adds rounded shapes, anti-aliased corners, gradients, soft shadows and a
- * global alpha stack (used for fade-in/out of whole subtrees).
+ * MC ADAPTER: the only class that draws. It wraps {@link GuiGraphicsExtractor} (26.1's renamed {@code GuiGraphics}) and
+ * adds rounded shapes, anti-aliased corners, gradients, soft shadows and a global alpha stack (used to fade whole
+ * subtrees in and out).
  * <p>
- * All coordinates are GUI units. Colours are ARGB (alpha matters — 0xRRGGBB is invisible).
+ * All coordinates are GUI units. Colours are ARGB, and the alpha matters: 0xRRGGBB is invisible.
  * <p>
- * <b>Layering:</b> in 26.1 the GUI is collected into strata; inside one stratum text is drawn after
- * all fills. Call {@link #nextLayer()} before drawing anything that must cover earlier text
- * (overlapping panels, tooltips, toasts).
+ * <b>Layering:</b> in 26.1 the GUI is collected into strata, and inside one stratum text is drawn after all fills.
+ * Call {@link #nextLayer()} before drawing anything that has to cover earlier text (overlapping panels, tooltips,
+ * toasts).
  */
 public final class Render2D {
 
@@ -98,9 +98,9 @@ public final class Render2D {
     }
 
     /**
-     * Largest scale ≤ {@code fit} at which one GUI unit is a whole number of window pixels, so items and
-     * textures render pixel-exact like vanilla (no atlas bleed or uneven texels); {@code fit} itself if even one
-     * window pixel per unit does not fit.
+     * The largest scale ≤ {@code fit} at which one GUI unit is a whole number of window pixels, so items and textures
+     * render pixel-exact like vanilla (no atlas bleed or uneven texels). Returns {@code fit} itself if even one window
+     * pixel per unit doesn't fit.
      */
     public static float pixelScale(float fit) {
         int gs = guiScale();
@@ -119,7 +119,7 @@ public final class Render2D {
         return g != null;
     }
 
-    /** Clip to a rectangle (intersects with any outer clip). Must be balanced with {@link #popClip()}. */
+    /** Clips to a rectangle (intersected with any outer clip). Has to be balanced with {@link #popClip()}. */
     public void pushClip(int x, int y, int w, int h) {
         g.enableScissor(x, y, x + Math.max(0, w), y + Math.max(0, h));
     }
@@ -128,7 +128,7 @@ public final class Render2D {
         g.disableScissor();
     }
 
-    /** Starts a new render stratum: everything after this covers everything before (text included). */
+    /** Starts a new render stratum, so everything after this covers everything before (text included). */
     public void nextLayer() {
         g.nextStratum();
     }
@@ -156,7 +156,7 @@ public final class Render2D {
         g.fillGradient(x, y, x + w, y + h, c(top), c(bottom));
     }
 
-    /** Horizontal gradient drawn as 1-unit columns (fine for thin bars / small widths). */
+    /** A horizontal gradient drawn as 1-unit columns (fine for thin bars and small widths). */
     public void gradientH(int x, int y, int w, int h, int left, int right) {
         if (w <= 0 || h <= 0) return;
         if (w == 1) {
@@ -166,7 +166,7 @@ public final class Render2D {
         for (int i = 0; i < w; i++) rect(x + i, y, 1, h, ColorUtil.lerp(left, right, i / (double) (w - 1)));
     }
 
-    /** Rounded rectangle with anti-aliased corners. {@code corners} = bitmask of CORNER_* flags. */
+    /** A rounded rectangle with anti-aliased corners. {@code corners} is a bitmask of CORNER_* flags. */
     public void roundedRect(int x, int y, int w, int h, int radius, int color, int corners) {
         if (w <= 0 || h <= 0) return;
         int r = Math.min(radius, Math.min(w, h) / 2);
@@ -188,7 +188,7 @@ public final class Render2D {
         roundedRect(x, y, w, h, radius, color, CORNERS_ALL);
     }
 
-    /** Filled anti-aliased circle centred on (cx, cy). */
+    /** A filled, anti-aliased circle centred on (cx, cy). */
     public void circle(double cx, double cy, double radius, int color) {
         int top = (int) Math.floor(cy - radius), bottom = (int) Math.ceil(cy + radius);
         for (int py = top; py < bottom; py++) {
@@ -205,12 +205,12 @@ public final class Render2D {
         }
     }
 
-    /** Pill (fully rounded ends) — switch tracks, progress bars. */
+    /** A pill (fully rounded ends), for switch tracks and progress bars. */
     public void pill(int x, int y, int w, int h, int color) {
         roundedRect(x, y, w, h, h / 2, color);
     }
 
-    /** Soft drop shadow: stacked, expanding translucent rounded rects. */
+    /** A soft drop shadow made of stacked, expanding, translucent rounded rects. */
     public void shadow(int x, int y, int w, int h, int radius, int color, int size) {
         int baseAlpha = ColorUtil.alpha(color);
         for (int i = size; i >= 1; i--) {
@@ -222,7 +222,7 @@ public final class Render2D {
 
     private void row(int x, int y, int w, double inset, boolean left, boolean right, int color) {
         int full = (int) Math.ceil(inset);
-        double coverage = full - inset; // fraction of the boundary pixel that is inside the shape
+        double coverage = full - inset; // the fraction of the boundary pixel that's inside the shape
         int l = left ? full : 0, rr = right ? full : 0;
         rect(x + l, y, w - l - rr, 1, color);
         if (coverage > 0.02) {
@@ -232,7 +232,7 @@ public final class Render2D {
         }
     }
 
-    /** Horizontal inset of pixel row {@code i} (0 = outermost) for a corner of radius {@code r}. */
+    /** The horizontal inset of pixel row {@code i} (0 is the outermost) for a corner of radius {@code r}. */
     private static double cornerInset(int r, int i) {
         double dy = r - i - 0.5;
         return r - Math.sqrt(Math.max(0, r * r - dy * dy));
@@ -245,10 +245,10 @@ public final class Render2D {
         g.text(font, s, x, y, c(color), textShadow);
     }
 
-    /** Text look chosen by a feature instead of the theme's shadow setting. */
+    /** A text look picked by a feature instead of the theme's shadow setting. */
     public enum TextLook { NONE, SHADOW, OUTLINE }
 
-    /** Text with an explicit look: plain, drop shadow, or a 1 px black outline. */
+    /** Text with an explicit look: plain, a drop shadow, or a 1 px black outline. */
     public void text(String s, int x, int y, int color, TextLook look) {
         if (s == null || s.isEmpty() || ColorUtil.alpha(c(color)) < 5) return;
         int col = c(color);
@@ -280,7 +280,7 @@ public final class Render2D {
 
     // ================================================================== styled text, glyphs, textures
 
-    /** Draws server-styled runs in sequence. Runs with colour 0 use {@code defaultColor}; colourless runs keep their font. */
+    /** Draws server-styled runs one after another. Runs with colour 0 use {@code defaultColor}, and colourless runs keep their font. */
     public void runs(List<TextRun> runs, int x, int y, int defaultColor, boolean useRunColors) {
         if (runs == null || runs.isEmpty() || ColorUtil.alpha(c(defaultColor)) < 5) return;
         g.text(font, component(runs, useRunColors), x, y, c(defaultColor), textShadow);
@@ -290,18 +290,18 @@ public final class Render2D {
         return runs == null || runs.isEmpty() ? 0 : font.width(component(runs, false));
     }
 
-    /** Draws a resource-pack glyph (no shadow, untinted). */
+    /** Draws a resource-pack glyph (no shadow, no tint). */
     public void glyph(HudIcon.Glyph glyph, int x, int y) {
         glyph(glyph, x, y, 0xFFFFFFFF);
     }
 
-    /** Draws a resource-pack glyph multiplied by {@code tint} (ARGB; white = untinted). */
+    /** Draws a resource-pack glyph multiplied by {@code tint} (ARGB; white means no tint). */
     public void glyph(HudIcon.Glyph glyph, int x, int y, int tint) {
         if (ColorUtil.alpha(c(tint)) < 5) return;
         g.text(font, Component.literal(glyph.text()).withStyle(style(0, glyph.font())), x, y, c(tint), false);
     }
 
-    /** A Nametags status title as it looks in a name tag (animated gradient, wave, icon), no shadow like a text display. */
+    /** A Nametags status title the way it looks in a name tag (animated gradient, wave, icon), with no shadow, like a text display. */
     public void statusTitle(NametagAdapter.TitleLine line, int x, int y) {
         g.text(font, NametagAdapter.titleComponent(line), x, y, c(0xFFFFFFFF), false);
     }
@@ -315,7 +315,7 @@ public final class Render2D {
     }
 
     /**
-     * Texture id for {@code path}: a full {@code "namespace:path"} id (e.g. a server-pack texture
+     * The texture id for {@code path}: either a full {@code "namespace:path"} id (e.g. a server-pack texture
      * {@code telos:textures/...}) or a bare path inside {@code assets/telemetric/}.
      */
     private Identifier textureId(String path) {
@@ -330,14 +330,14 @@ public final class Render2D {
         texture(path, x, y, w, h, texW, texH, 0xFFFFFFFF);
     }
 
-    /** Like {@link #texture(String, int, int, int, int, int, int)}, multiplied by {@code tint} (ARGB). */
+    /** Like {@link #texture(String, int, int, int, int, int, int)}, but multiplied by {@code tint} (ARGB). */
     public void texture(String path, int x, int y, int w, int h, int texW, int texH, int tint) {
         if (w <= 0 || h <= 0 || ColorUtil.alpha(c(tint)) < 5) return;
         Identifier id = textureId(path);
         g.blit(RenderPipelines.GUI_TEXTURED, id, x, y, 0f, 0f, w, h, texW, texH, texW, texH, c(tint));
     }
 
-    /** Draws an item (model + count/durability decorations) at 16x16 GUI units. */
+    /** Draws an item (model plus count/durability decorations) at 16x16 GUI units. */
     public void item(GameItem item, int x, int y) {
         if (item == null) return;
         g.item(item.stack(), x, y);
@@ -349,7 +349,7 @@ public final class Render2D {
         if (item != null) g.item(item.stack(), x, y);
     }
 
-    /** Draws the item with this item model id ({@code telos:material/...}) scaled to {@code size} x {@code size}. */
+    /** Draws the item with this item model id ({@code telos:material/...}), scaled to {@code size} x {@code size}. */
     public void itemModel(String model, int x, int y, int size) {
         GameItem item = ItemIcons.of(model);
         if (item == null || size <= 0) return;
@@ -364,8 +364,8 @@ public final class Render2D {
     }
 
     /**
-     * Draws a queued tooltip right now, on top. Needed after the screen's own deferred pass already ran
-     * (e.g. in {@code ScreenEvents.afterExtract}), where a queued tooltip would otherwise be dropped.
+     * Draws a queued tooltip right now, on top. This is needed after the screen's own deferred pass has already run
+     * (e.g. in {@code ScreenEvents.afterExtract}), where a queued tooltip would otherwise get dropped.
      */
     public void flushTooltip() {
         GuiGraphicsExtractorAccessor acc = (GuiGraphicsExtractorAccessor) g;
@@ -402,7 +402,7 @@ public final class Render2D {
         return style;
     }
 
-    /** Cuts {@code s} with an ellipsis so it fits {@code maxWidth}. */
+    /** Cuts {@code s} off with an ellipsis so it fits {@code maxWidth}. */
     public String trim(String s, int maxWidth) {
         if (textWidth(s) <= maxWidth) return s;
         String ellipsis = "…";

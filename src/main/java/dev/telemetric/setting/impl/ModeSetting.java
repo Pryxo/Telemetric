@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-/** String choice. Options may be static or supplied dynamically. */
+/** A string choice. The options can be fixed or supplied dynamically. */
 public class ModeSetting extends ChoiceSetting<String> {
 
     private final Supplier<List<String>> options;

@@ -13,8 +13,9 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 /**
- * Key binder. Left-click → listening (takes keyboard focus). Next key press or mouse button (middle, side buttons, …)
- * binds it; left-click on the chip again / Esc cancels; Backspace/Delete unbinds. Right-click unbinds directly.
+ * A key binder. Left-click starts listening (and takes keyboard focus), and the next key press or mouse button
+ * (middle, side buttons, …) binds it. Left-clicking the chip again or pressing Esc cancels, Backspace/Delete unbinds,
+ * and right-click unbinds directly.
  */
 public class KeybindComponent extends SettingComponent<KeybindSetting> {
 
@@ -47,7 +48,7 @@ public class KeybindComponent extends SettingComponent<KeybindSetting> {
 
         r.text(r.trim(setting.getLabel(), width - cw - Layout.PAD * 3), left(), labelY(), textColor(p));
 
-        // pulsing border while listening
+        // a pulsing border while listening
         double pulse = listening ? 0.55 + 0.45 * Math.sin(System.currentTimeMillis() / 160.0) : 0;
         int bg = ColorUtil.lerp(p.control(), ColorUtil.shade(p.accent(), -0.55), listen.get());
         r.roundedRect(cx, cy, cw, ch, 2, bg);
@@ -56,7 +57,7 @@ public class KeybindComponent extends SettingComponent<KeybindSetting> {
         r.textCentered(label, cx + cw / 2, labelY(), textColor);
     }
 
-    /** While listening, any mouse button except left/right binds, wherever the mouse is. */
+    /** While listening, any mouse button except left and right binds, wherever the mouse is. */
     @Override
     public boolean focusedMouseButton(int button) {
         if (!listening() || button == MouseButton.LEFT || button == MouseButton.RIGHT) return false;

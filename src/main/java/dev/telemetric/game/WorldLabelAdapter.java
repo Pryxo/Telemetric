@@ -24,16 +24,16 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * MC ADAPTER — floating text labels in the 3D world (billboards that face the camera, like nameplates).
- * Text is drawn with Minecraft's font renderer in a {@link BadgeText} font, so a badge is just a string of
- * glyphs that tile into one coloured shape. Features register a {@link Source}; it is asked once per frame.
+ * MC ADAPTER: floating text labels in the 3D world (billboards that face the camera, like nameplates).
+ * The text is drawn with Minecraft's font renderer in a {@link BadgeText} font, so a badge is just a string of glyphs
+ * that tile into one coloured shape. Features register a {@link Source}, which gets asked once per frame.
  */
 public final class WorldLabelAdapter {
 
     /**
-     * One label. Centred on (x, z); its bottom edge sits at y. {@code height} = glyph height in blocks
-     * (badges are 8 px tall, so 1 px = height / 8 blocks). {@code text} is plain text; for badge styles an
-     * empty text draws a small blank badge.
+     * One label, centred on (x, z) with its bottom edge at y. {@code height} is the glyph height in blocks (badges are
+     * 8 px tall, so 1 px = height / 8 blocks). {@code text} is plain text. For badge styles, empty text draws a small
+     * blank badge.
      */
     public record Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                         boolean throughWalls, boolean shadow, boolean bold, boolean underline,
@@ -50,24 +50,24 @@ public final class WorldLabelAdapter {
         }
 
         /**
-         * Moves the anchor {@code sideOffset} blocks to the camera's right (negative = left) and aligns the text on
-         * it: {@code align} 0 = text starts there, 0.5 = centred, 1 = text ends there.
+         * Moves the anchor {@code sideOffset} blocks to the camera's right (negative for left) and aligns the text on
+         * it: an {@code align} of 0 starts the text there, 0.5 centres it, and 1 ends it there.
          */
         public Label aligned(double sideOffset, float align) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
                     align, outline, icon);
         }
 
-        /** Shadow off / on, or a black outline instead (outline wins). */
+        /** Shadow off or on, or a black outline instead (the outline wins). */
         public Label look(boolean shadow, boolean outline) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow && !outline, bold, underline,
                     sideOffset, align, outline, icon);
         }
 
         /**
-         * Adds a picture {@link #ICON_PX} px square: the item model's texture ({@code "telos:material/boss/anubis"}
-         * → {@code telos:textures/material/boss/anubis.png}; needs the pack that has it), drawn above the text, or
-         * standing on the anchor when the text is empty. Null / empty = none.
+         * Adds a picture {@link #ICON_PX} px square: the item model's texture ({@code "telos:material/boss/anubis"} →
+         * {@code telos:textures/material/boss/anubis.png}; needs the pack that has it). It's drawn above the text, or
+         * stands on the anchor when the text is empty. Null or empty means no icon.
          */
         public Label withIcon(String model) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
@@ -83,7 +83,7 @@ public final class WorldLabelAdapter {
 
     private static final int FULL_BRIGHT = 0xF000F0;
     private static final float GLYPH_PX = 8f;
-    /** Icon size in label pixels (two text lines) and its gap to the text. */
+    /** Icon size in label pixels (two text lines), and its gap to the text. */
     public static final float ICON_PX = 16f, ICON_GAP_PX = 2f;
     private static final Map<String, Identifier> ICON_TEXTURES = new java.util.concurrent.ConcurrentHashMap<>();
     private static final List<Source> SOURCES = new CopyOnWriteArrayList<>();
@@ -136,7 +136,7 @@ public final class WorldLabelAdapter {
                 pose.scale(unit, -unit, unit);
                 float tx = -font.width(text) * l.align();
                 if (l.outline() && l.throughWalls()) {
-                    // drawInBatch8xOutline is always depth-tested, so build the outline from 8 see-through copies.
+                    // drawInBatch8xOutline is always depth-tested, so we build the outline from 8 see-through copies instead.
                     int black = argb & 0xFF000000;
                     for (int dx = -1; dx <= 1; dx++) {
                         for (int dy = -1; dy <= 1; dy++) {
@@ -163,7 +163,7 @@ public final class WorldLabelAdapter {
         if (drew) buffers.endBatch();
     }
 
-    /** Icon quad in the label's pixel space (y grows down, text spans -8..0), centred over the text. */
+    /** The icon quad in the label's pixel space (y grows downward, text spans -8..0), centred over the text. */
     private static void drawIcon(Label l, Component text, float tx, int argb, PoseStack pose,
                                  MultiBufferSource buffers, Font font) {
         Identifier tex = iconTexture(l.icon());
@@ -172,7 +172,7 @@ public final class WorldLabelAdapter {
         float cx = hasText ? tx + font.width(text) / 2f : -ICON_PX * (l.align() - 0.5f);
         float x0 = cx - ICON_PX / 2f, x1 = x0 + ICON_PX;
         float y1 = hasText ? -GLYPH_PX - ICON_GAP_PX : 0, y0 = y1 - ICON_PX;
-        int color = (argb & 0xFF000000) | 0xFFFFFF; // the picture keeps its own colours, only the fade applies
+        int color = (argb & 0xFF000000) | 0xFFFFFF; // the picture keeps its own colours, only the fade is applied
         VertexConsumer vc = buffers.getBuffer(l.throughWalls() ? RenderTypes.textSeeThrough(tex) : RenderTypes.text(tex));
         Matrix4f m = pose.last().pose();
         vc.addVertex(m, x0, y0, 0).setColor(color).setUv(0, 0).setLight(FULL_BRIGHT);

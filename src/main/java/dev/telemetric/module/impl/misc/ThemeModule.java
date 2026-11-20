@@ -14,7 +14,7 @@ import dev.telemetric.ui.theme.ThemePreset;
 
 import java.util.List;
 
-/** UI-only: colours and look of the ClickGUI. Read by {@link dev.telemetric.ui.theme.ThemeManager}. */
+/** UI-only: the colours and look of the ClickGUI. {@link dev.telemetric.ui.theme.ThemeManager} reads it. */
 public final class ThemeModule extends Module {
 
     private static final Theme DEFAULTS = ThemePreset.MIDNIGHT.theme();
@@ -22,7 +22,7 @@ public final class ThemeModule extends Module {
     public final EnumSetting<ThemePreset> preset = add(new EnumSetting<>(
             "Preset", "Base colour palette of the interface", ThemePreset.MIDNIGHT).searchable());
 
-    // ---- accent override (group: right-click to edit the colours) ----
+    // ---- accent override (a group: right-click to edit the colours) ----
     public final GroupToggleSetting customAccent = add(new GroupToggleSetting(
             "Custom Accent", "Override the preset's accent colours (right-click to edit)", false));
 
@@ -94,8 +94,8 @@ public final class ThemeModule extends Module {
 
     public ThemeModule() {
         super("Theme", "Colours, preset and look of the interface", Category.MISC, false);
-        // first switch-on starts from the current preset instead of Midnight's colours
-        // (profile loads: the toggle loads before its colours, which then overwrite this copy)
+        // The first switch-on starts from the current preset instead of Midnight's colours. (On a profile load the toggle
+        // loads before its colours, which then overwrite this copy.)
         customAccent.onChange(on -> {
             if (on && accent.get().equals(accent.getDefault()) && accentAlt.get().equals(accentAlt.getDefault())) {
                 Theme t = preset.get().theme();
@@ -144,7 +144,7 @@ public final class ThemeModule extends Module {
         dimColor.set(t.backdrop());
     }
 
-    /** Preset palette with the Custom Colors / Custom Accent overrides applied (before panel opacity). */
+    /** The preset palette with the Custom Colors / Custom Accent overrides applied (before panel opacity). */
     public Theme resolvedPalette() {
         Theme theme = preset.get().theme();
         if (customColors.get()) {

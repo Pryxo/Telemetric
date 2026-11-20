@@ -26,20 +26,21 @@ import java.util.concurrent.Executors;
 import java.util.function.UnaryOperator;
 
 /**
- * Client for the HeadStatus API ({@value #BASE}): live realm list (cached {@link #REALM_TTL_MS}) and the player
- * session (challenge → Mojang join → 24 h bearer token, re-sessioned on any 401). No Minecraft imports except via
- * {@link MojangSessionAdapter}; the Minecraft access token only goes to Mojang, never to this API.
+ * Client for the HeadStatus API ({@value #BASE}). It handles the live realm list (cached for {@link #REALM_TTL_MS})
+ * and the player session: challenge, Mojang join, then a 24 h bearer token, with a new session on any 401.
+ * No Minecraft imports except through {@link MojangSessionAdapter}. The Minecraft access token only ever goes to
+ * Mojang, never to this API.
  */
 public final class HeadStatusApi {
 
     public static final String BASE = "https://headstatus.rasmus.zip/api/v1";
-    /** Realm list cache lifetime: the selector only asks again once this is over. */
+    /** How long the realm list is cached. The selector only asks again after this. */
     public static final long REALM_TTL_MS = 5 * 60_000L;
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(TIMEOUT)
             .followRedirects(HttpClient.Redirect.NORMAL).build();
-    /** One thread for auth + authorized calls, so two callers never race for a new session. */
+    /** One thread for auth and authorized calls, so two callers never race to make a new session. */
     private static final ExecutorService AUTH = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "Telemetric HeadStatus");
         t.setDaemon(true);
@@ -60,7 +61,7 @@ public final class HeadStatusApi {
     public record LiveRealm(String region, String name, int players) {}
 
     private static volatile List<LiveRealm> realms = List.of();
-    private static volatile long realmsAt; // 0 = never loaded
+    private static volatile long realmsAt; // 0 means never loaded
     private static CompletableFuture<List<LiveRealm>> realmsLoad;
 
     /** Last loaded realm list (empty until the first request succeeds). */
@@ -68,7 +69,7 @@ public final class HeadStatusApi {
         return realms;
     }
 
-    /** True once a realm list was loaded at least once. */
+    /** True once a realm list has loaded at least once. */
     public static boolean realmsLoaded() {
         return realmsAt != 0;
     }
@@ -78,7 +79,7 @@ public final class HeadStatusApi {
         return realmsLoad != null && !realmsLoad.isDone();
     }
 
-    /** Asks for the realm list again only if the cache is older than {@link #REALM_TTL_MS} (or never loaded). */
+    /** Asks for the realm list again, but only if the cache is older than {@link #REALM_TTL_MS} or was never loaded. */
     public static CompletableFuture<List<LiveRealm>> refreshRealmsIfStale() {
         if (realmsAt != 0 && System.currentTimeMillis() - realmsAt < REALM_TTL_MS) {
             return CompletableFuture.completedFuture(realms);
@@ -86,7 +87,7 @@ public final class HeadStatusApi {
         return refreshRealms();
     }
 
-    /** Requests the realm list now (joins a request that is already running). Failures keep the old list. */
+    /** Requests the realm list now, or joins a request that's already running. A failure keeps the old list. */
     public static synchronized CompletableFuture<List<LiveRealm>> refreshRealms() {
         if (realmsLoad != null && !realmsLoad.isDone()) return realmsLoad;
         HttpRequest req = request("/realms").GET().build();
@@ -129,30 +130,30 @@ public final class HeadStatusApi {
      */
     public record HeadStatus(String text, int position, long count) {}
 
-    /** Every status: ID → display name ({@code STATUS-LUNA} → {@code Luna Kills}), from {@code /status-list}. */
+    /** Every status, ID to display name ({@code STATUS-LUNA} → {@code Luna Kills}), from {@code /status-list}. */
     private static volatile Map<String, String> statusNames = Map.of();
     private static volatile boolean statusesLoaded;
     private static CompletableFuture<Map<String, String>> statusLoad;
 
-    /** Every status, ID → display name, in API order (empty until loaded). */
+    /** Every status, ID to display name, in API order (empty until loaded). */
     public static Map<String, String> statuses() {
         return statusNames;
     }
 
-    /** True once {@code /status-list} answered at least once. */
+    /** True once {@code /status-list} has answered at least once. */
     public static boolean statusesLoaded() {
         return statusesLoaded;
     }
 
-    /** Display name for a status ID ("Luna Kills" for {@code STATUS-LUNA}); the ID itself if unknown. */
+    /** Display name for a status ID ("Luna Kills" for {@code STATUS-LUNA}), or the ID itself if unknown. */
     public static String statusName(String id) {
         String n = statusNames.get(id);
         return n != null ? n : id;
     }
 
     /**
-     * Loads {@code /status-list} (every status, ID → display name) — once on start and on
-     * {@code /telemetric status refresh}. Joins a load that is already running. A failure keeps the old list.
+     * Loads {@code /status-list} (every status, ID to display name). Runs once on start and on
+     * {@code /telemetric status refresh}, and joins a load that's already running. A failure keeps the old list.
      */
     public static synchronized CompletableFuture<Map<String, String>> refreshStatuses() {
         if (statusLoad != null && !statusLoad.isDone()) return statusLoad;
@@ -171,8 +172,8 @@ public final class HeadStatusApi {
     }
 
     /**
-     * The statuses this player is top 25 or better in ({@code /my-status-list}, authorized; the API caches it 60 s per
-     * player), ID → display name. Asked fresh on every call; the answer is kept for {@link #cachedTop25()}.
+     * The statuses this player is in the top 25 of, as ID to display name ({@code /my-status-list}, authorized; the
+     * API caches it for 60 s per player). It asks fresh on every call and keeps the answer for {@link #cachedTop25()}.
      */
     public static CompletableFuture<Map<String, String>> myTop25() {
         top25Asked = System.currentTimeMillis();
@@ -188,8 +189,8 @@ public final class HeadStatusApi {
     private static volatile long top25Asked;
 
     /**
-     * Last known top-25 statuses (for Tab completion, which must answer right away). Asks the API again in the
-     * background when the last ask is older than 60 s, so the next Tab press has the fresh list.
+     * Last known top-25 statuses, for Tab completion, which has to answer right away. If the last request is older than
+     * 60 s it asks the API again in the background, so the next Tab press gets the fresh list.
      */
     public static Map<String, String> cachedTop25() {
         if (System.currentTimeMillis() - top25Asked > 60_000) {
@@ -213,7 +214,7 @@ public final class HeadStatusApi {
         });
     }
 
-    /** The current head status of {@code uuid}; empty if the player has none (404). No auth. */
+    /** The current head status of {@code uuid}, empty if the player has none (404). No auth needed. */
     public static CompletableFuture<Optional<HeadStatus>> status(String uuid) {
         HttpRequest req = request("/status/" + uuid).GET().build();
         return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString()).thenApply(res -> {
@@ -223,12 +224,12 @@ public final class HeadStatusApi {
         });
     }
 
-    /** Most UUIDs one {@code /status-bulk} request may carry. */
+    /** The most UUIDs a single {@code /status-bulk} request can carry. */
     public static final int BULK_MAX = 100;
 
     /**
-     * Current head statuses of up to {@link #BULK_MAX} players ({@code POST /status-bulk}, no auth). Players with no
-     * status are not in the result. Keys are the UUIDs as the API sends them back.
+     * Current head statuses of up to {@link #BULK_MAX} players ({@code POST /status-bulk}, no auth). Players without a
+     * status are left out of the result. Keys are the UUIDs in the form the API sends back.
      */
     public static CompletableFuture<Map<String, HeadStatus>> statusBulk(List<String> uuids) {
         if (uuids.size() > BULK_MAX) throw new IllegalArgumentException("at most " + BULK_MAX + " uuids");
@@ -261,8 +262,8 @@ public final class HeadStatusApi {
     }
 
     /**
-     * Parses a status list: either {@code ["ID: display name", …]} (documented) or {@code {"ID": "display name"}}
-     * (what {@code /status-list} currently sends). Keeps API order.
+     * Parses a status list. The docs say it's {@code ["ID: display name", …]}, but {@code /status-list} currently sends
+     * {@code {"ID": "display name"}}, so both work. Keeps API order.
      */
     private static Map<String, String> parseStatusList(String body) {
         Map<String, String> out = new LinkedHashMap<>();
@@ -293,7 +294,7 @@ public final class HeadStatusApi {
         return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsString() : null;
     }
 
-    /** The API's {@code {"error": …}} text, or the status code. */
+    /** The API's {@code {"error": …}} text, or else the status code. */
     private static String errorText(HttpResponse<String> res) {
         try {
             JsonElement el = JsonParser.parseString(res.body());
@@ -307,7 +308,7 @@ public final class HeadStatusApi {
         return "HTTP " + res.statusCode();
     }
 
-    /** Innermost exception message (unwraps CompletionException / wrapper layers). */
+    /** The innermost exception message (unwraps CompletionException and other wrapper layers). */
     public static String rootMessage(Throwable e) {
         Throwable t = e;
         while (t.getCause() != null && t.getCause() != t
@@ -324,7 +325,7 @@ public final class HeadStatusApi {
     private static String token;          // only touched on the AUTH thread
     private static long tokenExpiresAt;
 
-    /** Gets a challenge serverId from the API and joins it with Mojang on this client. Blocking. */
+    /** Gets a challenge serverId from the API and joins it with Mojang on this client. Blocks. */
     private static Challenge joinChallenge() {
         try {
             HttpRequest req = request("/auth-challenge").GET().build();
@@ -343,7 +344,7 @@ public final class HeadStatusApi {
         }
     }
 
-    /** Challenge → Mojang join → {@code POST /session}; stores the bearer token. Blocking, AUTH thread only. */
+    /** Challenge, Mojang join, then {@code POST /session}. Stores the bearer token. Blocks, AUTH thread only. */
     private static String newSession() {
         Challenge c = joinChallenge();
         try {
@@ -372,7 +373,7 @@ public final class HeadStatusApi {
         return token;
     }
 
-    /** The bearer token (re-sessions when missing or expired). */
+    /** The bearer token. Makes a new session if it's missing or expired. */
     public static CompletableFuture<String> session() {
         return CompletableFuture.supplyAsync(HeadStatusApi::currentToken, AUTH);
     }
@@ -383,11 +384,11 @@ public final class HeadStatusApi {
     }
 
     /**
-     * Sends an authorized request ({@code Authorization: Bearer}). On a 401 (token expired or the API restarted) it
-     * re-sessions once and sends again.
+     * Sends an authorized request ({@code Authorization: Bearer}). On a 401 (the token expired or the API restarted)
+     * it makes a new session once and sends again.
      *
      * @param path   API path after {@code /api/v1}, e.g. {@code /my-status-list}
-     * @param method sets the method / body on the builder, e.g. {@code b -> b.GET()} or {@code b -> b.DELETE()}
+     * @param method sets the method and body on the builder, e.g. {@code b -> b.GET()} or {@code b -> b.DELETE()}
      */
     public static CompletableFuture<HttpResponse<String>> authorized(String path, UnaryOperator<HttpRequest.Builder> method) {
         return CompletableFuture.supplyAsync(() -> {

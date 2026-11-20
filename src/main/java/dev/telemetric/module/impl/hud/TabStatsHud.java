@@ -20,26 +20,26 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * A group of Tab-list stats (one section of the Telos Tab list) with a toggle per stat.
- * Stats the server doesn't currently publish are skipped in-game and shown as "—" in the editor.
+ * A group of Tab-list stats (one section of the Telos Tab list) with a toggle for each stat.
+ * Stats the server isn't publishing right now are skipped in-game and shown as "—" in the editor.
  */
 public class TabStatsHud extends LinesHudModule {
 
-    /** Not a Tab-list stat: the location from Telos's bottom-right HUD box (biome name as fallback). */
+    /** Not a Tab-list stat: the location from Telos's bottom-right HUD box (with the biome name as a fallback). */
     static final String LOCATION = "Location";
 
     private final String title;
     private final BooleanSetting showTitle;
     private final Map<String, BooleanSetting> stats = new LinkedHashMap<>();
-    /** Per-stat "show real value" toggles (only stats with a known formula). */
+    /** Per-stat "show real value" toggles (only for stats with a known formula). */
     private final Map<String, BooleanSetting> real = new LinkedHashMap<>();
     /**
-     * Stats Info: the stat colour lives on the label (kept); the server's plain value colour is dropped so values
-     * follow Theme → HUD Value.
+     * For Stats Info: the stat colour lives on the label, so that's kept. The server's plain value colour is dropped
+     * so the values follow Theme → HUD Value.
      */
     private final boolean themeValues;
 
-    /** @param serverColorToggle add "Use Server Color" (not for Stats Info: every stat has its own colour) */
+    /** @param serverColorToggle add "Use Server Color" (not for Stats Info, where every stat has its own colour) */
     public TabStatsHud(String name, String description, String title, List<String> labels,
                        double defaultX, double defaultY, boolean serverColorToggle) {
         super(name, description, defaultX, defaultY, false);
@@ -50,7 +50,7 @@ public class TabStatsHud extends LinesHudModule {
         for (String label : labels) {
             String desc = "Show " + label + " from the Tab list";
             if (StatFormulas.supported(label)) {
-                // stat with a formula: dropdown toggle holding its "Show Real %" (key stays "<label> Real %")
+                // a stat with a formula gets a dropdown toggle holding its "Show Real %" (the key stays "<label> Real %")
                 GroupToggleSetting shown = add(new GroupToggleSetting(label, desc, true).movable());
                 stats.put(label, shown);
                 real.put(label, add(shown.child(new BooleanSetting(label + " Real %",
@@ -80,7 +80,7 @@ public class TabStatsHud extends LinesHudModule {
                 String biome = PlayerAdapter.locationName();
                 if (biome == null && preview) biome = "Plains";
                 if (biome != null) {
-                    // not a Tab stat: value in the HUD box's own server colour; else borrow a sibling stat's
+                    // not a Tab stat, so the value gets the HUD box's own server colour; otherwise borrow a sibling stat's colours
                     int[] c = siblingColors();
                     int boxColor = dev.telemetric.game.BossBarAdapter.hudLocationColor();
                     int vc = numberColor();
@@ -101,8 +101,8 @@ public class TabStatsHud extends LinesHudModule {
     }
 
     /**
-     * {labelColor, valueColor} of the first Tab stat of this element that has server colours
-     * (Server first, as it sits next to Location), or {0, 0} = theme default.
+     * {labelColor, valueColor} of the first Tab stat in this element that has server colours (Server first, since it
+     * sits next to Location), or {0, 0} for the theme default.
      */
     private int[] siblingColors() {
         for (Setting<?> setting : getSettingOrder()) {
@@ -112,7 +112,7 @@ public class TabStatsHud extends LinesHudModule {
             if (s.isEmpty()) continue;
             int lc = s.get().labelColor();
             int vc = s.get().valueColor();
-            // prefer the first coloured run (Server "[test, realm-1]" → the pink of "test", not the grey bracket)
+            // prefer the first coloured run (for Server "[test, realm-1]" that's the pink of "test", not the grey bracket)
             for (TextRun r : s.get().valueRuns()) if (r.color() != 0 && !isGrey(r.color())) { vc = r.color(); break; }
             if (vc == 0) {
                 for (TextRun r : s.get().valueRuns()) if (r.color() != 0) { vc = r.color(); break; }
@@ -122,7 +122,7 @@ public class TabStatsHud extends LinesHudModule {
         return new int[] {0, 0};
     }
 
-    /** Value colour (the green) of Soul Points, Glory or Mastery from Tab, first one found; 0 = none. */
+    /** The value colour (the green) of Soul Points, Glory or Mastery from Tab, whichever is found first. 0 if none. */
     private static int numberColor() {
         for (String label : List.of("Soul Points", "Glory", "Mastery")) {
             Optional<TabStat> s = ServerInfoAdapter.tabStat(label);
@@ -134,7 +134,7 @@ public class TabStatsHud extends LinesHudModule {
         return 0;
     }
 
-    /** Grey / white / black (all channels within 24 of each other). */
+    /** True for grey, white or black (all channels within 24 of each other). */
     private static boolean isGrey(int rgb) {
         int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
         return Math.max(r, Math.max(g, b)) - Math.min(r, Math.min(g, b)) < 24;
@@ -144,7 +144,7 @@ public class TabStatsHud extends LinesHudModule {
         return label.toLowerCase(Locale.ROOT).endsWith("fragments");
     }
 
-    /** Mirrored rows read right-to-left: the " (real %)" extra goes in front of the value — "(12%) 5 :Attack". */
+    /** Mirrored rows read right to left, so the " (real %)" extra goes in front of the value: "(12%) 5 :Attack". */
     @Override
     protected List<TextRun> mirroredValueRuns(Line line) {
         List<TextRun> runs = line.valueRuns();
@@ -165,9 +165,9 @@ public class TabStatsHud extends LinesHudModule {
         HudIcon.Glyph tabIcon = s.icon();
 
         if (key.equals("mastery") || key.equals("class")) {
-            // the server puts the mastery / ruleset (mode) symbol inside the value: draw exactly that glyph.
-            // Class never uses the label-side glyph (none, or a class portrait) — no value glyph = mode guessed
-            // from the text in TelosIcons.
+            // The server puts the mastery or ruleset (mode) symbol inside the value, so draw exactly that glyph.
+            // Class never uses the label-side glyph (it has none, or a class portrait). Without a value glyph,
+            // TelosIcons guesses the mode from the text.
             HudIcon.Glyph inValue = firstGlyph(runs);
             if (inValue != null || key.equals("class")) tabIcon = inValue;
             runs = withoutGlyphs(runs);
@@ -200,13 +200,13 @@ public class TabStatsHud extends LinesHudModule {
             value = value + " (" + extra + ")";
         }
         HudIcon icon = TelosIcons.resolve(label, s.value(), tabIcon);
-        // icon-only mode drops the name, but only when there is an icon to stand in for it
+        // icon-only mode drops the name, but only if there's an icon to stand in for it
         boolean hideName = isFragment(label) || (iconOnly != null && iconOnly.get() && icon != null);
         String shown = hideName ? "" : label;
         return new Line(shown, value, s.labelColor(), valueColor, runs, icon, TelosIcons.tinted(label));
     }
 
-    /** Optional "Icon Only" toggle: hide stat names, show just the icon and the number. */
+    /** The optional "Icon Only" toggle: hides stat names and shows just the icon and the number. */
     private BooleanSetting iconOnly;
 
     protected final void addIconOnly() {
@@ -214,8 +214,8 @@ public class TabStatsHud extends LinesHudModule {
     }
 
     /**
-     * First pack-font glyph in the value, as the Tab list draws it. Any code point is accepted: Telos changes
-     * them (e.g. Mastery 6 = U+152CB, seasonal mode = U+18057 in 2026-11), so no whitelist.
+     * The first pack-font glyph in the value, as the Tab list draws it. Any code point is accepted, because Telos
+     * changes them (e.g. Mastery 6 = U+152CB, seasonal mode = U+18057 in 2026-11), so there's no whitelist.
      */
     private static HudIcon.Glyph firstGlyph(List<TextRun> runs) {
         for (TextRun r : runs) {
@@ -228,7 +228,7 @@ public class TabStatsHud extends LinesHudModule {
         return null;
     }
 
-    /** Runs with every pack-font glyph removed (leading whitespace trimmed). */
+    /** The runs with every pack-font glyph removed (and leading whitespace trimmed). */
     private static List<TextRun> withoutGlyphs(List<TextRun> runs) {
         List<TextRun> out = new ArrayList<>();
         for (TextRun r : runs) {
@@ -240,7 +240,7 @@ public class TabStatsHud extends LinesHudModule {
     }
 
     // ------------------------------------------------------------------ Telos Realms Tab-list sections
-    // (anonymous subclasses: ModuleManager keys modules by class)
+    // (anonymous subclasses, because ModuleManager keys modules by class)
 
     public static TabStatsHud generalInfo() {
         return new TabStatsHud("General Info", "Server, Location,Soul Points, Glory, Mastery and Guild",
@@ -259,7 +259,7 @@ public class TabStatsHud extends LinesHudModule {
                         "Critical Chance", "Critical Damage", "Loot Boost", "Fame Boost"), 0.0, 0.75, false) {
             { addIconOnly(); }
 
-            // the tooltip stat symbols are 13 px wide with built-in padding: a tighter gap looks right
+            // the tooltip stat symbols are 13 px wide with built-in padding, so a tighter gap looks right
             @Override
             protected int iconGap() {
                 return 1;

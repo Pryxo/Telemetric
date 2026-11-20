@@ -13,9 +13,9 @@ import dev.telemetric.ui.theme.Theme;
 import java.util.List;
 
 /**
- * The cooldown bar every cooldown HUD draws, plus its "Bar Colors" dropdown. Outline and track come from the
- * theme; the fill shifts from <i>Cooldown Color</i> (just started) to <i>Almost Ready Color</i>, and is a full
- * <i>Ready Color</i> bar when the item can be used. A short ring flashes when a cooldown ends ({@link #drawFlash}).
+ * The cooldown bar every cooldown HUD draws, plus its "Bar Colors" dropdown. The outline and track come from the
+ * theme. The fill shifts from <i>Cooldown Color</i> (just started) to <i>Almost Ready Color</i>, and turns into a
+ * full <i>Ready Color</i> bar once the item can be used. A short ring flashes when a cooldown ends ({@link #drawFlash}).
  */
 final class CooldownBar implements SettingBundle {
 
@@ -33,8 +33,8 @@ final class CooldownBar implements SettingBundle {
     }
 
     /**
-     * @param remaining 1 = cooldown just started, 0 = ready (full bar in the ready colour)
-     * @param vertical  fills bottom → top; otherwise left → right
+     * @param remaining 1 means the cooldown just started, 0 means ready (full bar in the ready colour)
+     * @param vertical  fills from bottom to top; otherwise from left to right
      */
     void draw(Render2D r, int x, int y, int w, int h, float remaining, boolean vertical) {
         Theme p = Telemetric.get().theme().palette();
@@ -57,7 +57,7 @@ final class CooldownBar implements SettingBundle {
         }
     }
 
-    /** Ring with a "!" centred on (cx, cy) for a moment after a cooldown ends; no-op once it has faded. */
+    /** A ring with a "!" centred on (cx, cy) for a moment after a cooldown ends. Does nothing once it has faded. */
     void drawFlash(Render2D r, int cx, int cy, long readyAtMs) {
         if (readyAtMs <= 0) return;
         int length = Durations.scaled(Durations.STANDARD);

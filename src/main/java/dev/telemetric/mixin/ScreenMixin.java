@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Clicked chat links of our own ({@code telemetric:link/<n>}) run on the client instead of going to the server. */
+/** Our own clicked chat links ({@code telemetric:link/<n>}) run on the client instead of going to the server. */
 @Mixin(Screen.class)
 public abstract class ScreenMixin {
 

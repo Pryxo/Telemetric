@@ -18,27 +18,27 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Shared cooldown state for every combat feature: one timer per vanilla cooldown group, started / cleared by the
+ * Shared cooldown state for every combat feature: one timer per vanilla cooldown group, started and cleared by the
  * server's cooldown packets ({@link CombatAdapter#drainCooldowns()}) and kept in wall-clock time.
  * <p>
- * Vanilla forgets cooldowns whenever the client gets a new player (dungeon entry, respawn); Telos keeps them
- * running server-side, so these timers survive world changes — except items listed in
- * {@link TelosItemRules#resetsOnWorldChange}. A realm / hub switch (the Tab list's "Server" changes) resets all
- * of them, like the server does. Features read timers ({@link #get}, {@link #latest}, {@link #active}) and get
+ * Vanilla forgets cooldowns whenever the client gets a new player (dungeon entry, respawn), but Telos keeps them
+ * running server-side, so these timers survive world changes. The exception is items listed in
+ * {@link TelosItemRules#resetsOnWorldChange}. A realm or hub switch (the Tab list's "Server" changes) resets all of
+ * them, the same as the server does. Features read the timers ({@link #get}, {@link #latest}, {@link #active}) and get
  * {@link #addListener ready events}.
  * <p>
- * Ticked from the entrypoint every client tick on Telos, whether or not a feature is on, so a feature switched on
- * mid-cooldown shows it right away. Idle cost: a few map lookups.
+ * The entrypoint ticks it every client tick on Telos, whether or not a feature is on, so a feature that's switched on
+ * mid-cooldown shows it right away. When idle it costs a few map lookups.
  */
 public final class CooldownTracker {
 
     /**
      * One running cooldown.
      *
-     * @param info item that uses the group, or null until it is found on the player
+     * @param info the item that uses the group, or null until it's found on the player
      */
     public record Cooldown(String group, ItemInfo info, long startMs, long endMs) {
-        /** Fraction still to wait: 1 = just started, 0 = ready. */
+        /** The fraction still to wait: 1 means just started, 0 means ready. */
         public float remaining(long now) {
             long total = endMs - startMs;
             return total <= 0 ? 0f : Math.clamp((endMs - now) / (float) total, 0f, 1f);
@@ -57,7 +57,7 @@ public final class CooldownTracker {
 
     private static final CooldownTracker INSTANCE = new CooldownTracker();
     private static final long MS_PER_TICK = 50;
-    /** A re-sent cooldown ending within this of the running one keeps the original start (bar stays continuous). */
+    /** If a re-sent cooldown ends within this of the running one, the original start is kept so the bar stays continuous. */
     private static final long RESYNC_MS = 1000;
 
     private final Map<String, Cooldown> active = new LinkedHashMap<>();
@@ -75,7 +75,7 @@ public final class CooldownTracker {
         listeners.add(listener);
     }
 
-    /** Called every client tick (on Telos) from the entrypoint. */
+    /** The entrypoint calls this every client tick (on Telos). */
     public void tick() {
         long now = System.currentTimeMillis();
         detectResets();
@@ -97,12 +97,12 @@ public final class CooldownTracker {
         if (ready != null) for (Cooldown c : ready) fire(c);
     }
 
-    /** Running cooldown of {@code group}, or null. */
+    /** The running cooldown of {@code group}, or null. */
     public Cooldown get(String group) {
         return group == null ? null : active.get(group);
     }
 
-    /** Most recently started running cooldown of an item of {@code kind}, or null. */
+    /** The most recently started running cooldown of an item of {@code kind}, or null. */
     public Cooldown latest(Kind kind) {
         Cooldown best = null;
         for (Cooldown c : active.values()) {
@@ -118,7 +118,7 @@ public final class CooldownTracker {
 
     private void apply(CooldownEvent event, long now) {
         Cooldown running = active.get(event.group());
-        if (event.ticks() <= 0) { // cleared early by the server = ready now
+        if (event.ticks() <= 0) { // the server cleared it early, so it's ready now
             if (running != null) {
                 active.remove(event.group());
                 if (running.info() != null) fire(running);
@@ -141,8 +141,8 @@ public final class CooldownTracker {
             active.values().removeIf(c -> c.info() != null && TelosItemRules.resetsOnWorldChange(c.info().nameKey()));
         }
         String now = ServerInfoAdapter.tabStat("Server").map(ServerInfoAdapter.TabStat::value).orElse(null);
-        if (now == null || now.isBlank()) return; // Tab not filled yet: keep the last known server
-        if (server != null && !server.equals(now)) active.clear(); // realm / hub switch: the server resets cooldowns
+        if (now == null || now.isBlank()) return; // the Tab list isn't filled yet, so keep the last known server
+        if (server != null && !server.equals(now)) active.clear(); // a realm or hub switch, where the server resets cooldowns
         server = now;
     }
 

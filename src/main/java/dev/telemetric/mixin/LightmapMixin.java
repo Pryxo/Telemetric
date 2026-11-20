@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Fullbright: raises the lightmap's ambient colour towards white once the vanilla values are extracted. */
+/** Fullbright: once the vanilla values are extracted, raises the lightmap's ambient colour towards white. */
 @Mixin(LightmapRenderStateExtractor.class)
 public abstract class LightmapMixin {
 

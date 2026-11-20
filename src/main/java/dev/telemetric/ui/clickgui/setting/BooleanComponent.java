@@ -11,7 +11,7 @@ import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
-/** Label + animated switch. Click anywhere on the row toggles. */
+/** A label plus an animated switch. Clicking anywhere on the row toggles it. */
 public class BooleanComponent extends SettingComponent<BooleanSetting> {
 
     protected static final int TRACK_W = 16, TRACK_H = 8;
@@ -43,7 +43,7 @@ public class BooleanComponent extends SettingComponent<BooleanSetting> {
         r.circle(knobX, ty + TRACK_H / 2.0, knobR, ColorUtil.lerp(p.textMuted(), 0xFFFFFFFF, t));
     }
 
-    /** Extra space kept free left of the switch (subclasses draw icons there). */
+    /** Extra space kept free to the left of the switch (subclasses draw icons there). */
     protected int labelReserve() {
         return 0;
     }

@@ -32,37 +32,37 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * MC ADAPTER — finds floating damage numbers around the player.
+ * MC ADAPTER: finds floating damage numbers around the player.
  * <p>
- * <b>Telos Realms</b> shows hits as {@code text_display} entities whose text is drawn with image glyphs
- * from the server pack font {@code telos:text} ("xikage" sets {@code default}/{@code miniboss}/{@code boss}/
- * {@code misc}): {@code start} frame, digits / {@code dot}, {@code end} frame, separated by U+F801 spacers.
- * Mob name plates use the same glyph sets but contain letters, so they are rejected.
+ * <b>Telos Realms</b> shows hits as {@code text_display} entities whose text is drawn with image glyphs from the
+ * server pack font {@code telos:text} (the "xikage" sets {@code default}/{@code miniboss}/{@code boss}/{@code misc}):
+ * a {@code start} frame, digits / {@code dot}, an {@code end} frame, separated by U+F801 spacers. Mob name plates use
+ * the same glyph sets but contain letters, so we reject those.
  * <p>
- * The glyph → character map is built at runtime from the pack's {@code assets/telos/font/text.json}: each
- * bitmap provider's file name ({@code .../xikage/<set>/<name>.png}) names its character ({@code 0}–{@code 9},
+ * The glyph-to-character map is built at runtime from the pack's {@code assets/telos/font/text.json}. Each bitmap
+ * provider's file name ({@code .../xikage/<set>/<name>.png}) names its character ({@code 0}–{@code 9},
  * {@code a}–{@code z}, {@code dot}, {@code dash}, {@code slash}, {@code space}; {@code start}/{@code end}/
- * {@code frame}/{@code inner} are decoration). It is re-read whenever the world changes.
+ * {@code frame}/{@code inner} are decoration). It gets re-read whenever the world changes.
  * <p>
- * Plain-text numbers ("15.9" in the default font) are only counted when {@code plainNumbers} is on —
- * Telos uses them for countdowns ("3", "2", "1"), not damage.
+ * Plain-text numbers ("15.9" in the default font) only count when {@code plainNumbers} is on, because Telos uses them
+ * for countdowns ("3", "2", "1"), not damage.
  * <p>
- * Entities present when scanning (re)starts are marked as seen without being reported.
+ * Entities that are already there when scanning (re)starts get marked as seen without being reported.
  */
 public final class DamageNumberAdapter {
 
     /**
      * One damage number.
      *
-     * @param color ARGB of the first digit (0 = uncoloured — Telos glyph numbers are uncoloured)
+     * @param color ARGB of the first digit (0 means uncoloured, and Telos glyph numbers are uncoloured)
      * @param set   glyph set the digits were drawn with ({@code default}, {@code miniboss}, {@code boss},
-     *              {@code misc}) or {@code plain} for ordinary text
+     *              {@code misc}), or {@code plain} for ordinary text
      */
     public record DamageNumber(int entityId, double amount, int color, String text, String set, double distance) {}
 
     private record Glyph(char ch, String set) {}
 
-    /** Marker char for frame/decoration glyphs. */
+    /** Marker char for frame and decoration glyphs. */
     private static final char DECOR = '\u0001';
     private static final Identifier FONT_JSON = Identifier.parse("telos:font/text.json");
     private static final Pattern XIKAGE = Pattern.compile(".*/xikage/([a-z0-9_]+)/([a-z0-9_]+)\\.png$");
@@ -74,21 +74,20 @@ public final class DamageNumberAdapter {
     private static boolean primed;
     private static long lastGlyphLoad;
 
-    /** "1,234,567.8" (comma thousands) or "1234.5" / "15,9" (comma decimal). Optional k/m/b suffix. */
+    /** "1,234,567.8" (comma thousands) or "1234.5" / "15,9" (comma decimal), with an optional k/m/b suffix. */
     private static final Pattern NUMBER = Pattern.compile("^(-?)(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:[.,]\\d+)?)([kKmMbB]?)$");
 
     private DamageNumberAdapter() {}
 
-    /** Forget all seen entities; the next poll re-primes (counts nothing that already exists). */
+    /** Forgets every seen entity. The next poll primes again, so nothing that already exists gets counted. */
     public static void reset() {
         SEEN.clear();
         primed = false;
     }
 
     /**
-     * New damage numbers since the last call.
-     *
-     * Every damage number in the loaded world counts (no range / self filter).
+     * New damage numbers since the last call. Every damage number in the loaded world counts, with no range or self
+     * filter.
      *
      * @param plainNumbers also count numbers written in ordinary (non-glyph) text
      */
@@ -115,7 +114,7 @@ public final class DamageNumberAdapter {
             int id = entity.getId();
             PRESENT.add(id);
             if (SEEN.contains(id)) continue;
-            if (text.getString().isBlank()) continue; // text not synced yet — look again next tick
+            if (text.getString().isBlank()) continue; // the text hasn't synced yet, so look again next tick
             SEEN.add(id);
             if (!primed) continue;
 
@@ -132,7 +131,7 @@ public final class DamageNumberAdapter {
 
     // ------------------------------------------------------------------ entity text
 
-    /** Text of a text display, or the visible custom name of an armor stand / non-living marker entity. */
+    /** The text of a text display, or the visible custom name of an armor stand or non-living marker entity. */
     private static Component textOf(Entity entity) {
         if (entity instanceof Display.TextDisplay td) return ((TextDisplayAccessor) td).telemetric$getText();
         if (entity instanceof LivingEntity && !(entity instanceof ArmorStand)) return null;
@@ -144,7 +143,7 @@ public final class DamageNumberAdapter {
 
     private record Parsed(double amount, int color, String raw, String set) {}
 
-    /** Null when the text is not a single (non-heal) number. */
+    /** Null if the text isn't a single (non-heal) number. */
     private static Parsed parse(Component component) {
         StringBuilder sb = new StringBuilder();
         int[] color = {0};
@@ -178,7 +177,7 @@ public final class DamageNumberAdapter {
         }, Style.EMPTY);
 
         String raw = sb.toString().trim().replaceAll("\\s+", " ");
-        if (raw.isEmpty() || raw.indexOf(' ') >= 0) return null; // must be exactly one token
+        if (raw.isEmpty() || raw.indexOf(' ') >= 0) return null; // has to be exactly one token
         Matcher m = NUMBER.matcher(raw);
         if (!m.matches()) return null;
         String num = m.group(2);
@@ -200,18 +199,18 @@ public final class DamageNumberAdapter {
         return new Parsed(value, color[0], raw, s);
     }
 
-    /** Keeps digits (any script → ASCII), separators, signs and letters; any other symbol → 0 (separator). */
+    /** Keeps digits (from any script, turned into ASCII), separators, signs and letters. Any other symbol becomes 0 (a separator). */
     private static char mapPlain(int cp) {
         if (Character.isDigit(cp)) return (char) ('0' + Character.digit(cp, 10));
         if (cp == '.' || cp == ',' || cp == '-' || cp == '+' || cp == '/') return (char) cp;
         if (Character.isLetter(cp) && cp < 0x80) return (char) cp;
-        if (Character.isLetter(cp)) return 'x'; // non-ASCII letters: keep as "not a number"
+        if (Character.isLetter(cp)) return 'x'; // non-ASCII letters are kept as "not a number"
         return 0;
     }
 
     private static boolean isFont(Style style, Identifier fontJson) {
         FontDescription f = style.getFont();
-        // telos:font/text.json  <->  font id telos:text
+        // telos:font/text.json corresponds to the font id telos:text
         return f instanceof FontDescription.Resource res
                 && res.id().getNamespace().equals(fontJson.getNamespace())
                 && fontJson.getPath().equals("font/" + res.id().getPath() + ".json");
@@ -221,7 +220,7 @@ public final class DamageNumberAdapter {
 
     private static Object glyphLevel;
 
-    /** (Re)reads the server pack font on a new level, and every 5 s while it is still empty (pack applied late). */
+    /** Reads the server pack font again on a new level, and every 5 s while it's still empty (the pack may be applied late). */
     private static void refreshGlyphs(ClientLevel level) {
         long now = System.currentTimeMillis();
         if (level != glyphLevel || (glyphs.isEmpty() && now - lastGlyphLoad > 5_000)) {
@@ -232,9 +231,9 @@ public final class DamageNumberAdapter {
     }
 
     /**
-     * The letter a Telos text-font glyph draws ({@code telos:font/text.json}, every xikage set: default /
-     * miniboss / boss / misc mob plates, damage numbers): lower-case {@code a}–{@code z}, a digit, or ' ';
-     * 0 for anything else (brackets, frames, unknown code points).
+     * The letter a Telos text-font glyph draws ({@code telos:font/text.json}, all xikage sets: default / miniboss /
+     * boss / misc mob plates and damage numbers). That's a lower-case {@code a}–{@code z}, a digit, or ' ', and 0 for
+     * anything else (brackets, frames, unknown code points).
      */
     public static char textFontLetter(int cp) {
         ClientLevel level = Minecraft.getInstance().level;
@@ -269,7 +268,7 @@ public final class DamageNumberAdapter {
         Matcher m = XIKAGE.matcher(p.get("file").getAsString());
         if (!m.matches()) return;
         String set = m.group(1);
-        if (set.equals("title")) return; // title set reuses ASCII code points
+        if (set.equals("title")) return; // the title set reuses ASCII code points
         char ch = switch (m.group(2)) {
             case "dot" -> '.';
             case "dash" -> '-';

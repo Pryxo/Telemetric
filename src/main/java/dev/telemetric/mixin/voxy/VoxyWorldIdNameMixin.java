@@ -8,9 +8,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Voxy (optional): the LOD folder name is {@code WorldIdentifier.getWorldId(id)} (a sha256 hash, used as
- * {@code {world_identifier}} in Voxy's storage path). For our stable Telos stores ({@code telos:hub}, seed 0) return a
- * readable name instead ({@code hub}). {@code @Pseudo}: skipped when Voxy is not installed.
+ * Voxy (optional): the LOD folder name is {@code WorldIdentifier.getWorldId(id)}, a sha256 hash used as
+ * {@code {world_identifier}} in Voxy's storage path. For our stable Telos stores ({@code telos:hub}, seed 0) we return
+ * a readable name instead ({@code hub}). {@code @Pseudo}: skipped when Voxy isn't installed.
  */
 @Pseudo
 @Mixin(targets = "me.cortex.voxy.commonImpl.WorldIdentifier", remap = false)

@@ -9,21 +9,21 @@ import dev.telemetric.ui.render.Render2D;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Shared placement + drawing of HUD elements (used by the in-game overlay, the editor and the ClickGUI). */
+/** Shared placement and drawing of HUD elements (used by the in-game overlay, the editor and the ClickGUI). */
 public final class HudRenderer {
 
     private HudRenderer() {}
 
-    /** Shown HUD elements in registration order. */
+    /** The HUD elements being shown, in registration order. */
     public static List<HudModule> activeElements() {
         List<HudModule> list = new ArrayList<>();
-        for (Module module : Telemetric.get().modules().getModules()) { // HUD elements may live in any panel
+        for (Module module : Telemetric.get().modules().getModules()) { // HUD elements can live in any panel
             if (module instanceof HudModule hud && hud.isShown()) list.add(hud);
         }
         return list;
     }
 
-    /** Screen rectangle {x, y, w, h} of an element in GUI units. */
+    /** The screen rectangle {x, y, w, h} of an element, in GUI units. */
     public static int[] bounds(Render2D r, HudModule m, int sw, int sh, boolean preview) {
         int w = m.scaledWidth(r, preview), h = m.scaledHeight(r, preview);
         return new int[]{m.left(sw, w), m.top(sh, h), w, h};

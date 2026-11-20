@@ -3,7 +3,7 @@ package dev.telemetric.module.common;
 import dev.telemetric.game.EntityVisualsAdapter;
 import dev.telemetric.setting.impl.EnumSetting;
 
-/** "Whose …" choice for per-player visuals (Player Size, Hide Armor): {@code new EnumSetting<>("Players", …, SELF)}. */
+/** The "whose …" choice for per-player visuals (Player Size, Hide Armor): {@code new EnumSetting<>("Players", …, SELF)}. */
 public enum PlayerTarget implements EnumSetting.Nameable {
     SELF("Only Me", EntityVisualsAdapter.Target.SELF),
     OTHERS("Other Players", EntityVisualsAdapter.Target.OTHERS),

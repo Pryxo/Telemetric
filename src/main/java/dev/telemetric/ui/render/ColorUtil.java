@@ -19,7 +19,7 @@ public final class ColorUtil {
         return (clamp255(alpha) << 24) | (argb & 0xFFFFFF);
     }
 
-    /** Multiplies existing alpha by {@code factor} (0..1). */
+    /** Multiplies the existing alpha by {@code factor} (0..1). */
     public static int fade(int argb, double factor) {
         return withAlpha(argb, (int) Math.round(alpha(argb) * Math.clamp(factor, 0, 1)));
     }
@@ -35,7 +35,7 @@ public final class ColorUtil {
                 (int) Math.round(blue(from) + (blue(to) - blue(from)) * t));
     }
 
-    /** Lightens (amount &gt; 0) or darkens (amount &lt; 0) towards white/black, keeping alpha. */
+    /** Lightens (amount &gt; 0) or darkens (amount &lt; 0) towards white or black, keeping the alpha. */
     public static int shade(int argb, double amount) {
         int target = amount >= 0 ? 0xFFFFFFFF : 0xFF000000;
         return withAlpha(lerp(argb | 0xFF000000, target, Math.abs(amount)), alpha(argb));

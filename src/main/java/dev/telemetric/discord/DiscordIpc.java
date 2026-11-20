@@ -26,12 +26,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * Minimal Discord Rich Presence client over Discord's local IPC (no native library): a named pipe
- * {@code \\.\pipe\discord-ipc-N} on Windows, a Unix socket {@code discord-ipc-N} in the runtime / temp dir elsewhere
- * (incl. Flatpak / Snap Discord). Frames are {@code int32 LE opcode, int32 LE length, UTF-8 JSON}: handshake
- * (op 0) then {@code SET_ACTIVITY} commands (op 1). Runs on its own daemon thread: every {@link #PERIOD_S} s it asks
- * {@code activity} for the presence and sends it only when it changed (Discord allows ~5 updates / 20 s);
- * reconnects every {@link #RETRY_S} s while Discord is closed. Pure Java.
+ * A minimal Discord Rich Presence client that talks to Discord's local IPC directly, without a native library. On
+ * Windows that's the named pipe {@code \\.\pipe\discord-ipc-N}; elsewhere it's the Unix socket {@code discord-ipc-N}
+ * in the runtime or temp dir (Flatpak and Snap Discord included). Frames are
+ * {@code int32 LE opcode, int32 LE length, UTF-8 JSON}: a handshake (op 0), then {@code SET_ACTIVITY} commands (op 1).
+ * It runs on its own daemon thread. Every {@link #PERIOD_S} s it asks {@code activity} for the presence and only sends
+ * it if it changed (Discord allows about 5 updates per 20 s). While Discord is closed it tries to reconnect every
+ * {@link #RETRY_S} s. Pure Java.
  */
 public final class DiscordIpc {
 
@@ -58,7 +59,7 @@ public final class DiscordIpc {
         thread.scheduleWithFixedDelay(this::update, 0, PERIOD_S, TimeUnit.SECONDS);
     }
 
-    /** Clears the presence and disconnects (the thread ends). */
+    /** Clears the presence and disconnects, which ends the thread. */
     public void close() {
         thread.execute(() -> {
             if (pipe != null) {
@@ -94,7 +95,7 @@ public final class DiscordIpc {
         if (now < nextConnect) return false;
         nextConnect = now + RETRY_S * 1000L;
         pipe = Pipe.open();
-        if (pipe == null) return false; // Discord not running
+        if (pipe == null) return false; // Discord isn't running
         JsonObject hello = new JsonObject();
         hello.addProperty("v", 1);
         hello.addProperty("client_id", clientId);
@@ -128,7 +129,7 @@ public final class DiscordIpc {
         pipe.write(frame);
     }
 
-    /** Reads frames until the reply to our last frame (answers pings); null when Discord closed the pipe. */
+    /** Reads frames until the reply to our last frame arrives, answering pings on the way. Null if Discord closed the pipe. */
     private JsonObject readReply() throws IOException {
         for (int guard = 0; guard < 8; guard++) {
             ByteBuffer header = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);

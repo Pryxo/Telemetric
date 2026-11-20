@@ -14,12 +14,12 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * Any number of string options can be ticked at once (rendered as a dropdown with check boxes).
- * Typical use: blacklists / whitelists.
+ * Any number of string options can be ticked at once (shown as a dropdown with check boxes). Typically used for
+ * blacklists and whitelists.
  * <p>
- * The value is an immutable, insertion-ordered set. Matching is case-insensitive ({@link #contains}).
- * Selected entries that are not (or no longer) in {@link #getOptions()} are kept, so a saved
- * blacklist survives option lists that change at runtime; the UI lists them after the options.
+ * The value is an immutable set in insertion order, and matching ignores case ({@link #contains}). Selected entries
+ * that aren't (or are no longer) in {@link #getOptions()} are kept, so a saved blacklist survives option lists that
+ * change at runtime. The UI lists them after the options.
  */
 public class MultiChoiceSetting extends Setting<Set<String>> {
 
@@ -35,7 +35,7 @@ public class MultiChoiceSetting extends Setting<Set<String>> {
         this.options = Objects.requireNonNull(options);
     }
 
-    /** Options to show: the supplied ones plus any selected entry that is not among them. */
+    /** The options to show: the supplied ones, plus any selected entry that isn't among them. */
     public List<String> getOptions() {
         List<String> supplied = options.get();
         List<String> list = new ArrayList<>(supplied == null ? List.of() : supplied);

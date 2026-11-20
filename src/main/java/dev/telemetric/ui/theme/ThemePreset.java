@@ -4,13 +4,13 @@ import dev.telemetric.setting.impl.EnumSetting;
 import dev.telemetric.ui.render.ColorUtil;
 
 /**
- * Built-in palettes. Add a constant to add a preset — it appears in the (searchable) Theme dropdown.
- * The first four are hand-tuned; the rest are derived from a base colour + accent pair by {@link #dark} /
- * {@link #light} so every preset stays consistent.
+ * The built-in palettes. Add a constant to add a preset, and it shows up in the (searchable) Theme dropdown.
+ * The first four are tuned by hand. The rest are derived from a base colour plus an accent pair by {@link #dark} /
+ * {@link #light}, so every preset stays consistent.
  */
 public enum ThemePreset implements EnumSetting.Nameable {
 
-    // ---- purple (hand-tuned) ----
+    // ---- purple (tuned by hand) ----
     MIDNIGHT("Midnight", new Theme(
             0xA0050408,
             0xFF0F0D14, 0xFF1A1426, 0xFF130F1C,
@@ -108,7 +108,7 @@ public enum ThemePreset implements EnumSetting.Nameable {
 
     // ------------------------------------------------------------------ derived palettes
 
-    /** Dark palette from a panel colour: surfaces step up in brightness and pick up a hint of the accent. */
+    /** A dark palette from a panel colour: surfaces step up in brightness and pick up a hint of the accent. */
     private static Theme dark(int base, int accent, int accentAlt) {
         return new Theme(
                 ColorUtil.withAlpha(ColorUtil.shade(base, -0.6), 0xA0),
@@ -128,7 +128,7 @@ public enum ThemePreset implements EnumSetting.Nameable {
                 0x80000000);
     }
 
-    /** Light palette from a pale panel colour: surfaces step down, dark text. */
+    /** A light palette from a pale panel colour: surfaces step down, with dark text. */
     private static Theme light(int base, int accent, int accentAlt) {
         return new Theme(
                 0x60101018,

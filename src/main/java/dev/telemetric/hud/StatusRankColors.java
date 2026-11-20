@@ -7,23 +7,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Animated colours of a HeadStatus title by leaderboard position (Nametags → Show Status). Positions map to a
- * {@link Tier} slot (#1, #2, #3, #4–10, #11–20, #21–25; everything below stays plain); the selected {@link Theme}
- * (Nametags → Status Theme, from {@code statusColor.json}) gives each slot its {@link ColorCycle} (one colour = solid). The theme is read at draw time, so switching
- * it recolours existing name tags at once. Pure Java.
+ * Animated colours for a HeadStatus title, by leaderboard position (Nametags → Show Status). Positions map to a
+ * {@link Tier} slot (#1, #2, #3, #4–10, #11–20, #21–25; anything lower stays plain). The selected {@link Theme}
+ * (Nametags → Status Theme, from {@code statusColor.json}) gives each slot its {@link ColorCycle} (a single colour
+ * means solid). The theme is read at draw time, so switching it recolours existing name tags right away. Pure Java.
  */
 public final class StatusRankColors {
 
     private StatusRankColors() {}
 
-    /** Per-character step of the tier gradients (frames). */
+    /** Per-character step of the tier gradients, in frames. */
     private static final double STEP = 0.35;
 
     private static ColorCycle gradient(int... frames) {
         return new ColorCycle(frames, STEP, Durations.STATUS_GRADIENT_LOOP);
     }
 
-    /** Leaderboard slot. {@code wave} = characters also bob up and down (Nametags → Top 1 Wave). */
+    /** A leaderboard slot. {@code wave} means the characters also bob up and down (Nametags → Top 1 Wave). */
     public enum Tier {
         TOP_1(true, "#1"), TOP_2(false, "#2"), TOP_3(false, "#3"), TOP_10(false, "#4-10"),
         TOP_20(false, "#11-20"), TOP_25(false, "#21-25");
@@ -45,11 +45,11 @@ public final class StatusRankColors {
 
     /**
      * A colour set for all slots, in {@link Tier} order. Themes come from {@code data/tables/statusColor.json}
-     * ({@link TelosData#STATUS_COLORS}); add new ones there and they show up in the Status Theme dropdown.
+     * ({@link TelosData#STATUS_COLORS}). Add new ones there and they show up in the Status Theme dropdown.
      */
     public static final class Theme {
         private static final ColorCycle WHITE = gradient(0xFFFFFF);
-        /** Used when the table is missing / empty: #1 shiny, the rest white. */
+        /** Used when the table is missing or empty: #1 is shiny, the rest white. */
         private static final Theme FALLBACK = new Theme("Telos Realms", new ColorCycle[]{
                 ShinyColors.CYCLE, WHITE, WHITE, WHITE, WHITE, WHITE});
 
@@ -68,7 +68,7 @@ public final class StatusRankColors {
         private static TelosData.StatusColors builtFrom;
         private static List<Theme> built = List.of(FALLBACK);
 
-        /** All themes of the current table snapshot (rebuilt when the table is swapped). */
+        /** All themes in the current table snapshot (rebuilt when the table gets swapped). */
         public static synchronized List<Theme> all() {
             TelosData.StatusColors table = TelosData.STATUS_COLORS.get();
             if (table != builtFrom) {
@@ -90,7 +90,7 @@ public final class StatusRankColors {
             return gradient(slot.rgb());
         }
 
-        /** Theme with that display name (case-insensitive), else the first one. */
+        /** The theme with that display name (case-insensitive), or else the first one. */
         public static Theme byName(String name) {
             List<Theme> all = all();
             for (Theme t : all) if (t.displayName.equalsIgnoreCase(name)) return t;
@@ -117,12 +117,12 @@ public final class StatusRankColors {
         themeName = name == null ? "" : name;
     }
 
-    /** Current theme's cycle for {@code tier}. */
+    /** The current theme's cycle for {@code tier}. */
     public static ColorCycle cycle(Tier tier) {
         return theme().cycle(tier);
     }
 
-    /** Tier of a leaderboard position, or null (no position / below #25). */
+    /** The tier for a leaderboard position, or null (no position, or below #25). */
     public static Tier forPosition(int position) {
         if (position <= 0) return null;
         if (position == 1) return Tier.TOP_1;

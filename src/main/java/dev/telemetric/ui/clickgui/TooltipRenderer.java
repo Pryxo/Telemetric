@@ -12,8 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Description tooltip: appears after a dwell of {@link Durations#TOOLTIP_DELAY} on the same element,
- * fades/slides in over {@link Durations#TOOLTIP}, and fades out when the pointer leaves.
+ * The description tooltip. It appears after a dwell of {@link Durations#TOOLTIP_DELAY} on the same element, fades and
+ * slides in over {@link Durations#TOOLTIP}, and fades out when the pointer leaves.
  */
 public final class TooltipRenderer {
 
@@ -25,7 +25,7 @@ public final class TooltipRenderer {
     private String text;
     private String title;
     private static final float TITLE_SCALE = 1.15f;
-    /** Overall tooltip text size (title + description). */
+    /** The overall tooltip text size (title and description). */
     private static final float TEXT_SCALE = 0.7f;
     private long hoverStart;
 
@@ -52,7 +52,7 @@ public final class TooltipRenderer {
         double a = fade.get();
         if (a <= 0.01 || text == null) return;
 
-        // Content is laid out in unscaled text units, then drawn at TEXT_SCALE.
+        // the content is laid out in unscaled text units, then drawn at TEXT_SCALE
         List<String> lines = wrap(r, text, Math.round(MAX_WIDTH / TEXT_SCALE));
         int cw = 0;
         for (String line : lines) cw = Math.max(cw, r.textWidth(line));

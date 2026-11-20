@@ -12,22 +12,22 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
- * Chat tabs: sorts every chat line into one category ({@code tables/chat.json}) and tracks the open tab.
- * Display only — a line's category never triggers anything, so lines a player typed may land in any tab. "All"
- * ({@link #ALL}, always first) shows everything. Pure Java; the chat HUD asks {@link #visible} per line.
+ * Chat tabs: sorts every chat line into one category ({@code tables/chat.json}) and tracks which tab is open.
+ * This is display only. A line's category never triggers anything, so lines a player typed can land in any tab.
+ * "All" ({@link #ALL}, always first) shows everything. Pure Java; the chat HUD asks {@link #visible} for each line.
  */
 public final class ChatTabs {
 
     public static final String ALL = "All";
-    /** Category of lines no rule matched. */
+    /** Category for lines that matched no rule. */
     public static final String OTHER = "";
 
     private final Predicate<String> callout;
     private List<String> shown = List.of(ALL);
     private String active = ALL;
-    /** "All Chat Tab" on: "All" shows the full archive (every line since the game started, hidden ones included). */
+    /** "All Chat Tab" setting: when on, "All" shows the full archive (every line since the game started, hidden ones too). */
     private boolean archiveAll;
-    /** Lines that arrived in a tab while another one was open (cleared when it opens). */
+    /** Lines that arrived in a tab while another one was open. Cleared when the tab is opened. */
     private final Map<String, Integer> unread = new HashMap<>();
 
     /** @param callout the {@code builtin: callout} check ({@link Callouts#isCallout}) */
@@ -35,7 +35,7 @@ public final class ChatTabs {
         this.callout = callout;
     }
 
-    /** Category key of a line's plain text: the first matching category in {@code chat.json}, else {@link #OTHER}. */
+    /** Category key for a line's plain text: the first matching category in {@code chat.json}, or {@link #OTHER}. */
     public String categorize(String plain) {
         for (ChatRules.Category c : TelosData.CHAT.get().categories()) {
             if ("callout".equals(c.builtin()) && callout.test(plain)) return c.key();
@@ -62,8 +62,8 @@ public final class ChatTabs {
     }
 
     /**
-     * Counts a new line as unread in every other tab it belongs to. {@code hidden} lines (kept out of the chat)
-     * only count for "All" when it shows the archive.
+     * Counts a new line as unread in every other tab it belongs to. {@code hidden} lines (kept out of the chat) only
+     * count for "All", and only when it shows the archive.
      */
     public void countNew(String category, boolean hidden) {
         for (String tab : shown) {
@@ -72,14 +72,14 @@ public final class ChatTabs {
         }
     }
 
-    /** Unseen lines of {@code tab} (0 for the open one). */
+    /** Unread lines in {@code tab} (always 0 for the open one). */
     public int unread(String tab) {
         return unread.getOrDefault(tab, 0);
     }
 
     /**
-     * Sets the tabs in the bar ("All" first, then the ticked ones in {@code chat.json} order). Returns true if the
-     * open tab had to fall back to "All".
+     * Sets the tabs in the bar: "All" first, then the ticked ones in {@code chat.json} order. Returns true if the open
+     * tab had to fall back to "All".
      */
     public boolean setShown(Set<String> ticked, boolean allChat) {
         List<String> list = new ArrayList<>();
@@ -106,7 +106,7 @@ public final class ChatTabs {
         return active;
     }
 
-    /** Opens {@code tab}; false if it is already open or not in the bar. */
+    /** Opens {@code tab}. Returns false if it's already open or isn't in the bar. */
     public boolean open(String tab) {
         if (tab == null || tab.equals(active) || !shown.contains(tab)) return false;
         active = tab;
@@ -114,14 +114,14 @@ public final class ChatTabs {
         return true;
     }
 
-    /** The tab {@code step} places from the open one (wraps around). */
+    /** The tab {@code step} places away from the open one (wraps around). */
     public String neighbour(int step) {
         int i = Math.max(0, shown.indexOf(active));
         int n = shown.size();
         return shown.get(Math.floorMod(i + step, n));
     }
 
-    /** Server chat mode the open tab sends in ({@code guild} …), or "" for none (All, Callouts, …). */
+    /** The server chat mode the open tab sends in ({@code guild} …), or "" if it has none (All, Callouts, …). */
     public String channelOf(String tab) {
         ChatRules.Tab t = TelosData.CHAT.get().tab(tab);
         return t == null ? "" : t.channel();

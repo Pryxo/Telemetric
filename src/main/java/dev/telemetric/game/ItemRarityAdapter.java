@@ -13,13 +13,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * MC ADAPTER — Item Rarity: a soft rarity-coloured shape behind items in inventory slots and the hotbar. The rarity is
- * the last part of the item's tooltip style ({@code telos:untiered/bloodshot}), its colour comes from
- * {@code data/tables/rarities.json}. Called by {@code ContainerSlotMixin} / {@code HotbarSlotMixin} before the item.
+ * MC ADAPTER for Item Rarity: a soft, rarity-coloured shape behind items in inventory slots and the hotbar. The rarity
+ * is the last part of the item's tooltip style ({@code telos:untiered/bloodshot}), and its colour comes from
+ * {@code data/tables/rarities.json}. {@code ContainerSlotMixin} and {@code HotbarSlotMixin} call it before drawing the item.
  */
 public final class ItemRarityAdapter {
 
-    /** Background shape → texture in {@code assets/telemetric/textures/gui/rarity/} (white, tinted per rarity). */
+    /** Background shape, mapped to a texture in {@code assets/telemetric/textures/gui/rarity/} (white, tinted per rarity). */
     public enum Shape {
         CIRCLE("circle"), SQUARE("square"), FRAME("frame");
 
@@ -32,19 +32,19 @@ public final class ItemRarityAdapter {
 
     /**
      * @param alpha  0..255
-     * @param hidden keys ({@code rarities.json}) of rarities not to mark
+     * @param hidden keys ({@code rarities.json}) of the rarities that shouldn't be marked
      */
     public record Style(Shape shape, int alpha, Set<String> hidden, boolean hotbar) {}
 
     private static final int TEX = 64;
     private static volatile Style style;
-    /** Tooltip style → rarity (null = none), rebuilt when the rarity table changes. */
+    /** Tooltip style to rarity (null for none). Rebuilt when the rarity table changes. */
     private static final Map<Identifier, TelosData.Rarity> RARITY = new HashMap<>();
     private static TelosData.Rarities rarityFor;
 
     private ItemRarityAdapter() {}
 
-    /** Null = off. */
+    /** Null means off. */
     public static void setStyle(Style s) {
         style = s;
     }
@@ -60,7 +60,7 @@ public final class ItemRarityAdapter {
                 (s.alpha() << 24) | rgb);
     }
 
-    /** Rarity colour (0xRRGGBB) of an item with this tooltip style, or -1 for none / a hidden rarity. */
+    /** The rarity colour (0xRRGGBB) of an item with this tooltip style, or -1 if it has none or the rarity is hidden. */
     private static int colorOf(Identifier tooltipStyle, Set<String> hidden) {
         TelosData.Rarities table = TelosData.RARITIES.get();
         if (table != rarityFor) {

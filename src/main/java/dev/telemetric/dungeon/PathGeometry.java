@@ -4,14 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Turns a cell path into drawable polylines.
+ * Turns a cell path into polylines we can draw.
  * <ul>
- *   <li>{@link #simplify}: string-pulling — drops cells while a straight line between two cells on the
- *       same level stays on walkable floor, so the route is a few straight legs instead of a staircase.
- *       Falls are drawn as "over the edge, then straight down"; ladders as vertical legs. Free-mode legs
- *       through the air (jump pads, high walls) are pulled into straight 3D legs while the line stays in
- *       open blocks — no leg ever passes through a block.</li>
- *   <li>{@link #rounded}: replaces every corner with a quadratic curve of a fixed radius ("Clean").</li>
+ *   <li>{@link #simplify} does string-pulling. It drops cells as long as a straight line between two cells on the
+ *       same level stays on walkable floor, so the route becomes a few straight legs instead of a staircase. Falls
+ *       are drawn as "over the edge, then straight down", and ladders as vertical legs. Free-mode legs through the
+ *       air (jump pads, high walls) get pulled into straight 3D legs as long as the line stays in open blocks, so no
+ *       leg ever passes through a block.</li>
+ *   <li>{@link #rounded} replaces every corner with a quadratic curve of a fixed radius ("Clean").</li>
  * </ul>
  * Points sit {@link #LIFT} above the floor so the line hugs it without z-fighting.
  */
@@ -20,7 +20,7 @@ public final class PathGeometry {
     public static final double LIFT = 0.06;
     private static final double SAMPLE = 0.3;
     private static final double CLEARANCE = 0.3;
-    /** Walk-leg width check: half a player (0.3) was too strict next to walls. */
+    /** Width check for walk legs. Half a player (0.3) was too strict next to walls. */
     private static final double WALK_CLEARANCE = 0.2;
     private static final int MAX_LOOKAHEAD = 96;
     private static final double CORNER_RADIUS = 1.4;
@@ -42,8 +42,8 @@ public final class PathGeometry {
         while (i < cells.length - 1) {
             int k = i + 1;
             int y = Cell.y(cells[i]);
-            // farthest cell on this level with a clear straight line (not just the first break), so a
-            // single kink in the grid path no longer splits a straight walk into many short legs
+            // Take the farthest cell on this level with a clear straight line, not just the first break, so a single kink in
+            // the grid path doesn't split a straight walk into lots of short legs.
             int run = i;
             while (run + 1 < cells.length && run - i < MAX_LOOKAHEAD && Cell.y(cells[run + 1]) == y) run++;
             for (int j = run; j > i + 1; j--) {
@@ -69,13 +69,13 @@ public final class PathGeometry {
         return out;
     }
 
-    /** A free-mode cell in mid-air (not standable, not a ladder). */
+    /** A free-mode cell in mid-air (neither standable nor a ladder). */
     private static boolean isAir(DungeonMap map, long cell) {
         int x = Cell.x(cell), y = Cell.y(cell), z = Cell.z(cell);
         return !map.isStand(x, y, z);
     }
 
-    /** The drawn 3D line between two cells (and ±{@link #CLEARANCE} around it) only crosses open blocks. */
+    /** True if the drawn 3D line between two cells (and ±{@link #CLEARANCE} around it) only crosses open blocks. */
     private static boolean straightOpen(DungeonMap map, long a, long b) {
         Point pa = point(map, a), pb = point(map, b);
         double dx = pb.x() - pa.x(), dy = pb.y() - pa.y(), dz = pb.z() - pa.z();

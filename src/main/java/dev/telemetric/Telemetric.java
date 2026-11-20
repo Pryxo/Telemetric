@@ -34,15 +34,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Client entrypoint. Owns the managers and wires Fabric events. Keep logic out of here —
- * it only connects subsystems.
+ * Client entrypoint. It owns the managers and wires up the Fabric events. Keep logic out of here; this class only
+ * connects subsystems.
  */
 public final class Telemetric implements ClientModInitializer {
 
     public static final String MOD_ID = "telemetric";
     public static final String NAME = "Telemetric";
     public static final Logger LOGGER = LoggerFactory.getLogger(NAME);
-    /** Diagnostic logging (dungeon analysis, Tab stats, stash pop-ups). Off: nothing goes to latest.log. */
+    /** Diagnostic logging (dungeon analysis, Tab stats, stash pop-ups). When off, nothing goes to latest.log. */
     public static boolean debugLog = false;
 
     /** Logs at info level only while {@link #debugLog} is on. */
@@ -61,13 +61,13 @@ public final class Telemetric implements ClientModInitializer {
     public void onInitializeClient() {
         instance = this;
 
-        ModPaths.migrate(); // first: old flat config folder -> settings/ saved/ custom/ data/
-        TelosData.init(); // shared tables: cache / bundled copy now, one update check per start
+        ModPaths.migrate(); // first, move the old flat config folder into settings/ saved/ custom/ data/
+        TelosData.init(); // shared tables: load from cache or the bundled copy now, one update check per start
         dev.telemetric.api.HeadStatusApi.refreshRealms(); // one live realm list request per start (Realm Selector)
         moduleManager = new ModuleManager();
         moduleManager.registerAll();
-        // Add-ons register extra categories, palettes and modules here,
-        // before the config loads so their settings are saved and restored like any other module.
+        // Add-ons register extra categories, palettes and modules here. This happens before the config loads, so their
+        // settings get saved and restored like any other module's.
         for (TelemetricAddon addon : FabricLoader.getInstance()
                 .getEntrypoints(TelemetricAddon.ENTRYPOINT, TelemetricAddon.class)) {
             addon.register(moduleManager);
@@ -92,7 +92,7 @@ public final class Telemetric implements ClientModInitializer {
         RealmBossTracker.get().start();
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
-        // once the client (and its session services) is up: one load of the settable head statuses per start
+        // once the client and its session services are up, load the settable head statuses (once per start)
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> dev.telemetric.api.HeadStatusApi.refreshStatuses());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             configManager.onShutdown();
@@ -104,7 +104,7 @@ public final class Telemetric implements ClientModInitializer {
 
     private void onEndTick(Minecraft client) {
         if (!ServerGate.onTelos()) {
-            Keybinds.consumeOpenGui(); // drop presses made off Telos
+            Keybinds.consumeOpenGui(); // throw away presses made off Telos
             if (client.screen instanceof ClickGuiScreen || client.screen instanceof HudEditorScreen) {
                 client.setScreen(null);
             }
@@ -118,7 +118,7 @@ public final class Telemetric implements ClientModInitializer {
         RealmBossTracker.get().tick();
         LootTracker.get().tick();
         WikiStatsScan.get().tick();
-        dev.telemetric.api.HeadStatusCache.tick(); // head statuses of loaded players, every 10 s, 15 min cache
+        dev.telemetric.api.HeadStatusCache.tick(); // head statuses of loaded players, checked every 10 s, cached for 15 min
         try {
             CooldownTracker.get().tick();
         } catch (RuntimeException e) {

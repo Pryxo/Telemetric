@@ -13,9 +13,9 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 /**
- * Single-line text field (label above, input below). Click to focus; Enter (runs the setting's submit action)/Esc or clicking elsewhere
- * unfocuses. Backspace deletes, Ctrl+Backspace clears, Ctrl+V pastes, Ctrl+C copies the whole value. Caret always at
- * the end (simple & robust).
+ * A single-line text field (label above, input below). Click to focus. Enter (which runs the setting's submit
+ * action), Esc or clicking elsewhere unfocuses it. Backspace deletes, Ctrl+Backspace clears, Ctrl+V pastes, and
+ * Ctrl+C copies the whole value. The caret always sits at the end, which keeps it simple and robust.
  */
 public class TextComponent extends SettingComponent<TextSetting> {
 
@@ -56,9 +56,9 @@ public class TextComponent extends SettingComponent<TextSetting> {
         if (value.isEmpty() && !focused) {
             r.text("Click to type", bx + 3, by + 2, p.textDisabled());
         } else {
-            // show the tail of the text if it overflows
+            // if the text overflows, show its tail
             String shown = value;
-            if (shown.length() > 256) shown = shown.substring(shown.length() - 256); // long pastes: measure only the tail
+            if (shown.length() > 256) shown = shown.substring(shown.length() - 256); // for long pastes, only measure the tail
             while (!shown.isEmpty() && r.textWidth(shown) > innerW - 2) shown = shown.substring(1);
             r.text(shown, bx + 3, by + 2, p.text());
             boolean caretOn = focused && ((System.currentTimeMillis() - focusTime) / 530) % 2 == 0;
@@ -97,7 +97,7 @@ public class TextComponent extends SettingComponent<TextSetting> {
             ctx.clearFocus();
             return true;
         }
-        // swallow every other key so typing never triggers game / GUI shortcuts
+        // swallow every other key so typing never triggers game or GUI shortcuts
         return true;
     }
 
@@ -112,7 +112,7 @@ public class TextComponent extends SettingComponent<TextSetting> {
         return true;
     }
 
-    /** Appends clipboard text (line breaks / tabs dropped, filter + max length applied). */
+    /** Appends clipboard text (line breaks and tabs dropped, filter and max length applied). */
     private void paste(String text) {
         StringBuilder next = new StringBuilder(setting.get());
         int count = next.codePointCount(0, next.length());

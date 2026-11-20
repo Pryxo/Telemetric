@@ -5,9 +5,8 @@ import dev.telemetric.setting.Setting;
 import java.util.List;
 
 /**
- * A setting whose value is one of a list of options (rendered as a dropdown).
- * Shared base for {@link ModeSetting} (strings) and {@link EnumSetting} (enums) so a single
- * UI component handles both.
+ * A setting whose value is one of a list of options (shown as a dropdown). It's the shared base for
+ * {@link ModeSetting} (strings) and {@link EnumSetting} (enums), so a single UI component handles both.
  */
 public abstract class ChoiceSetting<T> extends Setting<T> {
 
@@ -15,7 +14,7 @@ public abstract class ChoiceSetting<T> extends Setting<T> {
         super(name, description, defaultValue);
     }
 
-    /** Current options. May change at runtime (e.g. list of profiles). */
+    /** The current options. They can change at runtime (e.g. the list of profiles). */
     public abstract List<T> getOptions();
 
     /** Label shown in the UI for an option. */

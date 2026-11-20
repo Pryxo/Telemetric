@@ -16,14 +16,14 @@ import java.util.Objects;
 /**
  * Base class for everything shown as a row in the ClickGUI.
  * <p>
- * Two flavours:
+ * There are two flavours:
  * <ul>
- *   <li><b>Toggleable</b> (default) — a feature with an on/off state and a keybind.
- *       Left-click toggles, right-click opens its settings.</li>
- *   <li><b>Settings group</b> ({@code toggleable = false}) — e.g. Theme / Interface. No on/off,
- *       no keybind; any click opens the settings.</li>
+ *   <li><b>Toggleable</b> (the default): a feature with an on/off state and a keybind.
+ *       Left-click toggles it, right-click opens its settings.</li>
+ *   <li><b>Settings group</b> ({@code toggleable = false}), e.g. Theme or Interface. No on/off and no keybind; any
+ *       click opens the settings.</li>
  * </ul>
- * Subclasses declare settings as fields via {@link #add(Setting)}:
+ * Subclasses declare their settings as fields through {@link #add(Setting)}:
  * <pre>{@code
  * public class ExampleModule extends Module {
  *     private final BooleanSetting flag = add(new BooleanSetting("Flag", "Does a thing", true));
@@ -43,7 +43,7 @@ public abstract class Module implements JsonSerializable {
     private final KeybindSetting bind;
     private boolean enabled;
 
-    /** Movable settings ({@link Setting#movable()}) in the user's order; fixed settings keep their slot. */
+    /** Movable settings ({@link Setting#movable()}) in the user's order. Fixed settings keep their slot. */
     private final List<Setting<?>> order = new ArrayList<>();
     private int orderVersion;
 
@@ -84,8 +84,8 @@ public abstract class Module implements JsonSerializable {
     }
 
     /**
-     * Settings in UI order: declared settings with the movable ones (and their attached followers) placed in the
-     * user's order, then the bind for toggleable modules.
+     * Settings in UI order: the declared settings, with the movable ones (and the followers attached to them) placed in
+     * the user's order, then the bind for toggleable modules.
      */
     public List<Setting<?>> getGuiSettings() {
         List<Setting<?>> list = new ArrayList<>(settings.size() + 1);
@@ -108,7 +108,7 @@ public abstract class Module implements JsonSerializable {
         return Collections.unmodifiableList(order);
     }
 
-    /** Settings attached (directly or transitively) to {@code head}, in declaration order. */
+    /** Settings attached to {@code head}, directly or through other followers, in declaration order. */
     public List<Setting<?>> followersOf(Setting<?> head) {
         List<Setting<?>> out = new ArrayList<>();
         for (Setting<?> s : settings) if (s != head && rootOf(s) == head) out.add(s);
@@ -132,7 +132,7 @@ public abstract class Module implements JsonSerializable {
         orderVersion++;
     }
 
-    /** Bumped whenever the setting order changes (drag, profile load, reset). */
+    /** Bumped every time the setting order changes (drag, profile load, reset). */
     public int getOrderVersion() {
         return orderVersion;
     }
@@ -168,7 +168,7 @@ public abstract class Module implements JsonSerializable {
     private final List<Runnable> syncs = new ArrayList<>();
 
     /**
-     * Runs {@code sync} whenever the module is turned on or off and whenever one of {@code watched} changes — for
+     * Runs {@code sync} whenever the module is turned on or off and whenever one of {@code watched} changes. Meant for
      * modules that only push their settings into an adapter. {@code sync} reads {@link #isEnabled()} itself:
      * <pre>{@code syncOn(() -> ViewAdapter.setFullbright(isEnabled() ? strength.getFloat() : 0), strength);}</pre>
      */
@@ -189,7 +189,7 @@ public abstract class Module implements JsonSerializable {
         setEnabled(isEnabledByDefault());
     }
 
-    /** Enabled state after {@link #resetToDefaults()} (and for modules missing from a profile). */
+    /** The enabled state after {@link #resetToDefaults()} (also used for modules missing from a profile). */
     protected boolean isEnabledByDefault() {
         return false;
     }
@@ -202,7 +202,7 @@ public abstract class Module implements JsonSerializable {
     /** Called when the module turns off. */
     protected void onDisable() {}
 
-    /** Called every client tick while enabled (or always for non-toggleable modules, see ModuleManager). */
+    /** Called every client tick while enabled (or always, for non-toggleable modules; see ModuleManager). */
     public void onTick() {}
 
     /** Called once after all modules are registered and the config has been loaded. */
@@ -215,7 +215,7 @@ public abstract class Module implements JsonSerializable {
     public Category getCategory() { return category; }
     public boolean isToggleable() { return toggleable; }
 
-    /** Override to hide a module from the ClickGUI (it still loads/saves). */
+    /** Override this to hide a module from the ClickGUI. It still loads and saves. */
     public boolean isVisibleInGui() { return true; }
 
     // ------------------------------------------------------------------ serialisation
@@ -251,7 +251,7 @@ public abstract class Module implements JsonSerializable {
                     try {
                         setting.fromJson(element);
                     } catch (RuntimeException ignored) {
-                        // malformed value: keep current
+                        // malformed value, so keep the current one
                     }
                 }
             }
@@ -264,7 +264,7 @@ public abstract class Module implements JsonSerializable {
         }
     }
 
-    /** Applies a saved order; unknown names are skipped, missing settings keep their declared order at the end. */
+    /** Applies a saved order. Unknown names are skipped, and settings missing from it keep their declared order at the end. */
     private void readOrder(JsonElement element) {
         if (order.isEmpty()) return;
         if (element == null || !element.isJsonArray()) {

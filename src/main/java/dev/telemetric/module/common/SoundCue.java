@@ -16,7 +16,7 @@ import java.util.List;
  * <pre>{@code private final SoundCue sound = addBundle(new SoundCue("Ready Sound", "When the cooldown ends", "entity.player.levelup"));
  * ...
  * sound.play(); // no-op while the toggle is off}</pre>
- * Config keys: {@code <name>}, {@code <name> Id}, {@code <name> Volume}, {@code <name> Pitch}.
+ * Config keys are {@code <name>}, {@code <name> Id}, {@code <name> Volume} and {@code <name> Pitch}.
  */
 public final class SoundCue implements SettingBundle {
 

@@ -9,25 +9,25 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Small JSON readers shared by the table parsers (no registry, no Fabric — the parsers stay testable). */
+/** Small JSON readers shared by the table parsers. No registry and no Fabric, so the parsers stay testable. */
 final class JsonFields {
 
     private JsonFields() {}
 
-    /** String field, "" when missing / null / not a primitive. */
+    /** String field, or "" when it's missing, null or not a primitive. */
     static String str(JsonObject o, String key) {
         JsonElement e = o == null ? null : o.get(key);
         return e == null || e.isJsonNull() || !e.isJsonPrimitive() ? "" : e.getAsString();
     }
 
-    /** Int field, {@code fallback} when missing / not a number. */
+    /** Int field, or {@code fallback} when it's missing or not a number. */
     static int integer(JsonObject o, String key, int fallback) {
         JsonElement e = o == null ? null : o.get(key);
         if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) return fallback;
         return e.getAsInt();
     }
 
-    /** Boolean field, {@code fallback} when missing / not a boolean. */
+    /** Boolean field, or {@code fallback} when it's missing or not a boolean. */
     static boolean bool(JsonObject o, String key, boolean fallback) {
         JsonElement e = o == null ? null : o.get(key);
         if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isBoolean()) return fallback;
@@ -40,7 +40,7 @@ final class JsonFields {
         return e != null && e.isJsonObject() ? e.getAsJsonObject() : null;
     }
 
-    /** The string entries of an array field (non-strings skipped), empty when missing. */
+    /** The string entries of an array field (non-strings are skipped). Empty when the field is missing. */
     static List<String> strings(JsonObject o, String key) {
         JsonElement e = o == null ? null : o.get(key);
         if (e == null || !e.isJsonArray()) return List.of();
@@ -51,7 +51,7 @@ final class JsonFields {
         return List.copyOf(out);
     }
 
-    /** The object entries of an array field (others skipped), empty when missing. */
+    /** The object entries of an array field (anything else is skipped). Empty when the field is missing. */
     static List<JsonObject> objects(JsonObject o, String key) {
         JsonElement e = o == null ? null : o.get(key);
         if (e == null || !e.isJsonArray()) return List.of();
@@ -60,7 +60,7 @@ final class JsonFields {
         return out;
     }
 
-    /** String values of an object field, in file order ({@code "key": "value"}), empty when missing. */
+    /** String values of an object field ({@code "key": "value"}) in file order. Empty when the field is missing. */
     static Map<String, String> stringMap(JsonObject o, String key) {
         JsonObject m = obj(o, key);
         if (m == null) return Map.of();
@@ -71,7 +71,7 @@ final class JsonFields {
         return Collections.unmodifiableMap(out);
     }
 
-    /** {@code #RRGGBB} → 0xRRGGBB; a colour name or bad value → white. */
+    /** Turns {@code #RRGGBB} into 0xRRGGBB. A colour name or a bad value gives white. */
     static int rgb(String hex) {
         String h = hex.startsWith("#") ? hex.substring(1) : hex;
         try {

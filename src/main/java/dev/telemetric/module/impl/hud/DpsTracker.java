@@ -2,12 +2,12 @@ package dev.telemetric.module.impl.hud;
 
 /**
  * Pure fight bookkeeping (no Minecraft). Times are milliseconds from any monotonic clock.
- * A fight starts with the first hit and ends {@code timeoutMs} after the last one; the next hit after
- * that starts a fresh fight. An ended fight keeps its numbers (frozen at its last hit) until the next one.
+ * A fight starts with the first hit and ends {@code timeoutMs} after the last one, and the next hit after that starts
+ * a fresh fight. An ended fight keeps its numbers (frozen at its last hit) until the next one.
  */
 final class DpsTracker {
 
-    /** Hits of the current fight kept for the rolling DPS window (time, amount). */
+    /** Hits of the current fight kept for the rolling DPS window, as (time, amount). */
     private final java.util.ArrayDeque<long[]> recent = new java.util.ArrayDeque<>();
     private static final long MAX_WINDOW_MS = 60_000;
 
@@ -34,7 +34,7 @@ final class DpsTracker {
         hits++;
     }
 
-    /** Drops the max hit once it is older than {@code afterMs} (the next hit becomes the new max). */
+    /** Drops the max hit once it's older than {@code afterMs}, so the next hit becomes the new max. */
     void expireMax(long now, long afterMs) {
         if (maxTime >= 0 && now - maxTime > afterMs) {
             max = 0;
@@ -49,7 +49,7 @@ final class DpsTracker {
         recent.clear();
     }
 
-    /** True once a fight has had a hit (also after it ended, until {@link #reset()}). */
+    /** True once a fight has had a hit (still true after it ended, until {@link #reset()}). */
     boolean hasFight() {
         return lastHitTime >= 0;
     }
@@ -59,24 +59,24 @@ final class DpsTracker {
         return lastHitTime >= 0 && now - lastHitTime <= timeoutMs;
     }
 
-    /** End of the fight's clock: {@code now} while it runs, its last hit once it ended. */
+    /** The end of the fight's clock: {@code now} while it's running, or its last hit once it ended. */
     long clock(long now, long timeoutMs) {
         return active(now, timeoutMs) ? now : lastHitTime;
     }
 
-    /** Fight length (first hit → {@code end}), in ms. */
+    /** Fight length in ms, from the first hit to {@code end}. */
     long duration(long end) {
         return start < 0 ? 0 : Math.max(0, end - start);
     }
 
-    /** Total damage ÷ fight length up to {@code end} (at least 1 s). */
+    /** Total damage divided by the fight length up to {@code end} (at least 1 s). */
     double dps(long end) {
         return start < 0 ? 0 : total / Math.max(1.0, duration(end) / 1000.0);
     }
 
     /**
-     * Damage of the last {@code windowMs} before {@code end} ÷ the window (the fight length instead while the fight
-     * is shorter, at least 1 s). {@code windowMs <= 0} = whole fight ({@link #dps(long)}).
+     * Damage in the last {@code windowMs} before {@code end}, divided by the window (or by the fight length while the
+     * fight is shorter, at least 1 s). A {@code windowMs <= 0} means the whole fight ({@link #dps(long)}).
      */
     double dps(long end, long windowMs) {
         if (windowMs <= 0) return dps(end);

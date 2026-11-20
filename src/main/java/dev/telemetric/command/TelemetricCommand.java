@@ -14,17 +14,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
- * {@code /telemetric} (alias {@code /tm}) — the mod's own client command (works on every server).
+ * {@code /telemetric} (alias {@code /tm}), the mod's own client command. It works on every server.
  * <ul>
- *   <li>{@code /telemetric} — lists the sub-commands.</li>
- *   <li>{@code /telemetric update-cache} — re-downloads every shared data table (Boss / pity loot, rarities, traits,
- *       chat, realms, …), saves it to the cache and reloads it right away.</li>
- *   <li>{@code /telemetric status get} — your current HeadStatus head status.</li>
- *   <li>{@code /telemetric status set <name>} — sets it; names are the display names from the API's status list
- *       ("Luna Kills"), sent to the API as their ID ({@code STATUS-LUNA}). Only statuses you are top 25 or better
- *       in are offered (Tab) and accepted.</li>
- *   <li>{@code /telemetric status clear} — removes it.</li>
- *   <li>{@code /telemetric status refresh} — loads the status list again (it is loaded once on start).</li>
+ *   <li>{@code /telemetric} lists the sub-commands.</li>
+ *   <li>{@code /telemetric update-cache} downloads every shared data table again (Boss / pity loot, rarities,
+ *       traits, chat, realms, …), saves it to the cache and reloads it right away.</li>
+ *   <li>{@code /telemetric status get} shows your current HeadStatus head status.</li>
+ *   <li>{@code /telemetric status set <name>} sets it. Names are the display names from the API's status list
+ *       ("Luna Kills") and get sent to the API as their ID ({@code STATUS-LUNA}). Only statuses you're in the top 25
+ *       of are offered (Tab) and accepted.</li>
+ *   <li>{@code /telemetric status clear} removes it.</li>
+ *   <li>{@code /telemetric status refresh} loads the status list again (it's loaded once on start).</li>
  * </ul>
  */
 public final class TelemetricCommand {
@@ -115,7 +115,7 @@ public final class TelemetricCommand {
         });
     }
 
-    /** Status ID for a display name ("luna kills") or an ID ("STATUS-LUNA"), ignoring case; null if none. */
+    /** Status ID for a display name ("luna kills") or an ID ("STATUS-LUNA"), ignoring case. Null if there's no match. */
     private static String findStatus(Map<String, String> statuses, String name) {
         for (Map.Entry<String, String> e : statuses.entrySet()) {
             if (e.getValue().equalsIgnoreCase(name) || e.getKey().equalsIgnoreCase(name)) return e.getKey();
@@ -123,7 +123,7 @@ public final class TelemetricCommand {
         return null;
     }
 
-    /** Your cached head status is asked for again on the next scan (≤ 10 s) instead of after 15 min. */
+    /** Makes the next scan (within 10 s) ask for your head status again, instead of waiting out the 15 min cache. */
     private static void dropOwnCache() {
         try {
             HeadStatusCache.invalidate(MojangSessionAdapter.playerUuid());

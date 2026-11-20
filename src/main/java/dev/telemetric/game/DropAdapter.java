@@ -15,23 +15,23 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * MC ADAPTER — loot bag events for the drop / pity trackers (plain strings out, no Minecraft types):
+ * MC ADAPTER: loot bag events for the drop and pity trackers (plain strings out, no Minecraft types).
  * <ul>
- *   <li><b>bag pop</b>: Telos shows a dropped loot bag as a totem pop of {@code telos:<totem>} ({@code GameRendererMixin}
- *       → {@link #onTotemPop}, read before Custom Bags swaps the model);</li>
- *   <li><b>bag opened</b>: the sound {@code noise:player.bags.open*} ({@code SoundEngineMixin} → {@link #onSound});
- *       then for {@link #SCAN_TICKS} ticks every <b>glowing</b> dropped item within {@link #SCAN_RADIUS} blocks is
- *       reported once by its item model (Telos makes your own loot glow).</li>
+ *   <li><b>Bag pop</b>: Telos shows a dropped loot bag as a totem pop of {@code telos:<totem>}
+ *       ({@code GameRendererMixin} → {@link #onTotemPop}). It's read before Custom Bags swaps the model.</li>
+ *   <li><b>Bag opened</b>: the sound {@code noise:player.bags.open*} ({@code SoundEngineMixin} → {@link #onSound}).
+ *       For the next {@link #SCAN_TICKS} ticks, every <b>glowing</b> dropped item within {@link #SCAN_RADIUS} blocks
+ *       is reported once by its item model (Telos makes your own loot glow).</li>
  * </ul>
  */
 public final class DropAdapter {
 
     /** Receives bag events on the client thread. */
     public interface Listener {
-        /** A loot bag dropped; {@code totem} = item model path without namespace ({@code mob/pouch/royal_totem}). */
+        /** A loot bag dropped. {@code totem} is the item model path without the namespace ({@code mob/pouch/royal_totem}). */
         default void bagPopped(String totem) {}
 
-        /** A dropped item glows near you after a bag opened; {@code model} = its full item model id. */
+        /** A dropped item is glowing near you after a bag opened. {@code model} is its full item model id. */
         default void itemGlowing(String model) {}
     }
 

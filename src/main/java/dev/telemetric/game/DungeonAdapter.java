@@ -35,13 +35,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MC ADAPTER — everything the dungeon features read from the game: which dimension we are in,
- * chunk scanning into {@link ChunkCells}, and glowing "treasure" entities.
+ * MC ADAPTER: everything the dungeon features read from the game. That's which dimension we're in, chunk scanning
+ * into {@link ChunkCells}, and glowing "treasure" entities.
  * <p>
- * <b>Scanning cost.</b> Chunks are queued when they load (and the area around the player is re-queued
- * now and then, for doors/gates that open). {@link #scanPending} drains the queue under a time budget
- * on the client thread. Per chunk only non-empty sections are read, each block state is classified once
- * (identity cache), and the result is a few shorts per block column.
+ * <b>Scanning cost.</b> Chunks get queued when they load, and the area around the player is re-queued now and then
+ * for doors and gates that open. {@link #scanPending} works through the queue under a time budget on the client
+ * thread. For each chunk only non-empty sections are read, each block state is classified once (identity cache),
+ * and the result is a few shorts per block column.
  */
 public final class DungeonAdapter {
 
@@ -52,9 +52,9 @@ public final class DungeonAdapter {
 
     private static final LinkedHashSet<Long> PENDING = new LinkedHashSet<>();
     private static final Map<BlockState, Byte> CLASS_CACHE = new IdentityHashMap<>();
-    /** A block emitting this many yellow dust packets is a jump pad (one stray puff is not). */
+    /** A block that emits at least this many yellow dust packets is a jump pad (a single stray puff isn't). */
     private static final int PAD_MIN_HITS = 3;
-    /** Yellow dust packets per source block (packed block pos; client thread only). */
+    /** Yellow dust packets per source block (packed block pos, client thread only). */
     private static final Map<Long, Integer> PAD_HITS = new java.util.HashMap<>();
     /** Pads confirmed since the last {@link #drainJumpPads} (packed {@link Cell} positions). */
     private static final List<Long> PAD_NEW = new ArrayList<>();
@@ -63,7 +63,7 @@ public final class DungeonAdapter {
 
     private DungeonAdapter() {}
 
-    /** Hooks chunk-load events (call once at init). */
+    /** Hooks the chunk-load events. Call it once at init. */
     public static void register() {
         if (registered) return;
         registered = true;
@@ -85,7 +85,7 @@ public final class DungeonAdapter {
     }
 
     /**
-     * True inside a Telos dungeon instance: {@code telos:dungeon/<n>}, or a named instance world in
+     * True inside a Telos dungeon instance: {@code telos:dungeon/<n>}, or a named instance world from
      * {@link #INSTANCE_PREFIXES} ({@code telos:neo_eden/<n>}).
      */
     public static boolean isInDungeon() {
@@ -102,7 +102,7 @@ public final class DungeonAdapter {
     }
 
     /**
-     * Plain custom names of visible-named armor stands within {@code range} blocks of the player (server
+     * Plain custom names of armor stands with a visible name within {@code range} blocks of the player (server
      * nameplates like the renown count "(75/110)"). Empty outside a world.
      */
     public static List<String> nameplates(double range) {
@@ -120,20 +120,20 @@ public final class DungeonAdapter {
         return out;
     }
 
-    /** Opaque token that changes whenever a new world/instance is joined (even with the same dimension id). */
+    /** An opaque token that changes whenever a new world or instance is joined, even with the same dimension id. */
     public static Object levelToken() {
         return level();
     }
 
     /**
-     * Readable name of the current dungeon, or null: the location name ({@link PlayerAdapter#locationName()} —
-     * HUD box made part-specific by {@link TelosLocations}, else the biome name).
+     * Readable name of the current dungeon, or null. It's the location name ({@link PlayerAdapter#locationName()}): the
+     * HUD box made part-specific by {@link TelosLocations}, or else the biome name.
      */
     public static String dungeonName() {
         return PlayerAdapter.locationName();
     }
 
-    /** The HUD box location right now (may still be the previous place for a moment after a teleport), or null. */
+    /** The HUD box location right now, or null. Right after a teleport it can still show the previous place for a moment. */
     public static String hudLocation() {
         return BossBarAdapter.hudLocation();
     }
@@ -145,10 +145,10 @@ public final class DungeonAdapter {
     }
 
     /**
-     * The dungeon's return portal (where every Telos dungeon starts), or null if none is loaded. Its anchor is an
-     * invisible evoker wearing orange stained glass, standing still on the portal (verified in Midnight Stronghold,
-     * 2026-11-14: at the spawn (8, 100, 8) together with a parrot; the fire models around the player are the
-     * player's own effects and follow them). The one nearest the player wins.
+     * The dungeon's return portal (every Telos dungeon starts there), or null if none is loaded. Its anchor is an
+     * invisible evoker wearing orange stained glass, standing still on the portal. Checked in Midnight Stronghold on
+     * 2026-11-14: it was at the spawn (8, 100, 8) together with a parrot. The fire models around the player are the
+     * player's own effects and follow them around. The one nearest the player wins.
      */
     public static Point returnPortalPos() {
         ClientLevel level = level();
@@ -172,7 +172,7 @@ public final class DungeonAdapter {
 
     // ------------------------------------------------------------------ scanning
 
-    /** Starts/stops listening for chunk loads. Starting queues every chunk already loaded around the player. */
+    /** Starts or stops listening for chunk loads. Starting queues every chunk that's already loaded around the player. */
     public static void setActive(boolean on) {
         if (on == active) return;
         active = on;
@@ -187,12 +187,12 @@ public final class DungeonAdapter {
         return active;
     }
 
-    /** Queues the loaded chunks within {@code radius} chunks of the player (rescans already known ones). */
+    /** Queues the loaded chunks within {@code radius} chunks of the player (known ones get rescanned). */
     public static void enqueueAround(int radius) {
         LocalPlayer p = Minecraft.getInstance().player;
         if (p == null) return;
         int pcx = p.getBlockX() >> 4, pcz = p.getBlockZ() >> 4;
-        // nearest first so the route around the player is ready quickly
+        // nearest first, so the route around the player is ready quickly
         for (int r = 0; r <= radius; r++) {
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
@@ -206,7 +206,7 @@ public final class DungeonAdapter {
         PENDING.add(((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL));
     }
 
-    /** Scans queued chunks into the map until the time budget is used. Returns chunks scanned. */
+    /** Scans queued chunks into the map until the time budget runs out. Returns how many chunks were scanned. */
     public static int scanPending(DungeonMap map, long budgetNanos) {
         ClientLevel level = level();
         if (level == null || PENDING.isEmpty()) return 0;
@@ -235,10 +235,10 @@ public final class DungeonAdapter {
             }
         }
         byte[][] classes = new byte[256][];
-        if (first < 0) return ChunkCells.build(cx, cz, 0, classes); // empty chunk: all open, no floor
+        if (first < 0) return ChunkCells.build(cx, cz, 0, classes); // empty chunk: everything is open and there's no floor
         int baseY = (chunk.getMinSectionY() + first) << 4;
         int height = (last - first + 1) * 16 + 3; // +3: open head room above the top section
-        for (int col = 0; col < 256; col++) classes[col] = new byte[height]; // 0 == OPEN
+        for (int col = 0; col < 256; col++) classes[col] = new byte[height]; // 0 is OPEN
         for (int s = first; s <= last; s++) {
             LevelChunkSection section = sections[s];
             if (section == null || section.hasOnlyAir()) continue;
@@ -269,7 +269,7 @@ public final class DungeonAdapter {
         if (fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA) return ChunkCells.HAZARD;
         if (state.getBlock() instanceof BaseFireBlock) return ChunkCells.HAZARD;
         if (state.is(BlockTags.CLIMBABLE)) return ChunkCells.CLIMB;
-        // open trapdoors are thin side panels (3/16): Telos lines drop shafts with them (e.g. under a pond)
+        // Open trapdoors are thin side panels (3/16). Telos lines drop shafts with them (e.g. under a pond).
         if (state.getBlock() instanceof TrapDoorBlock && state.getValue(TrapDoorBlock.OPEN)) return ChunkCells.OPEN;
         VoxelShape shape;
         try {
@@ -285,14 +285,14 @@ public final class DungeonAdapter {
         return ChunkCells.SOLID;
     }
 
-    /** Max footprint width (narrow axis) that leaves ≥ 0.6 (player width) free between two such blocks side by side. */
+    /** The widest footprint (narrow axis) that still leaves at least 0.6 (player width) free between two such blocks side by side. */
     private static final double SLIP_WIDTH = 0.4;
 
     /**
-     * A thin post that spans the block on neither horizontal axis — unconnected iron bars / panes / fences, or one
-     * arm only (end of a line). Placed side by side (Telos places them unconnected) the gaps between them are
-     * wider than the player, so routing treats the cell as open. Lines (spanning a side to side), corners and
-     * wall posts (0.5 wide) still block.
+     * A thin post that doesn't span the block on either horizontal axis: unconnected iron bars, panes or fences, or
+     * ones with a single arm (end of a line). Telos places them unconnected, and side by side the gaps between them are
+     * wider than the player, so routing treats the cell as open. Lines (spanning side to side), corners and wall posts
+     * (0.5 wide) still block.
      */
     private static boolean isSlipThrough(VoxelShape shape) {
         double minX = shape.min(Direction.Axis.X), maxX = shape.max(Direction.Axis.X);
@@ -301,15 +301,14 @@ public final class DungeonAdapter {
         return !spansX && !spansZ && Math.min(maxX - minX, maxZ - minZ) <= SLIP_WIDTH;
     }
 
-    // ------------------------------------------------------------------ treasures
 
     // ------------------------------------------------------------------ jump pads
 
     /**
      * Called by {@code ClientPacketListenerMixin} for every server particle packet (client thread).
-     * Telos jump pads are invisible: only a fountain of {@code minecraft:dust} marks them. Colour differs per
-     * dungeon (verified in game): yellow in Treasure Cave (base ≈ (0.95, 0.9, 0.53), ~1.5 above the floor),
-     * white in Frozen Ruins (spread over ~3×3 blocks, 0..2.5 above the floor).
+     * Telos jump pads are invisible, and only a fountain of {@code minecraft:dust} marks them. The colour differs per
+     * dungeon (checked in game): yellow in Treasure Cave (base about (0.95, 0.9, 0.53), roughly 1.5 above the floor),
+     * white in Frozen Ruins (spread over about 3×3 blocks, 0..2.5 above the floor).
      */
     public static void onParticles(ParticleOptions options, double x, double y, double z) {
         if (!active || !(options instanceof DustParticleOptions dust)) return;
@@ -328,17 +327,17 @@ public final class DungeonAdapter {
         return out;
     }
 
-    /** Jump pad dust: yellow or white / light grey. */
+    /** Jump pad dust: yellow, or white / light grey. */
     static boolean isPadColour(float r, float g, float b) {
         return isPadYellow(r, g, b) || isPadWhite(r, g, b);
     }
 
-    /** Yellow: red and green strong and close, blue clearly lower (not white, orange, lime or red). */
+    /** Yellow: red and green strong and close together, blue clearly lower (so not white, orange, lime or red). */
     static boolean isPadYellow(float r, float g, float b) {
         return r >= 0.6f && g >= 0.5f && Math.abs(r - g) <= 0.3f && b <= Math.min(r, g) * 0.75f;
     }
 
-    /** White / light grey: all channels bright and nearly equal (no tint). */
+    /** White or light grey: all channels bright and nearly equal (no tint). */
     static boolean isPadWhite(float r, float g, float b) {
         float lo = Math.min(r, Math.min(g, b)), hi = Math.max(r, Math.max(g, b));
         return lo >= 0.55f && hi - lo <= 0.15f;
@@ -348,7 +347,7 @@ public final class DungeonAdapter {
      * A player for the dungeon minimap.
      *
      * @param skin skin texture id ({@code "namespace:path"}, 64×64; face at 8,8 and hat layer at 40,8)
-     * @param yaw  body yaw in degrees (0 = south / +Z)
+     * @param yaw  body yaw in degrees (0 is south / +Z)
      */
     public record PlayerMarker(String skin, double x, double z, float yaw, boolean self) {}
 
@@ -367,7 +366,7 @@ public final class DungeonAdapter {
     }
 
     /**
-     * Positions (feet) of entities that glow with a yellow/gold outline — Telos marks treasure with it.
+     * Feet positions of entities that glow with a yellow or gold outline, which is how Telos marks treasure.
      * The glow colour is the entity's team colour (or a display entity's glow override).
      */
     public static List<Point> yellowGlowingEntities() {
@@ -377,7 +376,7 @@ public final class DungeonAdapter {
         if (level == null) return out;
         for (Entity e : level.entitiesForRendering()) {
             if (e == self || e.isRemoved() || !e.isCurrentlyGlowing()) continue;
-            // dropped loot can share the glow colour — only the treasure entity itself counts
+            // dropped loot can have the same glow colour, so only the treasure entity itself counts
             if (e instanceof net.minecraft.world.entity.item.ItemEntity) continue;
             if (!isYellow(e.getTeamColor())) continue;
             out.add(new Point(e.getX(), e.getY(), e.getZ()));
@@ -389,12 +388,11 @@ public final class DungeonAdapter {
     public record NamePlate(int id, Point pos) {}
 
     /**
-     * Nameplates (text displays) whose text spells {@code name} — {@code name} normalised like
-     * {@link #normalizeName}. Telos draws mob names in image glyphs of the server pack's {@code telos:font/text.json},
-     * one set per mob tier with its own code points: {@code default} (normal mobs, a = U+15FD6, with gaps —
-     * "Cursed Bowsman", Omnipotent's Citadel), {@code miniboss} (A–Z = U+16004–U+1601D — "Keeper of Dusk"),
-     * {@code boss}, {@code misc}. Decoded from the pack's font file ({@link DamageNumberAdapter#textFontLetter});
-     * plain Latin letters are read too.
+     * Nameplates (text displays) whose text spells {@code name}, normalised like {@link #normalizeName}. Telos draws mob
+     * names in image glyphs from the server pack's {@code telos:font/text.json}, with one set per mob tier and its own
+     * code points: {@code default} (normal mobs, a = U+15FD6, with gaps; e.g. "Cursed Bowsman", Omnipotent's Citadel),
+     * {@code miniboss} (A–Z = U+16004–U+1601D; e.g. "Keeper of Dusk"), {@code boss} and {@code misc}. They're decoded
+     * from the pack's font file ({@link DamageNumberAdapter#textFontLetter}), and plain Latin letters are read too.
      */
     public static List<NamePlate> namePlates(String name) {
         ClientLevel level = level();
@@ -413,7 +411,7 @@ public final class DungeonAdapter {
     /** A nameplate near the player: its decoded letters ({@link #plateLetters}) and squared distance. */
     public record NearPlate(String letters, double distanceSq) {}
 
-    /** Every nameplate (text display) within {@code range} blocks of the player, decoded; nearest first. */
+    /** Every nameplate (text display) within {@code range} blocks of the player, decoded, nearest first. */
     public static List<NearPlate> namePlatesNear(double range) {
         ClientLevel level = level();
         List<NearPlate> out = new ArrayList<>();
@@ -439,7 +437,7 @@ public final class DungeonAdapter {
         return level != null && level.getChunkSource().hasChunk((int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4);
     }
 
-    /** Lower-case letters/digits only ("Keeper of Dusk" → "keeperofdusk"). */
+    /** Only lower-case letters and digits ("Keeper of Dusk" → "keeperofdusk"). */
     public static String normalizeName(String s) {
         return dev.telemetric.data.Names.key(s);
     }
@@ -447,8 +445,8 @@ public final class DungeonAdapter {
     private static final int PLATE_A = 0x16004, PLATE_Z = PLATE_A + 25;
 
     /**
-     * Nameplate text → lower-case letters/digits (Telos plate fonts decoded, everything else dropped). The
-     * miniboss A–Z range is a built-in fallback for when the server pack font could not be read.
+     * Turns nameplate text into lower-case letters and digits (Telos plate fonts decoded, everything else dropped).
+     * The miniboss A–Z range is built in as a fallback for when the server pack font couldn't be read.
      */
     static String plateLetters(String s) {
         StringBuilder b = new StringBuilder(s.length());
@@ -465,9 +463,9 @@ public final class DungeonAdapter {
     }
 
     /**
-     * Yellow/gold hues: red and green both strong, blue clearly lower. Telos treasure chests glow
-     * {@code #C3CA22} (verified in game, Treasure Cave); gold {@code #FFAA00} and yellow {@code #FFFF55}
-     * also pass, orange/red/lime/white do not.
+     * Yellow and gold hues: red and green both strong, blue clearly lower. Telos treasure chests glow {@code #C3CA22}
+     * (checked in game, Treasure Cave). Gold {@code #FFAA00} and yellow {@code #FFFF55} pass too, while orange, red,
+     * lime and white don't.
      */
     static boolean isYellow(int rgb) {
         int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;

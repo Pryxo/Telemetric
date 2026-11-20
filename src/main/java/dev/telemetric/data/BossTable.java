@@ -12,11 +12,11 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
- * {@code tables/Boss.json}: every boss — realm bosses (zone, spawn spots, Boss Tracker data + icon) and dungeon bosses
- * ({@code dungeon}), with drops and boss bar hashes. Pure Java.
+ * {@code tables/Boss.json}: every boss, both realm bosses (zone, spawn spots, Boss Tracker data and icon) and dungeon
+ * bosses ({@code dungeon}), with their drops and boss bar hashes. Pure Java.
  *
- * @param loot the drops of the same file ({@link TelosData#LOOT})
- * @param bars the boss bar hashes of the same file ({@link TelosData#BOSS_BARS})
+ * @param loot the drops from the same file ({@link TelosData#LOOT})
+ * @param bars the boss bar hashes from the same file ({@link TelosData#BOSS_BARS})
  */
 public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss> tracked, int portalSeconds,
                         List<String> zones, LootTable loot, TelosData.BossBars bars, MenuText menu) {
@@ -25,8 +25,8 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
             TelosData.BossBars.EMPTY, MenuText.DEFAULT);
 
     /**
-     * {@code /bosses} lore texts (root {@code menuText}): {@code alive}, {@code defeated}, {@code notSpawned} set the
-     * state; {@code waiting} = parts of a lore without a count that still mean "not up yet".
+     * Lore texts from {@code /bosses} (root {@code menuText}). {@code alive}, {@code defeated} and {@code notSpawned}
+     * set the state; {@code waiting} lists bits of lore without a count that still mean "not up yet".
      */
     public record MenuText(String alive, String defeated, String notSpawned, List<String> waiting) {
         static final MenuText DEFAULT = new MenuText("This boss is alive", "This boss has been defeated",
@@ -54,20 +54,20 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
      *
      * @param call          the text after {@code "[<Boss>] "} when the boss names the player fighting it (group
      *                      {@code player}), or null
-     * @param spawn         line that marks an always-present boss alive, or null
+     * @param spawn         line that marks an always-present boss as alive, or null
      * @param defeat        line that sends it back to idle, or null
-     * @param idle          always present (Shadowlands minibosses, Cog Sentinel): listed grey until it spawns
-     * @param portalSeconds how long its portal stays after a defeat
-     * @param progress      its portal opens once every world boss is down (n/m count shown)
+     * @param idle          always present (Shadowlands minibosses, Cog Sentinel), listed grey until it spawns
+     * @param portalSeconds how long its portal stays open after a defeat
+     * @param progress      its portal opens once every world boss is down (shows an n/m count)
      * @param waypoints     extra fixed markers shown with it (Cog Stabilizers)
      * @param counter       chat line that sets its own n/m count (groups {@code n}, {@code max}), e.g.
      *                      {@code (1/5) Void Crystals shattered}, or null
      * @param countFrom     bosses whose defeat adds 1 to its count (Defender: Reaper, Warden, Herald)
-     * @param counterMax    count it spawns / opens at (until the chat line or {@code /bosses} names it)
+     * @param counterMax    the count it spawns or opens at (until the chat line or {@code /bosses} gives it)
      * @param readyText     shown once the count is full ("Spawned", "Open", …)
-     * @param menuName      its {@code /bosses} item name when that differs ("Tenebris Portal"), or empty
-     * @param ready         whole server line that fills the count ("A portal to Tenebris has opened in …"), or null
-     * @param down          whole server line that marks it down and starts its {@code portalSeconds} cooldown
+     * @param menuName      its {@code /bosses} item name if that's different ("Tenebris Portal"), or empty
+     * @param ready         the whole server line that fills the count ("A portal to Tenebris has opened in …"), or null
+     * @param down          the whole server line that marks it down and starts its {@code portalSeconds} cooldown
      *                      ("A tear in reality reveals …" for Cog Sentinel), or null
      */
     public record Tracker(Pattern call, Pattern spawn, Pattern defeat, boolean idle, int portalSeconds,
@@ -81,12 +81,12 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
 
     /**
      * @param id      name key ({@link Names#key})
-     * @param zone    separate realm region a realm boss spawns in ({@code Shadowlands}), empty = the open realm
+     * @param zone    the separate realm region a realm boss spawns in ({@code Shadowlands}), empty for the open realm
      * @param icon    item model of its Boss Tracker icon ({@code telos:material/boss/anubis}), may be empty
-     * @param dungeon dungeon of a dungeon boss, else empty
-     * @param tracker Boss Tracker data, or null when it is not tracked
+     * @param dungeon the dungeon of a dungeon boss, otherwise empty
+     * @param tracker Boss Tracker data, or null if it isn't tracked
      * @param areas   HUD location names (bottom-right box) where the Pity Counter shows this realm boss's pity when
-     *                no boss is near and no boss bar is up; {@link Names#placeKey}s, may be empty
+     *                no boss is near and no boss bar is up. These are {@link Names#placeKey}s and may be empty
      */
     public record Boss(String id, String name, String zone, String icon, List<Spot> positions, String dungeon,
                        Tracker tracker, List<String> areas) {
@@ -117,7 +117,7 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
             realm.putIfAbsent(Names.key(name), b);
             if (b.tracker() != null) tracked.add(b);
         }
-        // areas without realm bosses of their own: the open realm's bosses are hidden there too (Voided Abyss)
+        // In areas with no realm bosses of their own (Voided Abyss), the open realm's bosses are hidden too.
         if (root.has("emptyZones") && root.get("emptyZones").isJsonArray()) {
             for (JsonElement z : root.getAsJsonArray("emptyZones")) {
                 if (!zones.contains(z.getAsString())) zones.add(z.getAsString());
@@ -129,8 +129,9 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
     }
 
     /**
-     * The {@code bosses} array without the ones named in the root {@code disabled} list (boss names, matched by
-     * {@link Names#key}): their entries stay in the file but are never loaded — no tracker, pity, loot or boss bar.
+     * The {@code bosses} array minus the ones named in the root {@code disabled} list (boss names, matched by
+     * {@link Names#key}). Their entries stay in the file but are never loaded, so they get no tracker, pity, loot or
+     * boss bar.
      */
     private static JsonArray enabled(JsonObject root) {
         JsonArray src = root.getAsJsonArray("bosses"), out = new JsonArray();
@@ -145,8 +146,8 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
     }
 
     /**
-     * The zone (separate realm region, e.g. Shadowlands) a place name lies in, or null for the open realm.
-     * Matches loosely: "The Shadowlands" is in zone "Shadowlands".
+     * The zone (separate realm region such as Shadowlands) a place name is in, or null for the open realm.
+     * The match is loose: "The Shadowlands" counts as zone "Shadowlands".
      */
     public String zoneOf(String placeName) {
         String key = Names.placeKey(placeName);
@@ -155,13 +156,12 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         return null;
     }
 
-    /** The zone a boss belongs to, or null for the open realm (and dungeon bosses). */
+    /** The zone a boss belongs to, or null for the open realm (and for dungeon bosses). */
     public String zoneOf(Boss boss) {
         return boss.zone().isEmpty() ? null : boss.zone();
     }
 
-    /** Realm (non-dungeon) boss by name, any spelling ("cog sentinel", "Cog Sentinel"), or null. */
-    /** A tracked boss by name (realm or dungeon, e.g. Voided Omnipotent / Raphael), or null. */
+    /** A tracked boss by name, realm or dungeon (e.g. Voided Omnipotent, Raphael), or null. */
     public Boss trackedBoss(String name) {
         String key = Names.key(name);
         for (Boss b : tracked) if (b.id().equals(key)) return b;
@@ -178,7 +178,7 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         return name == null ? null : realmByKey.get(Names.key(name));
     }
 
-    /** Realm bosses whose {@code areas} hold this HUD location name, file order; empty if none. */
+    /** Realm bosses whose {@code areas} include this HUD location name, in file order. Empty if there are none. */
     public List<Boss> inArea(String placeName) {
         String key = Names.placeKey(placeName);
         if (key.isEmpty()) return List.of();
@@ -187,7 +187,7 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         return out;
     }
 
-    /** {@code "areas": ["Ancient Grove", …]} (or one string) → place keys. */
+    /** Turns {@code "areas": ["Ancient Grove", …]} (or a single string) into place keys. */
     private static List<String> areas(JsonObject o) {
         JsonElement a = o.get("areas");
         List<String> out = new ArrayList<>();
@@ -217,7 +217,7 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
         return List.copyOf(out);
     }
 
-    /** A hand-written regex; a broken one is dropped (logged) instead of failing the whole table. */
+    /** A hand-written regex. A broken one gets logged and dropped instead of failing the whole table. */
     private static Pattern regex(JsonObject o, String key, String boss) {
         String s = JsonFields.str(o, key);
         if (s.isEmpty()) return null;

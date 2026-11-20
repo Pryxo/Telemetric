@@ -9,15 +9,15 @@ import java.util.function.Predicate;
 import java.util.regex.MatchResult;
 
 /**
- * Where features listen for server messages. Only {@link ChatPattern trusted patterns} can be subscribed — there is
- * deliberately no "every message" listener, so no feature can react to text a player could type.
+ * Where features listen for server messages. You can only subscribe with {@link ChatPattern trusted patterns}. There
+ * is deliberately no "every message" listener, so no feature can react to text a player could type.
  * <p>
- * {@code game/ChatAdapter} feeds it system messages on the client thread, on Telos only; listeners run there too.
- * A feature can also {@link #hide} a matching message from the chat (it is still dispatched to listeners).
+ * {@code game/ChatAdapter} feeds it system messages on the client thread, on Telos only, and listeners run there too.
+ * A feature can also {@link #hide} a matching message from the chat. Hidden messages still reach the listeners.
  */
 public final class ChatBus {
 
-    /** Cancels a subscription (safe to call more than once). */
+    /** Cancels a subscription. Safe to call more than once. */
     public interface Subscription {
         void cancel();
     }
@@ -30,9 +30,9 @@ public final class ChatBus {
     public enum Visibility {
         /** Shown normally. */
         SHOW,
-        /** Kept out of the chat; All Chat (the archive) still shows it. */
+        /** Kept out of the chat, but All Chat (the archive) still shows it. */
         HIDE,
-        /** Replaced by a Telemetric line: gone everywhere, All Chat included (the replacement is shown instead). */
+        /** Replaced by a Telemetric line. It's gone everywhere, All Chat included, and the replacement shows instead. */
         REPLACE
     }
 
@@ -49,7 +49,7 @@ public final class ChatBus {
     }
 
     /**
-     * Keeps messages matching {@code pattern} out of the chat when {@code when} says so for the match (e.g. a module
+     * Keeps messages matching {@code pattern} out of the chat whenever {@code when} says so for the match (say, a module
      * setting is on and the line is about you). Listeners still receive them.
      */
     public static Subscription hide(ChatPattern pattern, Predicate<MatchResult> when) {
@@ -57,8 +57,8 @@ public final class ChatBus {
     }
 
     /**
-     * Like {@link #hide}, for a message a feature shows its own line for instead: it is also kept out of All Chat,
-     * so the chat never shows both. Listeners still receive it.
+     * Like {@link #hide}, but for a message a feature replaces with its own line. It's kept out of All Chat too, so the
+     * chat never shows both. Listeners still receive it.
      */
     public static Subscription replace(ChatPattern pattern, Predicate<MatchResult> when) {
         return add(new Hide(pattern, when, true));
@@ -69,12 +69,12 @@ public final class ChatBus {
         return () -> HIDES.remove(hide);
     }
 
-    /** True if any feature hides messages (else {@code game/ChatAdapter} skips the check). */
+    /** True if any feature hides messages. If none do, {@code game/ChatAdapter} skips the check. */
     public static boolean hasHideRules() {
         return !HIDES.isEmpty();
     }
 
-    /** Called by {@code game/ChatAdapter} before a system message is shown (a replace rule wins over a hide rule). */
+    /** {@code game/ChatAdapter} calls this before a system message is shown. A replace rule wins over a hide rule. */
     public static Visibility visibility(ChatMessage message) {
         Visibility out = Visibility.SHOW;
         for (Hide h : HIDES) {

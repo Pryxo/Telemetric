@@ -15,15 +15,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
 /**
- * MC ADAPTER — item tooltips. Features add lines through {@link #addEditor}: they get the tooltip's plain lines and
- * return {@link Insert}s; the adapter word-wraps each to the tooltip's width (its title line) and gives it the style
- * of the line part it belongs to. On Telos only.
+ * MC ADAPTER: item tooltips. Features add lines through {@link #addEditor}. They get the tooltip's plain lines and
+ * return {@link Insert}s, and the adapter word-wraps each one to the tooltip's width (its title line) and gives it the
+ * style of the part of the line it belongs to. On Telos only.
  */
 public final class TooltipAdapter {
 
     /**
-     * Text to insert under line {@code after} (index into the plain lines), styled like the part of that line whose
-     * text is {@code styleOf} (gray when not found).
+     * Text to insert under line {@code after} (an index into the plain lines), styled like the part of that line whose
+     * text is {@code styleOf} (gray if it isn't found).
      */
     public record Insert(int after, String text, String styleOf) {}
 
@@ -55,7 +55,7 @@ public final class TooltipAdapter {
         if (inserts.isEmpty()) return;
         Font font = Minecraft.getInstance().font;
         int width = Math.max(120, font.width(lines.getFirst()));
-        inserts.sort(Comparator.comparingInt(Insert::after).reversed()); // bottom first: indices stay valid
+        inserts.sort(Comparator.comparingInt(Insert::after).reversed()); // bottom first, so the indices stay valid
         for (Insert in : inserts) {
             if (in.after() < 0 || in.after() >= lines.size()) continue;
             Style style = styleOf(lines.get(in.after()), in.styleOf());
@@ -66,7 +66,7 @@ public final class TooltipAdapter {
         }
     }
 
-    /** Style of the part of {@code line} reading {@code text} (else its last coloured part), else gray. */
+    /** Style of the part of {@code line} that reads {@code text} (or else its last coloured part, or else gray). */
     private static Style styleOf(Component line, String text) {
         Style[] found = {null}, lastColoured = {null};
         line.visit((style, part) -> {

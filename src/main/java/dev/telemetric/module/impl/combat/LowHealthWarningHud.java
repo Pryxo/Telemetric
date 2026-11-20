@@ -15,15 +15,16 @@ import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
 
 /**
- * Big warning text (and a sound) while your health is below a threshold — a "Low" and a "Mid" level, the lower one
- * wins. Continuous: shown (and the sound repeats) for as long as you stay low; Once: shown for a moment each time you
- * drop below. Quiet for a moment after every world change, when the health can jump while the world loads.
+ * Big warning text (and a sound) while your health is below a threshold. There's a "Low" and a "Mid" level, and the
+ * lower one wins. In Continuous mode it shows (and the sound repeats) for as long as you stay low; in Once mode it shows
+ * for a moment each time you drop below. It stays quiet for a moment after every world change, because health can
+ * jump around while the world loads.
  */
 public final class LowHealthWarningHud extends HudModule {
 
     private static final long GRACE_MS = 2000;
 
-    /** One warning level: toggle + threshold, text, colour, sound. */
+    /** One warning level: toggle and threshold, text, colour and sound. */
     private final class Level {
         final GroupToggleSetting on;
         final NumberSetting threshold;
@@ -101,7 +102,7 @@ public final class LowHealthWarningHud extends HudModule {
         lowLevel.since = midLevel.since = -1;
     }
 
-    /** The level whose text shows now (Once mode: only for its show time), or null. */
+    /** The level whose text is showing now (in Once mode only for its show time), or null. */
     private Level showing(boolean preview) {
         Level l = current;
         if (l != null && mode.get().equals("Once") && System.currentTimeMillis() - l.since > onceTime.get() * 1000) l = null;

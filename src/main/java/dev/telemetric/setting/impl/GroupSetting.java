@@ -9,9 +9,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A plain dropdown that only bundles sub-settings (e.g. "Debug", "Colors"). Holds no value and is never
- * persisted; clicking the row opens/closes the children below it. Register children with
- * {@code add(group.child(new …))}, exactly like {@link GroupToggleSetting}.
+ * A plain dropdown that only groups sub-settings (e.g. "Debug", "Colors"). It holds no value and is never saved, and
+ * clicking the row opens or closes the children below it. Register children with {@code add(group.child(new …))},
+ * the same as for {@link GroupToggleSetting}.
  */
 public class GroupSetting extends Setting<Boolean> {
 
@@ -23,7 +23,7 @@ public class GroupSetting extends Setting<Boolean> {
         notPersistent();
     }
 
-    /** Makes {@code setting} a child: it is only shown (indented) while this group is open. */
+    /** Makes {@code setting} a child, so it only shows (indented) while this group is open. */
     public <S extends Setting<?>> S child(S setting) {
         setting.setGroup(this);
         children.add(setting);
@@ -34,7 +34,7 @@ public class GroupSetting extends Setting<Boolean> {
         return Collections.unmodifiableList(children);
     }
 
-    /** UI state: whether the children are shown (remembered with the GUI layout, not in profiles). */
+    /** UI state: whether the children are showing (remembered with the GUI layout, not in profiles). */
     public boolean isOpen() {
         return open;
     }

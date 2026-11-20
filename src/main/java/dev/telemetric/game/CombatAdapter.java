@@ -27,11 +27,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * MC ADAPTER — Telos combat data: the items the player holds / wears (classified once per stack and cached),
+ * MC ADAPTER: Telos combat data. Covers the items the player holds and wears (classified once per stack and cached),
  * the server's item-cooldown packets ({@code ClientPacketListenerMixin}) and the particles combat features read.
  * <p>
  * Telos puts weapons, abilities and armor abilities on the vanilla item cooldown, so a cooldown packet
- * ({@code cooldownGroup}, {@code duration} in ticks, 0 = over) is the exact start / end of every cooldown.
+ * ({@code cooldownGroup}, {@code duration} in ticks, 0 means over) gives the exact start and end of every cooldown.
  */
 public final class CombatAdapter {
 
@@ -58,22 +58,22 @@ public final class CombatAdapter {
      * One classified item.
      *
      * @param item  drawable handle (a private copy, safe to keep after the slot changes)
-     * @param name  plain display name (kerning / bracket glyphs removed)
+     * @param name  plain display name (kerning and bracket glyphs removed)
      * @param group vanilla cooldown group id ({@code "minecraft:carrot_on_a_stick"}, {@code "telos:..."})
-     * @param range    effective range from the lore ({@code "Range » 8 + 2"} → 10), or -1 when it has none
-     * @param cooldown ability cooldown in seconds from the lore ({@code "Cooldown » 30s"}), or -1 when it has none
-     * @param slot     armor slot for {@link Kind#ARMOR}, else null
+     * @param range    effective range from the lore ({@code "Range » 8 + 2"} gives 10), or -1 if it has none
+     * @param cooldown ability cooldown in seconds from the lore ({@code "Cooldown » 30s"}), or -1 if it has none
+     * @param slot     armor slot for {@link Kind#ARMOR}, otherwise null
      */
     public record ItemInfo(GameItem item, Kind kind, String name, String group, float range, float cooldown,
                            ArmorSlot slot) {
         /** Lower-case name for table lookups. */
         public String nameKey() { return name.toLowerCase(Locale.ROOT); }
 
-        /** Has an activatable ability (a cooldown line in its lore). */
+        /** True if it has an ability you can activate (a cooldown line in its lore). */
         public boolean hasAbility() { return cooldown > 0; }
     }
 
-    /** A cooldown packet: {@code ticks} = full duration, 0 = the cooldown was cleared. */
+    /** A cooldown packet. {@code ticks} is the full duration, and 0 means the cooldown was cleared. */
     public record CooldownEvent(String group, int ticks) {}
 
     public enum ParticleKind { ELECTRIC_SPARK, DUST }
@@ -84,14 +84,14 @@ public final class CombatAdapter {
         void particle(ParticleKind kind, double x, double y, double z);
     }
 
-    /** "Range » 8", "Range: 6.5 + 2", "Range » 8 - 1". Group 3/4 = trait modifier. */
+    /** "Range » 8", "Range: 6.5 + 2", "Range » 8 - 1". Groups 3/4 are the trait modifier. */
     private static final Pattern RANGE = Pattern.compile(
             "Range\\s*[»:]\\s*(-?\\d+(?:\\.\\d+)?)(?:\\s*([+-])\\s*(\\d+(?:\\.\\d+)?))?");
     /** "Cooldown » 30s", "Cooldown: 2.5s". */
     private static final Pattern COOLDOWN = Pattern.compile("Cooldown\\s*[»:]\\s*(\\d+(?:\\.\\d+)?)");
     private static final int MAX_QUEUED = 256;
 
-    /** Classification per stack instance ({@link ItemStack} has identity equality); entries die with the stack. */
+    /** Classification per stack instance ({@link ItemStack} uses identity equality). Entries die with the stack. */
     private static final Map<ItemStack, ItemInfo> CACHE = new WeakHashMap<>();
     private static final ArrayDeque<CooldownEvent> COOLDOWNS = new ArrayDeque<>();
     private static final List<ParticleListener> PARTICLE_LISTENERS = new CopyOnWriteArrayList<>();
@@ -104,7 +104,7 @@ public final class CombatAdapter {
 
     // ================================================================== items
 
-    /** Main hand item, or null when empty / outside a world. */
+    /** Main hand item, or null if it's empty or we're not in a world. */
     public static ItemInfo mainHand() {
         LocalPlayer p = player();
         return p == null ? null : info(p, p.getMainHandItem());
@@ -130,7 +130,7 @@ public final class CombatAdapter {
         return p == null ? null : info(p, p.getItemBySlot(slot.vanilla));
     }
 
-    /** First item on the player (hands, armor, inventory) that uses cooldown {@code group}, or null. */
+    /** The first item on the player (hands, armor, inventory) that uses cooldown {@code group}, or null. */
     public static ItemInfo findByGroup(String group) {
         LocalPlayer p = player();
         if (p == null || group == null) return null;
@@ -147,7 +147,7 @@ public final class CombatAdapter {
         return null;
     }
 
-    /** True while the main hand item is on the (live, client-side) vanilla cooldown. */
+    /** True while the main hand item is on the vanilla cooldown (live, client-side). */
     public static boolean mainHandOnCooldown() {
         LocalPlayer p = player();
         return p != null && p.getCooldowns().isOnCooldown(p.getMainHandItem());
@@ -195,7 +195,7 @@ public final class CombatAdapter {
         if (kind != Kind.OTHER) return kind;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         if (data == null || data.isEmpty()) return Kind.OTHER;
-        Tag bukkit = data.copyTag().get("PublicBukkitValues"); // once per stack (cached), never per tick
+        Tag bukkit = data.copyTag().get("PublicBukkitValues"); // done once per stack (cached), never per tick
         return bukkit == null ? Kind.OTHER : kindIn(bukkit.toString());
     }
 
@@ -213,7 +213,7 @@ public final class CombatAdapter {
         return null;
     }
 
-    /** Effective range of one lore line (base ± trait modifier), or -1 if the line has none. */
+    /** The effective range in one lore line (base ± trait modifier), or -1 if the line has none. */
     private static float parseRange(String line) {
         Matcher m = RANGE.matcher(line);
         if (!m.find()) return -1f;
@@ -239,7 +239,7 @@ public final class CombatAdapter {
 
     private static final Map<Kind, GameItem> PREVIEW = new java.util.EnumMap<>(Kind.class);
 
-    /** Stand-in icon for the HUD editor preview when the real item is missing (vanilla item, never Telos data). */
+    /** Stand-in icon for the HUD editor preview when the real item is missing. It's a vanilla item, never Telos data. */
     public static GameItem previewItem(Kind kind) {
         return PREVIEW.computeIfAbsent(kind, k -> new GameItem(new ItemStack(switch (k) {
             case WEAPON -> Items.IRON_SWORD;
@@ -251,7 +251,7 @@ public final class CombatAdapter {
 
     private static final Map<ArmorSlot, GameItem> PREVIEW_ARMOR = new java.util.EnumMap<>(ArmorSlot.class);
 
-    /** Stand-in armor icon for {@code slot} (HUD editor preview). */
+    /** Stand-in armor icon for {@code slot} in the HUD editor preview. */
     public static GameItem previewArmor(ArmorSlot slot) {
         return PREVIEW_ARMOR.computeIfAbsent(slot, s -> new GameItem(new ItemStack(switch (s) {
             case HEAD -> Items.IRON_HELMET;
@@ -274,7 +274,7 @@ public final class CombatAdapter {
 
     // ================================================================== cooldown packets
 
-    /** From {@code ClientPacketListenerMixin} (client thread): the server started or cleared a cooldown. */
+    /** Called from {@code ClientPacketListenerMixin} (client thread) when the server started or cleared a cooldown. */
     public static void onCooldownPacket(Identifier group, int ticks) {
         if (group == null || !ServerGate.onTelos()) return;
         if (COOLDOWNS.size() >= MAX_QUEUED) COOLDOWNS.pollFirst();
@@ -295,7 +295,7 @@ public final class CombatAdapter {
         PARTICLE_LISTENERS.add(listener);
     }
 
-    /** From {@code ClientPacketListenerMixin} (client thread) for every server particle packet. */
+    /** Called from {@code ClientPacketListenerMixin} (client thread) for every server particle packet. */
     public static void onParticles(ParticleOptions options, double x, double y, double z) {
         if (PARTICLE_LISTENERS.isEmpty()) return;
         ParticleType<?> type = options.getType();

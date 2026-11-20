@@ -1,6 +1,6 @@
 package dev.telemetric.stash;
 
-/** Telos keeps two separate sets of stash pages; slot 53 of the stash switches between them. */
+/** Telos keeps two separate sets of stash pages, and slot 53 of the stash switches between them. */
 public enum StashMode {
     NORMAL("normal", "Normal"),
     SEASONAL("seasonal", "Seasonal");
@@ -13,7 +13,7 @@ public enum StashMode {
         this.label = label;
     }
 
-    /** Key used in {@code stash.json}. */
+    /** The key used in {@code stash.json}. */
     public String key() { return key; }
 
     public String label() { return label; }

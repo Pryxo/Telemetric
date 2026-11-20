@@ -30,9 +30,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * MC ADAPTER — plays a sound file from disk (OGG Vorbis or WAV) through the vanilla sound engine, without a resource
- * pack. Each play gets a stream id {@code telemetric:sounds/file/<n>.ogg}; {@code SoundBufferLibraryMixin} asks
- * {@link #open} for it. OGG is decoded by vanilla's own decoder, WAV by Java's. Long files are cut at the given
+ * MC ADAPTER: plays a sound file from disk (OGG Vorbis or WAV) through the vanilla sound engine, no resource pack
+ * needed. Each play gets a stream id {@code telemetric:sounds/file/<n>.ogg}, and {@code SoundBufferLibraryMixin} asks
+ * {@link #open} for it. OGG goes through vanilla's own decoder and WAV through Java's. Long files are cut at the given
  * length with a short fade-out.
  */
 public final class SoundFiles {
@@ -53,7 +53,7 @@ public final class SoundFiles {
         return n.endsWith(".ogg") || n.endsWith(".wav");
     }
 
-    /** Plays {@code file} (stopping the previous file sound), volume 0..1, cut after {@code maxSeconds}. */
+    /** Plays {@code file} (stopping the previous file sound) at volume 0..1, cut off after {@code maxSeconds}. */
     public static void play(Path file, float volume, float maxSeconds) {
         Minecraft mc = Minecraft.getInstance();
         if (!Files.isRegularFile(file) || !isSupported(file)) return;
@@ -76,7 +76,7 @@ public final class SoundFiles {
         return token(id) != null;
     }
 
-    /** Opens the stream for an id made by {@link #play} (called off-thread by the sound engine). */
+    /** Opens the stream for an id made by {@link #play}. The sound engine calls this off-thread. */
     public static AudioStream open(Identifier id) throws IOException {
         String token = token(id);
         Entry e = token == null ? null : STREAMS.get(token);
@@ -95,7 +95,7 @@ public final class SoundFiles {
 
     // ------------------------------------------------------------------ sound instance
 
-    /** A sound that skips sounds.json: it resolves to one streamed FILE entry. */
+    /** A sound that bypasses sounds.json and resolves to one streamed FILE entry. */
     private static final class FileSound extends AbstractSoundInstance {
         FileSound(Identifier id, float volume) {
             super(id, SoundSource.MASTER, SoundInstance.createUnseededRandom());
@@ -149,7 +149,7 @@ public final class SoundFiles {
         }
     }
 
-    /** Cuts a stream after {@code maxSeconds}, fading 16-bit PCM out over the last {@link #FADE_SECONDS}. */
+    /** Cuts a stream off after {@code maxSeconds}, fading 16-bit PCM out over the last {@link #FADE_SECONDS}. */
     private static final class Limited implements AudioStream {
         private final AudioStream in;
         private final long limit, fadeFrom;

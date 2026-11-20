@@ -24,15 +24,15 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Your health as a bar. Render modes: <b>3D World</b> (camera-facing quads above your head, third person),
- * <b>HUD Projection</b> (a flat HUD bar drawn where your head appears on screen; optional fixed spot in first person)
- * or <b>HUD Element</b> (movable in the HUD editor). The bar slides to the new value, flashes on damage and blends
- * from the high to the mid / low colour below the thresholds.
+ * Your health as a bar. There are three render modes: <b>3D World</b> (camera-facing quads above your head, third
+ * person), <b>HUD Projection</b> (a flat HUD bar drawn where your head shows up on screen, with an optional fixed spot
+ * in first person) and <b>HUD Element</b> (movable in the HUD editor). The bar slides to the new value, flashes on
+ * damage, and blends from the high colour to the mid and low colours below the thresholds.
  */
 public final class HealthBarModule extends HudModule {
 
     private static final String WORLD = "3D World", PROJECTION = "HUD Projection", ELEMENT = "HUD Element";
-    /** First-person HUD Projection: bar centre this many GUI units below the crosshair. */
+    /** First-person HUD Projection: the bar's centre sits this many GUI units below the crosshair. */
     private static final int FIRST_PERSON_DROP = 30;
 
     private final ModeSetting mode = add(new ModeSetting("Render Mode",
@@ -149,12 +149,12 @@ public final class HealthBarModule extends HudModule {
         return !textOnly() && textPos.is("Above");
     }
 
-    /** Text Position Off hides the text on a bar; Text Only always shows it. */
+    /** Text Position Off hides the text on a bar, and Text Only always shows it. */
     private boolean showText(String t) {
         return !t.isEmpty() && (textOnly() || !textPos.is("Off"));
     }
 
-    /** Health fraction to draw this frame, or -1 without a player. */
+    /** The health fraction to draw this frame, or -1 if there's no player. */
     private double fraction(boolean preview) {
         PlayerAdapter.Health h = PlayerAdapter.health();
         if (h == null || h.max() <= 0) return preview ? 0.72 : -1;
@@ -293,7 +293,7 @@ public final class HealthBarModule extends HudModule {
 
     // ================================================================== HUD Projection
 
-    /** Bottom-centre of the bar on your head's screen position (or fixed below the crosshair in first person). */
+    /** Bottom-centre of the bar at your head's screen position (or fixed below the crosshair in first person). */
     private void drawProjected(Render2D r, int sw, int sh) {
         if (!isEnabled() || !projection()) return;
         boolean first = !ViewAdapter.isThirdPerson();
@@ -352,9 +352,9 @@ public final class HealthBarModule extends HudModule {
     }
 
     /**
-     * Bottom-centre of the bar this frame (world). Y ≥ 0: Y blocks above your head. Y < 0: |Y| blocks
-     * from your feet on an arc toward the camera — straight below when looking level, behind / in front of you when
-     * looking down / up — with the bar centred on that point ({@code barHeight} in blocks, 0 for HUD Projection).
+     * Bottom-centre of the bar this frame (world). With Y ≥ 0 it's Y blocks above your head. With Y < 0 it's |Y| blocks
+     * from your feet on an arc toward the camera: straight below when looking level, and behind or in front of you
+     * when looking down or up. The bar is centred on that point ({@code barHeight} in blocks, 0 for HUD Projection).
      */
     private Point anchor(float partialTick, double barHeight) {
         double y = worldOffset.get();
@@ -368,7 +368,7 @@ public final class HealthBarModule extends HudModule {
         double arc = (1 - pitchRatio) * Math.PI;
         double horizontal = -y * Math.cos(arc), vertical = -y * Math.sin(arc);
         double yaw = Math.toRadians(WorldRenderAdapter.cameraYaw());
-        // The camera looks along (-sin yaw, cos yaw); the bar swings the other way, toward the camera.
+        // The camera looks along (-sin yaw, cos yaw), and the bar swings the other way, toward the camera.
         return new Point(p.x() + Math.sin(yaw) * horizontal + offsetX.get(), p.y() - vertical - barHeight / 2,
                 p.z() - Math.cos(yaw) * horizontal + offsetZ.get());
     }

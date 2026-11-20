@@ -20,14 +20,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Social → Discord RPC: your Telos status as Discord Rich Presence —
- * server + location, what you fight, your character. Application id, art keys, texts and area lines come from
- * {@code discord.json}; the connection is {@link DiscordIpc} (no native library). The game state is
- * snapshotted each tick on Telos; when ticks stop (you left Telos) the presence switches to the "off Telos" text.
+ * Social → Discord RPC: your Telos status as Discord Rich Presence. Shows the server and location, what you're
+ * fighting, and your character. The application id, art keys, texts and area lines come from {@code discord.json},
+ * and the connection is {@link DiscordIpc} (no native library). The game state is snapshotted every tick on Telos.
+ * When the ticks stop (you left Telos), the presence switches to the "off Telos" text.
  */
 public class DiscordRpcModule extends Module {
 
-    /** No snapshot for this long = not on Telos any more. */
+    /** If there's been no snapshot for this long, we're not on Telos anymore. */
     private static final long STALE_MS = 3000;
 
     private final BooleanSetting showServer = add(new BooleanSetting("Show Server", "Region and realm you are on", true));
@@ -88,7 +88,7 @@ public class DiscordRpcModule extends Module {
         boolean onTelos = s != null && System.currentTimeMillis() - s.time() < STALE_MS;
 
         JsonObject a = new JsonObject();
-        a.addProperty("type", 0); // Playing
+        a.addProperty("type", 0); // "Playing"
         JsonObject time = new JsonObject();
         time.addProperty("start", startSeconds);
         a.add("timestamps", time);
@@ -138,7 +138,7 @@ public class DiscordRpcModule extends Module {
         return s.dungeon() ? info.text("dungeon") : "";
     }
 
-    /** Adds a text field if it is long enough for Discord (2..128 chars). */
+    /** Adds a text field if it's long enough for Discord (2..128 chars). */
     private static void put(JsonObject o, String key, String value) {
         if (value == null) return;
         String v = value.strip();

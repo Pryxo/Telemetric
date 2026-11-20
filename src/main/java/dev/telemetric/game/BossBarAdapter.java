@@ -22,22 +22,22 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * MC ADAPTER — finds the mob that shows a boss bar.
+ * MC ADAPTER: finds the mob that shows a boss bar.
  * <p>
- * The client never learns which entity a boss bar belongs to (bars have their own ids), and Telos also uses
- * boss bars as HUD widgets (empty or glyph-only names, the dungeon name). So a bar is tied to a mob by:
+ * The client never learns which entity a boss bar belongs to (bars have their own ids), and Telos also uses boss bars
+ * as HUD widgets (empty or glyph-only names, the dungeon name). So we tie a bar to a mob by:
  * <ol>
- *   <li>the bar id equal to an entity's UUID, or</li>
- *   <li>the bar's name (letters only) matching a mob's custom name, or a name tag (armor stand / text
- *       display) riding or floating over a mob.</li>
+ *   <li>the bar id being equal to an entity's UUID, or</li>
+ *   <li>the bar's name (letters only) matching a mob's custom name, or a name tag (armor stand or text display)
+ *       riding or floating over a mob.</li>
  * </ol>
- * Bars whose name has fewer than {@link #MIN_NAME} letters are HUD widgets and are skipped.
+ * Bars with fewer than {@link #MIN_NAME} letters in their name are HUD widgets and get skipped.
  */
 public final class BossBarAdapter {
 
-    /** A bar name needs this many letters to be a boss name (HUD widget bars are glyphs or empty). */
+    /** A bar name needs at least this many letters to be a boss name (HUD widget bars are glyphs or empty). */
     private static final int MIN_NAME = 4;
-    /** A floating name tag belongs to the mob at most this far beside / below it. */
+    /** A floating name tag belongs to the mob if it's at most this far beside or below it. */
     private static final double TAG_RADIUS = 3.0, TAG_BELOW = 6.0;
 
     private BossBarAdapter() {}
@@ -91,11 +91,11 @@ public final class BossBarAdapter {
     }
 
     /**
-     * Position of the boss's floating nameplate, or null. Telos sends the nameplate (a stack of text displays,
-     * ~1.7 blocks over the boss's feet) even while the boss mob itself is invisible / not sent, so it marks
-     * the boss arena before the fight. Boss plates use their own custom-font glyphs ({@link #BOSS_PLATE_MIN}–
-     * {@link #BOSS_PLATE_MAX}: brackets U+1604A/U+1604B, U+1604C); normal mob plates use U+15FF5… brackets.
-     * Verified in Treasure Cave (plate at -31, 44.7, -31, arena floor y 43). Lowest such plate wins.
+     * Position of the boss's floating nameplate, or null. Telos sends the nameplate (a stack of text displays about 1.7
+     * blocks over the boss's feet) even while the boss mob itself is invisible or not sent, so it marks the boss arena
+     * before the fight. Boss plates use their own custom-font glyphs ({@link #BOSS_PLATE_MIN}–{@link #BOSS_PLATE_MAX}:
+     * brackets U+1604A/U+1604B, U+1604C), while normal mob plates use U+15FF5… brackets.
+     * Checked in Treasure Cave (plate at -31, 44.7, -31, arena floor y 43). The lowest such plate wins.
      */
     public static Point bossMarkerPos() {
         ClientLevel level = Minecraft.getInstance().level;
@@ -112,15 +112,15 @@ public final class BossBarAdapter {
 
     /**
      * The location shown in Telos's bottom-right HUD box ("Resounding Ruins", "Treasure Cave", …), or null.
-     * That box is a boss-bar HUD widget; the location is the bar-name part drawn in the
-     * {@code mythichud:…/rotmc2-hud-biome/biome-text} font (verified in Resounding Ruins, 2026-11-14).
+     * That box is a boss-bar HUD widget, and the location is the part of the bar name drawn in the
+     * {@code mythichud:…/rotmc2-hud-biome/biome-text} font (checked in Resounding Ruins, 2026-11-14).
      */
     public static String hudLocation() {
         Component part = hudLocationPart();
         return part == null ? null : part.getString().strip();
     }
 
-    /** Colour (0xRRGGBB) the server gives the HUD-box location text, or 0 when none / no box. */
+    /** The colour (0xRRGGBB) the server gives the HUD-box location text, or 0 if there's none or no box. */
     public static int hudLocationColor() {
         Component part = hudLocationPart();
         if (part == null || part.getStyle().getColor() == null) return 0;
@@ -160,7 +160,7 @@ public final class BossBarAdapter {
         return e instanceof LivingEntity && !(e instanceof ArmorStand) && !(e instanceof Player);
     }
 
-    /** Custom name, or a text display's text. */
+    /** The custom name, or a text display's text. */
     private static Component nameOf(Entity e) {
         if (e instanceof Display.TextDisplay td) return ((TextDisplayAccessor) td).telemetric$getText();
         return e.getCustomName();
@@ -192,7 +192,7 @@ public final class BossBarAdapter {
     private static boolean matches(String tag, List<String> names) {
         for (String n : names) {
             String shortS = tag.length() <= n.length() ? tag : n, longS = shortS == tag ? n : tag;
-            // the shorter one must be most of the longer ("cave" is no match for "treasurecave")
+            // the shorter one has to be most of the longer one ("cave" doesn't match "treasurecave")
             if (longS.contains(shortS) && shortS.length() * 5 >= longS.length() * 3) return true;
         }
         return false;
@@ -204,14 +204,14 @@ public final class BossBarAdapter {
     private static Component lastName;
     private static boolean lastIsBoss;
 
-    /** Boss Bar Scale: size of a known boss's bar (1 = vanilla). Read by {@code BossHealthOverlayMixin}. */
+    /** Boss Bar Scale: the size of a known boss's bar (1 is vanilla). {@code BossHealthOverlayMixin} reads it. */
     public static void setBossBarScale(float scale) {
         barScale = Math.clamp(scale, 0.1f, 1f);
     }
 
     /**
-     * Scale for the bar with this name this frame: the Boss Bar Scale size for a known boss
-     * ({@code tables/Boss.json}: bar name hash or boss name), 1 for everything else (HUD widget bars, the dungeon name).
+     * Scale for the bar with this name this frame. That's the Boss Bar Scale size for a known boss
+     * ({@code tables/Boss.json}: bar name hash or boss name), and 1 for everything else (HUD widget bars, the dungeon name).
      */
     public static float scaleFor(Component name) {
         float s = barScale;
@@ -224,8 +224,8 @@ public final class BossBarAdapter {
     }
 
     /**
-     * Names of the bosses whose bars are showing right now ({@code tables/Boss.json}: bar name hash → boss),
-     * in bar order; empty when no known boss bar is up.
+     * Names of the bosses whose bars are showing right now ({@code tables/Boss.json}: bar name hash to boss), in bar
+     * order. Empty when no known boss bar is up.
      */
     public static List<String> knownBosses() {
         List<KnownBar> bars = knownBossBars();
@@ -234,7 +234,7 @@ public final class BossBarAdapter {
         return out;
     }
 
-    /** A showing boss bar of a known boss: its name and the bar's fill in % (0..100, rounded). */
+    /** A boss bar of a known boss that's showing: the boss name and the bar's fill in % (0..100, rounded). */
     public record KnownBar(String boss, int percent) {}
 
     /** The bars of known bosses showing right now ({@code tables/Boss.json}), in bar order. */
@@ -252,7 +252,7 @@ public final class BossBarAdapter {
         return out;
     }
 
-    /** Lower-case Latin letters only: drops colour codes, HP numbers, levels and custom-font glyphs. */
+    /** Only lower-case Latin letters. Drops colour codes, HP numbers, levels and custom-font glyphs. */
     private static String letters(Component c) {
         if (c == null) return "";
         String s = c.getString();

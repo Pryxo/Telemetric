@@ -8,30 +8,30 @@ import net.minecraft.world.entity.player.Player;
 import java.util.function.Predicate;
 
 /**
- * MC ADAPTER — which entities are not drawn at all. Hide Players skips other players' models and everything riding
- * them; Telos name tags are decided by {@link NametagAdapter} (the Nametags module). Hook: {@link #skipRender} from
- * {@code EntityRenderDispatcherMixin} ({@code shouldRender}). Only real accounts (UUID v4) count as players, so
- * NPC player entities stay visible. Everything is off away from Telos.
+ * MC ADAPTER: which entities aren't drawn at all. Hide Players skips other players' models and everything riding
+ * them, while Telos name tags are handled by {@link NametagAdapter} (the Nametags module). The hook is
+ * {@link #skipRender}, called from {@code EntityRenderDispatcherMixin} ({@code shouldRender}). Only real accounts
+ * (UUID v4) count as players, so NPC player entities stay visible. All of it is off away from Telos.
  */
 public final class PlayerVisibilityAdapter {
 
     private PlayerVisibilityAdapter() {}
 
-    /** Takes a username, true = hide that player. Null = hide nobody. */
+    /** Takes a username and returns true to hide that player. Null means hide nobody. */
     private static volatile Predicate<String> hiddenPlayers;
 
     public static void setHiddenPlayers(Predicate<String> rule) {
         hiddenPlayers = rule;
     }
 
-    /** True when {@code player} is another real player that the Hide Players rule hides. */
+    /** True if {@code player} is another real player that the Hide Players rule hides. */
     public static boolean isHidden(Player player) {
         Predicate<String> rule = hiddenPlayers;
         return rule != null && ServerGate.onTelos() && player != Minecraft.getInstance().player
                 && player.getUUID().version() == 4 && rule.test(player.getScoreboardName());
     }
 
-    /** Render hook: true = do not draw this entity this frame. */
+    /** Render hook: true means don't draw this entity this frame. */
     public static boolean skipRender(Entity entity) {
         if (!ServerGate.onTelos()) return false;
         if (entity instanceof Player player) return isHidden(player);

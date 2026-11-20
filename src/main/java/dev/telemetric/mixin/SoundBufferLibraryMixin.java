@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.concurrent.CompletableFuture;
 
-/** {@link SoundFiles}: streams for sound files on disk are opened by Telemetric instead of the resource manager. */
+/** {@link SoundFiles}: Telemetric opens the streams for sound files on disk instead of the resource manager. */
 @Mixin(SoundBufferLibrary.class)
 public abstract class SoundBufferLibraryMixin {
 

@@ -17,13 +17,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Boss Bar Scale: each bar and its title are drawn under one transform that scales them around the bar's top centre
- * ({@link BossBarAdapter#scaleFor}); bars below a shrunk one move up by the space it saved, so no gap is left.
- * Vanilla order per bar: {@code extractBar(x, y)}, then the title at {@code y - 9}, then {@code y += 19}.
+ * ({@link BossBarAdapter#scaleFor}). Bars below a shrunk one move up by the space it saved, so no gap is left.
+ * Vanilla's order per bar is {@code extractBar(x, y)}, then the title at {@code y - 9}, then {@code y += 19}.
  */
 @Mixin(BossHealthOverlay.class)
 public abstract class BossHealthOverlayMixin {
 
-    /** Vertical space one bar takes (bar 10 + title 9). */
+    /** The vertical space one bar takes (bar 10 + title 9). */
     @Unique private static final float SLOT = 19f;
 
     @Unique private float telemetric$scale = 1f;
@@ -65,7 +65,7 @@ public abstract class BossHealthOverlayMixin {
         telemetric$shift += SLOT * (1f - telemetric$scale);
     }
 
-    /** Scale around the current bar's top centre, then lift by the space earlier shrunk bars saved. */
+    /** Scales around the current bar's top centre, then lifts it by the space that earlier shrunk bars saved. */
     @Unique
     private void telemetric$push(GuiGraphicsExtractor graphics) {
         Matrix3x2fStack pose = graphics.pose();

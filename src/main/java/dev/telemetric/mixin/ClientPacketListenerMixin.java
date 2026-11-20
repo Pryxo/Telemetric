@@ -14,13 +14,13 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * MC ADAPTER (mixin) — hands server particle packets to {@link DungeonAdapter#onParticles} (Telos jump pads
- * are only visible as a yellow dust fountain) and {@link CombatAdapter#onParticles} (Assassin stacks), and item
- * cooldown packets to {@link CombatAdapter#onCooldownPacket}. Injected right after {@code ensureRunningOnSameThread}:
- * on the network thread that call throws (re-queues the packet), so this only ever runs on the client thread.
+ * MC ADAPTER (mixin): hands server particle packets to {@link DungeonAdapter#onParticles} (Telos jump pads only show
+ * up as a yellow dust fountain) and {@link CombatAdapter#onParticles} (Assassin stacks), and item cooldown packets to
+ * {@link CombatAdapter#onCooldownPacket}. It's injected right after {@code ensureRunningOnSameThread}. On the network
+ * thread that call throws (and re-queues the packet), so this only ever runs on the client thread.
  * <p>
- * Container content / slot packets go to {@link StashAdapter#onContainerPacket} at {@code RETURN} (after the
- * menu was updated; the network-thread pass throws before reaching it).
+ * Container content and slot packets go to {@link StashAdapter#onContainerPacket} at {@code RETURN}, after the menu
+ * was updated (the network-thread pass throws before it gets there).
  */
 @Mixin(ClientPacketListener.class)
 public abstract class ClientPacketListenerMixin {

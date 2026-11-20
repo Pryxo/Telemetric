@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Item Rarity: rarity background behind each container slot's item. */
+/** Item Rarity: the rarity background behind each container slot's item. */
 @Mixin(AbstractContainerScreen.class)
 public abstract class ContainerSlotMixin {
 

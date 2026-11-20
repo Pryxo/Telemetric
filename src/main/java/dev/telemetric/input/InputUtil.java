@@ -5,8 +5,8 @@ import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * MC ADAPTER — the only place that queries raw key state / key names.
- * Key codes are {@link InputConstants} key codes (never hard-code backend numbers elsewhere).
+ * MC ADAPTER: the only place that queries raw key state and key names.
+ * Key codes are {@link InputConstants} key codes. Don't hard-code backend numbers anywhere else.
  */
 public final class InputUtil {
 
@@ -31,7 +31,7 @@ public final class InputUtil {
     public static final int KEY_X = InputConstants.KEY_X;
     public static final int KEY_F6 = InputConstants.KEY_F6;
 
-    /** System clipboard text ("" when empty / unavailable). */
+    /** System clipboard text ("" if it's empty or unavailable). */
     public static String getClipboard() {
         String s = Minecraft.getInstance().keyboardHandler.getClipboard();
         return s == null ? "" : s;
@@ -48,8 +48,8 @@ public final class InputUtil {
     private InputUtil() {}
 
     /**
-     * Bind codes at or above this are mouse buttons ({@code MOUSE_OFFSET + button}); below it are keyboard key codes.
-     * Keyboard codes never reach it (highest GLFW key is 348).
+     * Bind codes at or above this are mouse buttons ({@code MOUSE_OFFSET + button}), and anything below is a keyboard
+     * key code. Keyboard codes never get this high (the highest GLFW key is 348).
      */
     public static final int MOUSE_OFFSET = 1000;
 
@@ -82,7 +82,7 @@ public final class InputUtil {
         }
     }
 
-    /** True if Minecraft is currently showing any screen (chat, inventory, our GUI, …). */
+    /** True if Minecraft is showing any screen right now (chat, inventory, our GUI, …). */
     public static boolean isScreenOpen() {
         return Minecraft.getInstance().screen != null;
     }

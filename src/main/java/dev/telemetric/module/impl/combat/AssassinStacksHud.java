@@ -12,11 +12,11 @@ import java.util.Locale;
 
 /**
  * Assassin Stacks: your current stack count as a HUD row, read from the stack particles around you
- * ({@link AssassinStackCounter}). Only while your class (Tab list) is Assassin; hidden at 0 stacks.
+ * ({@link AssassinStackCounter}). Only shown while your class (Tab list) is Assassin, and hidden at 0 stacks.
  */
 public final class AssassinStacksHud extends LinesHudModule {
 
-    /** Server particles show where the player was ~1–2 ticks ago: step the player back this many ticks. */
+    /** Server particles show where the player was 1–2 ticks ago, so we step the player back this many ticks. */
     private static final double LAG_TICKS = 1.5, LAG_TICKS_Y = 0.2;
 
     private final AssassinStackCounter counter = new AssassinStackCounter();

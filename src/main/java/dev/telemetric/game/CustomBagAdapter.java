@@ -35,18 +35,20 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * MC ADAPTER — Custom Bags: the player's own picture (PNG/JPG/GIF) and sound (OGG/WAV) for a loot bag drop.
+ * MC ADAPTER for Custom Bags: the player's own picture (PNG/JPG/GIF) and sound (OGG/WAV) for a loot bag drop.
  * <ul>
- *   <li><b>Files</b>: {@code config/telemetric/custom/bags/<key>.<ext>} (key from the bags in {@code data/tables/rarities.json}); imported with
- *       a native file picker, so players never have to find the folder.</li>
+ *   <li><b>Files</b> live in {@code config/telemetric/custom/bags/<key>.<ext>} (the key comes from the bags in
+ *       {@code data/tables/rarities.json}). They're imported through a native file picker, so players never have to
+ *       find the folder.</li>
  *   <li><b>Picture</b>: Telos shows a drop as a totem pop of {@code telos:<totem>}. {@code GameRendererMixin} hands the
- *       floating stack to {@link #onDropAnimation}; it is switched to {@code telemetric:bags/<model>} (the bag's banner
- *       + a flat screen) and the picture is written into the screen's sprite ({@code telemetric:mob/bags/image}) in
- *       every atlas that holds it. GIF frames are swapped each tick while the pop lasts.</li>
- *   <li><b>Sound</b>: {@code SoundEngineMixin} asks {@link #replaceDropSound} for each
- *       {@code noise:player.bags.create_<sound>}; a custom file plays instead (via {@link SoundFiles}).</li>
+ *       floating stack to {@link #onDropAnimation}, which switches it to {@code telemetric:bags/<model>} (the bag's
+ *       banner plus a flat screen) and writes the picture into the screen's sprite ({@code telemetric:mob/bags/image})
+ *       in every atlas that holds it. GIF frames get swapped each tick while the pop lasts.</li>
+ *   <li><b>Sound</b>: {@code SoundEngineMixin} asks {@link #replaceDropSound} about each
+ *       {@code noise:player.bags.create_<sound>}, and a custom file plays instead if there is one (via
+ *       {@link SoundFiles}).</li>
  * </ul>
- * Decoding happens on a background thread and is cached until the file changes.
+ * Decoding happens on a background thread and the result is cached until the file changes.
  */
 public final class CustomBagAdapter {
 
@@ -57,7 +59,7 @@ public final class CustomBagAdapter {
     private static final long MAX_FILE_BYTES = 15L << 20, ANIM_MS = 4000, PREVIEW_REOPEN_TICKS = 40;
     private static final float MAX_SOUND_SECONDS = 6f;
 
-    /** Module settings: null = off. */
+    /** Module settings. Null means off. */
     public record Settings(float volume) {}
 
     private static volatile Settings settings;
@@ -112,13 +114,13 @@ public final class CustomBagAdapter {
         }
     }
 
-    /** Native file picker (off the render thread), then copies the choice as the bag's picture. */
+    /** Opens a native file picker (off the render thread), then copies the chosen file in as the bag's picture. */
     public static void pickImage(Bag bag, Consumer<String> result) {
         pick("Picture for the " + bag.label() + " bag", new String[]{"*.png", "*.jpg", "*.jpeg", "*.gif"},
                 "Images (PNG, JPG, GIF)", path -> result.accept(importFile(bag.key(), path, IMAGE_EXT)));
     }
 
-    /** Native file picker, then copies the choice as the bag's drop sound. */
+    /** Opens a native file picker, then copies the chosen file in as the bag's drop sound. */
     public static void pickSound(Bag bag, Consumer<String> result) {
         pick("Drop sound for the " + bag.label() + " bag", new String[]{"*.ogg", "*.wav"}, "Audio (OGG, WAV)",
                 path -> result.accept(importFile(bag.key(), path, SOUND_EXT)));
@@ -138,14 +140,14 @@ public final class CustomBagAdapter {
         return any;
     }
 
-    /** @return null on success, else an error for the player */
+    /** @return null on success, otherwise an error message for the player */
     private static String importFile(String key, Path source, String[] exts) {
         try {
             String name = source.getFileName().toString().toLowerCase(Locale.ROOT);
             String ext = name.substring(name.lastIndexOf('.') + 1);
             if (!List.of(exts).contains(ext)) return "Unsupported file type ." + ext;
             if (Files.size(source) > MAX_FILE_BYTES) return "File is larger than 15 MB";
-            byte[] data = Files.readAllBytes(source); // first: the source may be one of the files deleted below
+            byte[] data = Files.readAllBytes(source); // read it first, because the source may be one of the files deleted below
             Files.createDirectories(DIR);
             for (String e : exts) Files.deleteIfExists(DIR.resolve(key + "." + e));
             Path target = DIR.resolve(key + "." + (ext.equals("jpeg") ? "jpg" : ext));
@@ -183,7 +185,7 @@ public final class CustomBagAdapter {
         synchronized (CACHE) {
             old = CACHE.remove(key);
         }
-        if (old != null) Minecraft.getInstance().execute(() -> close(old)); // may still be on screen this frame
+        if (old != null) Minecraft.getInstance().execute(() -> close(old)); // it may still be on screen this frame
     }
 
     private static void close(Decoded d) {
@@ -191,7 +193,7 @@ public final class CustomBagAdapter {
         for (ImageFrames.Frame f : d.frames()) f.image().close();
     }
 
-    /** Cached frames if decoded and still fresh; otherwise starts decoding and returns null. */
+    /** The cached frames if they're decoded and still fresh. Otherwise starts decoding and returns null. */
     private static Decoded frames(String key, Path file) {
         FileTime mtime;
         try {
@@ -207,7 +209,7 @@ public final class CustomBagAdapter {
         return null;
     }
 
-    /** Decodes on a background thread (once at a time per bag). */
+    /** Decodes on a background thread, one at a time per bag. */
     private static void warm(String key, Path file) {
         synchronized (DECODING) {
             if (!DECODING.add(key)) return;
@@ -246,7 +248,7 @@ public final class CustomBagAdapter {
         Path file = bag == null ? null : file(bag.key(), IMAGE_EXT);
         if (file == null) return;
         Decoded d = frames(bag.key(), file);
-        if (d == null) return; // still decoding: the default totem shows this time
+        if (d == null) return; // still decoding, so the default totem shows this time
         try {
             if (!upload(d.frames().getFirst().image())) return;
             stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath(Telemetric.MOD_ID, "bags/" + bag.model()));
@@ -296,7 +298,7 @@ public final class CustomBagAdapter {
         ClientTickEvents.END_CLIENT_TICK.register(mc -> tick());
     }
 
-    /** Swaps GIF frames while the pop shows; reopens the screen a preview closed. */
+    /** Swaps GIF frames while the pop shows, and reopens the screen that a preview closed. */
     private static void tick() {
         Anim a = anim;
         if (a != null) {
@@ -342,7 +344,7 @@ public final class CustomBagAdapter {
 
     // ================================================================== preview
 
-    /** Plays the bag's drop pop and sound now (closes the open screen for 2 s). */
+    /** Plays the bag's drop pop and sound right now (closes the open screen for 2 s). */
     public static void preview(Bag bag) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
@@ -361,7 +363,7 @@ public final class CustomBagAdapter {
         }
     }
 
-    /** True while {@link #preview} runs (drop counters must ignore it). */
+    /** True while {@link #preview} is running. Drop counters have to ignore it. */
     public static boolean isPreviewing() {
         return previewing;
     }

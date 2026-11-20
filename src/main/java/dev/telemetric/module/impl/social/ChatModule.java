@@ -35,14 +35,14 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Social → Chat: chat tabs sorted by {@code chat.json},
- * censored guild / group lines, right-click copy, longer history and chat-mode keys. The tab bar is
- * {@code ui/chat/ChatScreenHooks}; lines are filtered through {@link ChatView} on {@code game/ChatHudAdapter}, so a
- * tab switch never loses lines. Server chat mode + {@code /ac /gc /grc}: {@link #channels()}.
+ * Social → Chat: chat tabs sorted by {@code chat.json}, censored guild and group lines, right-click copy, a longer
+ * history and chat-mode keys. The tab bar lives in {@code ui/chat/ChatScreenHooks}, and lines are filtered through
+ * {@link ChatView} on {@code game/ChatHudAdapter}, so switching tabs never loses lines. For the server chat mode and
+ * {@code /ac /gc /grc}, see {@link #channels()}.
  */
 public class ChatModule extends Module implements ChatView {
 
-    /** {@code Set your chat mode to guild.} — the server's answer to {@code /chat <mode>}. */
+    /** {@code Set your chat mode to guild.}, the server's answer to {@code /chat <mode>}. */
     static final ChatPattern MODE_SET = ChatPattern.builder("Chat mode set", "Set your chat mode to (?<mode>[A-Za-z]+)\\.")
             .anyRuns().build();
 
@@ -94,7 +94,7 @@ public class ChatModule extends Module implements ChatView {
     private final NumberSetting notifyVolume = add(notifyGroup.child(new NumberSetting("Volume",
             "Notification sound volume (%)", 100, 0, 100, 5)));
 
-    /** Same target called again within this time plays no second sound. */
+    /** If the same target is called again within this time, no second sound plays. */
     private static final long NOTIFY_COOLDOWN_MS = 10_000L;
     private final Map<String, Long> lastNotified = new HashMap<>();
 
@@ -108,7 +108,7 @@ public class ChatModule extends Module implements ChatView {
         super("Chat", "Chat tabs, censoring, copy and chat-mode keys", Category.SOCIAL);
         ChatBus.hide(MODE_SET, m -> isEnabled() && channels.expectsConfirmation(System.currentTimeMillis()));
         ChatBus.on(MODE_SET, m -> onModeSet(m.group("mode")));
-        // /ac /gc /grc <message>: send in all / guild / group chat without leaving your chat mode
+        // /ac /gc /grc <message> send in all / guild / group chat without leaving your chat mode
         for (String[] c : new String[][]{{"ac", ChatChannels.DEFAULT}, {"gc", "guild"}, {"grc", "group"}}) {
             ClientCommandAdapter.greedy(c[0], text -> {
                 if (!isEnabled() || text.isBlank()) return false;
@@ -146,14 +146,14 @@ public class ChatModule extends Module implements ChatView {
         return channels;
     }
 
-    /** Tab bar shown (module on, Chat Tabs on, more than "All"). */
+    /** True if the tab bar is shown (module on, Chat Tabs on, more tabs than just "All"). */
     public boolean showsTabBar() {
         return isEnabled() && tabsGroup.get() && tabs.shown().size() > 1;
     }
 
     // ------------------------------------------------------------------ tabs
 
-    /** Opens a tab (click / Alt+arrow): switches the chat mode for Guild / Group / Chat, back to default from them. */
+    /** Opens a tab (click or Alt+arrow). Switches the chat mode for Guild / Group / Chat, and back to default when leaving them. */
     public void openTab(String tab) {
         String before = tabs.active();
         if (!tabs.open(tab)) return;
@@ -169,7 +169,7 @@ public class ChatModule extends Module implements ChatView {
 
     private void onModeSet(String mode) {
         boolean own = channels.confirmed(mode, now());
-        // switched by hand (/chat …) while a channel tab is open: the tab no longer matches, back to All
+        // you switched by hand (/chat …) while a channel tab was open, so the tab doesn't match anymore: back to All
         String tabChannel = tabs.channelOf(tabs.active());
         if (!own && isEnabled() && !tabChannel.isEmpty() && !tabChannel.equalsIgnoreCase(mode.toLowerCase(Locale.ROOT))) {
             tabs.open(ChatTabs.ALL);
@@ -185,11 +185,11 @@ public class ChatModule extends Module implements ChatView {
         channels.toggle(channel, now());
     }
 
-    /** {@code ui/chat/ChatScreenHooks}: a message typed in the chat box. True = handled (queued). */
+    /** {@code ui/chat/ChatScreenHooks}: a message typed in the chat box. Returns true if it was handled (queued). */
     public boolean onTyped(String message) {
         if (!isEnabled() || message.startsWith("/")) return false;
         long now = now();
-        if (channels.isBusy()) { // a queued send is switching modes: send this in the mode you typed it in
+        if (channels.isBusy()) { // a queued send is switching modes, so send this in the mode you typed it in
             channels.enqueue(channels.typingMode(), message);
             return true;
         }
@@ -211,7 +211,7 @@ public class ChatModule extends Module implements ChatView {
 
     @Override
     public int censorAt(String plain, String category) {
-        if (tabs.isArchive()) return -1; // All Chat shows everything as it came
+        if (tabs.isArchive()) return -1; // All Chat shows everything as it came in
         boolean censor = ("guild".equals(category) && censorGuild.get()) || ("group".equals(category) && censorGroupChat.get());
         if (!censor) return -1;
         Callouts.Line line = Callouts.line(plain);
@@ -225,7 +225,7 @@ public class ChatModule extends Module implements ChatView {
 
     @Override
     public void onNewLine(String plain, String category, boolean hidden) {
-        if (showsTabBar() && plain.codePoints().anyMatch(Character::isLetterOrDigit)) tabs.countNew(category, hidden); // no spacer lines
+        if (showsTabBar() && plain.codePoints().anyMatch(Character::isLetterOrDigit)) tabs.countNew(category, hidden); // spacer lines don't count
         if (!hidden && notifyGroup.get()) notify(plain);
     }
 
@@ -245,8 +245,8 @@ public class ChatModule extends Module implements ChatView {
     }
 
     /**
-     * A {@code Teleport for <boss | portal>} call-out of a picked target plays the sound (display only: nothing is
-     * sent). Own call-outs and repeats within 10 s are skipped.
+     * A {@code Teleport for <boss | portal>} call-out for a picked target plays the sound (display only, nothing is
+     * sent). Your own call-outs and repeats within 10 s are skipped.
      */
     private void notify(String plain) {
         if (notifyTargets.get().isEmpty()) return;
@@ -272,7 +272,7 @@ public class ChatModule extends Module implements ChatView {
 
     // ------------------------------------------------------------------ copy
 
-    /** Right-click on a chat line: copies its text (pack glyphs removed). True if something was copied. */
+    /** Right-click on a chat line copies its text (pack glyphs removed). Returns true if something was copied. */
     public boolean copyLine(String plain) {
         if (!isEnabled() || !copy.get() || plain == null) return false;
         String text = withoutGlyphs(plain).strip();
@@ -287,7 +287,7 @@ public class ChatModule extends Module implements ChatView {
         Toasts.info(s.getName() + (s.get() ? " on" : " off"));
     }
 
-    /** Drops pack-font glyphs: private-use characters and plane-1 symbols below the emoji blocks (Telos icons). */
+    /** Drops pack-font glyphs: private-use characters and the plane-1 symbols below the emoji blocks (Telos icons). */
     static String withoutGlyphs(String s) {
         StringBuilder b = new StringBuilder(s.length());
         s.codePoints().filter(cp -> Character.getType(cp) != Character.PRIVATE_USE && (cp < 0x10000 || cp >= 0x1F000))

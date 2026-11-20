@@ -32,12 +32,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * Shared dungeon state for every dungeon feature (Wayfinder now, the minimap later): the walk map,
- * glowing treasures, and the derived analysis (holes, room grid).
+ * Shared dungeon state for every dungeon feature (the Wayfinder now, the minimap later): the walk map, glowing
+ * treasures, and the analysis derived from them (holes, room grid).
  * <p>
- * Runs only while at least one feature {@link #acquire() acquired} it and the player is in
- * {@code telos:dungeon/<n>}. Scanning runs on the client thread under a time budget; analysis and path
- * finding run on one background thread ({@link #worker()}), so nothing heavy happens per frame.
+ * It only runs while at least one feature has {@link #acquire() acquired} it and the player is in
+ * {@code telos:dungeon/<n>}. Scanning runs on the client thread under a time budget, while analysis and path finding
+ * run on one background thread ({@link #worker()}), so nothing heavy happens per frame.
  */
 public final class DungeonTracker {
 
@@ -62,67 +62,67 @@ public final class DungeonTracker {
     private boolean inDungeon;
     private Object levelToken;
     private String dungeonName;
-    /** HUD-box location seen before entering, and ticks spent waiting for it to change. */
+    /** The HUD-box location seen before entering, and the ticks spent waiting for it to change. */
     private String lastHudLocation;
     private int nameWait;
     private static final int NAME_WAIT_TICKS = 40;
     private long ticks;
     private List<Point> treasures = List.of();
     private volatile DungeonAnalysis analysis = DungeonAnalysis.EMPTY;
-    /** Union of reachable cells; only touched by the analysis job (a new set per dungeon). */
+    /** Union of reachable cells. Only the analysis job touches it (a new set per dungeon). */
     private LongOpenHashSet reached = new LongOpenHashSet();
     private Future<?> analysisJob;
     private long lastAnalysisMs;
     private int minDropDepth = 10;
     private int analysisDropDepth = -1;
-    /** Where the boss is: boss-bar mob feet, else the boss nameplate (last seen this run); null until seen. */
+    /** Where the boss is: the boss-bar mob's feet, or else the boss nameplate (last seen this run). Null until seen. */
     private Point bossAnchor;
     private Point analysisBossAnchor;
     private volatile int generation;
-    /** Last piece size (× 1000 + measured size) logged for this dungeon (log once per change, not per analysis). */
+    /** The last piece size (× 1000 + measured size) logged for this dungeon, so we log once per change and not per analysis. */
     private volatile int loggedPieceSize;
-    /** Size table entry + spawn position for the room grid, set on entering the dungeon. */
+    /** Size table entry and spawn position for the room grid, set when entering the dungeon. */
     private volatile RoomLayout.Hint hint = RoomLayout.Hint.NONE;
-    /** This dungeon's rules ({@link DungeonRulebook}); DEFAULT outside dungeons. */
+    /** This dungeon's rules ({@link DungeonRulebook}). DEFAULT outside dungeons. */
     private DungeonRules rules = DungeonRules.DEFAULT;
-    /** Where the dungeon starts (its return portal, else where the player entered); null outside a dungeon. */
+    /** Where the dungeon starts (its return portal, or else where the player entered). Null outside a dungeon. */
     private volatile Point spawn;
     /** Whether {@link #spawn} is the return portal ({@link DungeonAdapter#returnPortalPos}). */
     private boolean portalFound;
-    /** Piece size from the size table for this dungeon (0 = unknown). */
+    /** The piece size from the size table for this dungeon (0 if unknown). */
     private int tableSize;
-    /** The room hint changed (start room moved onto the portal): analyse again even if the map did not change. */
+    /** The room hint changed (the start room moved onto the portal), so analyse again even if the map didn't change. */
     private volatile boolean hintChanged;
-    /** Goal ("clear") mob name of this dungeon, normalised ({@link DungeonRules#goalMob()}); null = none. */
+    /** This dungeon's goal ("clear") mob name, normalised ({@link DungeonRules#goalMob()}). Null for none. */
     private String goalMob;
-    /** Goal mob nameplates currently loaded: entity id → position. */
+    /** Goal mob nameplates that are loaded right now: entity id to position. */
     private final Map<Integer, Point> goalAlive = new HashMap<>();
-    /** Goal mobs whose plate vanished out of the player's range: still alive, just not tracked right now. */
+    /** Goal mobs whose plate vanished out of the player's range. They're still alive, just not tracked right now. */
     private final List<Point> goalAway = new ArrayList<>();
     /** Positions of the goal mobs counted as killed this run (kept for the whole run). */
     private final List<Point> goalKills = new ArrayList<>();
     private volatile List<Point> goals = List.of();
     private volatile int goalKilled, goalTotal;
-    /** This dungeon's chat objective ({@link DungeonRules#chatCounter()}), its subscription and progress. */
+    /** This dungeon's chat objective ({@link DungeonRules#chatCounter()}), plus its subscription and progress. */
     private ChatCounter counter;
     private ChatBus.Subscription counterSub, counterTotalSub;
     /** Count nameplates are read every few ticks within this many blocks of the player. */
     private static final double NAMEPLATE_RANGE = 16;
     private static final int NAMEPLATE_INTERVAL_TICKS = 4;
     private volatile int counterValue, counterTotal;
-    /** This dungeon's puzzle rooms ({@link DungeonRules#chatPuzzles()}), their subscriptions and state. */
+    /** This dungeon's puzzle rooms ({@link DungeonRules#chatPuzzles()}), plus their subscriptions and state. */
     private ChatPuzzles puzzleRule;
     private final List<ChatBus.Subscription> puzzleSubs = new ArrayList<>();
     private volatile PuzzleBoard puzzles;
 
-    /** A plate showing up this close (blocks, squared) to a known goal mob is that same mob, not a new one. */
+    /** A plate that shows up this close (blocks, squared) to a known goal mob is that same mob, not a new one. */
     private static final double GOAL_SAME_SQ = 8 * 8;
-    /** A plate vanishing this close (horizontal blocks, squared) to the player = killed; farther = only untracked. */
+    /** A plate that vanishes this close to the player (horizontal blocks, squared) was killed; farther away it's only untracked. */
     private static final double GOAL_KILL_RANGE_SQ = 24 * 24;
-    /** An away mob whose spot the player is this close to (squared) with no plate there = killed while away. */
+    /** If the player gets this close (squared) to an away mob's spot and there's no plate there, it was killed while away. */
     private static final double GOAL_CONFIRM_RANGE_SQ = 12 * 12;
 
-    /** A run teaches the size table only if its final layout had at least this many rooms. */
+    /** A run only teaches the size table if its final layout had at least this many rooms. */
     private static final int MIN_ROOMS_TO_LEARN = 3;
 
     private DungeonTracker() {}
@@ -140,7 +140,7 @@ public final class DungeonTracker {
         if (users == 0) reset();
     }
 
-    /** Called every client tick (on Telos) from the entrypoint. Cheap when idle. */
+    /** The entrypoint calls this every client tick (on Telos). Cheap when idle. */
     public void tick() {
         if (users == 0) return;
         if (!DungeonAdapter.isInDungeon()) {
@@ -156,28 +156,28 @@ public final class DungeonTracker {
             nameWait = 0;
         }
         if (!inDungeon) {
-            // the HUD box may still show the previous place for a moment: wait for it to change (max ~2 s)
+            // the HUD box can still show the previous place for a moment, so wait for it to change (up to about 2 s)
             String hud = DungeonAdapter.hudLocation();
             if ((hud == null || hud.equals(lastHudLocation)) && ++nameWait < NAME_WAIT_TICKS) return;
             inDungeon = true;
             DungeonAdapter.setActive(true);
             dungeonName = DungeonAdapter.dungeonName();
-            lastHudLocation = dungeonName; // a direct hop to the next dungeon waits for a new name again
+            lastHudLocation = dungeonName; // hopping straight to the next dungeon waits for a new name again
             if (dungeonName != null) seenDungeons.add(dungeonName);
             tableSize = dungeonName == null ? 0 : PieceSizeTable.get().size(dungeonName);
             rules = DungeonRulebook.rulesFor(dungeonName);
             goalMob = rules.goalMob() == null ? null : DungeonAdapter.normalizeName(rules.goalMob());
             startCounter(rules.chatCounter());
             startPuzzles(rules.chatPuzzles());
-            // the dungeon starts at its return portal, where the Telos builder starts the piece grid. The player
-            // arrives on it, but may have walked off by the time the HUD names the dungeon: the portal is exact
+            // The dungeon starts at its return portal, which is where the Telos builder starts the piece grid. The player
+            // arrives on it but may have walked off by the time the HUD names the dungeon, so the portal is the exact spot.
             Point portal = DungeonAdapter.returnPortalPos();
             portalFound = portal != null;
             setSpawn(portal != null ? portal : DungeonAdapter.playerPos());
             Telemetric.debug("Dungeon entered: dimension={} name={} table size={} spawn={} (portal {}) rules=[{}]",
                     DungeonAdapter.dimensionId(), dungeonName, tableSize, spawn, portalFound, rules);
         }
-        // portal not loaded yet on entry: keep looking, then move the start room onto it
+        // the portal wasn't loaded yet on entry, so keep looking and then move the start room onto it
         if (!portalFound && ticks % TREASURE_INTERVAL_TICKS == 0) {
             Point portal = DungeonAdapter.returnPortalPos();
             if (portal != null) {
@@ -188,7 +188,7 @@ public final class DungeonTracker {
         }
         ticks++;
         if (ticks % NAMEPLATE_INTERVAL_TICKS == 0) readCounterNameplates();
-        if (!rules.mapped()) { // no Wayfinder / map here: skip the block scan and room analysis
+        if (!rules.mapped()) { // no Wayfinder or map here, so skip the block scan and room analysis
             if (ticks % TREASURE_INTERVAL_TICKS == 0) {
                 treasures = dedupe(DungeonAdapter.yellowGlowingEntities());
                 updateGoals();
@@ -197,7 +197,7 @@ public final class DungeonTracker {
         }
         if (ticks % RESCAN_INTERVAL_TICKS == 0) DungeonAdapter.enqueueAround(1);
         DungeonAdapter.scanPending(map, SCAN_BUDGET_NANOS);
-        // jump pads (yellow dust fountains): routes and room links may ride them
+        // jump pads (yellow dust fountains), which routes and room links may ride
         for (long pad : DungeonAdapter.drainJumpPads()) {
             if (map.addPad(Cell.x(pad), Cell.y(pad), Cell.z(pad))) {
                 Telemetric.debug("Dungeon jump pad at {} {} {}", Cell.x(pad), Cell.y(pad), Cell.z(pad));
@@ -206,15 +206,15 @@ public final class DungeonTracker {
         if (ticks % TREASURE_INTERVAL_TICKS == 0) {
             treasures = dedupe(DungeonAdapter.yellowGlowingEntities());
             updateGoals();
-            // the boss mob is often invisible / not sent until the fight: its nameplate marks the arena.
-            // No boss level here (dungeon rule): a boss bar mob is not an arena anchor
+            // The boss mob is often invisible or not sent until the fight, so its nameplate marks the arena.
+            // When the dungeon rule says there's no boss level, a boss bar mob isn't an arena anchor.
             Point boss = rules.bossLevel() ? BossBarAdapter.bossMobPos() : null;
             String source = "boss-bar mob";
             if (boss == null && rules.bossLevel()) {
                 boss = BossBarAdapter.bossMarkerPos();
                 source = "boss nameplate";
             }
-            // keep the last anchor once the boss goes out of range; ignore it moving by a block or two
+            // keep the last anchor once the boss goes out of range, and ignore it moving by a block or two
             if (boss != null && (bossAnchor == null || farApart(boss, bossAnchor))) {
                 bossAnchor = boss;
                 Telemetric.debug("Dungeon boss anchor ({}): {}", source, boss);
@@ -223,7 +223,7 @@ public final class DungeonTracker {
         scheduleAnalysis();
     }
 
-    /** Sets the start point and the room grid hint anchored on it (null = unknown). */
+    /** Sets the start point and the room grid hint anchored on it (null if unknown). */
     private void setSpawn(Point spawn) {
         this.spawn = spawn;
         hint = spawn == null ? new RoomLayout.Hint(tableSize, false, 0, 0, Integer.MIN_VALUE, rules)
@@ -238,7 +238,7 @@ public final class DungeonTracker {
         boolean depthChanged = analysisDropDepth != minDropDepth || analysisBossAnchor != bossAnchor || hintChanged;
         Point player = DungeonAdapter.playerPos();
         long start = player == null ? Long.MIN_VALUE : PathFinder.startCell(map, player);
-        // standing somewhere the last flood did not reach (dropped into an arena, a door opened...)
+        // standing somewhere the last flood didn't reach (dropped into an arena, a door opened...)
         boolean newArea = start != Long.MIN_VALUE && !analysis.reachable().contains(start);
         if (version == analysis.mapVersion() && !depthChanged && !newArea) return;
         long now = System.currentTimeMillis();
@@ -255,12 +255,12 @@ public final class DungeonTracker {
         analysisJob = worker.submit(() -> {
             try {
                 DungeonAnalysis result = DungeonAnalysis.compute(map, depth, start, union, roomHint, bossAt);
-                if (gen != generation) return; // dropped if the dungeon changed meanwhile
+                if (gen != generation) return; // dropped if the dungeon changed in the meantime
                 analysis = result;
                 int size = result.rooms().pieceSize(), measured = result.rooms().measuredSize();
                 if (result.rooms().freeform()) {
                     int count = result.rooms().rooms().size();
-                    if (-count - 1 != loggedPieceSize) { // negative keys: free-form room count
+                    if (-count - 1 != loggedPieceSize) { // negative keys hold the free-form room count
                         loggedPieceSize = -count - 1;
                         Telemetric.debug("Dungeon rooms: free-form rooms={} links={}", count,
                                 result.rooms().links().size());
@@ -280,10 +280,11 @@ public final class DungeonTracker {
 
     /**
      * Follows the goal mobs by their nameplate entities. A plate that disappears close to the player (chunk still
-     * loaded) was killed; one that disappears far away is only out of tracking range (kept as "away"). Every counted
-     * mob keeps its position for the whole run: a plate showing up near a known away or killed mob is that same mob
-     * again (an away one coming back in range, or a re-sent/re-tracked plate of a "killed" one — the kill is undone),
-     * never a new one. An away mob whose spot the player reaches with no plate there was killed while away.
+     * loaded) was killed. One that disappears far away is only out of tracking range and is kept as "away". Every
+     * counted mob keeps its position for the whole run, so a plate that shows up near a known away or killed mob is
+     * that same mob again, never a new one. Either an away mob came back in range, or a "killed" one got its plate
+     * re-sent or re-tracked, which undoes the kill. If the player reaches an away mob's spot and there's no plate
+     * there, it was killed while away.
      */
     private void updateGoals() {
         if (goalMob == null) return;
@@ -294,7 +295,7 @@ public final class DungeonTracker {
             present.add(plate.id());
             seen.add(plate.pos());
             if (goalAlive.put(plate.id(), plate.pos()) != null) continue;
-            // a newly seen plate: an away mob coming back in range, or the plate of a mob already counted as killed
+            // a newly seen plate: either an away mob coming back in range, or the plate of a mob already counted as killed
             if (!removeNear(goalAway, plate.pos()) && removeNear(goalKills, plate.pos())) {
                 Telemetric.debug("Dungeon goal mob at {} is still alive (kill undone)", plate.pos());
             }
@@ -311,7 +312,7 @@ public final class DungeonTracker {
                 goalAway.add(p);
             }
         }
-        // an away mob whose spot the player now stands near, with no plate around it, died while untracked
+        // an away mob whose spot the player is now standing near, with no plate around it, died while untracked
         for (Iterator<Point> it = goalAway.iterator(); it.hasNext(); ) {
             Point p = it.next();
             if (horizontalSq(player, p) > GOAL_CONFIRM_RANGE_SQ || !DungeonAdapter.isLoaded(p.x(), p.z())) continue;
@@ -331,7 +332,7 @@ public final class DungeonTracker {
         goalTotal = live.size() + goalKills.size();
     }
 
-    /** Removes the entry of {@code list} nearest to {@code p} within {@link #GOAL_SAME_SQ}; true if one was removed. */
+    /** Removes the entry of {@code list} nearest to {@code p} within {@link #GOAL_SAME_SQ}. Returns true if one was removed. */
     private static boolean removeNear(List<Point> list, Point p) {
         int best = -1;
         double bestSq = GOAL_SAME_SQ;
@@ -351,7 +352,7 @@ public final class DungeonTracker {
     }
 
     private void reset() {
-        // teach the size table what this run measured (only a real layout, not a half-scanned start)
+        // teach the size table what this run measured (only from a real layout, not a half-scanned start)
         RoomLayout rooms = analysis.rooms();
         if (dungeonName != null && rooms.rooms().size() >= MIN_ROOMS_TO_LEARN) {
             PieceSizeTable.get().recordRun(dungeonName, rooms.measuredSize());
@@ -388,9 +389,9 @@ public final class DungeonTracker {
     }
 
     /**
-     * A different boss place: more than 2 blocks apart in Y, or more than 24 apart sideways. A boss walking
-     * around its arena (or the mob vs. its nameplate, ~1.7 higher) is the same anchor — every anchor change
-     * forces an immediate re-analysis.
+     * True for a different boss place: more than 2 blocks apart in Y, or more than 24 apart sideways. A boss walking
+     * around its arena (or the mob vs. its nameplate, about 1.7 higher) is the same anchor. Every anchor change forces
+     * an immediate re-analysis.
      */
     private static boolean farApart(Point a, Point b) {
         double dx = a.x() - b.x(), dz = a.z() - b.z();
@@ -417,12 +418,12 @@ public final class DungeonTracker {
         return dungeonName;
     }
 
-    /** False in dungeons whose rules turn the Wayfinder and Dungeon Map off ({@link DungeonRules#mapped()}). */
+    /** False in dungeons whose rules turn off the Wayfinder and Dungeon Map ({@link DungeonRules#mapped()}). */
     public boolean isMapped() {
         return rules.mapped();
     }
 
-    /** Dungeon names seen this session (for blacklist options). */
+    /** Dungeon names seen this session, for the blacklist options. */
     public Set<String> seenDungeons() {
         return seenDungeons;
     }
@@ -459,12 +460,12 @@ public final class DungeonTracker {
         return goalKilled;
     }
 
-    /** Goal mobs seen this run (alive + killed). */
+    /** Goal mobs seen this run (alive plus killed). */
     public int goalTotal() {
         return goalTotal;
     }
 
-    /** Listens for this dungeon's objective message (null = none); drops the previous subscription and progress. */
+    /** Listens for this dungeon's objective message (null for none), dropping the previous subscription and progress. */
     private void startCounter(ChatCounter next) {
         if (counterSub != null) counterSub.cancel();
         if (counterTotalSub != null) counterTotalSub.cancel();
@@ -501,7 +502,7 @@ public final class DungeonTracker {
         }
     }
 
-    /** Parses a count group; -1 when it is too long for an int. */
+    /** Parses a count group. Returns -1 if it's too long for an int. */
     private static int parseCount(String s) {
         try {
             return Integer.parseInt(s);
@@ -510,7 +511,7 @@ public final class DungeonTracker {
         }
     }
 
-    /** Listens for this dungeon's puzzle messages (null = none); drops the previous subscriptions and state. */
+    /** Listens for this dungeon's puzzle messages (null for none), dropping the previous subscriptions and state. */
     private void startPuzzles(ChatPuzzles next) {
         for (ChatBus.Subscription s : puzzleSubs) s.cancel();
         puzzleSubs.clear();
@@ -528,7 +529,7 @@ public final class DungeonTracker {
         return puzzleRule;
     }
 
-    /** Puzzle room state this run, or null when the dungeon has no puzzle rule. */
+    /** The puzzle room state this run, or null if the dungeon has no puzzle rule. */
     public PuzzleBoard puzzles() {
         return puzzles;
     }
@@ -538,12 +539,12 @@ public final class DungeonTracker {
         return counter;
     }
 
-    /** Objective progress so far this run (count from the last matching message). */
+    /** Objective progress so far this run (the count from the last matching message). */
     public int counterValue() {
         return counterValue;
     }
 
-    /** Objective total (from the message, else the rule's expected total). */
+    /** The objective total (from the message, or else the rule's expected total). */
     public int counterTotal() {
         return counterTotal;
     }
@@ -552,7 +553,7 @@ public final class DungeonTracker {
         return worker;
     }
 
-    /** Changes whenever the tracked dungeon is reset; lets async results detect they are stale. */
+    /** Changes every time the tracked dungeon is reset, so async results can tell they're stale. */
     public int generation() {
         return generation;
     }
@@ -561,7 +562,7 @@ public final class DungeonTracker {
         this.minDropDepth = Math.max(3, depth);
     }
 
-    /** Lower-case letters/digits only, leading "The " dropped: "Kobold's Den" = "Kobolds Den", "The Aviary" = "Aviary". */
+    /** Only lower-case letters and digits, with a leading "The " dropped: "Kobold's Den" = "Kobolds Den", "The Aviary" = "Aviary". */
     public static String normalize(String name) {
         return name == null ? "" : name.toLowerCase(Locale.ROOT).replaceFirst("^\\s*the\\s+", "")
                 .replaceAll("[^a-z0-9]", "");

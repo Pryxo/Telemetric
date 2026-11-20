@@ -7,7 +7,7 @@ import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
-/** "Telemetric vX" with the accent underline — the ClickGUI watermark, kept on screen in-game. */
+/** "Telemetric vX" with the accent underline. It's the ClickGUI watermark, kept on screen in-game. */
 public final class WatermarkHud extends HudModule {
 
     private static final int PAD = 2, UNDERLINE_GAP = 2;

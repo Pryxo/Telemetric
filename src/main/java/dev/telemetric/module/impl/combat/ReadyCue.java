@@ -12,13 +12,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * "Cooldown over" feedback shared by every cooldown feature: a <b>Ready Alert</b> group toggle (text, colour,
- * time — shown by {@link ReadyAlertsHud}) and a <b>Ready Sound</b> ({@link SoundCue}).
- * The alert text may use {@code {item}} (item name) and {@code {slot}} (Weapon / Ability / Helmet / …).
+ * "Cooldown over" feedback shared by every cooldown feature: a <b>Ready Alert</b> group toggle (text, colour, time,
+ * shown by {@link ReadyAlertsHud}) and a <b>Ready Sound</b> ({@link SoundCue}).
+ * The alert text can use {@code {item}} (item name) and {@code {slot}} (Weapon / Ability / Helmet / …).
  */
 final class ReadyCue implements SettingBundle {
 
-    /** Default popup colour (also the HUD editor sample in {@link ReadyAlertsHud}). */
+    /** The default popup colour (also used for the HUD editor sample in {@link ReadyAlertsHud}). */
     static final int DEFAULT_COLOR = 0xFF7CFFB2;
 
     private final GroupToggleSetting alert = new GroupToggleSetting("Ready Alert",
@@ -45,7 +45,7 @@ final class ReadyCue implements SettingBundle {
         return list;
     }
 
-    /** Shows the alert and plays the sound (each only if switched on). */
+    /** Shows the alert and plays the sound, each only if it's switched on. */
     void fire(String itemName, String slotLabel) {
         if (alert.get()) {
             String shown = text.get().replace("{item}", itemName == null ? "" : itemName)

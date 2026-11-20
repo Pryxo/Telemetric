@@ -15,14 +15,14 @@ import java.util.List;
 
 /**
  * DPS meter: reads every floating damage number the server shows (see {@link DamageNumberAdapter}, shared through
- * {@link DamageFeed}). <i>Visibility</i>: always shown, only while a known boss bar is up (one fight per boss),
- * or from the first hit until {@code Hide After} seconds without one. Max / Last Hit use the {@link DamageTiers} colours.
+ * {@link DamageFeed}). <i>Visibility</i> can be always, only while a known boss bar is up (one fight per boss), or from
+ * the first hit until {@code Hide After} seconds without one. Max and Last Hit use the {@link DamageTiers} colours.
  */
 public final class DpsMeterHud extends LinesHudModule {
 
     static final String NEVER_HIDE = "Never Hide", ON_BOSSES = "Only on Bosses", HIDE_AFTER = "Hide After Xs";
 
-    /** Pause that ends a fight when the meter never hides (no slider: the meter stays up anyway). */
+    /** The pause that ends a fight when the meter never hides. There's no slider for it since the meter stays up anyway. */
     private static final long FIGHT_GAP_MS = 5000;
 
     private final ModeSetting visibility = add(new ModeSetting("Visibility",
@@ -82,7 +82,7 @@ public final class DpsMeterHud extends LinesHudModule {
     @Override
     public void onTick() {
         boolean boss = !BossBarAdapter.knownBosses().isEmpty();
-        if (boss && !bossUp && visibility.is(ON_BOSSES)) tracker.reset(); // a new boss = a new fight
+        if (boss && !bossUp && visibility.is(ON_BOSSES)) tracker.reset(); // a new boss means a new fight
         bossUp = boss;
 
         long now = now();
@@ -119,7 +119,7 @@ public final class DpsMeterHud extends LinesHudModule {
         return rows;
     }
 
-    /** Hit row, value in its damage-tier colour (shiny at 1k+) when Damage Colors is on. */
+    /** A hit row, with the value in its damage-tier colour (shiny at 1k+) when Damage Colors is on. */
     private Line hit(String label, double amount) {
         Line plain = new Line(label, fmt(amount));
         int tier = DamageTiers.tier(amount);

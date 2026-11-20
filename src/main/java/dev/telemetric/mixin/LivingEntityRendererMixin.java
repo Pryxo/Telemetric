@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Hide Armor: Telos helmets are items on the head, cleared from the render state like a hidden helmet. */
+/** Hide Armor: Telos helmets are items on the head, so they're cleared from the render state like a hidden helmet. */
 @Mixin(LivingEntityRenderer.class)
 public abstract class LivingEntityRendererMixin {
 

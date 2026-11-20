@@ -17,8 +17,8 @@ public class KeybindSetting extends Setting<Integer> {
     private Runnable pressAction;
 
     /**
-     * Makes this an <b>action key</b>: {@code action} runs on the key's rising edge while the owning module is enabled
-     * and no screen is open (polled by {@code ModuleKeyHandler}, like module binds).
+     * Turns this into an <b>action key</b>: {@code action} runs on the key's rising edge while the owning module is
+     * enabled and no screen is open ({@code ModuleKeyHandler} polls it, the same as module binds).
      */
     public KeybindSetting onPress(Runnable action) {
         this.pressAction = action;

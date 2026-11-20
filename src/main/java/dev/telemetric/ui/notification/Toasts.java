@@ -9,8 +9,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Short status messages ("Saved profile 'pvp'") for instant feedback on actions.
- * Post from anywhere; the ClickGUI renders them (see {@code ToastRenderer}).
+ * Short status messages ("Saved profile 'pvp'") for instant feedback on actions. You can post them from anywhere,
+ * and the ClickGUI renders them (see {@code ToastRenderer}).
  */
 public final class Toasts {
 
@@ -24,9 +24,9 @@ public final class Toasts {
         public final String message;
         public final Kind kind;
         public final long createdAt = System.currentTimeMillis();
-        /** 0 → 1 slide/fade in, back to 0 when expiring. */
+        /** Goes from 0 to 1 sliding and fading in, and back to 0 when it expires. */
         public final Animation presence = new Animation(Durations.DRAWER, Easing.OUT_CUBIC, 0);
-        /** Animated vertical slot so the stack reflows smoothly. */
+        /** An animated vertical slot, so the stack reflows smoothly. */
         public final Animation slot = new Animation(Durations.STANDARD, Easing.OUT_CUBIC, 0);
 
         Toast(String message, Kind kind) {
@@ -53,7 +53,7 @@ public final class Toasts {
         while (ACTIVE.size() > MAX_VISIBLE) ACTIVE.removeFirst();
     }
 
-    /** Advances lifecycle; returns a snapshot of toasts to draw. */
+    /** Moves the lifecycle along and returns a snapshot of the toasts to draw. */
     public static synchronized List<Toast> tick() {
         ACTIVE.removeIf(t -> t.expired() && t.presence.isAt(0));
         for (Toast t : ACTIVE) if (t.expired()) t.presence.animateTo(0);

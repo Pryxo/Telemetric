@@ -19,16 +19,17 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
 /**
- * Optional Voxy bridge (soft dependency, all reflection — Telemetric does not compile against Voxy).
+ * Optional Voxy bridge. It's a soft dependency done entirely through reflection; Telemetric doesn't compile against
+ * Voxy.
  * <p>
  * Voxy stores LODs per world under {@code sha256(biomeSeed + dimensionKey)[0..32]} (see
  * {@code me.cortex.voxy.commonImpl.WorldIdentifier#getWorldId}). Telos dimensions carry an instance number
- * ({@code telos:neo_eden/1}), so every instance of a dungeon gets a new, empty LOD store. This adapter swaps the
- * identifier of the current level for a stable one ({@code telos:<dungeon_name>}, seed 0) — every instance of that
- * dungeon then shares one store. {@code mixin/voxy/VoxyWorldIdentifierMixin} routes {@code WorldIdentifier.of(level)}
+ * ({@code telos:neo_eden/1}), so every instance of a dungeon would get a new, empty LOD store. This adapter swaps the
+ * current level's identifier for a stable one ({@code telos:<dungeon_name>}, seed 0), so every instance of that
+ * dungeon shares one store. {@code mixin/voxy/VoxyWorldIdentifierMixin} routes {@code WorldIdentifier.of(level)}
  * through {@link #override}.
  * <p>
- * Verified against Voxy 0.2.18-beta (26.1.2): {@code WorldIdentifier(ResourceKey<Level>, long, ResourceKey<DimensionType>)},
+ * Checked against Voxy 0.2.18-beta (26.1.2): {@code WorldIdentifier(ResourceKey<Level>, long, ResourceKey<DimensionType>)},
  * public field {@code dimension}, {@code IVoxyRenderSystemHolder#voxy$setWorld(Level)} / {@code voxy$createRenderer()}
  * on {@code LevelRenderer}, static {@code VoxelIngestService.tryAutoIngestChunk(LevelChunk)}.
  */
@@ -41,20 +42,20 @@ public final class VoxyAdapter {
     private static Boolean loaded;
     private static boolean broken;
 
-    /** Level whose identifier is overridden (weak, so a closed level is never kept alive). */
+    /** The level whose identifier is overridden. Held weakly, so a closed level never stays alive. */
     private static WeakReference<Level> overrideLevel = new WeakReference<>(null);
     private static Object overrideId;
     private static String overrideKey;
 
     private VoxyAdapter() {}
 
-    /** True when Voxy is installed and the bridge has not failed. */
+    /** True if Voxy is installed and the bridge hasn't failed. */
     public static boolean available() {
         if (loaded == null) loaded = FabricLoader.getInstance().isModLoaded("voxy");
         return loaded && !broken;
     }
 
-    /** Telos-wide Voxy save folder name (instead of one per region address). */
+    /** One Voxy save folder name for all of Telos, instead of one per region address. */
     public static final String SHARED_FOLDER = "telosrealms";
     private static java.util.function.BooleanSupplier sharedPathEnabled = () -> false;
 
@@ -65,7 +66,7 @@ public final class VoxyAdapter {
         lockLods = locked;
     }
 
-    /** True = Voxy must not write any LODs (only while on Telos). */
+    /** True means Voxy mustn't write any LODs (only while on Telos). */
     public static boolean ingestLocked() {
         try {
             return lockLods.getAsBoolean() && ServerGate.onTelos();
@@ -80,8 +81,8 @@ public final class VoxyAdapter {
     }
 
     /**
-     * Called by the mixin when Voxy picks its save folder (on join): {@code .voxy/saves/telosrealms} on any Telos
-     * address ({@link ServerGate}), else null = Voxy's own per-address folder.
+     * Called by the mixin when Voxy picks its save folder (on join). Gives {@code .voxy/saves/telosrealms} on any Telos
+     * address ({@link ServerGate}), and otherwise null, which means Voxy's own per-address folder.
      */
     public static Path basePathOverride() {
         try {
@@ -112,12 +113,12 @@ public final class VoxyAdapter {
         }
     }
 
-    /** True while the legacy (hashed) folder name is being computed — the mixin then leaves Voxy's hash alone. */
+    /** True while the legacy (hashed) folder name is being computed. The mixin leaves Voxy's hash alone then. */
     private static boolean legacyIds;
 
     /**
      * Called by the mixin from {@code WorldIdentifier.getWorldId(id)}: a readable folder name for our stable stores
-     * ({@code telos:hub} seed 0 → {@code hub}, {@code telos:goblin_lair} → {@code goblin_lair}), or null = Voxy's hash.
+     * ({@code telos:hub} seed 0 → {@code hub}, {@code telos:goblin_lair} → {@code goblin_lair}), or null to keep Voxy's hash.
      */
     public static String readableWorldId(Object worldIdentifier) {
         if (legacyIds || worldIdentifier == null) return null;
@@ -136,8 +137,8 @@ public final class VoxyAdapter {
     }
 
     /**
-     * {@code <base>/<readable name>} for {@code id}. A store from before 0.20.6 (hashed name) is renamed once, so
-     * existing LODs are kept.
+     * {@code <base>/<readable name>} for {@code id}. A store from before 0.20.6 (with a hashed name) gets renamed once,
+     * so existing LODs are kept.
      */
     private static Path migrateLegacyFolder(Path base, Object id) throws ReflectiveOperationException {
         Method getWorldId = id.getClass().getMethod("getWorldId");
@@ -169,16 +170,16 @@ public final class VoxyAdapter {
     }
 
     /**
-     * Renderer hold: on a new Telos level Voxy would build its renderer for the per-instance store, and a moment
-     * later {@link #apply} tears it down and builds it again for the shared store (each build = {@code System.gc()},
-     * two {@code glFinish()}, shader compile — the lag spike). While a level is held, {@code WorldIdentifier.of}
-     * returns null, so Voxy builds no renderer and ingests nothing; {@link #apply} / {@link #release} then build it
-     * exactly once.
+     * Renderer hold. On a new Telos level Voxy would build its renderer for the per-instance store, and a moment later
+     * {@link #apply} would tear it down and build it again for the shared store. Each build means {@code System.gc()},
+     * two {@code glFinish()} calls and a shader compile, which is the lag spike. While a level is held,
+     * {@code WorldIdentifier.of} returns null, so Voxy builds no renderer and ingests nothing. {@link #apply} or
+     * {@link #release} then builds it exactly once.
      */
     private static WeakReference<Level> decidedLevel = new WeakReference<>(null);
     private static WeakReference<Level> heldLevel = new WeakReference<>(null);
 
-    /** Called by the mixin: true = answer null for this level (store not decided yet). */
+    /** Called by the mixin. True means answer null for this level, because its store isn't decided yet. */
     public static boolean held(Level level) {
         if (level == null || decidedLevel.get() == level || !sharedPathEnabled.getAsBoolean()) return false;
         try {
@@ -186,7 +187,7 @@ public final class VoxyAdapter {
         } catch (RuntimeException e) {
             return false;
         }
-        if (heldLevel.get() != level) heldLevel = new WeakReference<>(level); // hot path: no allocation per call
+        if (heldLevel.get() != level) heldLevel = new WeakReference<>(level); // hot path, so no allocation per call
         return true;
     }
 
@@ -196,7 +197,7 @@ public final class VoxyAdapter {
         return level != null && heldLevel.get() == level && decidedLevel.get() != level;
     }
 
-    /** Ends the hold with Voxy's own store (no shared store for this level): builds the renderer once. */
+    /** Ends the hold with Voxy's own store (no shared store for this level) and builds the renderer once. */
     public static void release() {
         ClientLevel level = Minecraft.getInstance().level;
         if (!available() || !holding()) return;
@@ -209,7 +210,7 @@ public final class VoxyAdapter {
         }
     }
 
-    /** Called by the mixin from {@code WorldIdentifier.of(level)}: the stable identifier, or null = Voxy's own. */
+    /** Called by the mixin from {@code WorldIdentifier.of(level)}: the stable identifier, or null to use Voxy's own. */
     public static Object override(Level level) {
         Object id = overrideId;
         return id != null && level != null && overrideLevel.get() == level ? id : null;
@@ -220,7 +221,7 @@ public final class VoxyAdapter {
         return overrideId != null && overrideLevel.get() == Minecraft.getInstance().level ? overrideKey : null;
     }
 
-    /** "Rustborn Kingdom: Part I" → "telos:rustborn_kingdom_part_i". */
+    /** Turns "Rustborn Kingdom: Part I" into "telos:rustborn_kingdom_part_i". */
     public static String stableKey(String dungeonName) {
         String path = dungeonName.toLowerCase(Locale.ROOT).replace("'", "")
                 .replaceAll("[^a-z0-9]+", "_").replaceAll("^_+|_+$", "");
@@ -229,7 +230,7 @@ public final class VoxyAdapter {
 
     /**
      * Points Voxy at the stable store {@code key} for the current level, restarts its renderer and re-ingests the
-     * loaded chunks (they were ingested into the instance store before). No-op when already active.
+     * loaded chunks (they went into the instance store before). Does nothing if it's already active.
      */
     public static boolean apply(String key) {
         if (!available()) return false;
@@ -240,7 +241,7 @@ public final class VoxyAdapter {
         if (path == null) return false;
         try {
             Class<?> cls = Class.forName(WORLD_ID);
-            Object original = cls.getMethod("of", Level.class).invoke(null, level); // only for its dimension type
+            Object original = cls.getMethod("of", Level.class).invoke(null, level); // only needed for its dimension type
             Object dimType = original == null ? null : cls.getField("dimension").get(original);
             Constructor<?> ctor = cls.getConstructor(ResourceKey.class, long.class, ResourceKey.class);
             Object stable = ctor.newInstance(ResourceKey.create(Registries.DIMENSION, path), 0L, dimType);
@@ -260,17 +261,17 @@ public final class VoxyAdapter {
         }
     }
 
-    /** Level changed: drops the stale override without touching the renderer (the new level may be held). */
+    /** The level changed, so drop the stale override without touching the renderer (the new level may be held). */
     public static void forget() {
         overrideId = null;
         overrideKey = null;
         overrideLevel = new WeakReference<>(null);
     }
 
-    /** Back to Voxy's own per-instance store (only when this level was overridden). */
+    /** Goes back to Voxy's own per-instance store, but only if this level was overridden. */
     public static void clear() {
         if (overrideId == null) {
-            release(); // held level without a shared store: Voxy's own store, renderer built now
+            release(); // a held level without a shared store gets Voxy's own store, and the renderer is built now
             return;
         }
         Level level = overrideLevel.get();
@@ -287,10 +288,10 @@ public final class VoxyAdapter {
     }
 
     /**
-     * Live save-folder switch (no rejoin): when Voxy's running instance saves somewhere else than it would pick now
-     * ({@code getBasePath()}, through our mixin), restart it the way Voxy's own "enabled" toggle does — renderer
-     * off, instance shut down (flushes its stores), new instance, renderer on, loaded chunks re-ingested.
-     * True when it restarted.
+     * Switches the save folder live, without rejoining. If Voxy's running instance saves somewhere other than where it
+     * would pick now ({@code getBasePath()}, through our mixin), we restart it the same way Voxy's own "enabled" toggle
+     * does: renderer off, instance shut down (which flushes its stores), new instance, renderer on, and the loaded
+     * chunks re-ingested. Returns true if it restarted.
      */
     public static boolean syncBasePath() {
         if (!available()) return false;
@@ -298,7 +299,7 @@ public final class VoxyAdapter {
             Class<?> common = Class.forName("me.cortex.voxy.commonImpl.VoxyCommon");
             Object instance = common.getMethod("getInstance").invoke(null);
             Class<?> clientInstance = Class.forName("me.cortex.voxy.client.VoxyClientInstance");
-            if (!clientInstance.isInstance(instance)) return false; // Voxy off / not in a session
+            if (!clientInstance.isInstance(instance)) return false; // Voxy is off or not in a session
             Path current = ((Path) clientInstance.getMethod("getStorageBasePath").invoke(instance)).normalize();
             Method pick = clientInstance.getDeclaredMethod("getBasePath");
             pick.setAccessible(true);
@@ -332,18 +333,18 @@ public final class VoxyAdapter {
         Object renderer = Minecraft.getInstance().levelRenderer;
         Class<?> holder = Class.forName(HOLDER);
         if (!holder.isInstance(renderer)) return;
-        holder.getMethod("voxy$setWorld", Level.class).invoke(renderer, level); // shuts down when the id changed
+        holder.getMethod("voxy$setWorld", Level.class).invoke(renderer, level); // this shuts it down if the id changed
         Method getter = holder.getMethod("voxy$getRenderSystem");
         if (getter.invoke(renderer) == null) holder.getMethod("voxy$createRenderer").invoke(renderer);
     }
 
-    /** Chunks per tick for the spread re-ingest (a full render distance takes ~1 s instead of one frame). */
+    /** Chunks per tick for the spread-out re-ingest (a full render distance takes about 1 s instead of one frame). */
     private static final int REINGEST_PER_TICK = 32;
     private static final ArrayDeque<Long> reingestQueue = new ArrayDeque<>();
     private static WeakReference<ClientLevel> reingestLevel = new WeakReference<>(null);
     private static Method ingestMethod;
 
-    /** Queues the loaded chunks around the player for re-ingest (nearest first); {@link #tick} feeds them to Voxy. */
+    /** Queues the loaded chunks around the player for re-ingest, nearest first. {@link #tick} feeds them to Voxy. */
     private static void queueReingest(ClientLevel level) {
         reingestQueue.clear();
         reingestLevel = new WeakReference<>(level);
@@ -360,7 +361,7 @@ public final class VoxyAdapter {
         }
     }
 
-    /** Called every client tick: feeds a few queued chunks to Voxy's ingest. */
+    /** Called every client tick to feed a few queued chunks to Voxy's ingest. */
     public static void tick() {
         if (reingestQueue.isEmpty()) return;
         ClientLevel level = Minecraft.getInstance().level;

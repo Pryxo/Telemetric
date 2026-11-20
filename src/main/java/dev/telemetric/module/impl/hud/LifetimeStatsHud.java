@@ -15,8 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Lifetime Stats: loot bags you got per bag type and your runs, all-time for this account ({@link LootTracker} counts them). One row per bag group of
- * {@code tables/rarities.json} bags, so a new bag type is a new row without code.
+ * Lifetime Stats: the loot bags you got per bag type, plus your runs, all-time for this account ({@link LootTracker}
+ * does the counting). There's one row per bag group of the {@code tables/rarities.json} bags, so a new bag type is a
+ * new row without any code.
  */
 public final class LifetimeStatsHud extends LinesHudModule {
 
@@ -41,20 +42,20 @@ public final class LifetimeStatsHud extends LinesHudModule {
     private record Row(String label, String stat, int rgb, HudIcon icon, boolean shiny) {}
 
     /**
-     * The rarity's small glyph ({@code glyph} in {@code rarities.json} — the one /wiki shows, text sized; the
-     * {@code icon} pouch glyph is far too big for a row); without one the loot bag's own model, one line tall: the
-     * totem path without {@code _totem} ({@code telos:mob/pouch/halloween}).
+     * The rarity's small glyph ({@code glyph} in {@code rarities.json}, the text-sized one /wiki shows; the {@code icon}
+     * pouch glyph is far too big for a row). Without one, the loot bag's own model, one line tall: the totem path
+     * without {@code _totem} ({@code telos:mob/pouch/halloween}).
      */
     private static HudIcon bagIcon(Bag b) {
         String glyph = b.glyph();
         if (!glyph.isEmpty()) return new HudIcon.Glyph(glyph, null);
-        if (!b.icon().isEmpty()) return new HudIcon.Glyph(b.icon(), null); // event bags: their pouch glyph
+        if (!b.icon().isEmpty()) return new HudIcon.Glyph(b.icon(), null); // event bags use their pouch glyph
         String totem = b.totem();
         if (totem == null || totem.isEmpty()) return null;
         return new HudIcon.Item("telos:" + (totem.endsWith("_totem") ? totem.substring(0, totem.length() - 6) : totem));
     }
 
-    /** Bag groups in table order (a group's label = its bag's, or the group name for shared ones like Event). */
+    /** Bag groups in table order. A group's label is its bag's label, or the group name for shared ones like Event. */
     private static List<Row> rows() {
         List<Row> rows = new ArrayList<>();
         TelosData.Bags bags = TelosData.BAGS.get();

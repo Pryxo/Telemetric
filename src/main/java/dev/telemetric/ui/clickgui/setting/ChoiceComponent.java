@@ -16,11 +16,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Inline dropdown (expands in place like an accordion, so it never overlaps other panels).
- * Left-click header: open/close. Right-click header: cycle to next option without opening.
+ * An inline dropdown. It expands in place like an accordion, so it never overlaps other panels.
+ * Left-click the header to open or close it, right-click the header to cycle to the next option without opening it.
  * <p>
  * Searchable settings ({@code .searchable()}) get a search field on top of the list (focused on open; Enter picks the
- * first match, Esc clears / unfocuses) and show at most {@link DropdownSearch#MAX_ROWS} rows (scroll wheel for more).
+ * first match, Esc clears or unfocuses) and show at most {@link DropdownSearch#MAX_ROWS} rows (scroll wheel for more).
  */
 public class ChoiceComponent<T> extends SettingComponent<ChoiceSetting<T>> {
 
@@ -44,7 +44,7 @@ public class ChoiceComponent<T> extends SettingComponent<ChoiceSetting<T>> {
         return labels;
     }
 
-    /** Option indices currently listed (filtered for searchable settings). */
+    /** The option indices listed right now (filtered for searchable settings). */
     private List<Integer> matches(List<T> options) {
         if (searchable()) return search.matches(labels(options));
         List<Integer> all = new ArrayList<>(options.size());

@@ -18,10 +18,10 @@ import java.util.Map;
 import java.util.function.BiFunction;
 
 /**
- * Registry mapping setting types → UI components. Lookup walks the class hierarchy, so a subclass of a
+ * Registry that maps setting types to UI components. The lookup walks up the class hierarchy, so a subclass of a
  * registered setting reuses its parent's component automatically.
  * <p>
- * New setting type? {@code SettingComponents.register(MySetting.class, MyComponent::new);}
+ * For a new setting type: {@code SettingComponents.register(MySetting.class, MyComponent::new);}
  */
 public final class SettingComponents {
 

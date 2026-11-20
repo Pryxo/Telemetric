@@ -7,9 +7,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * MC ADAPTER — asks the client's resource manager whether a resource exists, e.g. to see if a server
- * resource pack (and therefore its font glyphs) is currently loaded. Results are cached for
- * {@link #TTL_MS} ms so packs applied/removed while playing are picked up.
+ * MC ADAPTER: asks the client's resource manager whether a resource exists, e.g. to check whether a server resource
+ * pack (and so its font glyphs) is loaded right now. Results are cached for {@link #TTL_MS} ms, so packs applied or
+ * removed while playing get picked up.
  */
 public final class ResourceAdapter {
 

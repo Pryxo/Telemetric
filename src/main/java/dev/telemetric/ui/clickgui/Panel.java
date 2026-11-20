@@ -18,16 +18,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Draggable, collapsible, scrollable panel for one {@link Category}.
- * Header: left-drag moves, right-click collapses/expands (accordion). Wheel scrolls tall panels.
- * Position/collapsed state live in {@link GuiLayout.PanelState} so they persist.
+ * A draggable, collapsible, scrollable panel for one {@link Category}.
+ * On the header, left-drag moves it and right-click collapses or expands it (accordion). The wheel scrolls tall panels.
+ * The position and collapsed state live in {@link GuiLayout.PanelState}, so they persist.
  */
 public class Panel extends UIComponent {
 
     private final Category category;
     private final GuiLayout.PanelState state;
     private final List<ModuleComponent> modules = new ArrayList<>();
-    /** Modules listed right now (all of them unless the ClickGUI search filters). */
+    /** The modules listed right now (all of them, unless the ClickGUI search is filtering). */
     private final List<ModuleComponent> shown = new ArrayList<>();
     /** Fades the whole panel out while a search has no match in it. */
     private final Animation searchFade = new Animation(Durations.STANDARD, Easing.OUT_CUBIC, 1);
@@ -58,14 +58,14 @@ public class Panel extends UIComponent {
             modules.add(new ModuleComponent(ctx, module, state.isModuleOpen(name), state.openSettingsOf(name)));
         }
         shown.addAll(modules);
-        // restore scroll; clamped against the real content height on the first frame
+        // restore the scroll; it gets clamped against the real content height on the first frame
         this.scrollTarget = state.scroll;
         this.scroll.snapTo(state.scroll);
     }
 
     /**
-     * Applies the ClickGUI search: only matching modules stay (see {@link ModuleComponent#applySearch}); a panel
-     * without a match fades out. The scroll offset from before the search comes back when it is cleared.
+     * Applies the ClickGUI search. Only matching modules stay (see {@link ModuleComponent#applySearch}), and a panel with
+     * no match fades out. The scroll offset from before the search comes back once it's cleared.
      */
     public void setSearch(String query) {
         boolean was = searching;
@@ -82,7 +82,7 @@ public class Panel extends UIComponent {
         return searching && shown.isEmpty();
     }
 
-    /** Writes open accordions/dropdowns and scroll offset back into the persistent {@link GuiLayout.PanelState}. */
+    /** Writes the open accordions and dropdowns and the scroll offset back into the persistent {@link GuiLayout.PanelState}. */
     public void saveState() {
         state.scroll = (int) Math.round(searching ? scrollBeforeSearch : scrollTarget);
         for (ModuleComponent m : modules) {
@@ -114,7 +114,7 @@ public class Panel extends UIComponent {
         double fade = searchFade.get();
         if (fade <= 0.001) return;
         Theme fixed = ctx.themes().fixedPalette(category);
-        Theme previous = ctx.overridePalette(fixed); // null = follow the theme
+        Theme previous = ctx.overridePalette(fixed); // null means follow the theme
         r.pushAlpha(fade);
         try {
             renderPanel(r, mouseX, mouseY, delta, screenW, screenH);
@@ -170,13 +170,13 @@ public class Panel extends UIComponent {
         r.roundedRect(x, y, width, Layout.HEADER_HEIGHT, radius, headerColor,
                 ex < 0.02 ? Render2D.CORNERS_ALL : Render2D.CORNERS_TOP);
 
-        // accent line under header: grows with the expand animation
+        // accent line under the header, which grows with the expand animation
         if (ctx.themes().headerGradient() && ex > 0.01) {
             int lineW = (int) Math.round(width * ex);
             r.gradientH(x + (width - lineW) / 2, y + Layout.HEADER_HEIGHT - 1, lineW, 1, p.accent(), p.accentAlt());
         }
 
-        // title + count + chevron
+        // title, count and chevron
         int ty = y + Layout.textY(Layout.HEADER_HEIGHT);
         r.text(category.getName(), x + Layout.PAD + 1, ty, p.text());
         String count = String.valueOf(shown.size());
@@ -212,8 +212,8 @@ public class Panel extends UIComponent {
     }
 
     /**
-     * Panel background, skipping open module settings areas (they draw their own translucent background).
-     * Drawn as horizontal bands of the full rounded rect so the corners stay round.
+     * The panel background, skipping open module settings areas (they draw their own translucent background).
+     * It's drawn as horizontal bands of the full rounded rect so the corners stay round.
      */
     private void drawFrame(Render2D r, int radius, int color) {
         int top = y;
@@ -321,7 +321,7 @@ public class Panel extends UIComponent {
     public void onClose() {
         if (dragging) state.placed = true;
         dragging = false;
-        saveState(); // before children reset their transient state
+        saveState(); // before the children reset their transient state
         modules.forEach(ModuleComponent::onClose);
     }
 }

@@ -3,8 +3,8 @@ package dev.telemetric.addon;
 import dev.telemetric.module.ModuleManager;
 
 /**
- * Hook for add-on code that is not part of this mod. Implementations are listed under the
- * {@value #ENTRYPOINT} entrypoint in {@code fabric.mod.json}; this mod declares none itself.
+ * Hook for add-on code that isn't part of this mod. Implementations are listed under the {@value #ENTRYPOINT}
+ * entrypoint in {@code fabric.mod.json}. This mod doesn't declare any itself.
  */
 public interface TelemetricAddon {
 

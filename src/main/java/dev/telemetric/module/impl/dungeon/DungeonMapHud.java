@@ -19,15 +19,16 @@ import dev.telemetric.ui.theme.Theme;
 import java.util.List;
 
 /**
- * Dungeon minimap HUD element (Dungeon panel). Draws the room layout the Wayfinder's analysis detected
- * ({@link DungeonTracker#analysis()}), north up, with the spawn room, the boss drop room, Dungeon Goal rooms
- * (a clear mob still alive) and rooms that still hold a treasure in their own colours, room connections as corridors and every player as their skin's face.
+ * Dungeon minimap HUD element (Dungeon panel). It draws the room layout the Wayfinder's analysis detected
+ * ({@link DungeonTracker#analysis()}), north up. The spawn room, the boss drop room, Dungeon Goal rooms (a clear mob is
+ * still alive) and rooms that still hold a treasure get their own colours. Room connections are drawn as corridors,
+ * and every player as their skin's face.
  */
 public final class DungeonMapHud extends HudModule {
 
     private static final int PAD = 3;
+    /** Gap between neighbouring rooms in map pixels (the connections bridge it). */
     private static final int ROOM_GAP = 1;
-    /** Gap between neighbouring rooms in map pixels (connections bridge it). */
 
     private final NumberSetting size = add(new NumberSetting("Map Size",
             "Width and height of the map", 100, 50, 220, 2).withSuffix("px"));
@@ -57,7 +58,7 @@ public final class DungeonMapHud extends HudModule {
             "Size of the player faces", 7, 4, 16, 1).withSuffix("px").visibleWhen(showHeads::get));
 
     private boolean acquired;
-    /** Last boss drop of this run: a re-analysis may briefly lose it. */
+    /** The last boss drop of this run, since a re-analysis may lose it for a moment. */
     private Hole lastHole;
     private int holeGeneration = -1;
 
@@ -91,10 +92,10 @@ public final class DungeonMapHud extends HudModule {
                     || Telemetric.get().modules().get(WayfinderModule.class).isTracking());
     }
 
-    /** Horizontal / vertical slack around a room for "the player is in the mapped dungeon". */
+    /** Horizontal and vertical slack around a room for "the player is in the mapped dungeon". */
     private static final int NEAR_XZ = 8, NEAR_Y = 10;
 
-    /** False when the player is away from every mapped room (e.g. down in the boss arena): the map hides. */
+    /** False when the player is away from every mapped room (e.g. down in the boss arena), and then the map hides. */
     private static boolean nearRooms(RoomLayout layout) {
         Point pos = DungeonAdapter.playerPos();
         if (pos == null) return false;
@@ -121,7 +122,7 @@ public final class DungeonMapHud extends HudModule {
 
     enum Kind { ROOM, SPAWN, BOSS, TREASURE, GOAL }
 
-    /** A room in block coordinates ({@code max} inclusive); {@code room} is null for the editor sample. */
+    /** A room in block coordinates ({@code max} inclusive). {@code room} is null for the editor sample. */
     private record Box(int minX, int minZ, int maxX, int maxZ, Kind kind, RoomLayout.Room room) {
         double cx() { return (minX + maxX + 1) / 2.0; }
         double cz() { return (minZ + maxZ + 1) / 2.0; }
@@ -194,7 +195,7 @@ public final class DungeonMapHud extends HudModule {
     }
 
     /**
-     * @param layout real layout (link keys resolve through it), or null for the editor sample
+     * @param layout the real layout (link keys resolve through it), or null for the editor sample
      */
     private void drawMap(Render2D r, Theme p, int s, List<Box> rooms, RoomLayout layout, List<long[]> links,
                          List<DungeonAdapter.PlayerMarker> players) {
@@ -208,16 +209,16 @@ public final class DungeonMapHud extends HudModule {
         }
         int smallest = Integer.MAX_VALUE;
         for (Box b : rooms) smallest = Math.min(smallest, Math.min(b.maxX - b.minX, b.maxZ - b.minZ) + 1);
-        // every room column/row after the first is pushed out by `gap` px (rooms keep their size);
-        // starts closer than half a room are one column, so slightly offset rooms don't add extra gaps
+        // Every room column and row after the first gets pushed out by `gap` px (rooms keep their size). Starts closer than
+        // half a room count as one column, so slightly offset rooms don't add extra gaps.
         int tol = Math.max(2, smallest / 2);
-        // piece-built dungeons: one gap per grid wall line, so every link between neighbouring cells is exactly
-        // `gap` long and multi-cell rooms stretch over their inner lines. Free-form rooms: room starts.
+        // Piece-built dungeons get one gap per grid wall line, so every link between neighbouring cells is exactly `gap`
+        // long and rooms spanning several cells stretch over their inner lines. Free-form rooms use the room starts.
         boolean grid = layout != null && layout.owners() == null && layout.xs().length > 0 && layout.zs().length > 0;
         int[] cols = grid ? innerLines(layout.xs(), bx0, bx1) : gapLines(rooms, true, bx0, tol);
         int[] rows = grid ? innerLines(layout.zs(), bz0, bz1) : gapLines(rooms, false, bz0, tol);
         int inner = s - 2 * PAD;
-        // the gaps never take more than half the square, so the rooms stay visible
+        // the gaps never take up more than half the square, so the rooms stay visible
         int gap = linkLength.getInt();
         int lines = Math.max(cols.length, rows.length);
         if (lines > 0) gap = Math.min(gap, inner / 2 / lines);
@@ -239,7 +240,7 @@ public final class DungeonMapHud extends HudModule {
                 drawLink(r, proj.room(a), proj.room(b), horizontal, thick, roomColor.get());
             }
         }
-        // one icon size for every kind: fits the smallest room
+        // one icon size for every kind, sized to fit the smallest room
         int iconSize = Math.max(5, Math.min(16, (int) Math.round(smallest * scale * 0.6)));
         for (Box b : rooms) {
             int[] px = proj.box(b);
@@ -255,12 +256,12 @@ public final class DungeonMapHud extends HudModule {
         drawPlayers(r, p, proj, players, s);
     }
 
-    /** Grid wall lines strictly inside the rooms' bounds (lo, hi): each one is a cell boundary that gets a gap. */
+    /** Grid wall lines strictly inside the rooms' bounds (lo, hi). Each one is a cell boundary that gets a gap. */
     private static int[] innerLines(int[] lines, int lo, int hi) {
         return java.util.Arrays.stream(lines).filter(v -> v > lo && v < hi).sorted().distinct().toArray();
     }
 
-    /** Sorted room starts (x or z) after {@code first}; starts within {@code tol} of the last kept one are merged. */
+    /** Sorted room starts (x or z) after {@code first}. Starts within {@code tol} of the last kept one are merged. */
     private static int[] gapLines(List<Box> rooms, boolean xAxis, int first, int tol) {
         java.util.TreeSet<Integer> starts = new java.util.TreeSet<>();
         for (Box b : rooms) starts.add(xAxis ? b.minX : b.minZ);
@@ -276,8 +277,8 @@ public final class DungeonMapHud extends HudModule {
     }
 
     /**
-     * Corridor between two linked rooms, worked out on their drawn pixel boxes so it always touches both:
-     * straight through the middle of the side they share, or an elbow through both centres when they don't line up.
+     * The corridor between two linked rooms, worked out on their drawn pixel boxes so it always touches both. It goes
+     * straight through the middle of the side they share, or as an elbow through both centres when they don't line up.
      */
     private static void drawLink(Render2D r, int[] a, int[] b, boolean horizontal, int thick, int c) {
         int half = thick / 2;
@@ -305,13 +306,13 @@ public final class DungeonMapHud extends HudModule {
         int hs = headSize.getInt();
         DungeonAdapter.PlayerMarker self = null;
         for (DungeonAdapter.PlayerMarker m : players) {
-            if (m.self()) self = m; // drawn last, on top
+            if (m.self()) self = m; // drawn last, so it's on top
             else if (showOthers.get()) drawHead(r, proj, m, hs, s, p.shadow());
         }
         if (self != null) drawHead(r, proj, self, hs, s, p.text());
     }
 
-    /** Face (+ hat layer) centred on the player, kept inside the map square. */
+    /** The face (plus hat layer) centred on the player, kept inside the map square. */
     private static void drawHead(Render2D r, Projection proj, DungeonAdapter.PlayerMarker m, int hs, int s, int border) {
         int x = Math.clamp(proj.x(m.x()) - hs / 2, 1, s - hs - 1), y = Math.clamp(proj.z(m.z()) - hs / 2, 1, s - hs - 1);
         r.rect(x - 1, y - 1, hs + 2, hs + 2, border);
@@ -329,19 +330,19 @@ public final class DungeonMapHud extends HudModule {
         };
     }
 
-    /** Block → pixel; {@code cols}/{@code rows} are the sorted room starts that get pushed out by {@code gap}. */
+    /** Block to pixel. {@code cols}/{@code rows} are the sorted room starts that get pushed out by {@code gap}. */
     private record Projection(double ox, double oz, double scale, int gap, int[] cols, int[] rows,
                               int[] xs, int[] zs) {
-        /** Pixel box of a drawn room: grid rooms via {@link #room}, the editor sample via {@link #rect}. */
+        /** Pixel box of a drawn room: grid rooms go through {@link #room}, the editor sample through {@link #rect}. */
         int[] box(Box b) {
             return b.room() != null ? room(b.room()) : rect(b.minX(), b.minZ(), b.maxX(), b.maxZ());
         }
 
         /**
-         * Pixel box of a layout room. On the grid ({@code xs}/{@code zs} set) both edges take the gap shift of the
-         * room's own cell: refined room edges sit up to a few blocks off the wall lines, and shifting by the edge
-         * blocks put a room that crosses a line onto the wrong side of the gap — it then touched its neighbour and
-         * the link between them shrank to a sliver.
+         * Pixel box of a layout room. On the grid ({@code xs}/{@code zs} set), both edges take the gap shift of the
+         * room's own cell. Refined room edges can sit a few blocks off the wall lines, and shifting by the edge blocks
+         * put a room that crosses a line on the wrong side of the gap. It then touched its neighbour, and the link
+         * between them shrank to a sliver.
          */
         int[] room(RoomLayout.Room r) {
             if (xs != null && r.gx() >= 0 && r.gx() < xs.length && r.gz() >= 0 && r.gz() < zs.length) {
@@ -355,7 +356,7 @@ public final class DungeonMapHud extends HudModule {
         int z(double blockZ) { return z(blockZ, blockZ); }
         /**
          * Pixel box {x0, z0, x1, z1} of a block box (max inclusive). The far edge takes the shift of the room's last
-         * block, so a room spanning several columns stretches over the gaps inside it and stays aligned.
+         * block, so a room spanning several columns stretches over the gaps inside it and stays lined up.
          */
         int[] rect(int minX, int minZ, int maxX, int maxZ) {
             return new int[]{x(minX, minX), z(minZ, minZ), x(maxX + 1, maxX), z(maxZ + 1, maxZ)};
@@ -370,7 +371,7 @@ public final class DungeonMapHud extends HudModule {
         }
     }
 
-    /** Placeholder layout for the HUD editor when you are not in a dungeon. */
+    /** A placeholder layout for the HUD editor when you're not in a dungeon. */
     private static List<Box> sampleRooms() {
         int[][] cells = { // gx, gz, kind
                 {0, 0, 1}, {1, 0, 0}, {2, 0, 3}, {0, 1, 0}, {1, 1, 0}, {2, 1, 0},

@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Loot bag sounds: opening one starts the drop scan; a bag's drop sound is replaced by the player's own file. */
+/** Loot bag sounds: opening a bag starts the drop scan, and a bag's drop sound gets replaced by the player's own file. */
 @Mixin(SoundEngine.class)
 public abstract class SoundEngineMixin {
 

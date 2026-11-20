@@ -19,17 +19,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Lifetime Stats → <i>Update from Wiki</i>: walks Telos' {@code /wiki} and copies the server's own all-time numbers
- * into the {@link TrackingStore} (account values, the "acc" half of "(char/acc)").
+ * Lifetime Stats → <i>Update from Wiki</i>: walks through Telos' {@code /wiki} and copies the server's own all-time
+ * numbers into the {@link TrackingStore} (the account values, the "acc" half of "(char/acc)").
  * <ol>
- *   <li>{@code /wiki} → slot 21 (Dungeons &amp; Bosses). Its slot 49 ("All Statistics") lists the bags you got:
- *       {@code <glyph> Royal (char/acc): 4 / 275} → {@code bag:royal} = 275.</li>
- *   <li>Each category on the left page (slots 9-12, 18-21, 27-30, 36-39: Lowland Dungeons, Realm Bosses…) → each
- *       dungeon / boss on its left page → its slot 49 ({@code Completions (char/acc): 0 / 45}); the right page is
- *       ignored. Back = slot 45. The sum of all completions = Runs.</li>
+ *   <li>{@code /wiki} → slot 21 (Dungeons &amp; Bosses). Its slot 49 ("All Statistics") lists the bags you got, e.g.
+ *       {@code <glyph> Royal (char/acc): 4 / 275} gives {@code bag:royal} = 275.</li>
+ *   <li>Each category on the left page (slots 9-12, 18-21, 27-30, 36-39: Lowland Dungeons, Realm Bosses…), then each
+ *       dungeon or boss on its left page, then its slot 49 ({@code Completions (char/acc): 0 / 45}). The right page is
+ *       ignored, and back is slot 45. All the completions added up give Runs.</li>
  * </ol>
- * Pages are told apart by their slot 49 (the title glyph is shared), so it works whether "back" returns to the
- * category or to the Dungeons &amp; Bosses page. Any screen the player opens / Esc stops it.
+ * Pages are told apart by their slot 49 (the title glyph is the same everywhere), so it works whether "back" returns
+ * to the category or to the Dungeons &amp; Bosses page. Opening any other screen or pressing Esc stops it.
  */
 public final class WikiStatsScan {
 
@@ -40,7 +40,7 @@ public final class WikiStatsScan {
     private static final String MAIN_INFO = "Wiki Information", ROOT_INFO = "All Statistics";
     private static final long OPEN_DELAY_MS = 250, SETTLE_MS = 150, CLICK_GAP_MS = 200, PAGE_TIMEOUT_MS = 6_000,
             CLOSED_GRACE_MS = 1_000;
-    /** {@code <glyph> Royal (char/acc): 4 / 275} (glyph optional). */
+    /** {@code <glyph> Royal (char/acc): 4 / 275} (the glyph is optional). */
     private static final Pattern COUNT = Pattern.compile(
             "([A-Za-z][A-Za-z' ]*?)\\s*\\(char/acc\\)\\s*:\\s*([\\d,]+)\\s*/\\s*([\\d,]+)");
 
@@ -67,7 +67,7 @@ public final class WikiStatsScan {
         return step != Step.IDLE;
     }
 
-    /** Starts a scan (closes the ClickGUI first). Does nothing off Telos or while one runs. */
+    /** Starts a scan (closing the ClickGUI first). Does nothing off Telos or while a scan is running. */
     public void start() {
         if (running()) {
             Toasts.info("Wiki update already running");
@@ -89,7 +89,6 @@ public final class WikiStatsScan {
         Toasts.info("Reading /wiki…");
     }
 
-    /** Client tick. */
     public void tick() {
         if (step == Step.IDLE) return;
         long now = System.currentTimeMillis();
@@ -124,7 +123,7 @@ public final class WikiStatsScan {
             else if (clickedContainer == -1) {
                 if (now > stepAt) stop("Wiki update failed: /wiki did not open", false);
             } else {
-                if (closedSince == 0) closedSince = now; // a page switch may close before it opens the next one
+                if (closedSince == 0) closedSince = now; // a page switch may close the menu before it opens the next one
                 if (now - closedSince > CLOSED_GRACE_MS) stop("Wiki update stopped (menu closed)", false);
             }
             return;
@@ -136,7 +135,7 @@ public final class WikiStatsScan {
             return;
         }
         if (pageSeenAt == 0) pageSeenAt = now;
-        if (now - pageSeenAt < SETTLE_MS || now - lastClickAt < CLICK_GAP_MS) return; // let the items arrive
+        if (now - pageSeenAt < SETTLE_MS || now - lastClickAt < CLICK_GAP_MS) return; // give the items time to arrive
         try {
             act(page, info, now);
         } catch (RuntimeException e) {
@@ -145,7 +144,7 @@ public final class WikiStatsScan {
         }
     }
 
-    /** Decides from slot 49 which wiki page this is and clicks on. */
+    /** Works out from slot 49 which wiki page this is, and clicks on. */
     private void act(Page page, Slot info, long now) {
         if (info.name().equals(MAIN_INFO)) {
             click(page, DUNGEONS_SLOT, now);
@@ -188,7 +187,7 @@ public final class WikiStatsScan {
         return false;
     }
 
-    /** First left-page slot with an item that is not done yet, or -1. */
+    /** The first left-page slot with an item that isn't done yet, or -1. */
     private static int nextSlot(Page page, Set<Integer> done) {
         for (int s : LEFT_PAGE) if (page.at(s) != null && !done.contains(s)) return s;
         return -1;
@@ -200,7 +199,7 @@ public final class WikiStatsScan {
         awaitPage(now, page.containerId());
     }
 
-    /** {@code <glyph> Royal (char/acc): 4 / 275} → {@code royal = 275} (account value). */
+    /** Turns {@code <glyph> Royal (char/acc): 4 / 275} into {@code royal = 275} (the account value). */
     private static void parse(String line, Map<String, Integer> into) {
         Matcher m = COUNT.matcher(line);
         if (!m.find()) return;
@@ -213,7 +212,7 @@ public final class WikiStatsScan {
         int bagRows = 0;
         for (Map.Entry<String, Integer> e : totals.entrySet()) {
             Bag bag = bags.byLabel(e.getKey());
-            if (bag == null || !bag.group().equals(bag.key())) continue; // shared groups (Event) are not on the wiki
+            if (bag == null || !bag.group().equals(bag.key())) continue; // shared groups (Event) aren't on the wiki
             store.setStat(LootTracker.BAG_PREFIX + bag.group(), e.getValue());
             bagRows++;
         }

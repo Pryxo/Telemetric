@@ -20,9 +20,10 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * MC ADAPTER — decodes a user image file (PNG, JPG, animated GIF) into {@link NativeImage} frames, scaled down to at
- * most {@link #MAX_SIZE} px. GIF frames are composited like a browser does (frame offsets + disposal methods).
- * Slow for big GIFs: call it off the render thread. The caller owns (closes) the returned images.
+ * MC ADAPTER: decodes an image file from the user (PNG, JPG, animated GIF) into {@link NativeImage} frames, scaled
+ * down to at most {@link #MAX_SIZE} px. GIF frames are composited the way a browser does it (frame offsets and
+ * disposal methods). It's slow for big GIFs, so call it off the render thread. The caller owns and closes the
+ * returned images.
  */
 public final class ImageFrames {
 
@@ -38,7 +39,7 @@ public final class ImageFrames {
         return file.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".gif");
     }
 
-    /** All frames of the file (one for still images); empty if it cannot be read. */
+    /** All frames of the file (just one for still images). Empty if it can't be read. */
     public static List<Frame> decode(Path file) throws IOException {
         if (isGif(file)) return decodeGif(file);
         BufferedImage img = ImageIO.read(file.toFile());
@@ -138,7 +139,7 @@ public final class ImageFrames {
         return out;
     }
 
-    /** Scales down (keeping the aspect ratio) when larger than {@link #MAX_SIZE}. */
+    /** Scales the image down (keeping the aspect ratio) if it's larger than {@link #MAX_SIZE}. */
     private static BufferedImage fit(BufferedImage img) {
         int w = img.getWidth(), h = img.getHeight();
         if (w <= MAX_SIZE && h <= MAX_SIZE) return img;

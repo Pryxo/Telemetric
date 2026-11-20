@@ -19,11 +19,12 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * MC ADAPTER — draws enabled HUD elements in-game through Fabric's {@link HudElementRegistry}
- * (layer placed just below chat, so chat stays readable on top).
+ * MC ADAPTER: draws the enabled HUD elements in-game through Fabric's {@link HudElementRegistry}, on a layer just below
+ * the chat so the chat stays readable on top.
  * <p>
- * Skipped off Telos Realms ({@link ServerGate}), while F1 hides the GUI and while the HUD editor is open (the editor draws its own copies).
- * While the ClickGUI is open the watermark is drawn by the ClickGUI on top of its backdrop instead.
+ * It's skipped off Telos Realms ({@link ServerGate}), while F1 hides the GUI, and while the HUD editor is open (the
+ * editor draws its own copies). While the ClickGUI is open, the ClickGUI draws the watermark on top of its backdrop
+ * instead.
  * <p>
  * Toast notifications ({@code Toasts}) are drawn here too whenever the ClickGUI is closed (the ClickGUI draws its
  * own), so messages from in-game features show up without opening it. Only F1 hides them.
@@ -34,7 +35,7 @@ public final class HudOverlay {
     private static final java.util.Set<String> FAILED = new java.util.HashSet<>();
     private static final ToastRenderer TOASTS = new ToastRenderer(() -> Telemetric.get().theme().palette());
 
-    /** Free-form drawing in the HUD layer (e.g. a bar projected onto the player), after the HUD elements. */
+    /** Free-form drawing in the HUD layer (e.g. a bar projected onto the player), done after the HUD elements. */
     @FunctionalInterface
     public interface ScreenDrawer {
         void draw(Render2D r, int screenWidth, int screenHeight);
@@ -44,7 +45,7 @@ public final class HudOverlay {
 
     private HudOverlay() {}
 
-    /** Same gates as HUD elements: Telos only, not with F1 or in the HUD editor. */
+    /** Uses the same gates as HUD elements: Telos only, not with F1 or in the HUD editor. */
     public static void addScreenDrawer(ScreenDrawer drawer) {
         DRAWERS.add(drawer);
     }

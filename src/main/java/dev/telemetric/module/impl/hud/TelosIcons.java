@@ -10,20 +10,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Icons for Telos Realms Tab-list stats, taken from the server resource pack.
+ * Icons for the Telos Realms Tab-list stats, taken from the server resource pack.
  * <p>
  * Resolution order (see {@link #resolve}):
  * <ol>
  *   <li>the glyph the Tab entry itself shows in front of the label,</li>
- *   <li>the pack's font "shortcut" character for that stat — only while the Telos pack is loaded
- *       (checked via the glyph's texture),</li>
- *   <li>the PNG straight from the server resource pack ({@code telos:textures/...}), for stats without
- *       a font shortcut,</li>
- *   <li>fallback: a copy of that PNG extracted from the pack and bundled with the mod
- *       ({@code assets/telemetric/textures/hud/telos/}) — used only when the server pack isn't loaded.</li>
+ *   <li>the pack's font "shortcut" character for that stat, but only while the Telos pack is loaded (checked through
+ *       the glyph's texture),</li>
+ *   <li>the PNG straight from the server resource pack ({@code telos:textures/...}), for stats without a font
+ *       shortcut,</li>
+ *   <li>as a fallback, a copy of that PNG extracted from the pack and bundled with the mod
+ *       ({@code assets/telemetric/textures/hud/telos/}), used only when the server pack isn't loaded.</li>
  * </ol>
  * The server always wins, so pack updates show up without a mod update.
- * Glyph code points come from the pack's {@code minecraft:default}, {@code telos:misc} and
+ * The glyph code points come from the pack's {@code minecraft:default}, {@code telos:misc} and
  * {@code telos:material} font files. Fame Boost has no pack icon.
  */
 final class TelosIcons {
@@ -31,12 +31,12 @@ final class TelosIcons {
     private static final String DIR = "textures/hud/telos/";
     private static final String MISC = "telos:misc", MATERIAL = "telos:material";
 
-    /** glyph = font shortcut (null = none), packTexture = the server pack's PNG, fallback = bundled copy of it. */
+    /** glyph is the font shortcut (null for none), packTexture the server pack's PNG, and fallback the bundled copy of it. */
     private record Spec(HudIcon.Glyph glyph, String packTexture, HudIcon.Texture fallback) {}
 
     private static final Map<String, Spec> BY_LABEL = Map.ofEntries(
             // General Info
-            // server/glory PNGs have transparent padding: draw only the opaque box so they line up with the glyphs
+            // the server/glory PNGs have transparent padding, so only the opaque box is drawn to line them up with the glyphs
             Map.entry("server", new Spec(null, "telos:textures/icon/misc/boss.png", new HudIcon.Texture(DIR + "server.png", 32, 32, 5, 4, 23, 26))),
             Map.entry("glory", new Spec(null, "telos:textures/material/misc/wiki_economy.png", new HudIcon.Texture(DIR + "glory.png", 16, 16, 2, 1, 12, 14))),
             Map.entry("soul points", glyph(0x15F8D, MATERIAL, "telos:textures/material/misc/soulpoint1.png", "soul_points", 32, 32)),
@@ -59,11 +59,11 @@ final class TelosIcons {
             Map.entry("critical damage", stat(0x16070, "damage", "crit_damage")),
             Map.entry("loot boost", png("telos:textures/material/misc/wiki_loot.png", "loot_boost", 16, 16)));
 
-    /** Mastery tier 0..6 → glyph in {@code telos:misc}. */
+    /** Mastery tier 0..6 mapped to its glyph in {@code telos:misc}. */
     private static final int[] MASTERY_GLYPHS = {0x15F10, 0x15F12, 0x15F15, 0x15F18, 0x15F19, 0x15F1B, 0x15F1C};
     /** Stats whose (white) tooltip symbol is tinted with the stat's colour. */
     private static final Set<String> TINTED = Set.of("attack", "speed", "defense", "health", "vitality",
-            "evasion", "critical chance"); // critical damage's symbol is already coloured
+            "evasion", "critical chance"); // critical damage's symbol already has its colour
     /** Class ruleset ("mode") glyphs in {@code telos:misc}: normal, hardcore ironman, seasonal. */
     private static final int RULESET_NORMAL = 0x370, RULESET_HARDCORE = 0x371, RULESET_SEASONAL = 0x372;
     private static final Pattern DIGIT = Pattern.compile("\\d+");
@@ -73,13 +73,13 @@ final class TelosIcons {
 
     /**
      * @param label   stat label as configured (e.g. "Mastery")
-     * @param value   plain value text ("" when unknown, e.g. editor preview) — used for Mastery and Class
-     * @param fromTab glyph the Tab entry shows, or null
-     * @return icon to draw, or null for none
+     * @param value   plain value text ("" when unknown, e.g. in the editor preview), used for Mastery and Class
+     * @param fromTab the glyph the Tab entry shows, or null
+     * @return the icon to draw, or null for none
      */
     static HudIcon resolve(String label, String value, HudIcon.Glyph fromTab) {
         String key = label.toLowerCase(Locale.ROOT);
-        // the glyph the Tab list shows wins (for Class the caller passes only the mode glyph from the value)
+        // the glyph the Tab list shows wins (for Class, the caller only passes the mode glyph from the value)
         if (fromTab != null) return fromTab;
         Spec spec = switch (key) {
             case "mastery" -> mastery(value);
@@ -88,7 +88,7 @@ final class TelosIcons {
         };
         if (spec == null) return null;
         if (spec.packTexture() != null && ResourceAdapter.exists(spec.packTexture())) {
-            // server pack loaded: its font glyph, or its PNG for stats without one
+            // the server pack is loaded: use its font glyph, or its PNG for stats without one
             return spec.glyph() != null ? spec.glyph() : spec.fallback().withPath(spec.packTexture());
         }
         return spec.fallback();
@@ -100,7 +100,7 @@ final class TelosIcons {
         return glyph(MASTERY_GLYPHS[tier], MISC, "telos:textures/icon/mastery/" + tier + ".png", "mastery_" + tier, 32, 32);
     }
 
-    /** First number 0..6, or a roman numeral I..VI, in the value; -1 if none. */
+    /** The first number 0..6, or roman numeral I..VI, in the value. -1 if there's none. */
     private static int masteryTier(String value) {
         if (value == null) return -1;
         Matcher m = DIGIT.matcher(value);
@@ -125,7 +125,7 @@ final class TelosIcons {
         return TINTED.contains(label.toLowerCase(Locale.ROOT));
     }
 
-    /** Class mode icon from the value text (seasonal / hardcore ironman, else normal). */
+    /** The class mode icon from the value text (seasonal or hardcore ironman, otherwise normal). */
     private static Spec ruleset(String value) {
         String v = value == null ? "" : value.toLowerCase(Locale.ROOT);
         if (v.contains("season")) return glyph(RULESET_SEASONAL, MISC, "telos:textures/icon/ruleset/seasonal.png", "ruleset_seasonal", 32, 32);

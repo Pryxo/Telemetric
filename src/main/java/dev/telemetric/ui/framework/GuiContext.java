@@ -6,8 +6,8 @@ import dev.telemetric.ui.theme.Theme;
 import dev.telemetric.ui.theme.ThemeManager;
 
 /**
- * Per-screen shared state handed to every component: theme access, keyboard focus and tooltip requests.
- * Avoids static globals inside the UI tree.
+ * Shared per-screen state that every component gets: theme access, keyboard focus and tooltip requests. It keeps
+ * static globals out of the UI tree.
  */
 public final class GuiContext {
 
@@ -32,8 +32,8 @@ public final class GuiContext {
     }
 
     /**
-     * Makes {@link #palette()} return {@code palette} (or the theme again for {@code null}) until the next call.
-     * Returns the previous override so callers can restore it in a {@code finally}.
+     * Makes {@link #palette()} return {@code palette} (or the theme again for {@code null}) until the next call. Returns
+     * the previous override, so callers can restore it in a {@code finally}.
      */
     public Theme overridePalette(Theme palette) {
         Theme previous = paletteOverride;
@@ -55,7 +55,7 @@ public final class GuiContext {
 
     // ------------------------------------------------------------------ focus
 
-    /** Gives keyboard focus to {@code component} (previous focus is notified). */
+    /** Gives keyboard focus to {@code component} (the previous focus gets notified). */
     public void focus(UIComponent component) {
         if (focused == component) return;
         UIComponent previous = focused;
@@ -82,8 +82,8 @@ public final class GuiContext {
     // ------------------------------------------------------------------ mouse capture
 
     /**
-     * Captures the mouse for a drag (slider, colour picker). While captured, parents pass real mouse
-     * coordinates even outside clip areas so the drag keeps tracking.
+     * Captures the mouse for a drag (slider, colour picker). While it's captured, parents pass the real mouse
+     * coordinates even outside clip areas, so the drag keeps tracking.
      */
     public void capture(UIComponent component) {
         captured = component;
@@ -99,12 +99,12 @@ public final class GuiContext {
 
     // ------------------------------------------------------------------ tooltip
 
-    /** Request a tooltip this frame. {@code owner} identifies the hovered thing (for dwell timing). */
+    /** Requests a tooltip this frame. {@code owner} identifies the hovered thing (for dwell timing). */
     public void requestTooltip(Object owner, String text) {
         requestTooltip(owner, null, text);
     }
 
-    /** Tooltip with a {@code title} (feature/setting name) drawn bigger in the accent colour above the text. */
+    /** A tooltip with a {@code title} (feature or setting name) drawn bigger in the accent colour above the text. */
     public void requestTooltip(Object owner, String title, String text) {
         if (text == null || text.isBlank()) return;
         tooltipOwner = owner;

@@ -7,7 +7,7 @@ import dev.telemetric.setting.Setting;
 import java.math.BigDecimal;
 import java.util.Locale;
 
-/** Bounded, stepped number shown as a slider. */
+/** A bounded, stepped number shown as a slider. */
 public class NumberSetting extends Setting<Double> {
 
     private final double min;
@@ -26,7 +26,7 @@ public class NumberSetting extends Setting<Double> {
         this.value = sanitize(defaultValue);
     }
 
-    /** Unit appended in the UI, e.g. "%" or "ms". */
+    /** A unit shown after the value in the UI, e.g. "%" or "ms". */
     public NumberSetting withSuffix(String suffix) {
         this.suffix = suffix == null ? "" : suffix;
         return this;

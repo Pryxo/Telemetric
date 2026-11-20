@@ -14,15 +14,15 @@ import dev.telemetric.ui.theme.Theme;
 import java.util.function.BooleanSupplier;
 
 /**
- * Base for the UI of one {@link Setting}. Handles the shared behaviour so subclasses only draw
- * their control and react to input:
+ * Base for the UI of one {@link Setting}. It handles the shared behaviour, so subclasses only draw their control and
+ * react to input:
  * <ul>
- *   <li>animated show/hide driven by {@link Setting#isVisible()} (height collapses smoothly),</li>
- *   <li>hover highlight of the row,</li>
- *   <li>tooltip with the setting description.</li>
+ *   <li>animated show/hide driven by {@link Setting#isVisible()} (the height collapses smoothly),</li>
+ *   <li>a hover highlight on the row,</li>
+ *   <li>a tooltip with the setting's description.</li>
  * </ul>
- * Subclasses implement {@link #contentHeight()} (full, un-collapsed height — may itself be animated)
- * and {@link #renderContent}.
+ * Subclasses implement {@link #contentHeight()} (the full, un-collapsed height, which may itself be animated) and
+ * {@link #renderContent}.
  */
 public abstract class SettingComponent<S extends Setting<?>> extends UIComponent {
 
@@ -37,13 +37,13 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
         this.visibility = new Animation(Durations.DROPDOWN, Easing.OUT_CUBIC, setting.isVisible() ? 1 : 0);
     }
 
-    /** Full height when visible. */
+    /** The full height when visible. */
     protected abstract int contentHeight();
 
-    /** Draw the control. Bounds are set; clip is active. {@code p} = current palette. */
+    /** Draws the control. The bounds are set and the clip is active. {@code p} is the current palette. */
     protected abstract void renderContent(Render2D r, int mouseX, int mouseY, float delta, Theme p);
 
-    /** Height of the top "label row" used for hover highlight + tooltip. Override for multi-row controls. */
+    /** The height of the top "label row" used for the hover highlight and tooltip. Override it for multi-row controls. */
     protected int rowHeight() {
         return Layout.SETTING_HEIGHT;
     }
@@ -53,13 +53,13 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
         return (int) Math.round(contentHeight() * visibility.get());
     }
 
-    /** Called by the parent before layout so height is current this frame. */
+    /** The parent calls this before layout so the height is current for this frame. */
     public void updateVisibility() {
         visibility.animateTo(visibleNow() ? 1 : 0);
     }
 
     /**
-     * ClickGUI search override: {@code null} = normal visibility ({@link Setting#isVisible()}), otherwise this rule
+     * ClickGUI search override. {@code null} means normal visibility ({@link Setting#isVisible()}); otherwise this rule
      * decides (e.g. a matching child shows even while its group toggle is closed).
      */
     public void setSearchVisibility(BooleanSupplier rule) {
@@ -70,7 +70,7 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
         return searchVisibility != null ? searchVisibility.getAsBoolean() : setting.isVisible();
     }
 
-    /** Show/hide progress (0 = hidden, 1 = fully shown), e.g. to fade decorations drawn by the parent. */
+    /** Show/hide progress (0 is hidden, 1 fully shown), e.g. to fade decorations the parent draws. */
     public double shown() {
         return visibility.get();
     }
@@ -106,7 +106,7 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + getHeight();
     }
 
-    /** Click inside this component's bounds while active. */
+    /** A click inside this component's bounds while it's active. */
     protected abstract boolean onClick(double mouseX, double mouseY, int button);
 
     public S getSetting() {
@@ -124,7 +124,7 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
         return false;
     }
 
-    /** Opens/closes the control. {@code instant} skips the animation (used when restoring the layout). */
+    /** Opens or closes the control. {@code instant} skips the animation (used when restoring the layout). */
     public void setExpanded(boolean expanded, boolean instant) {}
 
     // ------------------------------------------------------------------ helpers for subclasses

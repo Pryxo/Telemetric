@@ -10,11 +10,12 @@ import dev.telemetric.module.impl.combat.CooldownTracker.Cooldown;
 import dev.telemetric.ui.render.Render2D;
 
 /**
- * Weapon Cooldown / Ability Cooldown: a small bar + item icon beside the crosshair (movable in the HUD editor)
- * showing the cooldown of the held weapon / ability. When nothing of that kind is held, the most recently used one
- * keeps showing until its cooldown ends. Ready = full bar, a short "!" flash, the Ready Alert and Ready Sound.
+ * Weapon Cooldown / Ability Cooldown: a small bar and item icon beside the crosshair (movable in the HUD editor)
+ * showing the cooldown of the held weapon or ability. When nothing of that kind is held, the most recently used one
+ * keeps showing until its cooldown ends. When it's ready you get a full bar, a short "!" flash, the Ready Alert and
+ * the Ready Sound.
  * <p>
- * One class, two instances ({@link #weapon()}, {@link #ability()}); data comes from {@link CooldownTracker}.
+ * One class with two instances ({@link #weapon()}, {@link #ability()}). The data comes from {@link CooldownTracker}.
  */
 public final class HeldCooldownHud extends HudModule {
 
@@ -25,7 +26,7 @@ public final class HeldCooldownHud extends HudModule {
     private final ReadyCue cue;
     private final CooldownBar bar;
 
-    /** What to draw, refreshed every tick (the bar itself is interpolated per frame from the cooldown's times). */
+    /** What to draw, refreshed every tick. The bar itself is interpolated per frame from the cooldown's times. */
     private volatile GameItem icon;
     private volatile Cooldown cooldown;
     private long readyAt;
@@ -94,7 +95,7 @@ public final class HeldCooldownHud extends HudModule {
             item = CombatAdapter.previewItem(kind);
             remaining = 0.4f;
         }
-        // the bar sits on the crosshair side: weapon = [icon][bar] left of it, ability = [bar][icon] right of it
+        // the bar sits on the crosshair side: the weapon is [icon][bar] to the left of it, the ability [bar][icon] to the right
         boolean barRight = (kind == Kind.WEAPON) != alignRight;
         int barX = barRight ? ICON + GAP : 0;
         int iconX = barRight ? 0 : BAR_W + GAP;

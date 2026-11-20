@@ -43,19 +43,19 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * MC ADAPTER — the Telos stash screen.
+ * MC ADAPTER: the Telos stash screen.
  * <ul>
- *   <li>Detection: a 6-row chest whose slot 53 has an {@code telos:icon/stash/...} item model (the title is
- *       a single resource-pack glyph and shows no page number).</li>
- *   <li>Mode: slot 53 is {@code view_seasonal} while normal pages are shown (lore "Currently viewing normal
- *       pages"), and the reverse in seasonal mode.</li>
- *   <li>Clicks are sent with {@code MultiPlayerGameMode#handleContainerInput}; the mixin on that method
- *       reports every click (ours and the player's) to {@link StashSession#onSlotClick}.</li>
- *   <li>Items are saved with {@link ItemStack#OPTIONAL_CODEC} through {@link RegistryOps} as JSON.</li>
- *   <li>The overlay replaces the stash: {@code StashScreenMixin}/{@code StashBackgroundMixin} skip the container's own
- *       drawing, the overlay is drawn after the screen ({@code ScreenEvents.afterExtract}) and takes every
- *       click, release, drag, scroll and slot key while it is shown.</li>
- *   <li>Telos asks to confirm a normal/seasonal switch in a pop-up; {@link #confirmPopup} answers it.</li>
+ *   <li>Detection: a 6-row chest whose slot 53 has a {@code telos:icon/stash/...} item model. The title is a single
+ *       resource-pack glyph and shows no page number.</li>
+ *   <li>Mode: slot 53 is {@code view_seasonal} while normal pages are shown (lore "Currently viewing normal pages"),
+ *       and the other way round in seasonal mode.</li>
+ *   <li>Clicks are sent with {@code MultiPlayerGameMode#handleContainerInput}. The mixin on that method reports every
+ *       click (ours and the player's) to {@link StashSession#onSlotClick}.</li>
+ *   <li>Items are saved as JSON with {@link ItemStack#OPTIONAL_CODEC} through {@link RegistryOps}.</li>
+ *   <li>The overlay replaces the stash. {@code StashScreenMixin}/{@code StashBackgroundMixin} skip the container's own
+ *       drawing, the overlay is drawn after the screen ({@code ScreenEvents.afterExtract}), and it takes every click,
+ *       release, drag, scroll and slot key while it's showing.</li>
+ *   <li>Telos asks you to confirm a normal/seasonal switch in a pop-up, and {@link #confirmPopup} answers it.</li>
  * </ul>
  */
 public final class StashAdapter {
@@ -68,8 +68,8 @@ public final class StashAdapter {
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (!(screen instanceof AbstractContainerScreen<?>)) {
-                // Telos' mode-switch pop-up: press Ok before it is ever drawn (tasks queued here still run
-                // before this frame renders), then the hold screen keeps the overlay up
+                // Telos' mode-switch pop-up: press Ok before it ever gets drawn (tasks queued here still run before this frame
+                // renders), and the hold screen keeps the overlay up after that
                 if (enabled() && !(screen instanceof StashHoldScreen) && StashSession.get().isSwitching()) {
                     client.execute(() -> StashSession.get().answerPopup());
                 }
@@ -80,13 +80,13 @@ public final class StashAdapter {
                     !active(s) || !StashOverlay.mouseClicked(event.x(), event.y(), event.button(), event.hasShiftDown()));
             ScreenEvents.remove(screen).register(s -> {
                 StashOverlay.onClose();
-                // Telos closes the stash for a mode switch: no frame of the bare world before it reopens
+                // Telos closes the stash for a mode switch, so don't show a single frame of the bare world before it reopens
                 if (enabled() && StashSession.get().isSwitching()) client.execute(StashAdapter::holdOverlay);
             });
             ScreenMouseEvents.allowMouseScroll(screen).register((s, mx, my, h2, v) ->
                     !active(s) || !StashOverlay.mouseScrolled(mx, my, v));
-            // the real slots are invisible but still there: never let vanilla see releases/drags (quick-craft, drop);
-            // the overlay gets them instead (shift + hold drag quick-moves)
+            // The real slots are invisible but still there, so vanilla must never see releases or drags (quick-craft, drop).
+            // The overlay gets them instead (shift + hold drag quick-moves).
             ScreenMouseEvents.allowMouseRelease(screen).register((s, event) -> {
                 if (!active(s)) return true;
                 StashOverlay.mouseReleased(event.button());
@@ -100,14 +100,14 @@ public final class StashAdapter {
         });
     }
 
-    /** @return true if the overlay used the key (it is then not passed to the screen). */
+    /** @return true if the overlay used the key, in which case it isn't passed on to the screen */
     private static boolean onKey(KeyEvent key) {
         int k = key.key();
         if (StashOverlay.isRenaming()) {
             if (k == GLFW.GLFW_KEY_ENTER || k == GLFW.GLFW_KEY_KP_ENTER) StashOverlay.renameKey(StashOverlay.RenameKey.CONFIRM);
             else if (k == GLFW.GLFW_KEY_ESCAPE) StashOverlay.renameKey(StashOverlay.RenameKey.CANCEL);
             else if (k == GLFW.GLFW_KEY_BACKSPACE) StashOverlay.renameKey(StashOverlay.RenameKey.BACKSPACE);
-            return true; // typing must not close the screen (E) or trigger slot keys
+            return true; // typing mustn't close the screen (E) or trigger slot keys
         }
         if (StashOverlay.isSearchFocused()) {
             if (k == GLFW.GLFW_KEY_ENTER || k == GLFW.GLFW_KEY_KP_ENTER) StashOverlay.searchKey(StashOverlay.SearchKey.CONFIRM);
@@ -115,7 +115,7 @@ public final class StashAdapter {
             else if (k == GLFW.GLFW_KEY_BACKSPACE) {
                 StashOverlay.searchKey(key.hasControlDown() ? StashOverlay.SearchKey.CLEAR : StashOverlay.SearchKey.BACKSPACE);
             }
-            return true; // same as rename: typed letters must not close the screen or hit slots
+            return true; // same as renaming: typed letters mustn't close the screen or hit slots
         }
         if (k == GLFW.GLFW_KEY_F && key.hasControlDown()) {
             StashOverlay.focusSearch();
@@ -158,7 +158,7 @@ public final class StashAdapter {
         }
     }
 
-    /** Mixin hook: true while the overlay replaces this container screen. */
+    /** Mixin hook: true while the overlay is replacing this container screen. */
     public static boolean replacesScreen(Object screen) {
         return screen instanceof Screen s && active(s);
     }
@@ -174,7 +174,7 @@ public final class StashAdapter {
     private static boolean isStash(Screen screen) {
         if (!(screen instanceof AbstractContainerScreen<?> acs)) return false;
         if (!(acs.getMenu() instanceof ChestMenu menu) || menu.getRowCount() != 6) return false;
-        // a click on the mode toggle puts it on the cursor client-side until Telos answers: still the stash
+        // Clicking the mode toggle puts it on the cursor client-side until Telos answers, and that's still the stash.
         return isStashIcon(menu.getSlot(StashSession.SLOT_MODE).getItem()) || isStashIcon(menu.getCarried());
     }
 
@@ -187,7 +187,7 @@ public final class StashAdapter {
         return Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> acs ? acs.getMenu().containerId : -1;
     }
 
-    /** Mode shown right now, or {@code null} if slot 53 can't be read. */
+    /** The mode shown right now, or {@code null} if slot 53 can't be read. */
     public static StashMode readMode() {
         if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> acs)) return null;
         ItemStack toggle = acs.getMenu().getSlot(StashSession.SLOT_MODE).getItem();
@@ -203,12 +203,12 @@ public final class StashAdapter {
         }
         Identifier model = toggle.get(DataComponents.ITEM_MODEL);
         if (model == null) return null;
-        if (model.getPath().endsWith("view_seasonal")) return StashMode.NORMAL;  // button offers the other mode
+        if (model.getPath().endsWith("view_seasonal")) return StashMode.NORMAL;  // the button offers the other mode
         if (model.getPath().endsWith("view_normal")) return StashMode.SEASONAL;
         return null;
     }
 
-    /** True if the shown stash page has no items in slots 0–44 (Telos only converts empty pages). */
+    /** True if the stash page on screen has no items in slots 0–44 (Telos only converts empty pages). */
     public static boolean isPageEmpty() {
         if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> acs)) return false;
         for (int i = 0; i < StashPage.SLOTS; i++) if (!acs.getMenu().getSlot(i).getItem().isEmpty()) return false;
@@ -228,7 +228,7 @@ public final class StashAdapter {
         return out;
     }
 
-    /** Clicks a slot of the open stash (left click, like the player would). */
+    /** Clicks a slot of the open stash (a left click, like the player would do). */
     public static void click(int slot) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameMode == null || mc.player == null) return;
@@ -242,7 +242,7 @@ public final class StashAdapter {
         if (mc.gameMode == null || mc.player == null) return;
         if (!(mc.screen instanceof AbstractContainerScreen<?> acs)) return;
         AbstractContainerMenu menu = acs.getMenu();
-        if (slot != -999 && (slot < 0 || slot >= menu.slots.size())) return; // -999 = outside the window (drop)
+        if (slot != -999 && (slot < 0 || slot >= menu.slots.size())) return; // -999 means outside the window (drop)
         ContainerInput input = switch (action) {
             case PICKUP -> ContainerInput.PICKUP;
             case QUICK_MOVE -> ContainerInput.QUICK_MOVE;
@@ -250,13 +250,13 @@ public final class StashAdapter {
             case THROW -> ContainerInput.THROW;
             case PICKUP_ALL -> ContainerInput.PICKUP_ALL;
         };
-        if (action == SlotAction.THROW && !menu.getCarried().isEmpty()) return; // vanilla: no drop while carrying
+        if (action == SlotAction.THROW && !menu.getCarried().isEmpty()) return; // vanilla doesn't drop while carrying something
         mc.gameMode.handleContainerInput(menu.containerId, slot, button, input, mc.player);
     }
 
     /**
-     * Item in a slot of the open stash menu right now, or {@code null} if empty. Without a container screen
-     * (mode switch in progress) the inventory slots (54-89) come from the player's inventory.
+     * The item in a slot of the open stash menu right now, or {@code null} if it's empty. Without a container screen
+     * (mode switch in progress), the inventory slots (54-89) come from the player's inventory.
      */
     public static GameItem liveItem(int slot) {
         Minecraft mc = Minecraft.getInstance();
@@ -270,7 +270,7 @@ public final class StashAdapter {
         return stack.isEmpty() ? null : new GameItem(stack);
     }
 
-    /** Item on the mouse cursor, or {@code null}. */
+    /** The item on the mouse cursor, or {@code null}. */
     public static GameItem carried() {
         if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> acs)) return null;
         ItemStack stack = acs.getMenu().getCarried();
@@ -285,12 +285,12 @@ public final class StashAdapter {
 
     /**
      * Answers the pop-up Telos shows after the normal/seasonal toggle. Seen live (2026-11-14): a
-     * {@code SimpleDialogScreen} titled "Stash" with a seasonal-mode WARNING text and one "Ok" button (plus the
-     * vanilla "This is a custom screen. Learn more." info button, which must not be pressed). Presses the
-     * matching dialog button. Never clicks into a container screen: until 0.17.6 a container here was taken as a
-     * chest-menu pop-up, but it was the stash itself mid-click — that picked up stash items and hid the real pop-up.
-     * Only called right after a mode-switch click while the stash is not the screen.
-     * Logs what it saw once per pop-up so the rule can be tightened.
+     * {@code SimpleDialogScreen} titled "Stash" with a seasonal-mode WARNING text and one "Ok" button, plus vanilla's
+     * "This is a custom screen. Learn more." info button, which mustn't be pressed. It presses the matching dialog
+     * button and never clicks into a container screen. Up to 0.17.6 a container here was taken for a chest-menu pop-up,
+     * but it was actually the stash itself mid-click, so it picked up stash items and hid the real pop-up.
+     * Only called right after a mode-switch click while the stash isn't the screen.
+     * It logs what it saw once per pop-up so the rule can be tightened.
      * @return true if something was clicked
      */
     public static boolean confirmPopup() {
@@ -329,7 +329,7 @@ public final class StashAdapter {
         }
     }
 
-    /** 2 = says yes/confirm and not cancel, 0 = no match. */
+    /** 2 if it says yes/confirm and not cancel, 0 if it doesn't match. */
     private static int score(String text) {
         for (String n : NO) if (containsWord(text, n)) return 0;
         for (String y : YES) if (containsWord(text, y)) return 2;
@@ -348,7 +348,7 @@ public final class StashAdapter {
         return false;
     }
 
-    /** Decodes saved item JSON; {@code null} if it can't be read (e.g. no world loaded). */
+    /** Decodes saved item JSON. {@code null} if it can't be read (e.g. no world loaded). */
     public static GameItem decode(String json) {
         RegistryOps<JsonElement> ops = ops();
         if (ops == null || json == null) return null;
@@ -360,7 +360,7 @@ public final class StashAdapter {
         }
     }
 
-    /** Key that separates saved stashes per account. */
+    /** The key that keeps saved stashes separate per account. */
     public static String playerKey() {
         Minecraft mc = Minecraft.getInstance();
         return mc.player != null ? mc.player.getUUID().toString() : "unknown";
@@ -375,7 +375,7 @@ public final class StashAdapter {
     // ------------------------------------------------------------------ drawing
 
     /**
-     * Mode switch in progress and no stash on screen (Telos closed it / its pop-up was answered): show the
+     * A mode switch is in progress and no stash is on screen (Telos closed it, or its pop-up was answered). Show the
      * overlay on a {@link StashHoldScreen} until the stash reopens, instead of the world or the pop-up.
      */
     public static void holdOverlay() {
@@ -384,7 +384,7 @@ public final class StashAdapter {
         Screen screen = mc.screen;
         if (screen instanceof StashHoldScreen || isStash(screen)) return;
         if (screen instanceof AbstractContainerScreen<?>) return; // never cover a container
-        if (screen != null && !StashSession.get().isPopupAnswered()) return; // pop-up not answered yet
+        if (screen != null && !StashSession.get().isPopupAnswered()) return; // the pop-up hasn't been answered yet
         mc.setScreen(new StashHoldScreen());
     }
 

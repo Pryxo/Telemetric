@@ -5,18 +5,18 @@ import java.util.Deque;
 import java.util.Locale;
 
 /**
- * The server's chat mode ({@code /chat default|guild|group}) and a queue that sends a message in another mode:
- * switch → wait for the server's confirmation → send → switch back. Used by chat tabs (Guild tab = guild mode),
- * the Toggle Guild / Group keys and {@code /ac /gc /grc}. Telos rate-limits chat, so sends are spaced by
- * {@link #SEND_GAP_MS}; a switch the server never confirms is dropped after {@link #TIMEOUT_MS}.
- * Pure Java — the commands go out through {@link Server}, ticked by the Chat module.
+ * The server's chat mode ({@code /chat default|guild|group}), plus a queue that sends a message in another mode:
+ * switch, wait for the server to confirm, send, then switch back. Chat tabs use it (the Guild tab means guild mode),
+ * and so do the Toggle Guild / Group keys and {@code /ac /gc /grc}. Telos rate-limits chat, so sends are spaced by
+ * {@link #SEND_GAP_MS}. A switch the server never confirms is dropped after {@link #TIMEOUT_MS}.
+ * Pure Java; the commands go out through {@link Server}, and the Chat module ticks it.
  */
 public final class ChatChannels {
 
     public static final String DEFAULT = "default";
     static final long SEND_GAP_MS = 1100, TIMEOUT_MS = 3000;
 
-    /** Where commands / messages go (the game). */
+    /** Where commands and messages go (the game). */
     public interface Server {
         void command(String command);
 
@@ -33,7 +33,7 @@ public final class ChatChannels {
     private State state = State.IDLE;
     private String restoreTo = DEFAULT;
     private long stateSince, lastSent;
-    /** Mode switches we asked for whose confirmation line is still due (hidden from chat). */
+    /** Mode switches we asked for that still owe us a confirmation line (hidden from chat). */
     private int ownSwitches;
     private long ownSwitchUntil;
 
@@ -50,14 +50,14 @@ public final class ChatChannels {
         return DEFAULT.equals(mode);
     }
 
-    /** Switches the server to {@code channel} (no-op when already there). */
+    /** Switches the server to {@code channel}. Does nothing if it's already there. */
     public void switchTo(String channel, long now) {
         String c = normalize(channel);
         if (c.isEmpty() || c.equals(mode)) return;
         requestSwitch(c, now);
     }
 
-    /** Guild / group key: into {@code channel}, or back to default when already there. */
+    /** Guild or group key: switch to {@code channel}, or back to default if we're already in it. */
     public void toggle(String channel, long now) {
         String c = normalize(channel);
         requestSwitch(c.equals(mode) ? DEFAULT : c, now);
@@ -69,29 +69,29 @@ public final class ChatChannels {
         queue.addLast(new Queued(normalize(channel), message));
     }
 
-    /** True while a queued message is being sent (typed messages should queue behind it). */
+    /** True while a queued message is being sent. Messages typed meanwhile should queue behind it. */
     public boolean isBusy() {
         return state != State.IDLE || !queue.isEmpty();
     }
 
-    /** The mode a message typed now ends up in once the queue is done. */
+    /** The mode a message typed now will end up in once the queue is done. */
     public String typingMode() {
         return state == State.IDLE ? mode : restoreTo;
     }
 
-    /** A message you sent yourself (keeps the rate gap). */
+    /** A message you sent yourself. Keeps the rate gap intact. */
     public void sentByUser(long now) {
         lastSent = now;
     }
 
-    /** True while a mode confirmation would answer a switch we made (its chat line is hidden). */
+    /** True while a mode confirmation would be the answer to a switch we made (its chat line gets hidden). */
     public boolean expectsConfirmation(long now) {
         return state == State.SWITCHING || state == State.RESTORING || (ownSwitches > 0 && now <= ownSwitchUntil);
     }
 
     /**
-     * The server confirmed a mode switch. Returns true if the confirmation line answers a switch we made (the
-     * caller hides it).
+     * The server confirmed a mode switch. Returns true if the confirmation line answers a switch we made, in which
+     * case the caller hides it.
      */
     public boolean confirmed(String newMode, long now) {
         mode = normalize(newMode);
@@ -112,7 +112,7 @@ public final class ChatChannels {
     }
 
     public void tick(long now) {
-        if (state != State.IDLE && now - stateSince > TIMEOUT_MS) state = State.IDLE; // server never answered
+        if (state != State.IDLE && now - stateSince > TIMEOUT_MS) state = State.IDLE; // the server never answered
         if (ownSwitches > 0 && now > ownSwitchUntil) ownSwitches = 0;
         switch (state) {
             case IDLE -> {
@@ -139,7 +139,7 @@ public final class ChatChannels {
                 }
                 Queued after = queue.peekFirst();
                 if (after != null && after.channel().equals(mode)) {
-                    stateSince = now; // more for this mode: stay
+                    stateSince = now; // more queued for this mode, so stay
                     return;
                 }
                 state = State.RESTORING;

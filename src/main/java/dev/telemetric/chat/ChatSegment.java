@@ -1,9 +1,10 @@
 package dev.telemetric.chat;
 
 /**
- * One styled run of a chat message (pure Java, no Minecraft types). Styles are the <b>resolved</b> ones — a run
- * inherits bold/italic/… from its parent components the way the game draws it. Colour is deliberately not kept:
- * chat mods (e.g. ChatNotify highlighting your name) recolour runs, and a system message is already a server one.
+ * One styled run of a chat message (pure Java, no Minecraft types). The styles are the <b>resolved</b> ones: a run
+ * inherits bold/italic/… from its parent components the same way the game draws it. Colour is left out on purpose,
+ * because chat mods (ChatNotify highlighting your name, for example) recolour runs, and a system message is already
+ * known to come from the server.
  *
  * @param text        the run's text (never empty)
  * @param interactive the run has a click or hover event (player names, links, buttons)
@@ -12,7 +13,7 @@ package dev.telemetric.chat;
 public record ChatSegment(String text, boolean bold, boolean italic, boolean underlined,
                           boolean strikethrough, boolean obfuscated, boolean interactive, String font) {
 
-    /** Same look as {@code other} (everything but the text) — adjacent runs like that are merged. */
+    /** True if it looks the same as {@code other} (everything except the text). Neighbouring runs like that get merged. */
     public boolean sameStyle(ChatSegment other) {
         return bold == other.bold && italic == other.italic && underlined == other.underlined
                 && strikethrough == other.strikethrough && obfuscated == other.obfuscated

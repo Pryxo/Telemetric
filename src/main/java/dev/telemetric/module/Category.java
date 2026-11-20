@@ -7,10 +7,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Open registry of module categories. Each category with at least one visible module gets its own
- * ClickGUI panel. Add a category with one line:
+ * Open registry of module categories. Each category with at least one visible module gets its own ClickGUI panel.
+ * Adding a category takes one line:
  * <pre>{@code public static final Category COMBAT = register("Combat", 10);}</pre>
- * Lower {@code order} = further left in the default layout.
+ * A lower {@code order} puts it further left in the default layout.
  */
 public final class Category {
 

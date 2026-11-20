@@ -28,14 +28,15 @@ import java.util.Locale;
 /**
  * Social → Callouts:
  * <ul>
- *   <li><b>Callout Key</b>: sends the boss you fight ({@code Teleport for X - 42% HP}, in dungeons with its phase from
- *       {@code callouts.json}), the portal next to you ({@code … - 12s left}) or {@code Currently in <area>};
- *       a public call is held back while someone else just called the same thing in your realm;</li>
- *   <li><b>Click to Teleport</b>: other players' call-outs get a link that teleports you to them — across realms on a
- *       second click ({@code /joinq} the caller's realm, then {@code /tp} once you arrived);</li>
- *   <li><b>Realm Links</b>: the {@code [realm]} tag of player chat joins that realm (right-click: join + teleport).</li>
+ *   <li><b>Callout Key</b> sends the boss you're fighting ({@code Teleport for X - 42% HP}, in dungeons with its phase
+ *       from {@code callouts.json}), the portal next to you ({@code … - 12s left}), or {@code Currently in <area>}.
+ *       A public call is held back if someone else just called the same thing in your realm.</li>
+ *   <li><b>Click to Teleport</b> gives other players' call-outs a link that teleports you to them. Across realms it
+ *       takes a second click ({@code /joinq} to the caller's realm, then {@code /tp} once you've arrived).</li>
+ *   <li><b>Realm Links</b>: clicking the {@code [realm]} tag in player chat joins that realm (right-click joins and
+ *       teleports).</li>
  * </ul>
- * Call-outs are player text: they are only remembered and linked, never acted on without your click.
+ * Call-outs are player text, so they're only remembered and linked, and nothing happens without your click.
  */
 public class CalloutsModule extends Module {
 
@@ -63,7 +64,7 @@ public class CalloutsModule extends Module {
 
     // ------------------------------------------------------------------ incoming lines
 
-    /** Every new chat line: remembers call-outs, links them and the realm tag. */
+    /** Runs for every new chat line: remembers call-outs and links them and the realm tag. */
     private List<ChatLink> links(String plain) {
         if (!isEnabled()) return List.of();
         Callouts.Line line = Callouts.line(plain);
@@ -100,7 +101,7 @@ public class CalloutsModule extends Module {
         PlayerAdapter.sendCommand("joinq " + realm);
     }
 
-    /** {@code /tp} in your realm; in another realm: confirm with a second click, then join + teleport on arrival. */
+    /** {@code /tp} in your realm. In another realm it needs a second click to confirm, then joins and teleports on arrival. */
     private void teleportTo(String player) {
         long now = System.currentTimeMillis();
         String theirs = memory.realmOf(player, now);
@@ -172,7 +173,7 @@ public class CalloutsModule extends Module {
                 target = boss.boss();
                 message = Callouts.bossAt(boss.boss(), hp, phase != null ? phase : where);
             } else {
-                PlayerAdapter.sendChat(Callouts.currentlyIn(where)); // no boss yet: nothing to cool down
+                PlayerAdapter.sendChat(Callouts.currentlyIn(where)); // no boss yet, so there's nothing to cool down
                 return;
             }
         } else if (isNexus()) {
@@ -205,7 +206,7 @@ public class CalloutsModule extends Module {
         send(target, hp, message);
     }
 
-    /** Sends a call-out, unless (public chat) someone just called the same thing in this realm. */
+    /** Sends a call-out, unless it's for public chat and someone just called the same thing in this realm. */
     private void send(String target, int hp, String message) {
         long now = System.currentTimeMillis();
         TelosServer here = TelosServer.current();

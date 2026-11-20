@@ -14,25 +14,25 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 /**
- * The stash overlay. It <b>replaces</b> the Telos stash screen: a header (title, page status, Scan,
- * Normal | Seasonal toggle), a grid of page cards (each a 9x5 stash page with real item icons, the open page
- * outlined in the accent colour) and, centred below, the player's inventory.
+ * The stash overlay. It <b>replaces</b> the Telos stash screen with a header (title, page status, Scan, Normal |
+ * Seasonal toggle), a grid of page cards (each one a 9x5 stash page with real item icons, the open page outlined in
+ * the accent colour) and the player's inventory centred below.
  * <ul>
- *   <li>Items work like a normal container: left/right click, shift-click, double-click, hotbar keys 1–9,
- *       F (offhand) and Q (drop) on the hovered slot. A click on another page's item walks the stash there
- *       first and then sends the click ({@link StashSession#clickPageSlot}).</li>
- *   <li>Click a page name or an empty spot of a card → go there; right-click the name → rename it
- *       (Enter saves, Esc cancels, empty name = back to "Page N"). ←/→ = previous/next page.</li>
- *   <li>The open page shows the live container; other pages show their saved copy.</li>
+ *   <li>Items work like in a normal container: left/right click, shift-click, double-click, hotbar keys 1–9, F
+ *       (offhand) and Q (drop) on the hovered slot. Clicking an item on another page walks the stash there first and
+ *       then sends the click ({@link StashSession#clickPageSlot}).</li>
+ *   <li>Click a page name or an empty spot on a card to go there. Right-click the name to rename it (Enter saves, Esc
+ *       cancels, an empty name goes back to "Page N"). ←/→ go to the previous/next page.</li>
+ *   <li>The open page shows the live container, and the other pages show their saved copy.</li>
  * </ul>
- * Laid out in natural units, then scaled down to fit the screen ({@link Render2D#pushTransform}).
- * Mouse handling reuses the last frame's layout.
+ * It's laid out in natural units, then scaled down to fit the screen ({@link Render2D#pushTransform}). Mouse handling
+ * reuses the last frame's layout.
  */
 public final class StashOverlay {
 
     private static final int PAD = 4;
     private static final int GAP = 4;
-    private static final int SLOT = 18;          // 16px item + 2px gap
+    private static final int SLOT = 18;          // a 16px item plus a 2px gap
     private static final int GRID_W = 9 * SLOT;
     private static final int GRID_H = 5 * SLOT;
     private static final int LABEL_H = 11;
@@ -40,7 +40,7 @@ public final class StashOverlay {
     private static final int CARD_H = LABEL_H + GRID_H + 3;
     private static final int HEADER_H = 16;
     private static final int SEARCH_H = 12;
-    /** Top of the first card row: header, then the search box row. */
+    /** The top of the first card row, below the header and the search box row. */
     private static final int CARDS_TOP = PAD + HEADER_H + SEARCH_H + GAP;
     private static final int MAX_SEARCH = 64;
     private static final int SCROLLBAR_W = 4;
@@ -49,7 +49,7 @@ public final class StashOverlay {
     private static final int HOTBAR_GAP = 4;
     private static final int INV_H = PAD + LABEL_H + 3 * SLOT + HOTBAR_GAP + SLOT + PAD;
     private static final int MAX_NAME = 32;
-    /** First menu slot of the player's inventory in the 6-row stash menu (54–80 inventory, 81–89 hotbar). */
+    /** The first menu slot of the player's inventory in the 6-row stash menu (54–80 inventory, 81–89 hotbar). */
     private static final int INV_SLOT0 = 54;
     private static final long DOUBLE_CLICK_MS = 250;
 
@@ -57,7 +57,7 @@ public final class StashOverlay {
     private static float ox, oy, scale = 1f;
     private static int width, height, totalH, cols, visRows, totalRows, pageCount, invX, invY;
     private static boolean laidOut;
-    /** Mouse in natural units at the last frame (keys carry no position). */
+    /** The mouse position in natural units on the last frame (keys don't carry a position). */
     private static int lastNx = Integer.MIN_VALUE, lastNy = Integer.MIN_VALUE;
     private static int scrollRow;
     private static int followedPage;
@@ -92,13 +92,13 @@ public final class StashOverlay {
     private static long lastClickTime;
     private static int lastClickPage, lastClickSlot = -1;
 
-    // shift + hold drag: quick-move every slot the mouse passes over (keys = page * 100 + slot, page 0 = inventory)
+    // shift + hold drag quick-moves every slot the mouse passes over (keys are page * 100 + slot, page 0 is the inventory)
     private static boolean shiftDrag;
     private static int shiftDragButton;
     private static int dragNx, dragNy;
     private static final java.util.Set<Integer> dragVisited = new java.util.HashSet<>();
 
-    /** What the mouse points at: a stash slot of a page, an inventory slot, a card label or card body. */
+    /** What the mouse points at: a stash slot on a page, an inventory slot, a card label, or a card body. */
     private record Target(Kind kind, int page, int slot) {}
     private enum Kind { STASH_SLOT, INV_SLOT, LABEL, CARD }
 
@@ -131,7 +131,7 @@ public final class StashOverlay {
         totalH = height + GAP * 2 + INV_H;
         invX = (width - INV_W) / 2;
         invY = height + GAP * 2;
-        // search legend left of the inventory; if it sticks out past the main panel, widen both sides equally
+        // the search legend sits left of the inventory, and if it sticks out past the main panel, both sides widen equally
         legendW = legendWidth(r);
         legendX = invX - GAP - legendW;
         int extra = Math.max(0, -legendX);
@@ -139,7 +139,7 @@ public final class StashOverlay {
 
         scale = Math.min(m.maxScale(), Math.min((float) (screenW - 2 * MARGIN) / layoutW,
                 (float) (screenH - 2 * MARGIN) / totalH));
-        scale = Render2D.pixelScale(Math.max(0.2f, scale)); // whole window pixels per unit: items exactly like vanilla
+        scale = Render2D.pixelScale(Math.max(0.2f, scale)); // whole window pixels per unit, so items look exactly like vanilla
         ox = Render2D.snapToPixel((screenW - width * scale) / 2f);
         oy = Render2D.snapToPixel(Math.max(MARGIN, (screenH - totalH * scale) / 2f));
         laidOut = true;
@@ -152,7 +152,7 @@ public final class StashOverlay {
         GameItem carried = StashAdapter.carried();
         GameItem hovered = null;
 
-        // own backdrop instead of the hidden stash texture
+        // our own backdrop instead of the hidden stash texture
         r.gradientV(0, 0, screenW, screenH, p.backdrop(), ColorUtil.shade(p.backdrop(), -0.4));
         r.nextLayer();
         r.pushTransform(ox, oy, scale);
@@ -217,7 +217,7 @@ public final class StashOverlay {
         scanX = normalX - GAP - scanW;
 
         StashMode mode = session.mode();
-        // mode toggle: one track, the active half filled with the accent
+        // mode toggle: one track, with the active half filled in the accent colour
         r.roundedRect(normalX, pillY, pillW * 2, pillH, Math.min(radius, pillH / 2), p.control());
         int activeX = mode == StashMode.NORMAL ? normalX : seasonalX;
         r.roundedRect(activeX, pillY, pillW, pillH, Math.min(radius, pillH / 2), p.accent());
@@ -243,7 +243,7 @@ public final class StashOverlay {
         }
     }
 
-    /** Search box row under the header. A filter prefix (# & ^ $) at the start is drawn in the accent colour. */
+    /** The search box row under the header. A filter prefix (# & ^ $) at the start is drawn in the accent colour. */
     private static void drawSearch(Render2D r, Theme p, int radius, int nx, int ny) {
         searchX = PAD;
         searchY = PAD + HEADER_H;
@@ -279,7 +279,7 @@ public final class StashOverlay {
         if (searchFocused) r.rect(x + r.textWidth(shown), ty, 1, r.fontHeight() - 1, p.accent());
     }
 
-    /** "(18) Normal": page count of that mode, (0) = Telos has none (can't switch there), (?) = not known yet. */
+    /** "(18) Normal": the page count of that mode. (0) means Telos has none (you can't switch there), (?) means not known yet. */
     private static String modeLabel(StashSession session, StashMode m) {
         return "(" + session.book(m).countLabel() + ") " + m.label();
     }
@@ -289,7 +289,7 @@ public final class StashOverlay {
         r.textCentered(label, x + pillW / 2, pillY + (pillH - r.fontHeight()) / 2 + 1, color);
     }
 
-    /** True if the card should show the live container (it is the open page and no page change is pending). */
+    /** True if the card should show the live container (it's the open page and no page change is pending). */
     private static boolean isLive(StashSession session, int index) {
         return index == session.page() && !session.isBusy();
     }
@@ -330,12 +330,12 @@ public final class StashOverlay {
                 }
                 for (int i = 0; i < StashPage.SLOTS; i++) {
                     GameItem item = live ? StashAdapter.liveItem(i) : page.item(i);
-                    // vanilla slot: 18 px cell, item 16x16 at +1 (Telos skin frames fill the cell edge to edge)
+                    // vanilla slot: an 18 px cell with the 16x16 item at +1 (Telos skin frames fill the cell edge to edge)
                     int sx = gx + (i % 9) * SLOT + 1, sy = gy + (i / 9) * SLOT + 1;
                     if (item != null) r.item(item, sx, sy);
                     if (searching) searchMark(r, p, item, sx, sy);
                     if (hover != null && hover.kind() == Kind.STASH_SLOT && hover.page() == index && hover.slot() == i) {
-                        r.rect(sx, sy, 16, 16, ColorUtil.withAlpha(p.text(), 0x40)); // vanilla: highlight over the item
+                        r.rect(sx, sy, 16, 16, ColorUtil.withAlpha(p.text(), 0x40)); // like vanilla, highlight over the item
                         hovered = item;
                     }
                 }
@@ -344,7 +344,7 @@ public final class StashOverlay {
         return hovered;
     }
 
-    /** Search result on a slot: matches get an accent frame, everything else (empty slots too) is darkened. */
+    /** A search result on a slot: matches get an accent frame, and everything else (empty slots too) is darkened. */
     private static void searchMark(Render2D r, Theme p, GameItem item, int sx, int sy) {
         if (item != null && StashSearch.matches(item, searchText)) {
             r.outline(sx - 1, sy - 1, 18, 18, p.accent());
@@ -353,7 +353,7 @@ public final class StashOverlay {
         }
     }
 
-    /** @param matches search hits on this page, or -1 when no search is active / page unknown */
+    /** @param matches search hits on this page, or -1 when no search is active or the page is unknown */
     private static void drawLabel(Render2D r, Theme p, StashBook book, int index, int x, int y, boolean current, boolean hover,
                                   int matches) {
         if (renamePage == index) {
@@ -387,7 +387,7 @@ public final class StashOverlay {
         return PAD * 2 + 2 + w;
     }
 
-    /** Search filter legend: prefix (accent), what it filters, 1–3 examples (muted). */
+    /** The search filter legend: the prefix (accent), what it filters, and 1–3 examples (muted). */
     private static void drawLegend(Render2D r, Theme p) {
         int x = legendX + PAD + 1;
         r.text("Search filters", x, invY + PAD + 1, p.textMuted());
@@ -429,7 +429,7 @@ public final class StashOverlay {
         r.roundedRect(trackX, thumbY, SCROLLBAR_W, thumbH, SCROLLBAR_W / 2, p.accent());
     }
 
-    /** Scroll so the current page stays visible whenever it changes. */
+    /** Scrolls so the current page stays visible whenever it changes. */
     private static void followCurrentPage(int page) {
         if (page == followedPage || page <= 0) {
             followedPage = page;
@@ -448,7 +448,7 @@ public final class StashOverlay {
         return PAD + col * (CARD_W + GAP);
     }
 
-    /** Inventory slot j: 0–26 main inventory (rows top to bottom), 27–35 hotbar. */
+    /** Inventory slot j: 0–26 are the main inventory (rows top to bottom), 27–35 the hotbar. */
     private static int invSlotX(int j) {
         return invX + PAD + (j % 9) * SLOT;
     }
@@ -458,7 +458,7 @@ public final class StashOverlay {
         return invY + PAD + LABEL_H + row * SLOT + (row == 3 ? HOTBAR_GAP : 0);
     }
 
-    /** What is under natural point (nx, ny), or {@code null}. */
+    /** What's under the natural point (nx, ny), or {@code null}. */
     private static Target target(int nx, int ny) {
         if (!laidOut) return null;
         for (int j = 0; j < 36; j++) {
@@ -486,7 +486,7 @@ public final class StashOverlay {
 
     // ================================================================== input
 
-    /** The overlay takes every click while it replaces the stash. */
+    /** The overlay takes every click while it's replacing the stash. */
     public static boolean mouseClicked(double mouseX, double mouseY, int button, boolean shift) {
         if (!laidOut) return true;
         if (renamePage > 0) {
@@ -496,7 +496,7 @@ public final class StashOverlay {
         int nx = (int) Math.floor((mouseX - ox) / scale);
         int ny = (int) Math.floor((mouseY - oy) / scale);
         if (hit(nx, ny, searchX, searchY, searchW, SEARCH_H)) {
-            // left = type here, right-click or the × = clear
+            // left-click types here, right-click or the × clears
             boolean onClear = !searchFocused && !searchText.isEmpty() && nx >= searchX + searchW - 12;
             if (button == 1 || onClear) searchText = "";
             searchFocused = button == 0 && !onClear || button == 1;
@@ -507,9 +507,9 @@ public final class StashOverlay {
         boolean inMain = hit(nx, ny, 0, 0, width, height);
         boolean inInv = hit(nx, ny, invX, invY, INV_W, INV_H);
 
-        if (hit(nx, ny, legendX, invY, legendW, INV_H)) return true; // legend: no drop
+        if (hit(nx, ny, legendX, invY, legendW, INV_H)) return true; // clicks on the legend don't drop anything
         if (!inMain && !inInv) {
-            // outside the window: drop the carried item like vanilla
+            // outside the window: drop the carried item, like vanilla
             if (StashAdapter.carried() != null && (button == 0 || button == 1)) StashAdapter.slotInput(-999, SlotAction.PICKUP, button);
             return true;
         }
@@ -523,7 +523,7 @@ public final class StashOverlay {
                 return true;
             }
             if (hit(nx, ny, scanX, pillY, scanW, pillH)) {
-                if (shift) session.startBenchmark(); // times every page click, result in the header + log
+                if (shift) session.startBenchmark(); // times every page click and shows the result in the header and the log
                 else session.startScan();
                 return true;
             }
@@ -564,15 +564,15 @@ public final class StashOverlay {
     }
 
     /**
-     * Mouse moved with a button held. A drag that began with a shift-click quick-moves every further slot it
-     * passes over while Shift stays held (inventory → shown stash page, shown stash page → inventory).
+     * The mouse moved with a button held. A drag that started with a shift-click quick-moves every further slot it
+     * passes over while Shift stays held (inventory to the shown stash page, or the shown stash page to the inventory).
      */
     public static boolean mouseDragged(double mouseX, double mouseY, int button, boolean shift) {
         if (!laidOut || !shiftDrag || button != shiftDragButton) return true;
         int nx = (int) Math.floor((mouseX - ox) / scale);
         int ny = (int) Math.floor((mouseY - oy) / scale);
         if (shift) {
-            // walk the path since the last event so a fast swipe does not skip slots
+            // walk the path since the last event, so a fast swipe doesn't skip slots
             int steps = Math.max(1, Math.max(Math.abs(nx - dragNx), Math.abs(ny - dragNy)) / 4);
             for (int i = 1; i <= steps; i++) {
                 dragQuickMove(target(dragNx + (nx - dragNx) * i / steps, dragNy + (ny - dragNy) * i / steps));
@@ -593,8 +593,8 @@ public final class StashOverlay {
     private static void dragQuickMove(Target t) {
         if (t == null || (t.kind() != Kind.STASH_SLOT && t.kind() != Kind.INV_SLOT)) return;
         StashSession session = StashSession.get();
-        if (session.isBusy()) return; // mid page switch: the live container is not the shown page
-        if (t.kind() == Kind.STASH_SLOT && t.page() != session.page()) return; // only the shown page is live
+        if (session.isBusy()) return; // mid page switch, the live container isn't the page being shown
+        if (t.kind() == Kind.STASH_SLOT && t.page() != session.page()) return; // only the page being shown is live
         if (!dragVisited.add(dragKey(t))) return;
         int menuSlot = t.kind() == Kind.INV_SLOT ? INV_SLOT0 + t.slot() : t.slot();
         if (StashAdapter.liveItem(menuSlot) == null) return;
@@ -605,7 +605,7 @@ public final class StashOverlay {
         return (t.kind() == Kind.INV_SLOT ? 0 : t.page()) * 100 + t.slot();
     }
 
-    /** Slot key (1–9, F, Q) on the hovered slot. @return true if a slot was hovered. */
+    /** A slot key (1–9, F, Q) on the hovered slot. @return true if a slot was hovered. */
     public static boolean hoverAction(SlotAction action, int button) {
         if (!laidOut || renamePage > 0) return false;
         Target t = target(lastNx, lastNy);
@@ -619,7 +619,7 @@ public final class StashOverlay {
         else StashSession.get().clickPageSlot(t.page(), t.slot(), action, button);
     }
 
-    /** @return true if the scroll was over the overlay. */
+    /** @return true if the scroll was over the overlay */
     public static boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         if (!laidOut) return false;
         if (amount != 0 && totalRows > visRows) scrollRow = clamp(scrollRow - (int) Math.signum(amount), 0, totalRows - visRows);
@@ -666,14 +666,14 @@ public final class StashOverlay {
         return searchFocused && renamePage <= 0;
     }
 
-    /** Ctrl+F: focus the search box. */
+    /** Ctrl+F focuses the search box. */
     public static void focusSearch() {
         if (renamePage <= 0) searchFocused = true;
     }
 
     public static void searchKey(SearchKey key) {
         switch (key) {
-            case CONFIRM -> searchFocused = false;  // keep the filter, give keys back to the slots
+            case CONFIRM -> searchFocused = false;  // keep the filter and give the keys back to the slots
             case CANCEL -> {
                 if (!searchText.isEmpty()) searchText = "";
                 else searchFocused = false;
@@ -685,7 +685,7 @@ public final class StashOverlay {
         }
     }
 
-    /** @return true if the character went into the page name being edited or the search box. */
+    /** @return true if the character went into the page name being edited or into the search box */
     public static boolean charTyped(String s) {
         if (renamePage <= 0 && searchFocused) {
             if (s.codePointAt(0) >= 32 && searchText.codePointCount(0, searchText.length()) < MAX_SEARCH) searchText += s;
@@ -696,7 +696,7 @@ public final class StashOverlay {
         return true;
     }
 
-    /** Stash closed: drop any half-typed name. */
+    /** The stash closed, so drop any half-typed name. */
     public static void onClose() {
         cancelRename();
         searchFocused = false; // the search text stays for the next time the stash opens

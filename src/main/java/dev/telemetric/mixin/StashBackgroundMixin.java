@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** MC ADAPTER (mixin) — skips the chest texture/background while the stash overlay replaces the stash. */
+/** MC ADAPTER (mixin): skips the chest texture and background while the stash overlay replaces the stash. */
 @Mixin(ContainerScreen.class)
 public abstract class StashBackgroundMixin {
 

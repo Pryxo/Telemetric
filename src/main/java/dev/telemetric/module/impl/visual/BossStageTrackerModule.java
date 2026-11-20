@@ -16,9 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Floating badge on the ground under each boss that says whether it can be damaged right now
- * (Immune / Shielded / Vulnerable). The stage is read from the boss's status text display
- * ({@link BossStageAdapter}); the badge is drawn in the world with a badge font ({@link WorldLabelAdapter}).
+ * A floating badge on the ground under each boss that says whether it can be damaged right now (Immune / Shielded /
+ * Vulnerable). The stage is read from the boss's status text display ({@link BossStageAdapter}), and the badge is
+ * drawn in the world with a badge font ({@link WorldLabelAdapter}).
  */
 public final class BossStageTrackerModule extends Module {
 

@@ -21,17 +21,17 @@ import java.util.Objects;
 
 /**
  * Voxy (optional mod): makes every instance of a whitelisted dungeon share one LOD store named
- * {@code telos:<dungeon_name>} — the name comes from the HUD location box, not the dimension id. Only for dungeons
- * whose layout never changes (Telos places every instance at the same coordinates). Game access:
+ * {@code telos:<dungeon_name>}. The name comes from the HUD location box, not the dimension id. Only meant for dungeons
+ * whose layout never changes (Telos places every instance at the same coordinates). Game access goes through
  * {@link VoxyAdapter}.
  */
 public final class VoxyModifierModule extends Module {
 
-    /** Ticks in a new level before the HUD box is trusted (it can still show the previous place). */
+    /** Ticks in a new level before we trust the HUD box (it can still show the previous place). */
     private static final int SETTLE_TICKS = 60;
-    /** Ticks the HUD name must stay the same before it is used. */
+    /** How many ticks the HUD name has to stay the same before it's used. */
     private static final int STABLE_TICKS = 40;
-    /** Ticks a HUD name that differs from the previous place must stay the same (fast path). */
+    /** How many ticks a HUD name that differs from the previous place has to stay the same (the fast path). */
     private static final int FRESH_STABLE_TICKS = 5;
 
     private final MultiChoiceSetting whitelist = add(new MultiChoiceSetting("Whitelist",
@@ -57,10 +57,10 @@ public final class VoxyModifierModule extends Module {
     private int levelTicks;
     private String lastName;
     private int stableTicks;
-    private String placeName; // last settled HUD name (any level)
-    private String staleName; // placeName when this level started
+    private String placeName; // the last settled HUD name (any level)
+    private String staleName; // what placeName was when this level started
 
-    /** Longest renderer hold on a new level (map download, slow HUD) before Voxy's own store is used. */
+    /** The longest renderer hold on a new level (map download, slow HUD) before we fall back to Voxy's own store. */
     private static final int HOLD_MAX_TICKS = 600;
 
     public VoxyModifierModule() {
@@ -81,12 +81,12 @@ public final class VoxyModifierModule extends Module {
             staleName = placeName; // what the HUD box showed on the old level
             lastName = null;
             stableTicks = 0;
-            VoxyAdapter.forget(); // old level is gone: only drops the stale override (keeps the new level's hold)
+            VoxyAdapter.forget(); // the old level is gone, so only drop the stale override (and keep the new level's hold)
         }
         levelTicks++;
         if (levelTicks > SETTLE_TICKS && DungeonAdapter.hudLocation() != null) placeName = DungeonAdapter.dungeonName();
         VoxyAdapter.tick();
-        if (levelTicks > HOLD_MAX_TICKS && VoxyAdapter.holding()) VoxyAdapter.release(); // never hide LODs for long
+        if (levelTicks > HOLD_MAX_TICKS && VoxyAdapter.holding()) VoxyAdapter.release(); // never hide the LODs for long
         if (levelTicks % 20 == 1 && VoxyAdapter.syncBasePath()) {
             Toasts.info("Voxy: now saving to the shared Telos folder");
         }
@@ -104,8 +104,8 @@ public final class VoxyModifierModule extends Module {
             stableTicks++;
         }
         if (name == null) return;
-        // Fast path: the HUD box may still show the previous place right after the teleport — a name that differs
-        // from it is the new dungeon, so a short check is enough. The same name as before keeps the slow wait.
+        // Fast path: right after the teleport the HUD box may still show the previous place. A name that's different from
+        // it is the new dungeon, so a short check is enough. The same name as before keeps the slow wait.
         boolean fresh = !name.equals(staleName) && stableTicks >= FRESH_STABLE_TICKS;
         if (!fresh && (levelTicks < SETTLE_TICKS || stableTicks < STABLE_TICKS)) return;
         applyDungeon(name);
@@ -120,7 +120,7 @@ public final class VoxyModifierModule extends Module {
         }
     }
 
-    /** Downloads the shared map once per session before the store is first opened; true when done (or skipped). */
+    /** Downloads the shared map once per session, before the store is first opened. True when done (or skipped). */
     private boolean sharedMapReady(String key) {
         CompletableFuture<Boolean> job = prepared.get(key);
         if (job == null) {
@@ -130,15 +130,15 @@ public final class VoxyModifierModule extends Module {
         }
         if (!job.isDone()) return false;
         if (Boolean.TRUE.equals(job.getNow(false))) {
-            prepared.put(key, CompletableFuture.completedFuture(false)); // toast once
+            prepared.put(key, CompletableFuture.completedFuture(false)); // show the toast only once
             Toasts.success("Voxy: downloaded shared map");
         }
         return true;
     }
 
     /**
-     * Stable key for a non-dungeon Telos world (realm, hub): the dimension id without its instance number
-     * ({@code telos:realm}, {@code telos:hub/2} → {@code telos:hub}); null outside Telos dimensions.
+     * The stable key for a Telos world that isn't a dungeon (realm, hub): the dimension id without its instance number
+     * ({@code telos:realm}, {@code telos:hub/2} → {@code telos:hub}). Null outside Telos dimensions.
      */
     static String worldKey(String dimensionId) {
         if (dimensionId == null || !dimensionId.startsWith("telos:")) return null;
@@ -148,13 +148,13 @@ public final class VoxyModifierModule extends Module {
 
     @Override
     protected void onEnable() {
-        levelToken = null; // re-run the folder check + overrides on the next tick
+        levelToken = null; // re-run the folder check and overrides on the next tick
     }
 
     @Override
     protected void onDisable() {
         VoxyAdapter.clear();
-        VoxyAdapter.syncBasePath(); // back to Voxy's own per-address folder, no rejoin
+        VoxyAdapter.syncBasePath(); // back to Voxy's own per-address folder, without rejoining
         levelToken = null;
     }
 

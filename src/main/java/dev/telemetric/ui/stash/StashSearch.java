@@ -6,15 +6,15 @@ import dev.telemetric.game.ItemSearchAdapter;
 import java.util.Locale;
 
 /**
- * Stash search query. A plain query matches the item name; a prefix at the very start picks a filter:
+ * A stash search query. A plain query matches the item name, and a prefix at the very start picks a filter:
  * <ul>
- *   <li>{@code #} tooltip (name + every lore line)</li>
+ *   <li>{@code #} tooltip (the name plus every lore line)</li>
  *   <li>{@code &} item id / item tag / item model (e.g. {@code &stick}, {@code &telos:material/pet})</li>
  *   <li>{@code ^} rarity: Irradiated, Gilded, Royal, Bloodshot, Voidbound, Unholy, Tier 2–8, Companions</li>
- *   <li>{@code $} item type: Key, Weapon, Ability, Skin, Mount, Pet, Armour (or any part of the Telos type path,
- *       e.g. {@code $sceptre})</li>
+ *   <li>{@code $} item type: Key, Weapon, Ability, Skin, Mount, Pet, Armour (or any part of the Telos type path, e.g.
+ *       {@code $sceptre})</li>
  * </ul>
- * Matching is case-insensitive and by prefix for rarity/type names ({@code ^blood}, {@code $wea}).
+ * Matching ignores case, and rarity and type names match by prefix ({@code ^blood}, {@code $wea}).
  */
 public final class StashSearch {
 
@@ -22,7 +22,7 @@ public final class StashSearch {
 
     private StashSearch() {}
 
-    /** True if the query filters anything (non-blank after the prefix). */
+    /** True if the query filters anything (it's not blank after the prefix). */
     public static boolean active(String query) {
         String q = query.strip();
         if (!q.isEmpty() && PREFIXES.indexOf(q.charAt(0)) >= 0) q = q.substring(1).strip();
@@ -48,9 +48,9 @@ public final class StashSearch {
     // ------------------------------------------------------------------ rarity
 
     /**
-     * Rarity comes from the tooltip style path ({@code untiered/bloodshot}, tiered loot = {@code tiered/8}).
+     * The rarity comes from the tooltip style path ({@code untiered/bloodshot}, tiered loot is {@code tiered/8}).
      * {@code ^tier N} / {@code ^tN} / {@code ^N} match the "N Tier Points" lore line (Tier N items give N points,
-     * untiered ones e.g. 11–12), {@code ^tier} alone matches every tiered item.
+     * untiered ones e.g. 11–12), and {@code ^tier} on its own matches every tiered item.
      */
     private static boolean rarityMatches(ItemSearchAdapter.Info info, String q) {
         String query = q.replace(" loot", "").strip();
@@ -63,7 +63,7 @@ public final class StashSearch {
         return squash(last).startsWith(squash(query));
     }
 
-    /** "tier 5" / "tier5" / "t5" / "5" → "5", else null. */
+    /** Turns "tier 5" / "tier5" / "t5" / "5" into "5", otherwise null. */
     private static String tierNumber(String q) {
         String s = squash(q);
         if (s.startsWith("tier")) s = s.substring(4);
@@ -73,7 +73,7 @@ public final class StashSearch {
 
     // ------------------------------------------------------------------ item type
 
-    /** Telos type path, e.g. {@code weapon/sceptre/ut-onyx}, {@code misc/dungeon_epic} (a key), {@code pet/...}. */
+    /** The Telos type path, e.g. {@code weapon/sceptre/ut-onyx}, {@code misc/dungeon_epic} (a key), {@code pet/...}. */
     private static boolean typeMatches(ItemSearchAdapter.Info info, String q) {
         String category = category(info);
         if (category.isEmpty()) return false;
@@ -81,14 +81,14 @@ public final class StashSearch {
         if (category.startsWith(query)) return true;
         if (category.equals("armour") && "armor".startsWith(query)) return true;
         if (squash(info.typePath()).contains(query)) return true;
-        // sub-type from the "Type » …" line: $flying / $land mounts, $melee / $ranged / $healer pets
+        // the sub-type from the "Type » …" line: $flying / $land mounts, $melee / $ranged / $healer pets
         return (category.equals("mount") || category.equals("pet")) && info.tooltip().contains("type » " + q);
     }
 
     /**
-     * Display category: Key, Weapon, Ability, Skin, Mount, Pet, Armour, … (lower case). From the type path
-     * ({@code mount/fungal_cavern}, {@code pet/ice_cave}); without one, a tooltip with "Type » Flying/Land" and no
-     * Damage line is a mount (pets list Damage/Range/… and Type » Melee/Ranged/Healer).
+     * The display category: Key, Weapon, Ability, Skin, Mount, Pet, Armour, … (lower case). It comes from the type path
+     * ({@code mount/fungal_cavern}, {@code pet/ice_cave}). Without one, a tooltip with "Type » Flying/Land" and no Damage
+     * line is a mount (pets list Damage/Range/… and Type » Melee/Ranged/Healer).
      */
     static String category(ItemSearchAdapter.Info info) {
         String path = info.typePath();

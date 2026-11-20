@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Draws {@link Toasts} bottom-right: slide + fade in (drawer timing), reflow smoothly, fade out.
- * Used by the ClickGUI and, while it is closed, by the in-game HUD layer ({@code HudOverlay}).
+ * Draws the {@link Toasts} in the bottom right. They slide and fade in (drawer timing), reflow smoothly, and fade out.
+ * The ClickGUI uses it, and so does the in-game HUD layer ({@code HudOverlay}) while the ClickGUI is closed.
  */
 public final class ToastRenderer {
 
@@ -53,7 +53,7 @@ public final class ToastRenderer {
             r.roundedRect(tx, ty, w, HEIGHT, 3, ColorUtil.withAlpha(p.panel(), 245));
             r.roundedRect(tx + 4, ty + 5, 3, HEIGHT - 10, 1, stripe);
             r.text(toast.message, tx + 12, ty + 5, p.text());
-            // remaining-lifetime bar
+            // the remaining-lifetime bar
             double life = 1 - Math.min(1, (System.currentTimeMillis() - toast.createdAt) / (double) Toasts.LIFETIME_MS);
             r.rect(tx + 3, ty + HEIGHT - 2, (int) Math.round((w - 6) * life), 1, ColorUtil.fade(stripe, 0.6));
             r.popAlpha();

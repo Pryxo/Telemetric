@@ -12,16 +12,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Session Stats: time played this session — in total, in the
- * Nexus, in dungeons, in the realm — and fame gained (Tab list "Fame", only increases count). Counts while this
- * element is on and you are on Telos; resets on game start or with Reset Session.
+ * Session Stats: time played this session (in total, in the Nexus, in dungeons and in the realm) and the fame gained
+ * (Tab list "Fame", only increases count). It counts while this element is on and you're on Telos, and resets on game
+ * start or with Reset Session.
  */
 public final class SessionStatsHud extends LinesHudModule {
 
     private static final String PLAYTIME = "Playtime", NEXUS = "Nexus", DUNGEONS = "Dungeons", REALM = "Realm",
             FAME = "Fame Gained";
     private static final List<String> ROWS = List.of(PLAYTIME, NEXUS, DUNGEONS, REALM, FAME);
-    /** A longer gap between ticks (lag, alt-tab freeze) adds at most this much. */
+    /** A longer gap between ticks (lag, an alt-tab freeze) adds at most this much. */
     private static final long MAX_STEP_MS = 1000;
 
     private final ModeSetting format = add(new ModeSetting("Time Format", "How times are written",
@@ -71,7 +71,7 @@ public final class SessionStatsHud extends LinesHudModule {
         trackFame();
     }
 
-    /** Fame from the Tab list; a new world / character starts a new baseline (no jump counted). */
+    /** Fame from the Tab list. A new world or character starts a new baseline, so no jump gets counted. */
     private void trackFame() {
         Object w = PlayerAdapter.worldToken();
         if (w != world) {

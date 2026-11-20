@@ -11,10 +11,10 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Animated text ({@link AnimatedTextAdapter}): wraps the one place a glyph's style colour is read while text is
- * prepared for drawing, and the one place a glyph is placed (for the wave bob). Chained with other mods' wraps
- * (MixinExtras) and {@code require = 0}: if a font mod replaces this code the game still starts and animated text
- * just stands still.
+ * Animated text ({@link AnimatedTextAdapter}). It wraps the one place where a glyph's style colour is read while
+ * text is prepared for drawing, and the one place where a glyph gets placed (for the wave bob). It chains with other
+ * mods' wraps (MixinExtras) and uses {@code require = 0}, so if a font mod replaces this code the game still starts
+ * and animated text just stands still.
  */
 @Mixin(targets = "net.minecraft.client.gui.Font$PreparedTextBuilder")
 public abstract class FontAnimatedColorMixin {

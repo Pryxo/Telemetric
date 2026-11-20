@@ -47,7 +47,7 @@ public final class ItemRarityModule extends Module {
     public ItemRarityModule() {
         super("Item Rarity", "Coloured rarity mark behind items in inventories and the hotbar", Category.VISUAL);
         syncOn(this::sync, shape, opacity, hotbar, hidden);
-        TelosData.RARITIES.onChange(t -> sync()); // hidden labels → keys of the current table
+        TelosData.RARITIES.onChange(t -> sync()); // map the hidden labels to keys of the current table
     }
 
     private void sync() {

@@ -29,11 +29,11 @@ import java.util.Set;
 import java.util.concurrent.Future;
 
 /**
- * Draws the shortest walkable route on the floor from you to the nearest treasure room (yellow glowing
- * treasure) or the boss drop (the deep hole down to the arena). Only inside {@code telos:dungeon/<n>}.
+ * Draws the shortest walkable route on the floor from you to the nearest treasure room (yellow glowing treasure) or
+ * to the boss drop (the deep hole down to the arena). Only inside {@code telos:dungeon/<n>}.
  * <p>
- * Routes come from {@link PathFinder} on the dungeon worker thread; this module only decides when to
- * re-plan (targets changed, map grew, you left the route, every few seconds) and draws the result.
+ * Routes come from {@link PathFinder} on the dungeon worker thread. This module only decides when to re-plan (targets
+ * changed, the map grew, you left the route, every few seconds) and draws the result.
  */
 public final class WayfinderModule extends Module {
 
@@ -67,7 +67,6 @@ public final class WayfinderModule extends Module {
         }
     }
 
-    /** Telos dungeons (from the server resource pack's portal list) — blacklist options before you visit them. */
 
     private static final int MAX_NODES = 400_000;
     private static final long REPLAN_MIN_MS = 400;
@@ -81,9 +80,9 @@ public final class WayfinderModule extends Module {
     private static final int ROOM_DEBUG_RANGE = 128;
     /** Feet within this many blocks of the boss drop room's floor count as "in the room". */
     private static final int ROOM_LEVEL_MARGIN = 4;
-    /** Without a room grid: blocks around the drop that count as its room. */
+    /** Without a room grid, the blocks around the drop that count as its room. */
     private static final int NO_ROOM_PAD = 8;
-    /** How far a hole must drop to count as the boss drop (was the "Drop Depth" slider). */
+    /** How far a hole has to drop to count as the boss drop (this used to be the "Drop Depth" slider). */
     private static final int DROP_DEPTH = 10;
 
     private final EnumSetting<Target> target = add(new EnumSetting<>("Target",
@@ -112,14 +111,14 @@ public final class WayfinderModule extends Module {
             false)));
 
     /**
-     * A planned route. Complete: points include the final leg onto the target. Not complete: the target is
-     * in a part you cannot reach yet, even through the air (sealed off / unexplored) - the points end at
-     * the closest reachable spot; nothing is drawn through blocks.
+     * A planned route. When complete, the points include the final leg onto the target. When not complete, the target
+     * is in a part you can't reach yet, even through the air (sealed off or unexplored), so the points end at the
+     * closest reachable spot. Nothing is ever drawn through blocks.
      */
     private record Route(List<Point> sharp, List<Point> clean, Point target, boolean boss, Hole hole, boolean complete) {}
 
     private volatile Route route;
-    /** A target (treasure / boss drop not reached yet) exists; see {@link #isTracking()}. */
+    /** True if there's a target (a treasure or boss drop not reached yet); see {@link #isTracking()}. */
     private boolean tracking;
     private Future<?> job;
     private boolean acquired;
@@ -127,13 +126,13 @@ public final class WayfinderModule extends Module {
     private long plannedMapVersion = -1;
     private String plannedKey = "";
     private long lastStart = Long.MIN_VALUE;
-    /** Dungeon run ({@link DungeonTracker#generation()}) the boss latch below belongs to. */
+    /** The dungeon run ({@link DungeonTracker#generation()}) that the boss latch below belongs to. */
     private int bossGeneration = Integer.MIN_VALUE;
-    /** You have been in the boss drop segment this run: the boss route stays hidden. */
+    /** You've been in the boss drop segment this run, so the boss route stays hidden. */
     private boolean bossReached;
-    /** The boss drop {@link #bossReached} was latched for. */
+    /** The boss drop that {@link #bossReached} was latched for. */
     private Hole bossReachedHole;
-    /** Last boss drop seen this run (shown while the analysis has none). */
+    /** The last boss drop seen this run (shown while the analysis has none). */
     private Hole lastHole;
 
     public WayfinderModule() {
@@ -172,7 +171,7 @@ public final class WayfinderModule extends Module {
         if (player == null) return;
         DungeonMap map = tracker.map();
         long start = PathFinder.startCell(map, player);
-        if (start == Long.MIN_VALUE) start = lastStart; // mid-air: keep planning from the last floor cell
+        if (start == Long.MIN_VALUE) start = lastStart; // mid-air, so keep planning from the last floor cell
         if (start == Long.MIN_VALUE) return;
         lastStart = start;
 
@@ -186,12 +185,12 @@ public final class WayfinderModule extends Module {
         }
         Hole hole = tracker.analysis().bossDrop();
         if (hole != null) lastHole = hole;
-        else hole = lastHole; // drop briefly lost by a re-analysis: keep showing the last one
-        // the route stays until you have really been in the boss drop segment (fell into its shaft, or stand on
-        // the boss level); only then is it hidden for the rest of the run. Being low somewhere else (a sunken
-        // room, a ledge) no longer hides it
-        // the latch belongs to the drop that set it: a re-analysis that moves the drop (an early wrong one
-        // detected right where you loaded in) clears it again
+        else hole = lastHole; // a re-analysis lost the drop for a moment, so keep showing the last one
+        // The route stays until you've really been in the boss drop segment (fell into its shaft, or stand on the boss
+        // level). Only then is it hidden for the rest of the run. Being low somewhere else (a sunken room, a ledge)
+        // doesn't hide it anymore.
+        // The latch belongs to the drop that set it. A re-analysis that moves the drop (an early wrong one detected
+        // right where you loaded in) clears it again.
         if (hole != null && bossReached && !sameDrop(hole, bossReachedHole)) bossReached = false;
         if (hole != null && !bossReached && inBossSegment(tracker, hole, player)) {
             bossReached = true;
@@ -211,7 +210,7 @@ public final class WayfinderModule extends Module {
         long since = now - lastPlanMs;
         Route current = route;
         boolean replan = !key.equals(plannedKey)
-                || (current == null && since > REPLAN_MAP_MS) // last plan found no route: don't hammer A*
+                || (current == null && since > REPLAN_MAP_MS) // the last plan found no route, so don't hammer A*
                 || (map.version() != plannedMapVersion && since > REPLAN_MAP_MS)
                 || (current != null && offRoute(current, player) && since > REPLAN_MIN_MS)
                 || since > REPLAN_PERIODIC_MS;
@@ -235,10 +234,11 @@ public final class WayfinderModule extends Module {
     }
 
     /**
-     * You entered the boss drop's room: standing inside the room segment that holds the drop, at about its
-     * level (feet within {@link #ROOM_LEVEL_MARGIN} of the room floor / rim), or inside the drop's shaft under the
-     * rim. Without a room grid, a box of {@link #NO_ROOM_PAD} blocks around the drop is the room. Deliberately no
-     * "below the main level" test: a low Y anywhere (falling while chunks load, a sunken room) latched it before.
+     * True once you've entered the boss drop's room: you're inside the room segment that holds the drop, at about its
+     * level (feet within {@link #ROOM_LEVEL_MARGIN} of the room floor or rim), or inside the drop's shaft under the
+     * rim. Without a room grid, a box of {@link #NO_ROOM_PAD} blocks around the drop counts as the room. There's
+     * deliberately no "below the main level" test, because before, a low Y anywhere (falling while chunks load, a
+     * sunken room) latched it.
      */
     private static boolean inBossSegment(DungeonTracker tracker, Hole hole, Point player) {
         double x = player.x(), y = player.y(), z = player.z();
@@ -256,7 +256,7 @@ public final class WayfinderModule extends Module {
         return inside && Math.abs(y - levelY) <= ROOM_LEVEL_MARGIN;
     }
 
-    /** Same boss drop, allowing a few blocks of drift between re-analyses. */
+    /** True if it's the same boss drop, allowing a few blocks of drift between re-analyses. */
     private static boolean sameDrop(Hole a, Hole b) {
         return b != null && Math.abs(a.centerX() - b.centerX()) <= 4 && Math.abs(a.centerZ() - b.centerZ()) <= 4
                 && Math.abs(a.y() - b.y()) <= 3;
@@ -264,8 +264,8 @@ public final class WayfinderModule extends Module {
 
     private static Route plan(DungeonMap map, long start, Target mode, List<Point> treasures, Hole hole,
                               java.util.function.BooleanSupplier cancelled) {
-        // treasure first; a treasure you cannot walk to yet still gets a partial route (unless the boss
-        // drop is fully reachable in Auto mode)
+        // Treasure first. A treasure you can't walk to yet still gets a partial route (unless the boss drop is fully
+        // reachable in Auto mode).
         PathFinder.Result treasurePath = null;
         Point treasure = null;
         if (mode != Target.BOSS_DROP && !treasures.isEmpty()) {
@@ -304,14 +304,14 @@ public final class WayfinderModule extends Module {
     }
 
     /**
-     * Player-move route only (walk, 1-up jumps, 1-3 wide gap jumps, drops, ladders, jump pads). If no goal
-     * is reachable the route ends at the reachable cell closest to it.
+     * A route using player moves only (walking, 1-up jumps, gap jumps 1-3 wide, drops, ladders, jump pads). If no goal
+     * is reachable, the route ends at the reachable cell closest to it.
      */
     private static PathFinder.Result search(DungeonMap map, long start, LongOpenHashSet goals,
                                             List<PathFinder.Anchor> anchors, java.util.function.BooleanSupplier cancelled) {
         PathFinder.Result walk = PathFinder.find(map, start, goals, anchors, MAX_NODES, cancelled);
         if (walk == null || walk.complete() || !walk.capped()) return walk;
-        // ran out of nodes, not out of floor: one bigger try (still player moves only)
+        // it ran out of nodes, not out of floor, so try once more with a bigger budget (still player moves only)
         return PathFinder.find(map, start, goals, anchors, MAX_NODES * 3, cancelled);
     }
 
@@ -330,8 +330,8 @@ public final class WayfinderModule extends Module {
     }
 
     /**
-     * Where to jump: centre of the open column next to the rim cell the route ends on that drops deepest
-     * (y = landing floor). Falls back to the hole centre.
+     * Where to jump: the centre of the open column next to the route's last rim cell that drops the deepest (y is the
+     * landing floor). Falls back to the hole centre.
      */
     private static Point dropPoint(DungeonMap map, long rim, Hole hole) {
         int x = Cell.x(rim), y = Cell.y(rim), z = Cell.z(rim);
@@ -353,7 +353,7 @@ public final class WayfinderModule extends Module {
     private static Route route(DungeonMap map, long[] cells, Point target, boolean boss, Hole hole, boolean complete) {
         List<Point> sharp = PathGeometry.simplify(map, cells);
         if (complete) {
-            // final step onto the target (boss: into the drop column, at rim height)
+            // final step onto the target (for the boss, into the drop column at rim height)
             Point last = sharp.getLast();
             Point onFloor = new Point(target.x(), last.y(), target.z());
             if (onFloor.distanceSq(last.x(), last.y(), last.z()) > 0.25) sharp.add(onFloor);
@@ -362,7 +362,7 @@ public final class WayfinderModule extends Module {
         return new Route(List.copyOf(sharp), List.copyOf(clean), target, boss, hole, complete);
     }
 
-    /** Standable cells within 2 blocks of a treasure (it usually sits on or in a block). */
+    /** Standable cells within 2 blocks of a treasure, since it usually sits on or in a block. */
     private static void addGoalsAround(DungeonMap map, Point t, LongOpenHashSet goals) {
         int tx = (int) Math.floor(t.x()), ty = (int) Math.floor(t.y()), tz = (int) Math.floor(t.z());
         for (int r = 2; r <= 4 && goals.isEmpty(); r++) {
@@ -392,8 +392,8 @@ public final class WayfinderModule extends Module {
     }
 
     /**
-     * True while the Wayfinder has something to guide you to this run (a treasure, or the boss drop before you
-     * reached it) — the Dungeon Map stays shown then, wherever you stand.
+     * True while the Wayfinder has something to guide you to this run (a treasure, or the boss drop before you reached
+     * it). The Dungeon Map stays shown then, wherever you stand.
      */
     public boolean isTracking() {
         return isEnabled() && tracking;
@@ -494,7 +494,7 @@ public final class WayfinderModule extends Module {
         float w = (float) (double) lineWidth.get();
         boolean tw = throughWalls.get();
 
-        // start where the player is on the route, so the line never trails behind
+        // start from where the player is on the route, so the line never trails behind them
         if (showLine.get() && pts.size() >= 2) {
             Nearest n = nearestOnRoute(pts, new Point(player.x(), player.y() + PathGeometry.LIFT, player.z()));
             Point prev = n.point();
@@ -504,16 +504,16 @@ public final class WayfinderModule extends Module {
                 prev = next;
             }
         }
-        // not complete = sealed off / unexplored: the route stops where the open way ends (never a line
-        // through blocks); the target marker still shows where to go
+        // If it's not complete (sealed off or unexplored), the route stops where the open way ends, never a line through
+        // blocks. The target marker still shows where to go.
         if (r.boss()) drawDrop(sink, r.hole(), r.target(), color, w, tw);
         else drawTreasure(sink, r.target(), color, w, tw);
     }
 
     /**
-     * Room Connection style: the rooms the route passes through, in order, joined centre to centre
-     * (like the Show Rooms links), then the last room's centre to the target. Falls back to the sharp
-     * route when no room grid is detected.
+     * Room Connection style: the rooms the route passes through, in order, joined centre to centre (like the Show
+     * Rooms links), then the last room's centre to the target. Falls back to the sharp route when no room grid has
+     * been detected.
      */
     private static List<Point> roomConnection(Route r, RoomLayout layout) {
         List<Point> sharp = r.sharp();
@@ -523,7 +523,7 @@ public final class WayfinderModule extends Module {
         for (int i = 0; i < sharp.size(); i++) {
             Point a = sharp.get(i);
             Point b = i + 1 < sharp.size() ? sharp.get(i + 1) : a;
-            // sample each leg so rooms crossed between corners are not skipped
+            // sample each leg so rooms crossed between corners don't get skipped
             double len = Math.hypot(b.x() - a.x(), b.z() - a.z());
             int steps = Math.max(1, (int) Math.ceil(len / 2.0));
             for (int s = 0; s < steps; s++) {
@@ -548,12 +548,12 @@ public final class WayfinderModule extends Module {
         diamond(sink, x, y + 2.5, z, r * 0.5, color, w, tw);
     }
 
-    /** Square around the column to jump into at rim height, a drop line down to the landing, arrow heads. */
+    /** A square around the column to jump into at rim height, a drop line down to the landing, and arrow heads. */
     private static void drawDrop(WorldRenderAdapter.LineSink sink, Hole h, Point land, int color, float w, boolean tw) {
         double rimY = h.y() + PathGeometry.LIFT;
         double cx = land.x(), cz = land.z(), ly = land.y() + PathGeometry.LIFT;
         rect(sink, cx - 0.5, cz - 0.5, cx + 0.5, cz + 0.5, rimY, color, w, tw);
-        // small holes: outline the whole opening too (big ones are an arena footprint, not useful)
+        // small holes get the whole opening outlined too (big ones are an arena footprint, which isn't useful)
         if (h.maxX() - h.minX() <= 12 && h.maxZ() - h.minZ() <= 12) {
             rect(sink, h.minX(), h.minZ(), h.maxX() + 1, h.maxZ() + 1, rimY, color, w, tw);
         }
@@ -577,7 +577,7 @@ public final class WayfinderModule extends Module {
         if (layout.rooms().isEmpty() || p == null) return;
         Hole boss = tracker.analysis().bossDrop();
         List<Point> treasures = tracker.treasures();
-        // visual only: draw every room and link on one height so the grid reads flat — the dungeon level
+        // visual only: draw every room and link at one height, the dungeon level, so the grid reads flat
         int level = tracker.analysis().level();
         double flatY = level != Integer.MIN_VALUE ? level : layout.rooms().values().iterator().next().floorY();
         RoomLayout.Room bossRoom = bossRoom(layout, boss);
@@ -607,15 +607,15 @@ public final class WayfinderModule extends Module {
         }
     }
 
-    /** The room holding the boss drop (free-form layouts get one added over the drop, {@code RoomLayout#withDropRoom}). */
+    /** The room that holds the boss drop (free-form layouts get one added over the drop, {@code RoomLayout#withDropRoom}). */
     private static RoomLayout.Room bossRoom(RoomLayout layout, Hole boss) {
         if (boss == null) return null;
         return layout.roomAt((int) Math.floor(boss.centerX()), (int) Math.floor(boss.centerZ()));
     }
 
     /**
-     * Debug: every jump pad seen. Usable pads (a floor found 0..3 below the particle source): box on that
-     * floor. Unresolved ones: red box at the particle source. A vertical tick joins floor and source.
+     * Debug: every jump pad seen. Usable pads (a floor found 0..3 below the particle source) get a box on that floor,
+     * unresolved ones a red box at the particle source. A vertical tick joins the floor and the source.
      */
     private void drawPads(WorldRenderAdapter.LineSink sink, DungeonTracker tracker) {
         Point p = DungeonAdapter.playerPos();

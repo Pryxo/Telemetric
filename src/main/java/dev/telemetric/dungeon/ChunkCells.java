@@ -1,43 +1,43 @@
 package dev.telemetric.dungeon;
 
 /**
- * Immutable walkability summary of one 16×16 chunk column — the only thing the dungeon code keeps
- * per chunk (a few shorts per block column instead of every block).
+ * Immutable walkability summary of one 16×16 chunk column. It's the only thing the dungeon code keeps per chunk: a
+ * few shorts per block column instead of every block.
  * <p>
- * Per block column it stores:
+ * For each block column it stores:
  * <ul>
  *   <li>{@code stand}: ascending feet-Y values a player can stand at (2 blocks of head room, floor below);</li>
  *   <li>{@code runs}: ascending {@code [lo, hi]} pairs of vertically contiguous passable blocks
- *       ({@link #OPEN} or {@link #CLIMB}; used for head-room checks and to find where you land when you
- *       walk off an edge);</li>
+ *       ({@link #OPEN} or {@link #CLIMB}), used for head-room checks and to find where you land when you
+ *       walk off an edge;</li>
  *   <li>{@code climb}: {@code [lo, hi]} pairs of contiguous {@link #CLIMB} blocks (ladders, vines).</li>
  * </ul>
- * Standable: a passable block with 2 head room over a {@link #SOLID} floor, a {@link #LOW} block with 2
- * above, any {@link #CLIMB} block (you hold on to the ladder), and the open block right above a ladder's top.
- * Built by {@link #build} from per-block classes; the MC adapter does the block reading.
+ * You can stand on a passable block with 2 head room over a {@link #SOLID} floor, on a {@link #LOW} block with 2
+ * above it, on any {@link #CLIMB} block (you hold on to the ladder), and in the open block right above a ladder's
+ * top. {@link #build} creates it from per-block classes; the MC adapter does the block reading.
  */
 public final class ChunkCells {
 
-    /** No collision, walk/fall through (air, plants, water, light, open doors...). */
+    /** No collision, you walk or fall through it (air, plants, water, light, open doors...). */
     public static final byte OPEN = 0;
-    /** Collision top ≤ ½ block (bottom slab, carpet, snow layer): you stand inside this block. */
+    /** Collision top at most ½ block (bottom slab, carpet, snow layer). You stand inside this block. */
     public static final byte LOW = 1;
-    /** Normal solid block — a floor for the block above. */
+    /** A normal solid block, which is a floor for the block above. */
     public static final byte SOLID = 2;
-    /** Collision taller than a block (fence, wall): blocks movement, not a usable floor. */
+    /** Collision taller than a block (fence, wall). It blocks movement but isn't a usable floor. */
     public static final byte TALL = 3;
-    /** Never walk into (lava, fire). */
+    /** Never walk into it (lava, fire). */
     public static final byte HAZARD = 4;
-    /** Climbable, no real collision (ladder, vine, scaffolding): move up/down inside it, never fall. */
+    /** Climbable with no real collision (ladder, vine, scaffolding). You move up and down inside it and never fall. */
     public static final byte CLIMB = 5;
 
     private static final short[] NONE = new short[0];
 
     public final int chunkX;
     public final int chunkZ;
-    /** Y above the highest scanned block: a run reaching past it is open to the sky. */
+    /** Y just above the highest scanned block. A run reaching past it is open to the sky. */
     private final int topY;
-    /** Y of the lowest scanned block (a column that is one open run from here up has no blocks at all). */
+    /** Y of the lowest scanned block. A column that's one open run from here up has no blocks at all. */
     private final int baseY;
     private final short[][] stand; // index (lz << 4) | lx
     private final short[][] runs;
@@ -110,7 +110,7 @@ public final class ChunkCells {
             if (runStart != Integer.MIN_VALUE) {
                 if (rn + 2 > runBuf.length) runBuf = java.util.Arrays.copyOf(runBuf, runBuf.length * 2);
                 runBuf[rn++] = (short) (baseY + runStart);
-                // open to the sky: extend well above so head-room checks pass
+                // open to the sky, so extend it well up to make head-room checks pass
                 runBuf[rn++] = (short) Math.min(Short.MAX_VALUE, baseY + h + 64);
             }
             if (climbStart != Integer.MIN_VALUE) {
@@ -131,7 +131,7 @@ public final class ChunkCells {
         return (lz << 4) | lx;
     }
 
-    /** Standable feet-Y values of a column (ascending, never null). Do not modify. */
+    /** Standable feet-Y values of a column (ascending, never null). Don't modify the array. */
     public short[] stand(int lx, int lz) {
         return stand[index(lx, lz)];
     }
@@ -145,8 +145,8 @@ public final class ChunkCells {
     }
 
     /**
-     * True if nothing is above y in this column (open to the sky): the top of a dungeon's roof, or an
-     * open-air area. Unknown/empty columns count as exposed.
+     * True if nothing is above y in this column, i.e. it's open to the sky: the top of a dungeon's roof, or an open-air
+     * area. Unknown or empty columns count as exposed.
      */
     public boolean isSkyExposed(int lx, int lz, int y) {
         short[] r = runs[index(lx, lz)];
@@ -179,7 +179,7 @@ public final class ChunkCells {
         return n;
     }
 
-    /** True if the block at y can be moved through (no collision, or climbable). Columns with no blocks at all are open everywhere. */
+    /** True if you can move through the block at y (no collision, or climbable). Columns with no blocks at all are open everywhere. */
     public boolean isOpen(int lx, int lz, int y) {
         short[] r = runs[index(lx, lz)];
         if (r.length == 0) return stand[index(lx, lz)].length == 0;
@@ -190,7 +190,7 @@ public final class ChunkCells {
         return false;
     }
 
-    /** Lowest Y of the open run containing y, or {@link Integer#MIN_VALUE} if y is not open. */
+    /** Lowest Y of the open run that contains y, or {@link Integer#MIN_VALUE} if y isn't open. */
     public int runBottom(int lx, int lz, int y) {
         short[] r = runs[index(lx, lz)];
         for (int i = 0; i < r.length; i += 2) {
@@ -201,8 +201,8 @@ public final class ChunkCells {
     }
 
     /**
-     * True if the column has no block at all (the void around a dungeon). Dungeon pieces are solid boxes
-     * (floor slab + roof), so the edge between empty and non-empty columns is a piece edge.
+     * True if the column has no blocks at all (the void around a dungeon). Dungeon pieces are solid boxes (floor slab
+     * plus roof), so the edge between empty and non-empty columns is a piece edge.
      */
     public boolean isEmptyColumn(int lx, int lz) {
         int i = index(lx, lz);
@@ -211,7 +211,7 @@ public final class ChunkCells {
         return r.length == 0 || (r.length == 2 && r[0] == baseY);
     }
 
-    /** Same walkability as another scan of this chunk (re-scans that change nothing are ignored). */
+    /** True if this has the same walkability as another scan of the chunk. Re-scans that change nothing are ignored. */
     public boolean sameAs(ChunkCells other) {
         return other != null && other.chunkX == chunkX && other.chunkZ == chunkZ
                 && java.util.Arrays.deepEquals(stand, other.stand) && java.util.Arrays.deepEquals(runs, other.runs)

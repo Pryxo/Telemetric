@@ -29,9 +29,9 @@ import java.util.zip.ZipInputStream;
  * Index format:
  * <pre>{"version": 1, "maps": {"telos:goblin_lair": {"file": "LODs/goblin_lair.zip", "version": 1,
  *  "sha256": "&lt;hex of the zip&gt;", "size": 12345}}}</pre>
- * The zip holds the content of one Voxy world folder ({@code storage/…}). It is unpacked into that folder, which
- * then gets a {@value #MARKER} file with the map version. A folder is only replaced when it is missing or carries an
- * older marker — a player's own folder (no marker) is never touched. Pure Java, no Minecraft imports.
+ * The zip holds the contents of one Voxy world folder ({@code storage/…}). It gets unpacked into that folder, which
+ * then gets a {@value #MARKER} file with the map version. A folder is only replaced if it's missing or has an older
+ * marker, so a player's own folder (no marker) is never touched. Pure Java, no Minecraft imports.
  */
 public final class SharedVoxyMaps {
 
@@ -44,8 +44,8 @@ public final class SharedVoxyMaps {
     private SharedVoxyMaps() {}
 
     /**
-     * Makes {@code folder} hold the newest shared map for {@code key}, off the main thread. Completes with true when
-     * a map was installed, false when nothing was needed/available; never completes exceptionally.
+     * Makes sure {@code folder} holds the newest shared map for {@code key}, off the main thread. Completes with true
+     * if a map was installed and false if nothing was needed or available. Never completes exceptionally.
      */
     public static CompletableFuture<Boolean> prepare(String key, Path folder) {
         return index().thenApplyAsync(idx -> {
@@ -58,7 +58,7 @@ public final class SharedVoxyMaps {
         });
     }
 
-    /** The index, fetched once per game session (null JSON on failure — retried next session). */
+    /** The index, fetched once per game session. On failure it's null JSON and we try again next session. */
     private static synchronized CompletableFuture<JsonObject> index() {
         if (index == null) {
             index = DataRepo.HTTP.sendAsync(get(INDEX), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
@@ -81,8 +81,8 @@ public final class SharedVoxyMaps {
 
         if (Files.isDirectory(folder)) {
             Integer local = localVersion(folder);
-            if (local == null) return false;        // the player's own LODs: keep them
-            if (local >= version) return false;     // up to date
+            if (local == null) return false;        // the player's own LODs, so keep them
+            if (local >= version) return false;     // already up to date
         }
 
         Path parent = folder.toAbsolutePath().getParent();

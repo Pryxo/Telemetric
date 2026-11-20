@@ -14,12 +14,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * UI-only: profile management (save / load / create / delete). All of its settings are session state
- * and are <b>not</b> written into profiles themselves.
+ * UI-only: profile management (save, load, create, delete). All of its settings are session state and are
+ * <b>not</b> written into the profiles themselves.
  */
 public final class ConfigModule extends Module {
 
-    /** Cached so the dropdown never hits the disk per frame. Refreshed on GUI open and after file ops. */
+    /** Cached so the dropdown never hits the disk every frame. Refreshed when the GUI opens and after file operations. */
     private List<String> profileCache = new ArrayList<>(List.of(ConfigManager.DEFAULT_PROFILE));
 
     public final ModeSetting profile = add(new ModeSetting(

@@ -19,16 +19,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DPS Log: the last damage numbers as a list, newest at the top or bottom. Every line slides / fades in and the
- * others glide aside; bigger hits get louder (see {@link DamageTiers}): a colour per tier, a pop from 200, a flash
- * from 500, a shake from 700 and a shiny, pulsing line at 1k+. Lines leave (fade + collapse) after
- * {@code Line Lifetime} or when pushed past {@code Max Lines}. All motion is time-based ({@link Durations}).
+ * DPS Log: the last damage numbers as a list, newest at the top or bottom. Every new line slides and fades in while
+ * the others glide aside, and bigger hits get louder (see {@link DamageTiers}): a colour per tier, a pop from 200, a
+ * flash from 500, a shake from 700, and a shiny, pulsing line at 1k+. Lines leave (fade out and collapse) after
+ * {@code Line Lifetime}, or when they get pushed past {@code Max Lines}. All motion is time-based ({@link Durations}).
  */
 public final class DpsLogHud extends HudModule {
 
     private static final String TOP = "Top", BOTTOM = "Bottom";
     private static final int PAD_X = 4, PAD_Y = 3, LINE_GAP = 2, STRIPE = 2, STRIPE_GAP = 3, AGE_GAP = 6;
-    /** Sideways distance a new line slides in from (GUI units). */
+    /** How far to the side a new line slides in from (GUI units). */
     private static final float SLIDE = 12f;
 
     private final ModeSetting newHits = add(new ModeSetting("New Hits",
@@ -48,7 +48,7 @@ public final class DpsLogHud extends HudModule {
     private final BooleanSetting compact = add(new BooleanSetting("Compact Numbers", "12.3k instead of 12,345", true));
     private final ActionSetting clearAction = add(new ActionSetting("Clear", "Empty the log", this::clear));
 
-    /** One logged hit. {@code leftAt} = -1 while it is listed, else when it started to leave. */
+    /** One logged hit. {@code leftAt} is -1 while it's listed, otherwise the time it started to leave. */
     private static final class Entry {
         final double amount;
         final int tier;
@@ -97,7 +97,7 @@ public final class DpsLogHud extends HudModule {
         update(now);
     }
 
-    /** Starts the leave animation of expired / overflowing lines and drops lines that finished leaving. */
+    /** Starts the leave animation for expired or overflowing lines and drops the ones that finished leaving. */
     private void update(long now) {
         long life = Math.round(lifetime.get() * 1000);
         int listed = 0;
@@ -111,14 +111,14 @@ public final class DpsLogHud extends HudModule {
 
     // ------------------------------------------------------------------ animation helpers
 
-    /** 0..1 progress of a {@code baseMs} transition that started at {@code start} (1 with animations off). */
+    /** 0..1 progress of a {@code baseMs} transition that started at {@code start} (always 1 with animations off). */
     private static double progress(long now, long start, int baseMs) {
         int d = Durations.scaled(baseMs);
         if (d <= 0) return 1;
         return Math.clamp((now - start) / (double) d, 0, 1);
     }
 
-    /** How much of a row this line takes up right now (grows in, collapses when leaving). */
+    /** How much of a row this line takes up right now (it grows in and collapses when leaving). */
     private static double presence(Entry e, long now) {
         double in = Easing.OUT_CUBIC.apply(progress(now, e.born, Durations.STANDARD));
         double out = e.leaving() ? Easing.IN_OUT_CUBIC.apply(progress(now, e.leftAt, Durations.STANDARD)) : 0;
@@ -199,7 +199,7 @@ public final class DpsLogHud extends HudModule {
         boolean top = newHits.is(TOP);
         double offset = 0; // rows above the current one, in row units
         for (int k = 0; k < list.size(); k++) {
-            Entry e = list.get(top ? list.size() - 1 - k : k); // drawn top → bottom
+            Entry e = list.get(top ? list.size() - 1 - k : k); // drawn from top to bottom
             double pres = presence(e, now);
             float y = PAD_Y + rowH + (float) (offset * rowH);
             offset += pres;
@@ -223,7 +223,7 @@ public final class DpsLogHud extends HudModule {
 
         r.pushAlpha(pres);
 
-        // flash (500+) and steady pulse (1k+) behind the row
+        // the flash (500+) and steady pulse (1k+) behind the row
         if (anim && e.tier >= DamageTiers.FLASH) {
             double flash = 1 - Easing.OUT_QUART.apply(progress(now, e.born, Durations.MAX));
             double glow = 0;
@@ -254,7 +254,7 @@ public final class DpsLogHud extends HudModule {
             r.rect(stripeX, Math.round(y), STRIPE, fh - 1, solid);
         }
 
-        // value: tier colour / shiny, popping in for big hits
+        // value in its tier colour or shiny, popping in for big hits
         float vx = alignRight ? x + aw : x + lead;
         float scale = 1f;
         if (anim && e.tier >= DamageTiers.POP) {

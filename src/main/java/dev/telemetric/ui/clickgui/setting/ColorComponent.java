@@ -13,12 +13,12 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 /**
- * Colour swatch that expands (accordion) into an HSV picker:
- * saturation/value square, hue bar and optional alpha bar. Right-click header resets to default.
- * HSV is kept locally so hue isn't lost when saturation/value hit 0.
- * Under the name sits an editable hex field: click to type, Ctrl+C / Ctrl+X / Ctrl+V copy, cut & paste,
- * Ctrl+A select all, Enter or clicking elsewhere closes it, Esc reverts. A complete value (6 digits, or 8 with
- * alpha) applies live.
+ * A colour swatch that expands (accordion) into an HSV picker with a saturation/value square, a hue bar and an
+ * optional alpha bar. Right-clicking the header resets it to the default. HSV is kept locally so the hue isn't lost
+ * when saturation or value hit 0.
+ * Under the name there's an editable hex field: click to type, Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste, Ctrl+A
+ * selects all, Enter or clicking elsewhere closes it, and Esc reverts. A complete value (6 digits, or 8 with alpha)
+ * applies live.
  */
 public class ColorComponent extends SettingComponent<ColorSetting> {
 
@@ -78,7 +78,7 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         if (setting.get() != lastSynced && drag == Drag.NONE) syncFromSetting();
         open.animateTo(expanded ? 1 : 0);
 
-        // header: name, swatch (the hex field sits under the name while open)
+        // header: name and swatch (the hex field sits under the name while it's open)
         int sx = right() - SWATCH_W, sy = y + (Layout.SETTING_HEIGHT - SWATCH_H) / 2;
         r.text(r.trim(setting.getLabel(), sx - 4 - left()), left(), labelY(), textColor(p));
         drawChecker(r, sx, sy, SWATCH_W, SWATCH_H);
@@ -113,7 +113,7 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
             pushToSetting();
         }
 
-        // saturation / value square: each column is a vertical gradient from (s,v=1) to black
+        // saturation / value square: each column is a vertical gradient from (s, v=1) down to black
         for (int i = 0; i < pw; i++) {
             float s = i / (float) Math.max(1, pw - 1);
             r.gradientV(px + i, svY, 1, SV_H, ColorUtil.hsv(hue, s, 1f, 255), 0xFF000000);
@@ -167,7 +167,7 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         if (caretOn) r.rect(tx + r.textWidth(shown), ty, 1, 8, p.accent());
     }
 
-    /** Applies the buffer when it is a complete colour (6 digits, or 8 with alpha). */
+    /** Applies the buffer if it's a complete colour (6 digits, or 8 with alpha). */
     private boolean applyBuffer() {
         int len = hexBuffer.length();
         if (len != 6 && !(len == 8 && setting.allowsAlpha())) return false;
@@ -178,14 +178,14 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         return true;
     }
 
-    /** Hex digits only ('#', "0x" and other characters dropped), at most the field's length. */
+    /** Only the hex digits ('#', "0x" and anything else dropped), at most as many as the field holds. */
     private String cleanHex(String raw) {
         String t = raw.trim();
         if (t.startsWith("0x") || t.startsWith("0X")) t = t.substring(2);
         StringBuilder b = new StringBuilder();
         for (char ch : t.toCharArray()) if (Character.digit(ch, 16) >= 0) b.append(Character.toUpperCase(ch));
         String hex = b.toString();
-        // "#AARRGGBB" pasted into a colour without alpha: keep RRGGBB
+        // "#AARRGGBB" pasted into a colour without alpha keeps RRGGBB
         if (!setting.allowsAlpha() && hex.length() == 8) hex = hex.substring(2);
         return hex.length() > hexDigits() ? hex.substring(0, hexDigits()) : hex;
     }
@@ -232,7 +232,7 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
             else if (!hexBuffer.isEmpty()) hexBuffer = hexBuffer.substring(0, hexBuffer.length() - 1);
             selectAll = false;
         }
-        // swallow every other key so typing never triggers game / GUI shortcuts
+        // swallow every other key so typing never triggers game or GUI shortcuts
         return true;
     }
 

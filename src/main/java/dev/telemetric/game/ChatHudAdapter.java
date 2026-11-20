@@ -34,36 +34,38 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
 /**
- * MC ADAPTER — the chat HUD ({@code ChatComponent}, via {@code mixin/ChatComponentMixin} / {@code ChatScreenMixin}):
+ * MC ADAPTER: the chat HUD ({@code ChatComponent}, through {@code mixin/ChatComponentMixin} / {@code ChatScreenMixin}).
  * <ul>
- *   <li><b>links</b>: features add clickable parts to new lines ({@link #addLinker}, pure {@link ChatLink}s). A link is
- *       a {@code ClickEvent.Custom} {@code telemetric:link/<n>} handled here on the client ({@link #onClick}) — never
- *       sent to the server, no command confirmation screen, and server click events elsewhere stay untouched;</li>
- *   <li><b>view</b>: which lines show and which are censored ({@link #setView}, chat tabs). Lines stay in the chat
- *       history, so switching tabs ({@link #refresh}) re-shows them — vanilla's own {@code refreshTrimmedMessages};</li>
- *   <li><b>history</b>: lines kept (vanilla 100, {@link #setHistory});</li>
- *   <li>the line / click target under the mouse while the chat is open.</li>
+ *   <li><b>Links</b>: features add clickable parts to new lines ({@link #addLinker}, plain {@link ChatLink}s). A link is
+ *       a {@code ClickEvent.Custom} {@code telemetric:link/<n>} that's handled here on the client ({@link #onClick}).
+ *       It's never sent to the server, there's no command confirmation screen, and server click events elsewhere are
+ *       left alone.</li>
+ *   <li><b>View</b>: which lines show and which are censored ({@link #setView}, chat tabs). Lines stay in the chat
+ *       history, so switching tabs ({@link #refresh}) shows them again, using vanilla's own
+ *       {@code refreshTrimmedMessages}.</li>
+ *   <li><b>History</b>: how many lines are kept (vanilla keeps 100, {@link #setHistory}).</li>
+ *   <li>The line and click target under the mouse while the chat is open.</li>
  * </ul>
- * Everything is display-only and off Telos inactive.
+ * All of it is display-only and does nothing off Telos.
  */
 public final class ChatHudAdapter {
 
     public static final int VANILLA_HISTORY = 100;
     private static final String LINK_PATH = "link/";
     private static final int MAX_LINKS = 4096;
-    /** Messages All Chat keeps (newest first), hidden server lines included; never cleared. */
+    /** How many messages All Chat keeps (newest first), hidden server lines included. Never cleared. */
     public static final int ARCHIVE_MAX = 20_000;
     private static final ArrayDeque<GuiMessage> ARCHIVE = new ArrayDeque<>();
 
     private static final List<Function<String, List<ChatLink>>> LINKERS = new CopyOnWriteArrayList<>();
-    /** Link id → link; oldest dropped first (their lines left the history long ago). */
+    /** Link id to link. The oldest are dropped first, since their lines left the history long ago. */
     private static final Map<Integer, ChatLink> LINKS = new LinkedHashMap<>(256, 0.75f, false) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Integer, ChatLink> eldest) {
             return size() > MAX_LINKS;
         }
     };
-    /** Line content → category (identity keys: a line keeps its component). */
+    /** Line content to category. Keys are by identity, since a line keeps its component. */
     private static final Cache<Component, String> CATEGORIES = CacheBuilder.newBuilder().weakKeys().build();
 
     private static int nextLink;
@@ -74,12 +76,12 @@ public final class ChatHudAdapter {
 
     // ------------------------------------------------------------------ links
 
-    /** Adds clickable parts to every new line: {@code linker} gets the plain text, returns links (or empty). */
+    /** Adds clickable parts to every new line. {@code linker} gets the plain text and returns links (or none). */
     public static void addLinker(Function<String, List<ChatLink>> linker) {
         LINKERS.add(linker);
     }
 
-    /** {@code mixin/ChatComponentMixin}: a new line, before it is stored. */
+    /** {@code mixin/ChatComponentMixin}: a new line, before it's stored. */
     public static Component decorate(Component message) {
         if (message == null || LINKERS.isEmpty() || !ServerGate.onTelos()) return message;
         String plain = message.getString();
@@ -97,7 +99,7 @@ public final class ChatHudAdapter {
         return withLinks(message, links);
     }
 
-    /** Rebuilds the line so the characters of each link carry its click + hover (the rest keeps its style). */
+    /** Rebuilds the line so each link's characters carry its click and hover. The rest keeps its style. */
     private static Component withLinks(Component message, List<ChatLink> links) {
         Style[] linkStyles = new Style[links.size()];
         int hoverColor = Telemetric.get().theme().palette().accent() & 0xFFFFFF;
@@ -156,17 +158,17 @@ public final class ChatHudAdapter {
         }
     }
 
-    /** {@code mixin/ScreenMixin}: a clicked chat event. True = it was ours and is handled (do not send it). */
+    /** {@code mixin/ScreenMixin}: a clicked chat event. Returns true if it was ours and got handled (so don't send it). */
     public static boolean onClick(ClickEvent event) {
         if (event instanceof ClickEvent.Custom c && Telemetric.MOD_ID.equals(c.id().getNamespace())) {
             ChatLink link = linkFor(event);
             if (link != null && ServerGate.onTelos()) run(link.click());
-            return true; // ours (maybe expired): never sent to the server
+            return true; // it's ours (maybe expired), so it never goes to the server
         }
         return false;
     }
 
-    /** Right-click on a link under the mouse: runs its right-click action. True if there was one. */
+    /** Right-click on the link under the mouse runs its right-click action. Returns true if there was one. */
     public static boolean rightClickLink(double mouseX, double mouseY) {
         Style style = styleAt(mouseX, mouseY);
         ChatLink link = style == null ? null : linkFor(style.getClickEvent());
@@ -185,12 +187,12 @@ public final class ChatHudAdapter {
 
     // ------------------------------------------------------------------ view (tabs / censor)
 
-    /** Sets how lines show (null = like vanilla); call {@link #refresh} afterwards to re-lay out the chat. */
+    /** Sets how lines show (null means like vanilla). Call {@link #refresh} afterwards to lay the chat out again. */
     public static void setView(ChatView newView) {
         view = newView;
     }
 
-    /** Re-builds the visible lines from the history (after a tab switch / censor toggle). */
+    /** Rebuilds the visible lines from the history (after a tab switch or censor toggle). */
     public static void refresh() {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
@@ -209,7 +211,7 @@ public final class ChatHudAdapter {
     }
 
     /**
-     * {@code mixin/ChatComponentMixin}: false = keep this line out of the visible chat (it stays in the history).
+     * {@code mixin/ChatComponentMixin}: false keeps this line out of the visible chat (it stays in the history).
      * Client lines (feature feedback, never from the server) show in every tab.
      */
     public static boolean isVisible(GuiMessage message) {
@@ -223,7 +225,7 @@ public final class ChatHudAdapter {
         }
     }
 
-    /** {@code mixin/ChatComponentMixin}: the wrapped lines of a message, censored when the view says so. */
+    /** {@code mixin/ChatComponentMixin}: the wrapped lines of a message, censored if the view says so. */
     public static List<FormattedCharSequence> split(GuiMessage message, Font font, int width,
                                                     Function<GuiMessage, List<FormattedCharSequence>> vanilla) {
         ChatView v = view;
@@ -236,7 +238,7 @@ public final class ChatHudAdapter {
         return censored.splitLines(font, width);
     }
 
-    /** The first {@code keep} characters of {@code c} (styles kept) + "...". */
+    /** The first {@code keep} characters of {@code c} (styles kept) followed by "...". */
     private static Component truncate(Component c, int keep) {
         MutableComponent out = Component.empty();
         int[] left = {keep};
@@ -255,7 +257,7 @@ public final class ChatHudAdapter {
 
     // ------------------------------------------------------------------ history
 
-    /** Chat lines kept (vanilla 100); takes effect for new lines. */
+    /** How many chat lines are kept (vanilla keeps 100). Applies to new lines. */
     public static void setHistory(int lines) {
         history = Math.max(VANILLA_HISTORY, lines);
     }
@@ -265,7 +267,7 @@ public final class ChatHudAdapter {
         return history;
     }
 
-    /** {@code mixin/ChatComponentMixin}: wrapped lines shown (the history, or the whole archive in All Chat). */
+    /** {@code mixin/ChatComponentMixin}: how many wrapped lines to show (the history, or the whole archive in All Chat). */
     public static int displayLimit() {
         ChatView v = view;
         return v != null && v.archive() ? ARCHIVE_MAX * 4 : history;
@@ -273,7 +275,7 @@ public final class ChatHudAdapter {
 
     // ------------------------------------------------------------------ All Chat archive
 
-    /** {@code mixin/ChatComponentMixin}: a new line entered the history (once; re-layouts do not come here). */
+    /** {@code mixin/ChatComponentMixin}: a new line entered the history. Called once; re-layouts don't come through here. */
     public static void onStored(GuiMessage message) {
         if (message == null || !ServerGate.onTelos()) return;
         archive(message);
@@ -286,7 +288,7 @@ public final class ChatHudAdapter {
         }
     }
 
-    /** {@code game/ChatAdapter}: a server line a hide rule kept out of the chat — only All Chat shows it. */
+    /** {@code game/ChatAdapter}: a server line that a hide rule kept out of the chat. Only All Chat shows it. */
     public static void onHidden(Component content) {
         Minecraft mc = Minecraft.getInstance();
         if (content == null || mc.gui == null || !ServerGate.onTelos()) return;
@@ -307,7 +309,7 @@ public final class ChatHudAdapter {
         while (ARCHIVE.size() > ARCHIVE_MAX) ARCHIVE.removeLast();
     }
 
-    /** {@code mixin/ChatComponentMixin} ({@code refreshTrimmedMessages}): true = rebuilt from the archive. */
+    /** {@code mixin/ChatComponentMixin} ({@code refreshTrimmedMessages}): returns true if it rebuilt from the archive. */
     public static boolean refreshFromArchive(ChatComponent chat) {
         ChatView v = view;
         if (v == null || !ServerGate.onTelos() || !v.archive()) return false;
@@ -318,7 +320,7 @@ public final class ChatHudAdapter {
         return true;
     }
 
-    /** {@code mixin/ChatComponentMixin}: vanilla cleared the chat; All Chat re-shows the archive. */
+    /** {@code mixin/ChatComponentMixin}: vanilla cleared the chat, so All Chat shows the archive again. */
     public static void afterClear() {
         ChatView v = view;
         if (v != null && v.archive()) refresh();
@@ -337,7 +339,7 @@ public final class ChatHudAdapter {
         double scale = acc.telemetric$getScale();
         if (scale <= 0) return null;
         if (mouseX < 0 || mouseX > acc.telemetric$getWidth() + 8) return null;
-        // same geometry as ChatComponent#extractRenderState: lines stack upwards from 40 px above the bottom
+        // same geometry as ChatComponent#extractRenderState: lines stack upwards starting 40 px above the bottom
         int baseY = Mth.floor((mc.getWindow().getGuiScaledHeight() - 40) / scale);
         int lineHeight = (int) (9.0 * (mc.options.chatLineSpacing().get() + 1.0));
         if (lineHeight <= 0) return null;

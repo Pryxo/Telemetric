@@ -19,10 +19,10 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /**
- * Every typed Telos table read from the shared data repo ({@code data/tables/*.json}, all hand-written, see
- * {@link SharedData} / {@code docs/data.md}). One place to find which file feeds which feature; add a new table here.
- * Values are immutable snapshots (re-read with {@code TABLE.get()} — it may be swapped once the start-up update check
- * finds a newer file). Pure Java.
+ * Every typed Telos table read from the shared data repo ({@code data/tables/*.json}, all written by hand; see
+ * {@link SharedData} and {@code docs/data.md}). This is the one place to look up which file feeds which feature, and
+ * new tables go here too. Values are immutable snapshots. Read them again with {@code TABLE.get()}, because a value
+ * may be swapped once the start-up update check finds a newer file. Pure Java.
  */
 public final class TelosData {
 
@@ -31,37 +31,37 @@ public final class TelosData {
 
     private TelosData() {}
 
-    /** Loads every table now (cache / bundled copy) and starts the one update check per game start. */
+    /** Loads every table now (from cache or the bundled copy) and starts the one update check per game start. */
     public static void init() {
-        // touching the class runs the static declarations below — nothing else to do
+        // touching the class runs the static declarations below, so there's nothing else to do
     }
 
     // ------------------------------------------------------------------ bosses + loot + boss bars
 
     /**
-     * {@code shinyChance.json} — shiny chance divisor per rarity (shiny chance = normal chance / divisor). Must stay
-     * above {@link #BOSSES}: Boss.json's shiny drops read it while the class initialises.
+     * {@code shinyChance.json}: the shiny chance divisor per rarity (shiny chance = normal chance / divisor). This has
+     * to stay above {@link #BOSSES}, because Boss.json's shiny drops read it while the class initialises.
      */
     public static final SharedFile<ShinyChance> SHINY_CHANCE = SharedData.file(DIR + "shinyChance.json", ShinyChance::parse, ShinyChance.EMPTY);
 
     /**
-     * {@code Boss.json} — every boss (dungeon or zone, icon, spawn spots, drops, Boss Tracker data, boss bar
-     * hash). Boss Tracker / Pity Counter / spawn lookups ({@link BossTable}), drops ({@link #LOOT}) and boss bars
+     * {@code Boss.json}: every boss (dungeon or zone, icon, spawn spots, drops, Boss Tracker data, boss bar hash).
+     * The Boss Tracker, Pity Counter and spawn lookups ({@link BossTable}), the drops ({@link #LOOT}) and the boss bars
      * ({@link #BOSS_BARS}) all read this one file.
      */
     public static final SharedFile<BossTable> BOSSES = SharedData.file(DIR + "Boss.json", BossTable::parse, BossTable.EMPTY);
 
-    /** Dungeon → Boss → drops from {@code Boss.json} (Pity Counter, drop messages). */
+    /** Dungeon to boss to drops, from {@code Boss.json} (Pity Counter, drop messages). */
     public static final Supplier<LootTable> LOOT = () -> BOSSES.get().loot();
 
-    /** Boss bar name hashes from {@code Boss.json}: name hash → boss name. */
+    /** Boss bar name hashes from {@code Boss.json}, mapping each name hash to a boss name. */
     public static final Supplier<BossBars> BOSS_BARS = () -> BOSSES.get().bars();
 
-    /** @param byHash {@code Component#hashCode()} of the bar name (Telos names are glyphs) → boss name */
+    /** @param byHash {@code Component#hashCode()} of the bar name (Telos names are glyphs), mapped to the boss name */
     public record BossBars(Map<Integer, String> byHash, Set<String> names) {
         static final BossBars EMPTY = new BossBars(Map.of(), Set.of());
 
-        /** From the {@code bosses} array of Boss.json ({@code bossBarHash}: one hash or a list). */
+        /** Built from the {@code bosses} array of Boss.json ({@code bossBarHash} is one hash or a list). */
         static BossBars parse(JsonArray bosses) {
             Map<Integer, String> byHash = new HashMap<>();
             Set<String> names = new HashSet<>();
@@ -78,7 +78,7 @@ public final class TelosData {
             return new BossBars(Map.copyOf(byHash), Set.copyOf(names));
         }
 
-        /** True if a boss bar with this name hash / plain letters belongs to a known boss. */
+        /** True if a boss bar with this name hash or these plain letters belongs to a known boss. */
         public boolean isBossBar(int nameHash, String plainName) {
             return byHash.containsKey(nameHash) || (plainName != null && names.contains(Names.key(plainName)));
         }
@@ -91,18 +91,20 @@ public final class TelosData {
 
     // ------------------------------------------------------------------ rarities
 
-    /** {@code rarities.json} — rarity colours + glyphs and the loot bags, keyed by the last part of the tooltip style. */
+    /** {@code rarities.json}: rarity colours and glyphs plus the loot bags, keyed by the last part of the tooltip style. */
     public static final SharedFile<Rarities> RARITIES =
             SharedData.file(DIR + "rarities.json", Rarities::parse, Rarities.EMPTY);
 
     /**
      * @param rgb   0xRRGGBB
-     * @param glyph chat icon in the server pack's default font ("" = none)
+     * @param glyph chat icon in the server pack's default font ("" for none)
      */
     public record Rarity(String key, String label, int rgb, String glyph) {}
 
-    /** @param bags loot bags: every rarity with a {@code bag} + the {@code eventBags} */
-    /** @param events {@code eventBags} with a {@code color} — usable as a Boss.json drop {@code rarity} (pity colour) */
+    /**
+     * @param events {@code eventBags} that have a {@code color}, so they can be a Boss.json drop {@code rarity} (pity colour)
+     * @param bags   loot bags: every rarity with a {@code bag}, plus the {@code eventBags}
+     */
     public record Rarities(Map<String, Rarity> byKey, Map<String, Rarity> events, Bags bags) {
         static final Rarities EMPTY = new Rarities(Map.of(), Map.of(), Bags.EMPTY);
 
@@ -131,7 +133,7 @@ public final class TelosData {
             return byKey.get(stylePath.substring(stylePath.lastIndexOf('/') + 1).toLowerCase(Locale.ROOT));
         }
 
-        /** Rarity / loot group key ({@code bloodshot}, {@code companion}, {@code shiny}) → its rarity, or null. */
+        /** The rarity for a rarity or loot group key ({@code bloodshot}, {@code companion}, {@code shiny}), or null. */
         public Rarity any(String key) {
             if (key == null) return null;
             String k = key.toLowerCase(Locale.ROOT);
@@ -139,7 +141,7 @@ public final class TelosData {
             return r != null ? r : events.get(k);
         }
 
-        /** Coloured event bag ({@code halloween}, …) for this key, or null. */
+        /** The coloured event bag ({@code halloween}, …) for this key, or null. */
         public Rarity event(String key) {
             return key == null ? null : events.get(key.toLowerCase(Locale.ROOT));
         }
@@ -153,7 +155,7 @@ public final class TelosData {
 
     // ------------------------------------------------------------------ loot bags
 
-    /** Loot bag types (drop totem model, drop sound) for Custom Bags and Lifetime Stats — part of {@code rarities.json}. */
+    /** Loot bag types (drop totem model, drop sound) for Custom Bags and Lifetime Stats. They're part of {@code rarities.json}. */
     public static final Supplier<Bags> BAGS = () -> RARITIES.get().bags();
 
     /**
@@ -161,10 +163,10 @@ public final class TelosData {
      * @param totem item model path of the drop animation ({@code telos:<totem>})
      * @param sound suffix of the drop sound ({@code noise:player.bags.create_<sound>})
      * @param model custom model with the image screen ({@code telemetric:bags/<model>})
-     * @param group Lifetime Stats row this bag counts in (the key unless several bags share one, e.g. {@code event})
+     * @param group the Lifetime Stats row this bag counts in (the key, unless several bags share one, e.g. {@code event})
      * @param rgb   bag colour 0xRRGGBB, or -1
-     * @param icon  pouch glyph in the server pack's default font ("" = none) — large, the bag's picture
-     * @param glyph the rarity's small text-size glyph (the one chat and the /wiki use; "" = none)
+     * @param icon  pouch glyph in the server pack's default font ("" for none). It's the large picture of the bag
+     * @param glyph the rarity's small, text-sized glyph, the one chat and the /wiki use ("" for none)
      */
     public record Bag(String key, String label, String totem, String sound, String model, String group, int rgb,
                       String icon, String glyph) {}
@@ -173,9 +175,9 @@ public final class TelosData {
         static final Bags EMPTY = new Bags(List.of(), Map.of(), Map.of(), List.of());
 
         /**
-         * Rarity bags ({@code rarities.<key>.bag}, label / colour / icon of the rarity, group = key) then
-         * {@code eventBags} (group {@code event} unless set). {@code bag} = totem name: item model
-         * {@code mob/pouch/<bag>}, custom model {@code <bag>}; {@code sound} defaults to the key.
+         * Rarity bags first ({@code rarities.<key>.bag}, with the rarity's label, colour and icon, group = key), then
+         * the {@code eventBags} (group {@code event} unless set). {@code bag} is the totem name, giving item model
+         * {@code mob/pouch/<bag>} and custom model {@code <bag>}. {@code sound} defaults to the key.
          */
         static Bags parse(JsonObject root) {
             List<Bag> list = new ArrayList<>();
@@ -198,7 +200,7 @@ public final class TelosData {
                 JsonObject o = e.getValue().getAsJsonObject();
                 String key = e.getKey().toLowerCase(Locale.ROOT);
                 String bag = JsonFields.str(o, "bag");
-                if (bag.isEmpty() || !key.matches("[a-z0-9_]+")) continue; // key is used as a file name
+                if (bag.isEmpty() || !key.matches("[a-z0-9_]+")) continue; // the key ends up as a file name
                 String sound = JsonFields.str(o, "sound"), group = JsonFields.str(o, "group").toLowerCase(Locale.ROOT);
                 String color = JsonFields.str(o, "color");
                 list.add(new Bag(key, JsonFields.str(o, "label"), "mob/pouch/" + bag, sound.isEmpty() ? key : sound, bag,
@@ -221,23 +223,23 @@ public final class TelosData {
 
     // ------------------------------------------------------------------ traits
 
-    /** {@code traits.json} — unique trait descriptions per tier (Trait Details). */
+    /** {@code traits.json}: unique trait descriptions per tier (Trait Details). */
     public static final SharedFile<TraitTable> TRAITS = SharedData.file(DIR + "traits.json", TraitTable::parse, TraitTable.EMPTY);
 
     // ------------------------------------------------------------------ chat + callouts
 
-    /** {@code callouts.json} — boss / portal call-out data (Callouts). */
+    /** {@code callouts.json}: boss and portal call-out data (Callouts). */
     public static final SharedFile<CalloutTable> CALLOUTS = SharedData.file(DIR + "callouts.json", CalloutTable::parse, CalloutTable.EMPTY);
 
-    /** {@code chat.json} — chat tab categories (Chat). */
+    /** {@code chat.json}: chat tab categories (Chat). */
     public static final SharedFile<ChatRules> CHAT = SharedData.file(DIR + "chat.json", ChatRules::parse, ChatRules.EMPTY);
 
-    /** {@code serverMessages.json} — boss + misc server lines that can be hidden (Server Messages). */
+    /** {@code serverMessages.json}: boss and misc server lines that can be hidden (Server Messages). */
     public static final SharedFile<ServerMessageTable> SERVER_MESSAGES =
             SharedData.file(DIR + "serverMessages.json", ServerMessageTable::parse, ServerMessageTable.EMPTY);
 
     /**
-     * @param categories message categories, first match wins ({@code builtin} = a code check such as {@code callout})
+     * @param categories message categories, first match wins ({@code builtin} means a code check such as {@code callout})
      * @param tabs       chat tabs in bar order (after "All")
      */
     public record ChatRules(List<Category> categories, List<Tab> tabs) {
@@ -245,7 +247,7 @@ public final class TelosData {
 
         public record Category(String key, List<Pattern> patterns, String builtin) {}
 
-        /** @param channel server chat mode this tab switches to ({@code default} / {@code guild} / …), or "" */
+        /** @param channel the server chat mode this tab switches to ({@code default} / {@code guild} / …), or "" */
         public record Tab(String name, String category, Set<String> also, String channel, boolean shown) {
             public boolean shows(String messageCategory) {
                 return category.equals(messageCategory) || also.contains(messageCategory);
@@ -287,9 +289,9 @@ public final class TelosData {
         }
     }
 
-    /** {@code shinyChance.json} — declared near the top: {@link #BOSSES} reads it while parsing. */
+    // shinyChance.json itself is declared near the top, because BOSSES reads it while parsing.
 
-    /** @param divisors rarity → divisor; {@code default} = every other rarity */
+    /** @param divisors rarity to divisor; {@code default} covers every other rarity */
     public record ShinyChance(Map<String, Double> divisors) {
         static final ShinyChance EMPTY = new ShinyChance(Map.of("irradiated", 50.0, "gilded", 40.0, "default", 30.0));
 
@@ -310,7 +312,7 @@ public final class TelosData {
         }
     }
 
-    /** {@code locations.json} — biome id → location name, all dungeon names (game/TelosLocations). */
+    /** {@code locations.json}: biome id to location name, plus all dungeon names (game/TelosLocations). */
     public static final SharedFile<Locations> LOCATIONS = SharedData.file(DIR + "locations.json", Locations::parse, Locations.EMPTY);
 
     public record Locations(Map<String, String> biomes, List<String> dungeons) {
@@ -321,7 +323,7 @@ public final class TelosData {
         }
     }
 
-    /** {@code dungeons.json} — dungeon lists for DungeonRulebook ({@code unmapped}: no Wayfinder / Dungeon Map). */
+    /** {@code dungeons.json}: dungeon lists for DungeonRulebook ({@code unmapped} gets no Wayfinder or Dungeon Map). */
     public static final SharedFile<DungeonTable> DUNGEON_TABLE = SharedData.file(DIR + "dungeons.json", DungeonTable::parse, DungeonTable.EMPTY);
 
     public record DungeonTable(List<String> unmapped) {
@@ -332,13 +334,13 @@ public final class TelosData {
         }
     }
 
-    /** {@code realms.json} — realm / hub names per region (Keybinds → Realm Selector). */
+    /** {@code realms.json}: realm and hub names per region (Keybinds → Realm Selector). */
     public static final SharedFile<Realms> REALMS = SharedData.file(DIR + "realms.json", Realms::parse, Realms.EMPTY);
 
     public record Realms(List<Region> regions) {
         static final Realms EMPTY = new Realms(List.of());
 
-        /** @param prefix start of the Tab "Server" region part that picks this region ("" = any) */
+        /** @param prefix start of the region part of the Tab "Server" line that picks this region ("" matches any) */
         public record Region(String name, String prefix, List<String> realms, List<String> hubs) {}
 
         static Realms parse(JsonObject root) {
@@ -359,7 +361,7 @@ public final class TelosData {
             return false;
         }
 
-        /** The region for the Tab "Server" region part ({@code null} / unknown → null). */
+        /** The region for the region part of the Tab "Server" line. Null or unknown gives null. */
         public Region forServerRegion(String region) {
             if (region == null || region.isBlank()) return null;
             String r = region.trim().toLowerCase(Locale.ROOT);
@@ -368,13 +370,13 @@ public final class TelosData {
         }
     }
 
-    /** {@code discord.json} — Discord Rich Presence application, art keys and texts (Discord RPC). */
+    /** {@code discord.json}: the Discord Rich Presence application, art keys and texts (Discord RPC). */
     public static final SharedFile<DiscordInfo> DISCORD = SharedData.file(DIR + "discord.json", DiscordInfo::parse, DiscordInfo.EMPTY);
 
     /**
-     * @param modeImages / modeNames character mode ({@code normal} / {@code seasonal} / {@code hardcore}) → art key / name
+     * @param modeImages / modeNames character mode ({@code normal} / {@code seasonal} / {@code hardcore}) to art key / name
      * @param texts      named texts ({@code connecting}, {@code fighting}, … with {@code {placeholders}})
-     * @param areaTexts  area name → second line while idle there
+     * @param areaTexts  area name to the second line shown while idle there
      */
     public record DiscordInfo(String applicationId, String largeImage, String smallImage,
                               Map<String, String> modeImages, Map<String, String> modeNames,
@@ -395,7 +397,7 @@ public final class TelosData {
                     JsonFields.stringMap(root, "areaTexts"));
         }
 
-        /** Text {@code key} with {@code {name}} placeholders filled from {@code vars} (name, value, …); "" when missing. */
+        /** Text {@code key} with its {@code {name}} placeholders filled from {@code vars} (name, value, …). "" if it's missing. */
         public String text(String key, String... vars) {
             String t = texts.getOrDefault(key, "");
             for (int i = 0; i + 1 < vars.length; i += 2) t = t.replace("{" + vars[i] + "}", vars[i + 1]);
@@ -406,17 +408,18 @@ public final class TelosData {
     // ------------------------------------------------------------------ head status colour themes
 
     /**
-     * {@code statusColor.json} — Nametags → Status Theme presets: theme name → leaderboard slot ({@code "#1"},
-     * {@code "#2"}, {@code "#3"}, {@code "#4-10"}, {@code "#11-20"}, {@code "#21-25"}) → colours. A slot value is one
-     * {@code "#RRGGBB"} (solid, no gradient), a list of them (moving gradient) or {@code "shiny"} (the shiny cycle).
+     * {@code statusColor.json}: presets for Nametags → Status Theme. Maps a theme name to leaderboard slots
+     * ({@code "#1"}, {@code "#2"}, {@code "#3"}, {@code "#4-10"}, {@code "#11-20"}, {@code "#21-25"}) and each slot to
+     * its colours. A slot value is one {@code "#RRGGBB"} (solid, no gradient), a list of them (moving gradient), or
+     * {@code "shiny"} for the shiny cycle.
      */
     public static final SharedFile<StatusColors> STATUS_COLORS =
             SharedData.file(DIR + "statusColor.json", StatusColors::parse, StatusColors.EMPTY);
 
-    /** One slot's colours: {@code shiny} = shiny cycle, else {@code rgb} frames (one = solid colour). */
+    /** One slot's colours: {@code shiny} for the shiny cycle, otherwise {@code rgb} frames (one frame is a solid colour). */
     public record StatusSlot(boolean shiny, int[] rgb) {}
 
-    /** Theme name → slot key → colours, in file order. */
+    /** Theme name to slot key to colours, in file order. */
     public record StatusColors(Map<String, Map<String, StatusSlot>> themes) {
         public static final StatusColors EMPTY = new StatusColors(Map.of());
 
@@ -451,13 +454,13 @@ public final class TelosData {
 
     // ------------------------------------------------------------------ head status icons
 
-    /** {@code statusIcons.json} — icon per HeadStatus leaderboard ID, drawn in the Nametags status title. */
+    /** {@code statusIcons.json}: one icon per HeadStatus leaderboard ID, drawn in the Nametags status title. */
     public static final SharedFile<StatusIcons> STATUS_ICONS =
             SharedData.file(DIR + "statusIcons.json", StatusIcons::parse, StatusIcons.EMPTY);
 
     /**
-     * One status title icon: a block-atlas picture ({@code sprite}, an item model id like
-     * {@code telos:material/boss/anubis}) or a {@code glyph} text in {@code font} (null = default font).
+     * One status title icon: either a block-atlas picture ({@code sprite}, an item model id like
+     * {@code telos:material/boss/anubis}) or {@code glyph} text in {@code font} (null for the default font).
      */
     public record StatusIcon(String glyph, String font, String sprite) {}
 
@@ -470,13 +473,13 @@ public final class TelosData {
     }
 
     /**
-     * @param byId       leaderboard ID ({@code STATUS-MIRAJ}) → icon (missing = no icon).
-     * @param categoryOf leaderboard ID → its category ({@code "Kills"}).
-     * @param nameOf     leaderboard ID → its hand-written {@code "Name"} ({@code "Miraj"}), used instead of the API name.
+     * @param byId       leaderboard ID ({@code STATUS-MIRAJ}) to its icon (missing means no icon).
+     * @param categoryOf leaderboard ID to its category ({@code "Kills"}).
+     * @param nameOf     leaderboard ID to its hand-written {@code "Name"} ({@code "Miraj"}), used instead of the API name.
      * JSON: {@code "categories": {"Kills": {"singular": "kill", "plural": "kills"}}} and
-     * {@code "icons": {"STATUS-MIRAJ": {"Name": "Miraj", "icon": "telos:material/bosses/miraj", "category": "Kills"}}}; {@code icon} is
-     * a string (contains ":" = sprite id, else a glyph in the default font) or {@code {"glyph", "font"}} /
-     * {@code {"sprite"}}; empty = no icon.
+     * {@code "icons": {"STATUS-MIRAJ": {"Name": "Miraj", "icon": "telos:material/bosses/miraj", "category": "Kills"}}}.
+     * {@code icon} is either a string (with a ":" it's a sprite id, otherwise a glyph in the default font) or
+     * {@code {"glyph", "font"}} / {@code {"sprite"}}. Empty means no icon.
      */
     public record StatusIcons(Map<String, StatusIcon> byId, Map<String, StatusCategory> categoryOf,
                               Map<String, String> nameOf) {

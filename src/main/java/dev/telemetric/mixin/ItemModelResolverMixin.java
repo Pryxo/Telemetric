@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-/** Hide Armor → Show True Items: skinned items are drawn with their base item's model while revealing. */
+/** Hide Armor → Show True Items: while revealing, skinned items are drawn with their base item's model. */
 @Mixin(ItemModelResolver.class)
 public abstract class ItemModelResolverMixin {
 

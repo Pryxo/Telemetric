@@ -38,15 +38,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Pity Counter: kills since each drop of the boss you are at — the dungeon you are in, else the realm boss found by
- * (1) its boss bar, (2) one of its spawn spots ({@code Boss.json} positions)
- * within Boss Range. No boss found = the HUD hides. Counting happens in {@link LootTracker}
- * (always on); this module shows it and writes the chat lines: your drop with its pity (+ share button) and a pity
- * summary after each kill leaderboard.
+ * Pity Counter: kills since each drop of the boss you're at. That's the dungeon you're in, or else the realm boss found
+ * by (1) its boss bar or (2) one of its spawn spots ({@code Boss.json} positions) within Boss Range. If no boss is
+ * found, the HUD hides. The counting happens in {@link LootTracker} (always on). This module shows it and writes the
+ * chat lines: your drop with its pity (plus a share button), and a pity summary after each kill leaderboard.
  */
 public final class PityCounterHud extends LinesHudModule {
 
-    /** After the name of a drop that comes from a named mob, not the boss (the wiki's footnote mark). */
+    /** Goes after the name of a drop that comes from a named mob instead of the boss (the wiki's footnote mark). */
     static final String MOB_MARK = "**";
     private static final long CONTEXT_MS = 500, RESET_CONFIRM_MS = 4000;
 
@@ -100,7 +99,7 @@ public final class PityCounterHud extends LinesHudModule {
         ChatBus.replace(LootTracker.DROP_LINE, m -> isEnabled() && dropMessage.get() && LootTracker.get().ownDrop(m) != null);
     }
 
-    /** First click arms, a second one within {@link #RESET_CONFIRM_MS} clears the seasonal pity pool. */
+    /** The first click arms it, and a second one within {@link #RESET_CONFIRM_MS} clears the seasonal pity pool. */
     private void resetSeasonal() {
         long now = System.currentTimeMillis();
         if (now - resetArmedAt > RESET_CONFIRM_MS) {
@@ -138,7 +137,7 @@ public final class PityCounterHud extends LinesHudModule {
             return bosses.isEmpty() ? new Context(null, List.of()) : new Context(place, merged(bosses));
         }
         double range = bossRange.get();
-        BossLoot bl = nearestPlate(loot, range); // 1. nearest boss nameplate with a loot pool (minibosses have no bar)
+        BossLoot bl = nearestPlate(loot, range); // 1. the nearest boss nameplate with a loot pool (minibosses have no bar)
         if (bl == null) {
             for (String boss : BossBarAdapter.knownBosses()) { // 2. boss bar
                 bl = loot.realm(boss);
@@ -147,13 +146,13 @@ public final class PityCounterHud extends LinesHudModule {
             }
         }
         if (bl != null) return new Context(bl.boss(), merged(List.of(bl)));
-        Context area = areaContext(loot); // 3. HUD location box → that area's bosses (Boss.json "areas")
+        Context area = areaContext(loot); // 3. the HUD location box, giving that area's bosses (Boss.json "areas")
         if (area != null) return area;
-        bl = realmLoot(loot, nearestSpawn(range)); // 4. spawn spot from data
+        bl = realmLoot(loot, nearestSpawn(range)); // 4. a spawn spot from the data
         return bl == null ? new Context(null, List.of()) : new Context(bl.boss(), merged(List.of(bl)));
     }
 
-    /** Realm boss of the nearest nameplate within {@code range} whose boss has pity drops, or null. */
+    /** The realm boss of the nearest nameplate within {@code range} whose boss has pity drops, or null. */
     private static BossLoot nearestPlate(LootTable loot, double range) {
         for (DungeonAdapter.NearPlate p : DungeonAdapter.namePlatesNear(range)) {
             BossLoot bl = loot.realm(p.letters());
@@ -167,7 +166,7 @@ public final class PityCounterHud extends LinesHudModule {
         BossTable table = TelosData.BOSSES.get();
         String place = DungeonAdapter.hudLocation();
         List<BossTable.Boss> inArea = table.inArea(place);
-        if (inArea.isEmpty()) inArea = table.inArea(place = PlayerAdapter.locationName()); // part-specific / biome name
+        if (inArea.isEmpty()) inArea = table.inArea(place = PlayerAdapter.locationName()); // part-specific or biome name
         List<BossLoot> bosses = new ArrayList<>();
         for (BossTable.Boss b : inArea) {
             BossLoot bl = loot.realm(b.name());
@@ -182,7 +181,7 @@ public final class PityCounterHud extends LinesHudModule {
         return boss == null ? null : loot.realm(boss);
     }
 
-    /** Realm boss with the nearest spawn spot within {@code range} blocks. */
+    /** The realm boss with the nearest spawn spot within {@code range} blocks. */
     private static String nearestSpawn(double range) {
         Point me = DungeonAdapter.playerPos();
         if (me == null) return null;
@@ -202,8 +201,8 @@ public final class PityCounterHud extends LinesHudModule {
     }
 
     /**
-     * Non-shiny pity drops of these bosses plus the drops of the dungeon's named mobs ({@link Drop#isMobDrop}, e.g.
-     * Wild Wisps from Dyerftum Overlord), each once, in table order.
+     * The non-shiny pity drops of these bosses, plus the drops of the dungeon's named mobs ({@link Drop#isMobDrop},
+     * e.g. Wild Wisps from Dyerftum Overlord), each once, in table order.
      */
     private static List<Drop> merged(List<BossLoot> bosses) {
         Map<String, Drop> out = new LinkedHashMap<>();
@@ -235,9 +234,9 @@ public final class PityCounterHud extends LinesHudModule {
     }
 
     /**
-     * One item's row(s): {@code Name 1%: 52}; with a shiny variant either {@code Name 1% (0.03%): 52 (1994)} (bracket
-     * parts in the moving shiny colours) or a second row {@code Shiny Name 0.03%: 1994} all in shiny colours.
-     * {@code mark} follows the name ({@value #MOB_MARK} = dropped by a named mob, not the boss).
+     * One item's row(s): {@code Name 1%: 52}. With a shiny variant it's either {@code Name 1% (0.03%): 52 (1994)} (the
+     * bracket parts in the moving shiny colours) or a second row {@code Shiny Name 0.03%: 1994} all in shiny colours.
+     * {@code mark} goes after the name ({@value #MOB_MARK} means dropped by a named mob, not the boss).
      */
     private void row(List<Line> out, String name, String mark, double chance, int pity, int rgb, HudIcon icon,
                      Double shinyChance, int shinyPity, HudIcon shinyIcon) {
@@ -265,7 +264,7 @@ public final class PityCounterHud extends LinesHudModule {
         out.add(new Line(label, count, rgb, 0, List.of(), icon).styledRuns(labelRuns, valueRuns));
     }
 
-    /** {@code prefix + "1%"} / {@code "0.033%"} (2–3 significant digits), or "" when off / unknown. */
+    /** {@code prefix + "1%"} / {@code "0.033%"} (2–3 significant digits), or "" when it's off or unknown. */
     private String chanceText(String prefix, double percent) {
         if (!showChance.get() || percent <= 0) return "";
         BigDecimal v = BigDecimal.valueOf(percent).round(new MathContext(percent >= 1 ? 3 : 2, RoundingMode.HALF_UP));
@@ -295,13 +294,13 @@ public final class PityCounterHud extends LinesHudModule {
         return rarityColor(groupKey(d));
     }
 
-    /** Colour / label key: the drop's {@code rarity} if rarities.json knows it (rarity or coloured event bag), else companion / loot group. */
+    /** The colour and label key: the drop's {@code rarity} if rarities.json knows it (rarity or coloured event bag), otherwise companion or the loot group. */
     private static String groupKey(Drop d) {
         if (!d.rarity().isEmpty() && TelosData.RARITIES.get().any(d.rarity()) != null) return d.rarity();
         return d.isCompanion() ? "companion" : d.lootKey();
     }
 
-    /** ARGB of a rarity / loot group from {@code rarities.json}, 0 = theme default. */
+    /** ARGB of a rarity or loot group from {@code rarities.json}, 0 for the theme default. */
     private static int rarityColor(String key) {
         TelosData.Rarity r = TelosData.RARITIES.get().any(key);
         return r == null ? 0 : 0xFF000000 | r.rgb();
@@ -344,18 +343,18 @@ public final class PityCounterHud extends LinesHudModule {
         ChatAdapter.post(line);
     }
 
-    /** Appends {@code text} in the shiny colours (moving while Misc → Chat Colors is on). */
+    /** Appends {@code text} in the shiny colours (animated while Misc → Chat Colors is on). */
     private static void shiny(ChatText line, String text, int styles) {
         line.add(text, ShinyColors.START, styles | ChatText.SHINY);
     }
 
-    /** The rarity's chat icon from {@code rarities.json} ({@code glyph}, server-pack default font), "" if none. */
+    /** The rarity's chat icon from {@code rarities.json} ({@code glyph}, in the server pack's default font), or "" if none. */
     private static String rarityGlyph(Drop d) {
         TelosData.Rarity r = TelosData.RARITIES.get().any(d.shiny() ? "shiny" : groupKey(d));
         return r == null || r.glyph() == null ? "" : r.glyph();
     }
 
-    /** Loot group label ("Bloodshot", "Companion"). */
+    /** The loot group label ("Bloodshot", "Companion"). */
     private static String groupLabel(Drop d) {
         String key = groupKey(d);
         TelosData.Rarity r = TelosData.RARITIES.get().any(key);

@@ -15,11 +15,11 @@ import java.util.List;
 
 /**
  * Dungeon facts: clear mobs killed/total (dungeons with a goal mob rule), the dungeon's chat objective (Resounding
- * Ruins books x/5, {@code DungeonRules#chatCounter}), treasure chests still glowing (only
- * while there are some), players in the dungeon and puzzle rooms ({@code DungeonRules#chatPuzzles}: completed
- * count + one row per room with the player attempting it).
- * Hidden outside dungeons ({@code telos:dungeon/<n>}, {@code telos:neo_eden/<n>}). Acquires {@link DungeonTracker} itself, so it works without the
- * Wayfinder or Dungeon Map.
+ * Ruins books x/5, {@code DungeonRules#chatCounter}), treasure chests still glowing (only while there are some), the
+ * players in the dungeon, and puzzle rooms ({@code DungeonRules#chatPuzzles}: a completed count plus one row per room
+ * with the player attempting it).
+ * Hidden outside dungeons ({@code telos:dungeon/<n>}, {@code telos:neo_eden/<n>}). It acquires {@link DungeonTracker}
+ * itself, so it works without the Wayfinder or Dungeon Map.
  */
 public final class DungeonInfoHud extends LinesHudModule {
 
@@ -80,7 +80,7 @@ public final class DungeonInfoHud extends LinesHudModule {
         int chests = tracker.treasures().size();
         if (showTreasure.get() && chests > 0) rows.add(new Line("Treasure Chests", Integer.toString(chests)));
         if (showPlayers.get()) rows.add(new Line("Players", Integer.toString(DungeonAdapter.players().size())));
-        // puzzle rooms (Dreadwood Thicket): dungeon-specific info, so on/off with Show Objective
+        // puzzle rooms (Dreadwood Thicket) are dungeon-specific info, so they go on and off with Show Objective
         PuzzleBoard puzzles = tracker.puzzles();
         ChatPuzzles puzzleRule = tracker.puzzleRule();
         if (showObjective.get() && puzzles != null && puzzleRule != null) {
@@ -89,14 +89,15 @@ public final class DungeonInfoHud extends LinesHudModule {
                 rows.add(new Line(p.room() != null ? p.room() : "???", value));
             }
         }
-        // in a dungeon the panel always shows something (all rows off / no chests → player count)
+        // in a dungeon the panel always shows something (if all rows are off or there are no chests, the player count)
         if (rows.isEmpty()) rows.add(new Line("Players", Integer.toString(DungeonAdapter.players().size())));
         return rows;
     }
 
     /**
-     * Region (first entry of the Tab "Server" stat, "[test, realm-1]" → "test") + instance id from the dimension:
-     * "telos:dungeon/2" → "2", other "telos:neo_eden/2" → "/neo_eden2" (region + "/"). Null without a dimension.
+     * The region (first entry of the Tab "Server" stat, "[test, realm-1]" → "test") plus the instance id from the
+     * dimension. "telos:dungeon/2" gives "2", and another one like "telos:neo_eden/2" gives "/neo_eden2" (after the
+     * region and a "/"). Null without a dimension.
      */
     static String dungeonId(String dimension, String server) {
         if (dimension == null) return null;
@@ -104,7 +105,7 @@ public final class DungeonInfoHud extends LinesHudModule {
         boolean numbered = path.startsWith("dungeon/");
         String id = numbered ? path.substring("dungeon/".length()) : path.replace("/", "");
         TelosServer parsed = TelosServer.parse(server);
-        // "[EU, Astra]" → "EU"; a value without a region → its only part
+        // "[EU, Astra]" gives "EU", and a value without a region gives its only part
         String region = parsed == null ? "" : parsed.region().isEmpty() ? parsed.realm() : parsed.region();
         return numbered || region.isEmpty() ? region + id : region + "/" + id;
     }

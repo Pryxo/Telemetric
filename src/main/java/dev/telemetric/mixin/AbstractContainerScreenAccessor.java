@@ -4,7 +4,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-/** MC ADAPTER (mixin) — container screen position/size (protected), used to place the stash overlay. */
+/** MC ADAPTER (mixin): the container screen's (protected) position and size, used to place the stash overlay. */
 @Mixin(AbstractContainerScreen.class)
 public interface AbstractContainerScreenAccessor {
 

@@ -5,11 +5,12 @@ import java.util.List;
 
 /**
  * State of a dungeon's puzzle rooms this run ({@code DungeonRules#chatPuzzles}). Rooms fill the slots in the order
- * they are first named in chat; an unnamed slot is "???". Pure Java, client thread only (writes), snapshot reads.
+ * chat first names them, and a slot without a name shows "???". Pure Java. Writes happen on the client thread only;
+ * reads get a snapshot.
  */
 public final class PuzzleBoard {
 
-    /** One puzzle row: room name (null = not seen yet), player attempting it (null = nobody), completed. */
+    /** One puzzle row: room name (null if not seen yet), the player attempting it (null if nobody), and whether it's completed. */
     public record Puzzle(String room, String player, boolean completed) {}
 
     private final int slots;
@@ -37,7 +38,7 @@ public final class PuzzleBoard {
         publish();
     }
 
-    /** {@code room} reset (failed / timed out): nobody attempting it any more. Ignored once completed. */
+    /** {@code room} reset (failed or timed out), so nobody is attempting it any more. Ignored once completed. */
     public void reset(String room) {
         int i = slot(room);
         if (i < 0 || rooms.get(i).completed()) return;
@@ -45,7 +46,7 @@ public final class PuzzleBoard {
         publish();
     }
 
-    /** All slots in order; unnamed ones have a null room. */
+    /** All slots in order. Unnamed ones have a null room. */
     public List<Puzzle> puzzles() {
         return snapshot;
     }
@@ -57,7 +58,7 @@ public final class PuzzleBoard {
         return n;
     }
 
-    /** Index of {@code room}, taking the next free slot for a new room; -1 if all slots are named by other rooms. */
+    /** Index of {@code room}, taking the next free slot for a new room. -1 if every slot is already named by another room. */
     private int slot(String room) {
         for (int i = 0; i < rooms.size(); i++) if (rooms.get(i).room().equalsIgnoreCase(room)) return i;
         if (rooms.size() >= slots) return -1;

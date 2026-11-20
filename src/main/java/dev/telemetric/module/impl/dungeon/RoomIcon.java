@@ -4,10 +4,10 @@ import dev.telemetric.game.ResourceAdapter;
 import dev.telemetric.ui.render.Render2D;
 
 /**
- * Icon drawn in the middle of a special room on the Dungeon Map. Uses the PNG from the Telos server
- * resource pack while it is loaded; otherwise a bundled copy ({@code assets/telemetric/textures/hud/map/}).
- * Only the opaque box {@code (u, v, w, h)} is drawn, fitted (aspect kept) into a square of one shared size,
- * so all icons look the same size.
+ * The icon drawn in the middle of a special room on the Dungeon Map. It uses the PNG from the Telos server resource
+ * pack while that's loaded, and otherwise a bundled copy ({@code assets/telemetric/textures/hud/map/}). Only the
+ * opaque box {@code (u, v, w, h)} is drawn, fitted (aspect kept) into a square of one shared size, so all icons look
+ * the same size.
  */
 enum RoomIcon {
     SPAWN("telos:textures/icon/misc/boss.png", "spawn.png", 32, 32, 5, 4, 23, 26),
@@ -37,7 +37,7 @@ enum RoomIcon {
         };
     }
 
-    /** Draws the icon centred on {@code (cx, cz)}, its longer side {@code size} px. */
+    /** Draws the icon centred on {@code (cx, cz)}, with its longer side {@code size} px. */
     void draw(Render2D r, int cx, int cz, int size) {
         int dw = w >= h ? size : Math.max(1, Math.round(size * w / (float) h));
         int dh = h >= w ? size : Math.max(1, Math.round(size * h / (float) w));

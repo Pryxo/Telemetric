@@ -18,18 +18,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * MC ADAPTER — reads the searchable facts of an item for the stash search: plain name, tooltip text,
- * Telos rarity (last segment of {@code minecraft:tooltip_style}, e.g. {@code telos:untiered/bloodshot}),
- * Telos item type ({@code custom_data.PublicBukkitValues."realm:item_type"}, e.g. {@code telos:skin/cherub_staff})
- * and the vanilla item id + tags, plus the "N Tier Points" lore number (tiered items: style {@code telos:tiered/8}). Results are cached per stack (ItemStack has identity equality).
+ * MC ADAPTER: reads the facts the stash search can match on for an item. That's the plain name, tooltip text, Telos
+ * rarity (last segment of {@code minecraft:tooltip_style}, e.g. {@code telos:untiered/bloodshot}), Telos item type
+ * ({@code custom_data.PublicBukkitValues."realm:item_type"}, e.g. {@code telos:skin/cherub_staff}), the vanilla item
+ * id and tags, and the "N Tier Points" lore number (tiered items, style {@code telos:tiered/8}). Results are cached per
+ * stack (ItemStack uses identity equality).
  */
 public final class ItemSearchAdapter {
 
-    /** Searchable facts of one item; every string is lower case and cleaned of Telos font glyphs. */
+    /** The searchable facts of one item. Every string is lower case with the Telos font glyphs cleaned out. */
     public record Info(String name, String tooltip, String rarity, String typePath, List<String> tags, int tierPoints) {}
 
     private static final Map<ItemStack, Info> CACHE = new WeakHashMap<>();
-    /** Lore line "12 Tier Points" (tiered items: Tier N gives N points). */
+    /** The lore line "12 Tier Points" (on tiered items, Tier N gives N points). */
     private static final Pattern TIER_POINTS = Pattern.compile("(\\d+) tier points?");
 
     private ItemSearchAdapter() {}
@@ -73,7 +74,7 @@ public final class ItemSearchAdapter {
         return new Info(name, tooltip.toString(), rarity.toLowerCase(Locale.ROOT), typePath, List.copyOf(tags), tierPoints);
     }
 
-    /** Lower case, Telos spacing / icon glyphs (private-use and supplementary code points) removed, spaces collapsed. */
+    /** Lower case, with Telos spacing and icon glyphs (private-use and supplementary code points) removed and spaces collapsed. */
     static String clean(String s) {
         StringBuilder b = new StringBuilder(s.length());
         s.codePoints().forEach(cp -> {

@@ -19,12 +19,12 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * MC ADAPTER — reads server menus as plain text for features (Boss Tracker's {@code /bosses} list):
+ * MC ADAPTER: reads server menus as plain text for features (the Boss Tracker's {@code /bosses} list).
  * <ul>
- *   <li>every container menu the player closes on Telos is handed to {@link #onMenuClosed} listeners
- *       (item name + lore of the menu's own slots, the player inventory left out);</li>
- *   <li>{@link #runCommandAndRead} runs a command that opens a menu, reads it once its items arrived and closes it
- *       again — but only if the caller recognises it ({@code isOurs}); any other menu stays open.</li>
+ *   <li>Every container menu the player closes on Telos goes to the {@link #onMenuClosed} listeners (item name and
+ *       lore of the menu's own slots, without the player inventory).</li>
+ *   <li>{@link #runCommandAndRead} runs a command that opens a menu, reads it once its items have arrived and closes
+ *       it again, but only if the caller recognises it ({@code isOurs}). Any other menu stays open.</li>
  * </ul>
  */
 public final class BossMenuAdapter {
@@ -63,15 +63,15 @@ public final class BossMenuAdapter {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 
-    /** Every closed container menu (its own slots), on the client thread. */
+    /** Every closed container menu (its own slots), delivered on the client thread. */
     public static void onMenuClosed(Consumer<List<MenuItem>> listener) {
         CLOSED.add(listener);
     }
 
     /**
      * Runs {@code cmd} (no slash) once no screen is open, waits for the menu it opens, reads it and closes it.
-     * {@code isOurs} decides from the items whether the menu is the expected one; if not (or nothing opens within
-     * 10 s) nothing is closed and {@code done} is not called. A new request replaces a pending one.
+     * {@code isOurs} looks at the items and decides whether it's the expected menu. If it isn't, or nothing opens
+     * within 10 s, nothing gets closed and {@code done} isn't called. A new request replaces a pending one.
      */
     public static void runCommandAndRead(String cmd, Predicate<List<MenuItem>> ours, Consumer<List<MenuItem>> done) {
         command = cmd;
@@ -96,7 +96,7 @@ public final class BossMenuAdapter {
         switch (step) {
             case SEND -> {
                 if (now < stepAt) return;
-                if (mc.screen != null) { // the player is in a menu: try again a bit later
+                if (mc.screen != null) { // the player is in a menu, so try again a bit later
                     stepAt = now + 500;
                     return;
                 }
@@ -115,14 +115,14 @@ public final class BossMenuAdapter {
             }
             case READ -> {
                 if (mc.screen != ownScreen || !(ownScreen instanceof AbstractContainerScreen<?> menu)) {
-                    finish(); // closed by the player / server
+                    finish(); // closed by the player or the server
                     return;
                 }
                 List<MenuItem> items = read(menu);
                 long open = now - openedAt;
-                if (items.isEmpty() && open < MAX_OPEN_MS || open < MIN_OPEN_MS) return; // items not here yet
+                if (items.isEmpty() && open < MAX_OPEN_MS || open < MIN_OPEN_MS) return; // the items aren't here yet
                 if (!isOurs.test(items)) {
-                    if (open >= MAX_OPEN_MS) finish(); // not our menu: leave it open
+                    if (open >= MAX_OPEN_MS) finish(); // not our menu, so leave it open
                     return;
                 }
                 mc.player.closeContainer();
@@ -165,7 +165,7 @@ public final class BossMenuAdapter {
                 out.add(new MenuItem(i, stack.getHoverName().getString(), lore.toString()));
             }
         } catch (RuntimeException e) {
-            // menu changing while it is read (screen switch): skip this time
+            // the menu changed while we read it (screen switch), so skip this time
         }
         return out;
     }

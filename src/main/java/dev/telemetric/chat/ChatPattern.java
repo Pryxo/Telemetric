@@ -8,25 +8,25 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A <b>trusted</b> server message: plain-text regex + an exact style fingerprint. A message matches only if
+ * A <b>trusted</b> server message: a plain-text regex plus an exact style fingerprint. A message only matches if
  * <ol>
- *   <li>it is a server system message ({@link ChatMessage} is never built from player chat),</li>
- *   <li>it is in the chat (or, for {@link Builder#overlay()} patterns, in the action bar) — not the other one,</li>
- *   <li>its <b>whole</b> plain text matches {@code text} ({@link Matcher#matches()}, so no prefix like a player
- *       name / rank / "[Party]" / whisper arrow can come before it),</li>
+ *   <li>it's a server system message ({@link ChatMessage} is never built from player chat),</li>
+ *   <li>it's in the chat, or in the action bar for {@link Builder#overlay()} patterns, and not the other one,</li>
+ *   <li>its <b>whole</b> plain text matches {@code text} ({@link Matcher#matches()}), so nothing like a player
+ *       name, rank, "[Party]" or whisper arrow can come before it,</li>
  *   <li>it has <b>exactly</b> the listed runs, in order: each run's text matches its regex and
  *       bold/italic/underlined/strikethrough/obfuscated are exactly the given flags,</li>
- *   <li>no run has a click/hover event and no run uses a custom font (unless the run says so).</li>
+ *   <li>no run has a click/hover event and no run uses a custom font (unless the run allows it).</li>
  * </ol>
- * Colour is <b>not</b> checked: 1 already means the server sent it, and chat mods recolour runs (ChatNotify paints
- * your own name), which made colour checks miss real messages. Runs are split only where bold/italic/… change.
- * A player's line relayed by the server (whisper, party, chat format) has a name / rank / channel prefix, so it
- * cannot pass 3.
+ * Colour is <b>not</b> checked. Point 1 already proves the server sent it, and chat mods recolour runs (ChatNotify
+ * paints your own name), which made colour checks miss real messages. Runs are only split where bold/italic/…
+ * change. A player's line relayed by the server (whisper, party, chat format) has a name, rank or channel prefix,
+ * so it can't pass point 3.
  * <p>
- * Every pattern needs at least one run, or an explicit {@link Builder#anyRuns()} for a message whose run layout was
- * not read live yet (1–3 still hold; 4 is skipped; 5 too with {@link Builder#allowInteractive()}). Replace
- * {@code anyRuns()} with the real runs once seen: debug logging on, {@code game/ChatAdapter} logs each system
- * message as {@code Chat: [...]}.
+ * Every pattern needs at least one run, or an explicit {@link Builder#anyRuns()} for a message whose run layout
+ * hasn't been read live yet. Points 1 to 3 still apply then, 4 is skipped, and so is 5 with
+ * {@link Builder#allowInteractive()}. Once you've seen the message, replace {@code anyRuns()} with the real runs:
+ * turn debug logging on and {@code game/ChatAdapter} logs each system message as {@code Chat: [...]}.
  */
 public final class ChatPattern {
 
@@ -37,7 +37,7 @@ public final class ChatPattern {
     public static final int STRIKETHROUGH = 1 << 3;
     public static final int OBFUSCATED = 1 << 4;
 
-    /** One expected run: text regex (whole run), exact style flags, font (null = default). */
+    /** One expected run: a text regex (whole run), exact style flags and a font (null for the default). */
     public record Run(Pattern text, int styles, String font) {
         boolean matches(ChatSegment s) {
             return !s.interactive()
@@ -75,7 +75,7 @@ public final class ChatPattern {
         return name;
     }
 
-    /** The text match (groups readable) if {@code message} is this server message, else null. */
+    /** The text match (with readable groups) if {@code message} is this server message, otherwise null. */
     public MatchResult match(ChatMessage message) {
         if (message.overlay() != overlay) return null;
         List<ChatSegment> segments = message.segments();
@@ -107,27 +107,27 @@ public final class ChatPattern {
             this.text = Pattern.compile(textRegex, Pattern.DOTALL);
         }
 
-        /** Next run: {@code regex} must match its whole text; {@code styles} = flags OR-ed ({@link #PLAIN} = none). */
+        /** Next run: {@code regex} must match its whole text, and {@code styles} are the flags OR-ed together ({@link #PLAIN} for none). */
         public Builder run(String regex, int styles) {
             return run(regex, styles, null);
         }
 
-        /** Same, for a run drawn in a custom font ({@code "telos:text"}). */
+        /** Same, but for a run drawn in a custom font ({@code "telos:text"}). */
         public Builder run(String regex, int styles, String font) {
             runs.add(new Run(Pattern.compile(regex, Pattern.DOTALL), styles, font));
             return this;
         }
 
         /**
-         * Run layout not read live yet: any runs / styles / fonts pass (the whole-text match still decides).
-         * Interactive runs are still refused unless {@link #allowInteractive()}.
+         * The run layout hasn't been read live yet, so any runs, styles and fonts pass and only the whole-text match
+         * decides. Interactive runs are still refused unless {@link #allowInteractive()} is set.
          */
         public Builder anyRuns() {
             anyRuns = true;
             return this;
         }
 
-        /** With {@link #anyRuns()}: runs with a click / hover event (player names, item tooltips) may be part of it. */
+        /** Use with {@link #anyRuns()}: runs with a click or hover event (player names, item tooltips) are allowed. */
         public Builder allowInteractive() {
             interactive = true;
             return this;

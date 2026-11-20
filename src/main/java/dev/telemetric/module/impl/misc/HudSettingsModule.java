@@ -10,7 +10,7 @@ import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.hud.HudEditorScreen;
 import dev.telemetric.ui.notification.Toasts;
 
-/** UI-only: shared look of all HUD elements + the entry point to the HUD editor. */
+/** UI-only: the shared look of all HUD elements, plus the way into the HUD editor. */
 public final class HudSettingsModule extends Module {
 
     public final ActionSetting openEditor = add(new ActionSetting(

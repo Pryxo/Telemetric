@@ -25,18 +25,18 @@ import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
 /**
- * UI-only: share the settings of chosen modules as one copy-paste code.
+ * UI-only: shares the settings of chosen modules as a single copy-paste code.
  * <p>
- * <b>Generate</b> packs the ticked modules' state ({@code Module#toJson}, minus the personal keybind) into
+ * <b>Generate</b> packs the ticked modules' state ({@code Module#toJson}, without the personal keybind) into
  * {@code TLM1.<base64url(deflate(json))>} and copies it. <b>Apply</b> reads a pasted code and overwrites only the
- * modules (and within them only the settings) that are in the code — every other module stays as it is. Like any
- * change it is saved with the active profile (auto-save) or the next manual save.
+ * modules that are in the code, and within them only the settings in the code. Every other module stays as it is.
+ * Like any change, it gets saved with the active profile (auto-save) or on the next manual save.
  */
 public final class ShareSettingsModule extends Module {
 
     private static final String PREFIX = "TLM1.";
     private static final int FORMAT = 1;
-    /** Max size of an inflated code (guards against pasted garbage expanding without bound). */
+    /** The max size of an inflated code, so pasted garbage can't expand without limit. */
     private static final int MAX_JSON_BYTES = 4 * 1024 * 1024;
 
     private List<String> moduleNames;
@@ -63,7 +63,7 @@ public final class ShareSettingsModule extends Module {
                 Category.MISC, false);
     }
 
-    /** Every module that has something to share (enabled state or persistent settings), in GUI order. */
+    /** Every module that has something to share (an enabled state or persistent settings), in GUI order. */
     private List<String> shareableNames() {
         if (moduleNames == null) {
             List<String> names = new ArrayList<>();
@@ -126,7 +126,7 @@ public final class ShareSettingsModule extends Module {
             JsonObject json = entry.getValue().getAsJsonObject().deepCopy();
             json.remove("bind");
             try {
-                module.get().fromJson(json); // only keys present in the code are written
+                module.get().fromJson(json); // only the keys present in the code get written
                 applied++;
             } catch (RuntimeException e) {
                 missing.add(entry.getKey());
@@ -142,7 +142,7 @@ public final class ShareSettingsModule extends Module {
         Toasts.success(msg);
     }
 
-    /** Code → the {@code modules} object. Throws {@link IllegalArgumentException} for anything malformed. */
+    /** Turns a code into the {@code modules} object. Throws {@link IllegalArgumentException} for anything malformed. */
     private static JsonObject decode(String text) {
         if (!text.startsWith(PREFIX)) throw new IllegalArgumentException("prefix");
         byte[] packed = Base64.getUrlDecoder().decode(text.substring(PREFIX.length()));

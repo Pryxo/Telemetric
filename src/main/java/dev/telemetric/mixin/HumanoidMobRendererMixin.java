@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Hide Armor → Show True Items: worn skinned armor is drawn with its base piece's armor model while revealing. */
+/** Hide Armor → Show True Items: while revealing, worn skinned armor is drawn with its base piece's armor model. */
 @Mixin(HumanoidMobRenderer.class)
 public abstract class HumanoidMobRendererMixin {
 

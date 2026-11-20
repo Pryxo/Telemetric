@@ -14,8 +14,8 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
- * MC ADAPTER — the sound Social → Chat → Notifications plays ({@code config/telemetric/custom/sounds/notification.ogg|wav}):
- * native file picker (off the render thread, like Custom Bags), copy, and playback through {@link SoundFiles}.
+ * MC ADAPTER: the sound that Social → Chat → Notifications plays ({@code config/telemetric/custom/sounds/notification.ogg|wav}).
+ * Handles the native file picker (off the render thread, like Custom Bags), copying, and playback through {@link SoundFiles}.
  */
 public final class NotificationSoundAdapter {
 
@@ -40,7 +40,7 @@ public final class NotificationSoundAdapter {
         return file() != null;
     }
 
-    /** Plays the uploaded sound (volume 0..1, cut after 10 s). False if none is uploaded. */
+    /** Plays the uploaded sound (volume 0..1, cut off after 10 s). False if nothing is uploaded. */
     public static boolean play(float volume) {
         Path f = file();
         if (f == null) return false;
@@ -48,7 +48,7 @@ public final class NotificationSoundAdapter {
         return true;
     }
 
-    /** Native file picker; {@code result} gets null on success or an error for the player (on the picker thread). */
+    /** Native file picker. {@code result} gets null on success or an error message for the player (on the picker thread). */
     public static void pick(Consumer<String> result) {
         Thread t = new Thread(() -> {
             String path;

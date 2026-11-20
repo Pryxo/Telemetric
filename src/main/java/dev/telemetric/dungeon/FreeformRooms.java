@@ -12,27 +12,28 @@ import java.util.Map;
 import java.util.function.LongPredicate;
 
 /**
- * Mechanic <b>free-form rooms</b> ({@link dev.telemetric.dungeon.rules.DungeonRules.RoomShape#FREEFORM}): rooms of
- * any size instead of the piece grid — long halls, wide halls and corridors each become one rectangle.
+ * Mechanic: <b>free-form rooms</b> ({@link dev.telemetric.dungeon.rules.DungeonRules.RoomShape#FREEFORM}). Rooms can
+ * be any size instead of following the piece grid, so long halls, wide halls and corridors each become one rectangle.
  * <p>
- * Dwarven Frostkeep is not built from same-size pieces: an 82×9 hall, a 46×8 cross hall, 7-wide corridors 17+ long
- * and a 28×18 spawn room. A fixed grid cut every hall into 14-block chunks.
+ * Dwarven Frostkeep isn't built from same-size pieces. It has an 82×9 hall, a 46×8 cross hall, 7-wide corridors 17+
+ * long and a 28×18 spawn room, and a fixed grid cut every hall into 14-block chunks.
  * <p>
  * <b>Detection</b> (2D, on the room-level floor columns):
  * <ol>
- *   <li>Seed = the free floor column farthest from any wall/void ({@link #distances}, Chebyshev). The middle of the
- *       widest open space goes first, so big rooms and junctions are claimed before the corridors that lead in.
- *       Ties (a 7-wide corridor and a 7-wide hall): every such seed is grown (≤ {@link #MAX_CANDIDATES}) and the
- *       biggest rectangle wins, so a corridor does not run straight through the hall it ends in.</li>
- *   <li>Grow a rectangle round-robin, one line per side per pass. A side moves out while ≥ {@link #GROW_FILL} of the
- *       new line is free floor within {@link #LEVEL_TOL} of the seed's height. A wall line stops it (pillars and
- *       furniture cost a few cells, not the line); a doorway is narrower than the room, so it stops it too; already
- *       claimed rooms are not free.</li>
- *   <li>Rectangles thinner than {@link #MIN_SIDE} or with fewer than {@link #MIN_CELLS} floor columns are no room
- *       (their cells only stop being seeds). Repeat until no seed is ≥ {@link #MIN_SEED} from a wall.</li>
- *   <li>Left-over floor (doorways, niches, thin strips) joins the nearest room it is walk-adjacent to (BFS).</li>
- *   <li>Links / own levels / dropping unlinked rooms: {@link RoomLayout#linkRooms}, same as the grid, but any two
- *       rooms may link (cells have one owner, so no diagonal-corner problem).</li>
+ *   <li>The seed is the free floor column farthest from any wall or void ({@link #distances}, Chebyshev). The middle
+ *       of the widest open space goes first, so big rooms and junctions get claimed before the corridors leading
+ *       into them. On ties (a 7-wide corridor and a 7-wide hall), every such seed is grown (up to
+ *       {@link #MAX_CANDIDATES}) and the biggest rectangle wins, so a corridor doesn't run straight through the hall
+ *       it ends in.</li>
+ *   <li>Grow a rectangle round-robin, one line per side per pass. A side moves out while at least
+ *       {@link #GROW_FILL} of the new line is free floor within {@link #LEVEL_TOL} of the seed's height. A wall line
+ *       stops it (pillars and furniture only cost a few cells, not the whole line). A doorway is narrower than the
+ *       room, so it stops it too. Rooms that are already claimed aren't free.</li>
+ *   <li>Rectangles thinner than {@link #MIN_SIDE}, or with fewer than {@link #MIN_CELLS} floor columns, aren't rooms;
+ *       their cells just stop being seeds. Repeat until no seed is at least {@link #MIN_SEED} from a wall.</li>
+ *   <li>Left-over floor (doorways, niches, thin strips) joins the nearest room it's walk-adjacent to (BFS).</li>
+ *   <li>Links, own levels and dropping unlinked rooms work like the grid ({@link RoomLayout#linkRooms}), except any
+ *       two rooms may link. Each cell has one owner, so the diagonal-corner problem doesn't come up.</li>
  * </ol>
  * Room bounds are the grown rectangle; {@link RoomLayout#roomAt} uses the per-column owner map.
  */
@@ -40,15 +41,15 @@ public final class FreeformRooms {
 
     /** Share of a new rectangle line that must be free floor for the side to move out. */
     static final double GROW_FILL = 0.8;
-    /** Max height difference to the seed's floor within one room (a raised dais is still the room). */
+    /** Max height difference from the seed's floor within one room (a raised dais is still part of the room). */
     static final int LEVEL_TOL = 4;
-    /** Seeds need this Chebyshev distance to the nearest non-floor column (≥ 3 wide open space). */
+    /** Seeds need at least this Chebyshev distance to the nearest non-floor column (open space at least 3 wide). */
     static final int MIN_SEED = 2;
-    /** Thinnest room side. */
+    /** The thinnest a room side can be. */
     static final int MIN_SIDE = 3;
-    /** Fewest floor columns of a room. */
+    /** The fewest floor columns a room can have. */
     static final int MIN_CELLS = 20;
-    /** Most seeds of the same openness tried per room (evenly sampled). */
+    /** The most equally open seeds tried per room (sampled evenly). */
     private static final int MAX_CANDIDATES = 48;
     /** Safety cap on rooms per layout. */
     private static final int MAX_ROOMS = 256;
@@ -56,8 +57,8 @@ public final class FreeformRooms {
     private FreeformRooms() {}
 
     /**
-     * @param floors column key → room-level floor stand (boss level and, if the rule is on, outdoor floor removed);
-     *               the caller's map, not modified
+     * @param floors column key to room-level floor stand (with the boss level and, if the rule is on, outdoor floor
+     *               removed); the caller's map, not modified
      */
     static RoomLayout detect(DungeonMap map, LongPredicate floor, LongSet reachable, Long2IntOpenHashMap floors,
                              int dungeonLevel, RoomLayout.Hint hint) {
@@ -91,8 +92,8 @@ public final class FreeformRooms {
                 }
             }
             if (seed < 0) break;
-            // every equally open seed is tried, the biggest room wins: a corridor as wide as the hall it runs into
-            // would otherwise grow straight through the hall and cut it in two
+            // Every equally open seed is tried and the biggest room wins. Otherwise a corridor as wide as the hall it runs into
+            // would grow straight through the hall and cut it in two.
             int candidates = 0;
             for (int v : dist) if (v == best) candidates++;
             int stride = Math.max(1, candidates / MAX_CANDIDATES);
@@ -118,7 +119,7 @@ public final class FreeformRooms {
                 for (int x = r[0]; x <= r[2]; x++) {
                     int i = z * w + x;
                     if (!fits(free, fy, w, x, z, level)) continue;
-                    free[i] = false; // claimed, or (no room) at least never a seed again
+                    free[i] = false; // claimed, or (if no room came of it) at least never a seed again
                     if (room) owner[i] = id;
                 }
             }
@@ -127,7 +128,7 @@ public final class FreeformRooms {
             else rects.add(null);
         }
 
-        // left-over floor joins the nearest room it is walk-adjacent to
+        // left-over floor joins the nearest room it's walk-adjacent to
         IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
         for (int i = 0; i < owner.length; i++) if (owner[i] >= 0) queue.enqueue(i);
         while (!queue.isEmpty()) {
@@ -143,7 +144,7 @@ public final class FreeformRooms {
             }
         }
 
-        // rooms: rectangle bounds, owned walkable columns, most common floor height
+        // rooms: rectangle bounds, owned walkable columns, and the most common floor height
         int n = rects.size();
         int[] walkable = new int[n];
         List<Long2IntOpenHashMap> heights = new java.util.ArrayList<>(n);

@@ -6,7 +6,7 @@ import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 
-/** MC ADAPTER — plays UI sounds by id (vanilla {@code "entity.player.levelup"} or a resource pack's {@code "ns:path"}). */
+/** MC ADAPTER: plays UI sounds by id (vanilla {@code "entity.player.levelup"} or a resource pack's {@code "ns:path"}). */
 public final class SoundAdapter {
 
     private SoundAdapter() {}
@@ -14,7 +14,7 @@ public final class SoundAdapter {
     /**
      * Plays a sound on the UI channel (not positional).
      *
-     * @return false if the id is malformed or no loaded sound has it (nothing is played)
+     * @return false if the id is malformed or no loaded sound has it (then nothing plays)
      */
     public static boolean play(String id, float volume, float pitch) {
         Identifier sound = id == null ? null : Identifier.tryParse(id.trim());

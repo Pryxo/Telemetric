@@ -9,8 +9,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * MC ADAPTER — the only place gameplay modules read or change the local player.
- * Every method is null-safe: outside a world they simply report "nothing to do".
+ * MC ADAPTER: the only place gameplay modules read or change the local player.
+ * Every method is null-safe, so outside a world they just report "nothing to do".
  */
 public final class PlayerAdapter {
 
@@ -31,7 +31,7 @@ public final class PlayerAdapter {
         return mc.screen == null && mc.options.keyJump.isDown();
     }
 
-    /** Remaining ticks of the vanilla jump cooldown (0 = can jump). */
+    /** Remaining ticks of the vanilla jump cooldown (0 means you can jump). */
     public static int jumpCooldown() {
         LocalPlayer p = player();
         return p == null ? 0 : ((LivingEntityAccessor) p).telemetric$getNoJumpDelay();
@@ -44,8 +44,8 @@ public final class PlayerAdapter {
     }
 
     /**
-     * Where the player is: the Telos location name ({@link TelosLocations#resolve} — HUD box, made part-specific
-     * by the biome), else the biome name. Null outside a world.
+     * Where the player is: the Telos location name ({@link TelosLocations#resolve}, the HUD box made part-specific by
+     * the biome), or else the biome name. Null outside a world.
      */
     public static String locationName() {
         String location = TelosLocations.resolve(BossBarAdapter.hudLocation(), biomeId());
@@ -53,8 +53,8 @@ public final class PlayerAdapter {
     }
 
     /**
-     * Readable name of the biome the player stands in ("Dark Forest", not "minecraft:dark_forest"):
-     * the biome's language entry when the game/resource pack has one, otherwise the id path title-cased.
+     * A readable name for the biome the player stands in ("Dark Forest", not "minecraft:dark_forest"). Uses the biome's
+     * language entry if the game or resource pack has one, otherwise the id path in title case.
      * Null outside a world.
      */
     public static String biomeName() {
@@ -78,8 +78,8 @@ public final class PlayerAdapter {
     }
 
     /**
-     * Clears the vanilla jump cooldown. Vanilla only jumps from the ground when it is 0, so with it
-     * cleared, a held jump key fires on the very next tick after landing.
+     * Clears the vanilla jump cooldown. Vanilla only jumps from the ground when it's 0, so with it cleared, a held jump
+     * key fires on the very next tick after landing.
      */
     public static void clearJumpCooldown() {
         LocalPlayer p = player();
@@ -94,7 +94,7 @@ public final class PlayerAdapter {
         return mc.screen == null && mc.options.keyAttack.isDown();
     }
 
-    /** Swings the main hand (sends the swing packet — Telos fires weapons on it). */
+    /** Swings the main hand. This sends the swing packet, which Telos fires weapons on. */
     public static void swingMainHand() {
         LocalPlayer p = player();
         if (p != null) p.swing(InteractionHand.MAIN_HAND);
@@ -106,7 +106,7 @@ public final class PlayerAdapter {
         return p != null && p.isPassenger();
     }
 
-    /** Feet position interpolated for the current frame plus the body yaw (degrees, 0 = south / +Z). */
+    /** Feet position interpolated for the current frame, plus the body yaw (degrees, 0 is south / +Z). */
     public record Pose(double x, double y, double z, float yaw) {}
 
     /** Smooth per-frame pose for world drawing, or null outside a world. */
@@ -130,12 +130,12 @@ public final class PlayerAdapter {
 
     private static volatile boolean autoSprint;
 
-    /** Auto Sprint: treat the sprint key as held (vanilla still decides whether sprinting is possible). */
+    /** Auto Sprint: treat the sprint key as held (vanilla still decides whether you can sprint). */
     public static void setAutoSprint(boolean on) {
         autoSprint = on;
     }
 
-    /** Read by {@code LocalPlayerMixin} every tick; only on Telos. */
+    /** {@code LocalPlayerMixin} reads this every tick. Only on Telos. */
     public static boolean autoSprint() {
         return autoSprint && ServerGate.onTelos();
     }
@@ -144,7 +144,7 @@ public final class PlayerAdapter {
 
     /** Current and max health (hearts × 2), or null outside a world. */
     public record Health(float current, float max) {
-        /** 0..1 (0 when max is unknown). */
+        /** 0..1 (0 if max is unknown). */
         public float fraction() {
             return max > 0 && Float.isFinite(current) ? Math.clamp(current / max, 0f, 1f) : 0f;
         }
@@ -156,8 +156,8 @@ public final class PlayerAdapter {
     }
 
     /**
-     * Changes (identity) whenever the player is put into another world — realm, hub, dungeon. Compare it between
-     * ticks to notice a world change; null outside a world.
+     * Changes (by identity) whenever the player is put into another world: realm, hub, dungeon. Compare it between
+     * ticks to notice a world change. Null outside a world.
      */
     public static Object worldToken() {
         return Minecraft.getInstance().level;
@@ -191,8 +191,8 @@ public final class PlayerAdapter {
     }
 
     /**
-     * Stable id of the logged-in account (UUID string), for per-account local files; null outside a world.
-     * Never sent anywhere.
+     * Stable id of the logged-in account (UUID string), for per-account local files. Null outside a world.
+     * It's never sent anywhere.
      */
     public static String accountId() {
         LocalPlayer p = player();
@@ -200,8 +200,8 @@ public final class PlayerAdapter {
     }
 
     /**
-     * UUIDs (dashed) of every real player the client has loaded around you, yourself included; empty outside a world.
-     * Only version-4 (Mojang account) UUIDs — server NPCs shown as players use other versions and are left out.
+     * UUIDs (dashed) of every real player the client has loaded around you, yourself included. Empty outside a world.
+     * Only version-4 (Mojang account) UUIDs count; server NPCs shown as players use other versions and are left out.
      */
     public static java.util.List<String> loadedPlayerIds() {
         Minecraft mc = Minecraft.getInstance();

@@ -13,9 +13,9 @@ import dev.telemetric.ui.notification.Toasts;
 import dev.telemetric.ui.realm.RealmSelectorScreen;
 
 /**
- * Player → Keybinds: keys for Telos commands and menus, plus the
- * Realm Selector ({@code ui/realm/RealmSelectorScreen}). Leaving a dungeon through the selector needs three presses
- * within {@link #CONFIRM_MS} ms. Add a command key with one {@link #command} line.
+ * Player → Keybinds: keys for Telos commands and menus, plus the Realm Selector ({@code ui/realm/RealmSelectorScreen}).
+ * Leaving a dungeon through the selector takes three presses within {@link #CONFIRM_MS} ms. You can add a command key
+ * with one {@link #command} line.
  */
 public class KeybindsModule extends Module {
 
@@ -66,7 +66,7 @@ public class KeybindsModule extends Module {
                 .onPress(() -> PlayerAdapter.sendCommand(command))));
     }
 
-    /** Remembers the realm before this one (only real realms / hubs, not dungeon servers) for "Previous". */
+    /** Remembers the realm before this one for "Previous" (only real realms and hubs, not dungeon servers). */
     @Override
     public void onTick() {
         TelosServer s = TelosServer.current();

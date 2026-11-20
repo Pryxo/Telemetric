@@ -19,14 +19,14 @@ import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.render.ColorUtil;
 
 /**
- * Weapon Range / Ability Range: the reach of the held weapon / ability drawn on the ground (arc, circle or
- * line). The range is the item's lore {@code Range} incl. its trait modifier, or a {@link TelosItemRules} override
+ * Weapon Range / Ability Range: the reach of the held weapon or ability, drawn on the ground as an arc, circle or
+ * line. The range is the item's lore {@code Range} including its trait modifier, or a {@link TelosItemRules} override
  * (offset abilities are centred in front of the player and get a centre marker).
  * <p>
- * One class, two instances ({@link #ability()}, {@link #weapon(ItemRangeModule)}). When both show the same circle,
- * the weapon one steps aside so the lines do not overlap.
+ * One class with two instances ({@link #ability()}, {@link #weapon(ItemRangeModule)}). When both would show the same
+ * circle, the weapon one steps aside so the lines don't overlap.
  * <p>
- * Drawn as one clean edge line with a soft band fading inward on the ground. With Target Highlight on, the colour
+ * It's drawn as one clean edge line with a soft band fading inward on the ground. With Target Highlight on, the colour
  * eases to the target colour while a hittable mob ({@link EntityVisualsAdapter#forEachHittableBox}) is inside the
  * drawn area.
  */
@@ -43,7 +43,7 @@ public final class ItemRangeModule extends Module {
     private record Area(double range, double offset, TelosItemRules.Marker marker, boolean drawRange) {}
 
     private static final int CIRCLE_SEGMENTS = 72, ARC_SEGMENTS = 40, LINE_STEPS = 10;
-    private static final double ARC_FADE = 0.18; // faded share of each arc end
+    private static final double ARC_FADE = 0.18; // how much of each arc end is faded
     /** Ground bands inside the edge: {inner offset, outer offset, alpha share of the line colour}. */
     private static final double[][] BANDS = {{0.45, 0.0, 0.30}, {1.1, 0.45, 0.10}};
     private static final double LINE_HIT_SLACK = 0.4; // blocks either side of the aim line that count as a hit
@@ -64,7 +64,7 @@ public final class ItemRangeModule extends Module {
     private final ColorSetting targetColor;
     private final BooleanSetting emblem; // weapon only
 
-    /** 0 = range colour, 1 = target colour; eased over time. */
+    /** 0 is the range colour, 1 the target colour, eased over time. */
     private double hot;
     private long lastFrame;
 
@@ -104,7 +104,7 @@ public final class ItemRangeModule extends Module {
         WorldRenderAdapter.addDrawer(this::draw);
     }
 
-    /** The held item's area, or null when nothing of this kind with a range is held. */
+    /** The held item's area, or null if nothing of this kind with a range is held. */
     private Area area() {
         ItemInfo held = CombatAdapter.held(kind);
         if (held == null) return null;
@@ -125,7 +125,7 @@ public final class ItemRangeModule extends Module {
         if (pose == null) return;
 
         double yaw = Math.toRadians(pose.yaw());
-        double fx = -Math.sin(yaw), fz = Math.cos(yaw); // MC yaw 0 = south (+Z)
+        double fx = -Math.sin(yaw), fz = Math.cos(yaw); // MC yaw 0 is south (+Z)
         double y = pose.y() + lift;
         double cx = pose.x() + fx * area.offset(), cz = pose.z() + fz * area.offset();
         Shape s = shape.get();
@@ -150,7 +150,7 @@ public final class ItemRangeModule extends Module {
         }
     }
 
-    /** Eases {@link #hot} toward the target state; returns the blend for this frame. */
+    /** Eases {@link #hot} toward the target state and returns the blend for this frame. */
     private double ease(boolean target) {
         long now = System.nanoTime();
         double dt = lastFrame == 0 ? 0 : (now - lastFrame) / 1e6;
@@ -161,7 +161,7 @@ public final class ItemRangeModule extends Module {
         return hot * hot * (3 - 2 * hot); // smoothstep
     }
 
-    /** Whether a hittable mob's hitbox overlaps the drawn area. */
+    /** True if a hittable mob's hitbox overlaps the drawn area. */
     private static boolean targetInside(Shape s, double px, double py, double pz, double cx, double cz, double fx,
                                         double fz, double range, double half) {
         boolean[] hit = {false};
@@ -191,8 +191,8 @@ public final class ItemRangeModule extends Module {
     }
 
     /**
-     * Ground ring of radius {@code r} centred on {@code yaw} spanning +-{@code half} (pi = full circle): one edge
-     * line plus, with Ground Fill, translucent bands fading inward. {@code fade} = faded share of each end.
+     * Ground ring of radius {@code r} centred on {@code yaw}, spanning ±{@code half} (pi is a full circle). It's one
+     * edge line plus, with Ground Fill, translucent bands fading inward. {@code fade} is how much of each end is faded.
      */
     private void ring(LineSink sink, double cx, double y, double cz, double r, double yaw, double half, double fade,
                       int segments, int argb, float w, boolean walls) {
@@ -204,7 +204,7 @@ public final class ItemRangeModule extends Module {
             double sin = -Math.sin(a), cos = Math.cos(a);
             double x = cx + sin * r, z = cz + cos * r;
             if (i > 0) {
-                double edge = Math.abs(t - 0.5 / segments - 0.5) * 2; // 0 = middle, 1 = end
+                double edge = Math.abs(t - 0.5 / segments - 0.5) * 2; // 0 is the middle, 1 the end
                 double f = fade > 0 && edge > 1 - fade ? (1 - edge) / fade : 1;
                 int c = ColorUtil.fade(argb, f);
                 sink.line(px, y, pz, x, y, z, c, w, walls);
@@ -224,7 +224,7 @@ public final class ItemRangeModule extends Module {
         }
     }
 
-    /** Line that fades in from the player to its end. */
+    /** A line that fades in from the player towards its end. */
     private static void fadingLine(LineSink sink, double x1, double y, double z1, double x2, double z2, int argb,
                                    float w, boolean walls) {
         for (int i = 0; i < LINE_STEPS; i++) {
@@ -234,7 +234,7 @@ public final class ItemRangeModule extends Module {
         }
     }
 
-    /** Square of half-size {@code h} turned with the player. */
+    /** A square of half-size {@code h}, turned with the player. */
     private static void square(LineSink sink, double cx, double y, double cz, double h, double yaw, int argb, float w,
                                boolean walls) {
         double cos = Math.cos(yaw), sin = Math.sin(yaw);

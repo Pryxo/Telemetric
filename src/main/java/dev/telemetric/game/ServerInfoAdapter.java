@@ -25,29 +25,29 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * MC ADAPTER — client/server facts for HUD elements: FPS, own ping and the stats Telos Realms
- * publishes in the Tab list.
+ * MC ADAPTER: client and server facts for HUD elements. FPS, your own ping, and the stats Telos Realms publishes in
+ * the Tab list.
  * <p>
  * Telos fills the Tab list with fake entries whose display names read {@code "➜ Label: value (extra)"}.
  * Parsing rules ({@link #parseEntry}):
  * <ul>
  *   <li>invisible spacing characters (BMP private use, Yi block) are dropped,</li>
- *   <li>{@link ChatFormatting#DARK_GRAY} segments are dropped (the {@code (42.1%)} extras),
- *       plus any trailing {@code (...)} as a fallback,</li>
- *   <li>the first pack glyph before the colon (custom font or supplementary-plane char) becomes the icon;
+ *   <li>{@link ChatFormatting#DARK_GRAY} segments are dropped (the {@code (42.1%)} extras), and so is any trailing
+ *       {@code (...)} as a fallback,</li>
+ *   <li>the first pack glyph before the colon (custom font or supplementary-plane char) becomes the icon, and
  *       other glyphs and leading symbols (arrows, dots) before the label are stripped,</li>
- *   <li>the value keeps every styled piece (colour + font) as {@link TextRun}s, so multi-coloured values
- *       render exactly like the Tab list,</li>
- *   <li>entries without {@code ':'} (section titles, real players) are ignored.</li>
+ *   <li>the value keeps every styled piece (colour + font) as {@link TextRun}s, so values with several colours
+ *       render exactly like they do in the Tab list,</li>
+ *   <li>entries without a {@code ':'} (section titles, real players) are ignored.</li>
  * </ul>
- * The snapshot is rebuilt at most every {@link #REFRESH_MS} ms. Each label's raw segments are logged once.
+ * The snapshot is rebuilt at most every {@link #REFRESH_MS} ms. Each label's raw segments get logged once.
  */
 public final class ServerInfoAdapter {
 
     /**
-     * One parsed Tab-list stat. Colours are ARGB, or {@link #NO_COLOR} if the server sent none.
+     * One parsed Tab-list stat. Colours are ARGB, or {@link #NO_COLOR} if the server didn't send one.
      *
-     * @param value     plain value text (glyphs removed) — for logic and fallbacks
+     * @param value     plain value text (glyphs removed), for logic and fallbacks
      * @param valueRuns the value as the server styled it (colours, fonts, inline glyphs)
      * @param icon      glyph shown in front of the label in the Tab list, or null
      */
@@ -69,7 +69,7 @@ public final class ServerInfoAdapter {
         return Minecraft.getInstance().getFps();
     }
 
-    /** Own latency in ms as reported by the server, or -1 outside multiplayer / when unknown. */
+    /** Your own latency in ms as the server reports it, or -1 outside multiplayer or when unknown. */
     public static int ping() {
         Minecraft mc = Minecraft.getInstance();
         ClientPacketListener conn = mc.getConnection();
@@ -105,19 +105,19 @@ public final class ServerInfoAdapter {
                 if (stat != null) out.putIfAbsent(stat.label().toLowerCase(Locale.ROOT), stat);
             }
         } catch (RuntimeException e) {
-            // concurrent packet handling or odd components — keep the last good snapshot
+            // concurrent packet handling or odd components, so keep the last good snapshot
             return cache;
         }
         return Collections.unmodifiableMap(out);
     }
 
-    /** One code point with the style it was sent in. {@code font} null = default font. */
+    /** One code point with the style it was sent in. A null {@code font} means the default font. */
     private record Cell(int cp, int color, String font) {
         boolean whitespace() {
             return Character.isWhitespace(cp);
         }
 
-        /** Resource-pack "shortcut" glyph: anything in a custom font, or a supplementary-plane char. */
+        /** True for a resource-pack "shortcut" glyph: anything in a custom font, or a supplementary-plane char. */
         boolean glyph() {
             return font != null || Character.isSupplementaryCodePoint(cp);
         }
@@ -144,7 +144,7 @@ public final class ServerInfoAdapter {
         }
         if (colon <= 0) return null;
 
-        // ---- label (+ the icon glyph in front of it)
+        // ---- label (plus the icon glyph in front of it)
         HudIcon.Glyph icon = null;
         StringBuilder label = new StringBuilder();
         int labelColor = NO_COLOR;
@@ -155,14 +155,14 @@ public final class ServerInfoAdapter {
                 if (icon == null) icon = new HudIcon.Glyph(Character.toString(c.cp()), c.font());
                 continue;
             }
-            if (!started && !Character.isLetterOrDigit(c.cp())) continue; // leading arrows / dots
+            if (!started && !Character.isLetterOrDigit(c.cp())) continue; // skip leading arrows and dots
             started = true;
             label.appendCodePoint(c.cp());
             if (labelColor == NO_COLOR && !c.whitespace()) labelColor = c.color();
         }
         String labelText = label.toString().replaceAll("\\s+", " ").trim();
 
-        // ---- value: every styled cell after the colon (whitespace collapsed, trailing "(...)" dropped)
+        // ---- value: every styled cell after the colon (whitespace collapsed, a trailing "(...)" dropped)
         List<Cell> value = new ArrayList<>();
         for (int i = colon + 1; i < cells.size(); i++) {
             Cell c = cells.get(i);
@@ -209,7 +209,7 @@ public final class ServerInfoAdapter {
         while (!cells.isEmpty() && cells.getLast().whitespace()) cells.removeLast();
     }
 
-    /** Drops a trailing {@code (...)} group (the extras), unless it is the whole value. */
+    /** Drops a trailing {@code (...)} group (the extras), unless that's the whole value. */
     private static void stripTrailingParens(List<Cell> cells) {
         if (cells.isEmpty() || cells.getLast().cp() != ')') return;
         for (int i = cells.size() - 2; i > 0; i--) {
@@ -228,7 +228,7 @@ public final class ServerInfoAdapter {
         return color == null ? -1 : color.getValue() & 0xFFFFFF;
     }
 
-    /** null = default font; {@link #UNSUPPORTED_FONT} for non-resource fonts (sprites) we can't redraw. */
+    /** Null for the default font, or {@link #UNSUPPORTED_FONT} for non-resource fonts (sprites) we can't redraw. */
     private static String fontId(Style style) {
         FontDescription font = style.getFont();
         if (font == null || FontDescription.DEFAULT.equals(font)) return null;
@@ -241,7 +241,7 @@ public final class ServerInfoAdapter {
         return (cp >= 0xE000 && cp <= 0xF8FF) || (cp >= 0xA400 && cp <= 0xA4CF) || cp == 0x200B;
     }
 
-    /** Debug dump of an entry's segments (text, colour, font) — logged once per label to help mapping. */
+    /** Debug dump of an entry's segments (text, colour, font). Logged once per label to help with mapping. */
     static String describe(Component component) {
         StringBuilder sb = new StringBuilder();
         component.visit((style, segment) -> {

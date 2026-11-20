@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Hide Players / Nametags: entities the adapter hides are culled before they are extracted or drawn. */
+/** Hide Players / Nametags: entities the adapter hides are culled before they get extracted or drawn. */
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRenderDispatcherMixin {
 

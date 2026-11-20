@@ -4,16 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A <b>server system message</b> as received (pure Java). Built by {@code game/ChatAdapter} only from system chat
- * packets — player chat (signed or disguised) never becomes a {@code ChatMessage}.
+ * A <b>server system message</b> as received (pure Java). Only {@code game/ChatAdapter} builds these, and only from
+ * system chat packets, so player chat (signed or disguised) never becomes a {@code ChatMessage}.
  *
  * @param text     plain text (all segments joined)
- * @param segments styled runs, empty runs dropped, adjacent runs with the same style merged
+ * @param segments styled runs, with empty runs dropped and neighbouring runs of the same style merged
  * @param overlay  shown above the hotbar (action bar) instead of in the chat
  */
 public record ChatMessage(String text, List<ChatSegment> segments, boolean overlay) {
 
-    /** Builds a message from raw runs: drops empty runs, merges neighbours with the same style. */
+    /** Builds a message from raw runs, dropping empty runs and merging neighbours with the same style. */
     public static ChatMessage of(List<ChatSegment> raw, boolean overlay) {
         List<ChatSegment> merged = new ArrayList<>(raw.size());
         StringBuilder text = new StringBuilder();

@@ -13,14 +13,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Persistent ClickGUI layout: per-panel position, collapsed state, scroll offset, which module
- * accordions / setting dropdowns are open, and the panel stacking order.
- * Stored separately from profiles ({@code layout.json}) so switching profiles does not move panels.
+ * The ClickGUI layout that persists between sessions: each panel's position, collapsed state and scroll offset, which
+ * module accordions and setting dropdowns are open, and the panel stacking order.
+ * It's stored apart from the profiles ({@code layout.json}), so switching profiles doesn't move panels around.
  * See docs/config.md.
  */
 public final class GuiLayout implements JsonSerializable {
 
-    /** v3: new panel order (Player | Visual | Dungeon | HUD | Misc) — older layouts are re-arranged once. */
+    /** v3 brought a new panel order (Player | Visual | Dungeon | HUD | Misc), so older layouts get re-arranged once. */
     public static final int FORMAT_VERSION = 3;
 
     /** Mutable per-panel state. {@code x/y} are in ClickGUI units (after UI scale). */
@@ -28,13 +28,13 @@ public final class GuiLayout implements JsonSerializable {
         public int x;
         public int y;
         public boolean collapsed;
-        /** {@code false} until the panel has been placed once; lets the GUI auto-arrange new panels. */
+        /** {@code false} until the panel has been placed once. Lets the GUI auto-arrange new panels. */
         public boolean placed;
         /** Scroll offset of the panel body (ClickGUI units). */
         public int scroll;
         /** Names of modules whose settings accordion is open. */
         public final Set<String> openModules = new LinkedHashSet<>();
-        /** Module name → names of expandable settings (dropdowns, colour pickers) that are open. */
+        /** Module name to the names of its open expandable settings (dropdowns, colour pickers). */
         public final Map<String, Set<String>> openSettings = new LinkedHashMap<>();
 
         public boolean isModuleOpen(String module) {
@@ -56,14 +56,14 @@ public final class GuiLayout implements JsonSerializable {
     }
 
     private final Map<String, PanelState> panels = new LinkedHashMap<>();
-    /** Panel ids, bottom-most first (last = drawn on top). */
+    /** Panel ids, bottom-most first (the last one is drawn on top). */
     private final List<String> zOrder = new ArrayList<>();
 
     public PanelState get(String panelId) {
         return panels.computeIfAbsent(panelId, id -> new PanelState());
     }
 
-    /** Stacking order, bottom-most first. Unknown panels are not listed. */
+    /** Stacking order, bottom-most first. Unknown panels aren't listed. */
     public List<String> getZOrder() {
         return Collections.unmodifiableList(zOrder);
     }
@@ -73,7 +73,7 @@ public final class GuiLayout implements JsonSerializable {
         zOrder.addAll(ids);
     }
 
-    /** Forgets all positions; the GUI will auto-arrange on next frame. Open/closed state is kept. */
+    /** Forgets every position so the GUI auto-arranges on the next frame. Open/closed state is kept. */
     public void reset() {
         panels.values().forEach(p -> {
             p.placed = false;
@@ -115,7 +115,7 @@ public final class GuiLayout implements JsonSerializable {
 
     @Override
     public void fromJson(JsonObject json) {
-        // v1 had only x/y/collapsed; every new field is optional, so v1 files load unchanged.
+        // v1 only had x/y/collapsed. Every newer field is optional, so v1 files load unchanged.
         JsonElement order = json.get("order");
         if (order != null && order.isJsonArray()) {
             zOrder.clear();
@@ -149,12 +149,12 @@ public final class GuiLayout implements JsonSerializable {
                 }
                 state.placed = true;
             } catch (RuntimeException ignored) {
-                // skip malformed entry
+                // skip a malformed entry
             }
         }
         JsonElement version = json.get("version");
         int loaded = version != null && version.isJsonPrimitive() ? version.getAsInt() : 1;
-        if (loaded < 3) reset(); // new panel order: re-arrange positions once, keep open state
+        if (loaded < 3) reset(); // new panel order: re-arrange the positions once but keep the open state
     }
 
     private static void readStrings(JsonElement element, Set<String> out) {

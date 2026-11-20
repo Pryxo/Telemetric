@@ -7,8 +7,8 @@ import net.minecraft.client.Options;
 import net.minecraft.client.player.LocalPlayer;
 
 /**
- * MC ADAPTER — how the player sees the world: brightness (Fullbright, read by {@code LightmapMixin}) and the camera
- * perspective (Camera). Modules push their settings with the setters; all effects apply only on Telos.
+ * MC ADAPTER: how the player sees the world. Covers brightness (Fullbright, read by {@code LightmapMixin}) and the
+ * camera perspective (Camera). Modules push their settings through the setters, and every effect only applies on Telos.
  */
 public final class ViewAdapter {
 
@@ -18,12 +18,12 @@ public final class ViewAdapter {
 
     private static volatile float fullbright;
 
-    /** 0 = off, 1 = full ambient light. */
+    /** 0 is off, 1 is full ambient light. */
     public static void setFullbright(float strength) {
         fullbright = Math.clamp(strength, 0f, 1f);
     }
 
-    /** Read by {@code LightmapMixin} each lightmap update. */
+    /** {@code LightmapMixin} reads this on each lightmap update. */
     public static float fullbright() {
         return fullbright > 0 && ServerGate.onTelos() ? fullbright : 0f;
     }
@@ -31,7 +31,7 @@ public final class ViewAdapter {
     // ------------------------------------------------------------------ camera
 
     /**
-     * @param noFront        the perspective key only switches first ⇄ third person (no front view)
+     * @param noFront        the perspective key only switches between first and third person (no front view)
      * @param autoPerspective third person while looking down further than {@code pitch}; the key inverts it
      * @param pitch          degrees below the horizon
      */
@@ -40,13 +40,13 @@ public final class ViewAdapter {
     private static volatile CameraRules camera;
     private static boolean inverted, registered;
 
-    /** Null = vanilla camera. */
+    /** Null means the vanilla camera. */
     public static void setCameraRules(CameraRules rules) {
         camera = rules;
         inverted = false;
         if (rules != null && !registered) {
             registered = true;
-            // Start of tick: before vanilla reads the perspective key in handleKeybinds.
+            // at the start of the tick, before vanilla reads the perspective key in handleKeybinds
             ClientTickEvents.START_CLIENT_TICK.register(ViewAdapter::cameraTick);
         }
     }

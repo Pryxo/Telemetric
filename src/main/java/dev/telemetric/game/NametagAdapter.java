@@ -19,27 +19,28 @@ import java.util.WeakHashMap;
 import java.util.function.Predicate;
 
 /**
- * MC ADAPTER — Telos player name tags. Telos hides the vanilla name tag (every player's team has
- * {@code nameTagVisibility: NEVER}) and instead puts a text display on the player as a passenger, e.g.
- * {@code "<rank glyph> [Member] Name\nHP: 20"}. This class finds those displays, works out whose they are and asks the
- * Nametags module's rule whether to draw them. Hook: {@link #hidden} from {@code EntityRenderDispatcherMixin} via
- * {@link PlayerVisibilityAdapter}; title line on top: {@link #titleFor} from {@code TextDisplayTitleMixin}. Everything is off away from Telos.
+ * MC ADAPTER: Telos player name tags. Telos hides the vanilla name tag (every player's team has
+ * {@code nameTagVisibility: NEVER}) and puts a text display on the player as a passenger instead, e.g.
+ * {@code "<rank glyph> [Member] Name\nHP: 20"}. This class finds those displays, works out who they belong to, and asks
+ * the Nametags module's rule whether to draw them. Hooks: {@link #hidden} from {@code EntityRenderDispatcherMixin} via
+ * {@link PlayerVisibilityAdapter}, and the title line on top through {@link #titleFor} from {@code TextDisplayTitleMixin}.
+ * All of it is off away from Telos.
  */
 public final class NametagAdapter {
 
     private NametagAdapter() {}
 
-    /** A Telos player name tag: its owner's username, whether it is yours, and its plain text (lines split by \n). */
+    /** A Telos player name tag: its owner's username, whether it's yours, and its plain text (lines split by \n). */
     public record PlayerNametag(String owner, boolean self, String text) {}
 
     private static volatile Predicate<PlayerNametag> hideRule;
 
-    /** Null = draw every name tag. */
+    /** Null means draw every name tag. */
     public static void setHideRule(Predicate<PlayerNametag> rule) {
         hideRule = rule;
     }
 
-    /** Render hook: true when this text display is a player name tag the rule hides. */
+    /** Render hook: true if this text display is a player name tag that the rule hides. */
     public static boolean hidden(Display.TextDisplay display) {
         Predicate<PlayerNametag> rule = hideRule;
         if (rule == null || !ServerGate.onTelos()) return false;
@@ -54,20 +55,21 @@ public final class NametagAdapter {
 
     /**
      * A status title line for a name tag: {@code "#1 <icon> Miraj - 1,234 kills"}. {@code rank} ("#1", may be empty)
-     * and {@code text} are coloured by {@code tier} (animated; null = white rank, grey text), the icon is drawn as is.
+     * and {@code text} are coloured by {@code tier} (animated; null gives a white rank and grey text), and the icon is
+     * drawn as it is.
      *
-     * @param icon null = none
+     * @param icon null for none
      */
     public record TitleLine(String rank, TelosData.StatusIcon icon, String text, StatusRankColors.Tier tier) {}
 
-    /** Source of a title: (owner UUID dashed, is it you) → line, or null for none. */
+    /** Where titles come from: (owner UUID dashed, is it you) gives a line, or null for none. */
     public interface TitleSource {
         TitleLine titleFor(String ownerId, boolean self);
     }
 
     private static volatile TitleSource titleSource;
 
-    /** Null source = no titles. */
+    /** A null source means no titles. */
     public static void setTitleSource(TitleSource source) {
         titleSource = source;
     }
@@ -86,8 +88,8 @@ public final class NametagAdapter {
     }
 
     /**
-     * Mixin hook: the name tag text with {@code title} put in as its own line — Top = first line, Middle = right
-     * before the "HP:" line (after the first line when there is none), Bottom = last line. Styles are kept.
+     * Mixin hook: the name tag text with {@code title} added as its own line. Top puts it first, Middle right before the
+     * "HP:" line (after the first line if there's none), and Bottom last. Styles are kept.
      */
     public static Component withTitle(Component text, Component title, TitlePosition position) {
         if (position == TitlePosition.TOP) return Component.empty().append(title).append("\n").append(text);
@@ -131,12 +133,12 @@ public final class NametagAdapter {
         return out;
     }
 
-    /** Per display: {TitleLine, Component} last built, so the same title stays the same instance. */
+    /** Per display, the {TitleLine, Component} built last time, so the same title stays the same instance. */
     private static final Map<Display.TextDisplay, Object[]> TITLE_CACHE = new WeakHashMap<>();
 
     /**
-     * Line width for a text display carrying {@code title}: at least the title's own width, so the status title is
-     * never wrapped (cut) mid-text — e.g. a long {@code "Name"} like "True Ophanim".
+     * Line width for a text display carrying {@code title}. It's at least the title's own width, so the status title
+     * never gets wrapped (cut) in the middle, e.g. a long {@code "Name"} like "True Ophanim".
      */
     public static int lineWidthFor(Component title, int width) {
         if (title == null) return width;
@@ -144,9 +146,9 @@ public final class NametagAdapter {
     }
 
     /**
-     * Mixin hook ({@code TextDisplayTitleMixin}, every time the display's lines are needed): the line to put on top
-     * of this Telos name tag, or null. Returns the same instance while the title is unchanged — the animation runs
-     * in the font hook ({@link AnimatedTextAdapter}), so the line never needs rebuilding.
+     * Mixin hook ({@code TextDisplayTitleMixin}, every time the display's lines are needed): the line to put on top of
+     * this Telos name tag, or null. It returns the same instance as long as the title doesn't change. The animation
+     * runs in the font hook ({@link AnimatedTextAdapter}), so the line never has to be rebuilt.
      */
     public static Component titleFor(Display.TextDisplay display) {
         TitleSource source = titleSource;
@@ -162,10 +164,10 @@ public final class NametagAdapter {
         return built;
     }
 
-    /** Built previews by line (Nametags → Show Status Colors HUD); same instance while the line is unchanged. */
+    /** Built previews by line (Nametags → Show Status Colors HUD). Same instance as long as the line doesn't change. */
     private static final Map<TitleLine, Component> PREVIEW_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** The status title exactly as it is put into a name tag, for drawing on the HUD ({@code Render2D#statusTitle}). */
+    /** The status title exactly as it goes into a name tag, for drawing on the HUD ({@code Render2D#statusTitle}). */
     public static Component titleComponent(TitleLine line) {
         if (PREVIEW_CACHE.size() > 64) PREVIEW_CACHE.clear();
         return PREVIEW_CACHE.computeIfAbsent(line, NametagAdapter::build);
@@ -173,7 +175,7 @@ public final class NametagAdapter {
 
     private static Component build(TitleLine line) {
         MutableComponent out = Component.empty();
-        int[] chars = {0}; // animated characters so far: the gradient runs on across rank and text
+        int[] chars = {0}; // animated characters so far, so the gradient carries on across rank and text
         if (!line.rank().isEmpty()) {
             out.append(colored(line.rank(), line.tier(), ChatFormatting.WHITE, chars));
             out.append(" ");
@@ -184,7 +186,7 @@ public final class NametagAdapter {
         return out;
     }
 
-    /** {@code text} in the tier's animated gradient (one marker per character), or plain {@code plain}. */
+    /** {@code text} in the tier's animated gradient (one marker per character), or in the plain colour {@code plain}. */
     private static Component colored(String text, StatusRankColors.Tier tier, ChatFormatting plain, int[] chars) {
         if (tier == null) return Component.literal(text).withStyle(plain);
         MutableComponent out = Component.empty();
@@ -198,7 +200,7 @@ public final class NametagAdapter {
         return out;
     }
 
-    /** {@code waveIndex} ≥ 0 = the icon bobs with the title's wave as that character. */
+    /** If {@code waveIndex} is 0 or more, the icon bobs with the title's wave as that character. */
     private static Component icon(TelosData.StatusIcon icon, int waveIndex) {
         if (icon == null) return null;
         Style style = waveIndex >= 0 ? Style.EMPTY.withColor(AnimatedTextAdapter.waveOnly(waveIndex))
@@ -216,7 +218,7 @@ public final class NametagAdapter {
 
     // ------------------------------------------------------------------ detection
 
-    /** Per display: {component, plain text or null when it is not a name tag}; refreshed when the text changes. */
+    /** Per display, {component, plain text or null if it isn't a name tag}. Refreshed when the text changes. */
     private static final Map<Display.TextDisplay, Object[]> TAG_CACHE = new WeakHashMap<>();
 
     /** Telos draws player names as text displays with the health in them ("… HP: …"). */
@@ -224,7 +226,7 @@ public final class NametagAdapter {
         return nametagText(display) != null;
     }
 
-    /** Plain text of a Telos name tag, or null when the display is not one. Checked once per text change. */
+    /** Plain text of a Telos name tag, or null if the display isn't one. Checked once per text change. */
     private static String nametagText(Display.TextDisplay display) {
         Component text = display.getText();
         if (text == null) return null;
@@ -236,7 +238,7 @@ public final class NametagAdapter {
         return tag;
     }
 
-    /** The player a name tag belongs to: the one it rides, else the nearest player under it. */
+    /** The player a name tag belongs to: the one it rides, or else the nearest player under it. */
     public static Player owner(Display.TextDisplay tag) {
         if (tag.getRootVehicle() instanceof Player p) return p;
         ClientLevel level = Minecraft.getInstance().level;

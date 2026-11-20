@@ -12,8 +12,8 @@ import java.util.List;
 
 /**
  * One movable place for every "… Ready!" popup (Weapon / Ability / Armor Cooldowns post here through
- * {@link ReadyCue}). Several alerts at once stack instead of replacing each other; each fades out at the end
- * of its time. On by default; hidden while nothing is shown.
+ * {@link ReadyCue}). Several alerts at once stack up instead of replacing each other, and each one fades out at the
+ * end of its time. On by default, and hidden while there's nothing to show.
  */
 public final class ReadyAlertsHud extends HudModule {
 
@@ -34,7 +34,7 @@ public final class ReadyAlertsHud extends HudModule {
         return Telemetric.get().modules().get(ReadyAlertsHud.class);
     }
 
-    /** Shows {@code text} for {@code durationMs}; the same text again restarts it instead of stacking. */
+    /** Shows {@code text} for {@code durationMs}. Posting the same text again restarts it instead of stacking. */
     void post(String text, int color, long durationMs) {
         if (!isEnabled() || text == null || text.isBlank()) return;
         long now = System.currentTimeMillis();
@@ -53,7 +53,7 @@ public final class ReadyAlertsHud extends HudModule {
         return !visible(false).isEmpty();
     }
 
-    /** Alerts still showing (expired ones are dropped). Preview: a sample when none is showing. */
+    /** The alerts still showing (expired ones are dropped). In preview, a sample when none is showing. */
     private List<Alert> visible(boolean preview) {
         long now = System.currentTimeMillis();
         alerts.removeIf(a -> now >= a.endMs());

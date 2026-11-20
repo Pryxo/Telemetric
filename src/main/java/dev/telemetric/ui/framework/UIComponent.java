@@ -3,14 +3,14 @@ package dev.telemetric.ui.framework;
 import dev.telemetric.ui.render.Render2D;
 
 /**
- * Base of every ClickGUI element. Framework-level and MC-agnostic: input arrives as primitives
- * (already converted to ClickGUI units by {@code ClickGuiScreen}).
+ * Base of every ClickGUI element. It's framework-level and doesn't know about MC: input arrives as primitives,
+ * already converted to ClickGUI units by {@code ClickGuiScreen}.
  * <p>
  * <b>Layout contract (immediate mode):</b> the parent calls {@link #setBounds} every frame right before
- * {@link #render}. {@link #getHeight()} may be animated; parents stack children using it.
- * Input handlers use the bounds from the last rendered frame.
+ * {@link #render}. {@link #getHeight()} may be animated, and parents stack their children using it. Input handlers use
+ * the bounds from the last rendered frame.
  * <p>
- * Event methods return {@code true} when consumed (stops propagation).
+ * Event methods return {@code true} when they consumed the event, which stops propagation.
  */
 public abstract class UIComponent {
 
@@ -30,7 +30,7 @@ public abstract class UIComponent {
         this.height = height;
     }
 
-    /** Height this component wants to occupy right now (may be mid-animation). */
+    /** The height this component wants to take up right now (it may be mid-animation). */
     public int getHeight() {
         return height;
     }
@@ -53,7 +53,7 @@ public abstract class UIComponent {
 
     public boolean keyPressed(int key, int scancode, int modifiers) { return false; }
 
-    /** Mouse press sent to the focused component before normal click routing (anywhere on screen); true = consumed. */
+    /** A mouse press sent to the focused component before normal click routing (anywhere on screen). True means consumed. */
     public boolean focusedMouseButton(int button) { return false; }
 
     public boolean charTyped(int codepoint, int modifiers) { return false; }

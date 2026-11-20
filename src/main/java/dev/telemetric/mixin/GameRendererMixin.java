@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Telos shows a loot bag drop as a totem pop: the bag trackers read its model first (Lifetime Stats), then Custom
+ * Telos shows a loot bag drop as a totem pop. The bag trackers read its model first (Lifetime Stats), then Custom
  * Bags may swap its picture before it starts.
  */
 @Mixin(GameRenderer.class)

@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * MC ADAPTER (mixin) — while the stash overlay replaces the Telos stash, the container's own drawing
- * (slots, labels/texture glyph, carried item, tooltip) is skipped; the overlay draws everything in
- * {@code ScreenEvents.afterExtract}. {@code hoveredSlot} is cleared so vanilla slot keys (Q, 1–9, F) do nothing.
+ * MC ADAPTER (mixin): while the stash overlay replaces the Telos stash, the container's own drawing (slots,
+ * labels/texture glyph, carried item, tooltip) is skipped, and the overlay draws everything in
+ * {@code ScreenEvents.afterExtract}. {@code hoveredSlot} is cleared so the vanilla slot keys (Q, 1–9, F) do nothing.
  */
 @Mixin(AbstractContainerScreen.class)
 public abstract class StashScreenMixin {

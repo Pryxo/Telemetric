@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A client-side chat line built by a feature (pure Java): coloured spans, optionally bold / underlined, with a
- * hover text and a click that puts a command / message into the chat box. {@code game/ChatAdapter#post} shows it.
+ * A client-side chat line built by a feature (pure Java): coloured spans, optionally bold or underlined, with hover
+ * text and a click that puts a command or message into the chat box. {@code game/ChatAdapter#post} shows it.
  * <pre>{@code
  * ChatText.of().add("Dropped ", 0xAAAAAA).add(item, rgb, ChatText.BOLD).hover(ChatText.of().add("Pity 42", -1))
  * }</pre>
@@ -14,12 +14,12 @@ public final class ChatText {
 
     public static final int BOLD = 1, UNDERLINED = 2;
     /**
-     * Style flag: the span is drawn in the shiny colours (one step per character along the line; {@code rgb} is
-     * ignored). It moves while Misc → Chat Colors is on, otherwise it is a still gradient.
+     * Style flag: draw the span in the shiny colours, one step per character along the line ({@code rgb} is ignored).
+     * It animates while Misc → Chat Colors is on and is a still gradient otherwise.
      */
     public static final int SHINY = 4;
 
-    /** Minecraft's chat colours (0xRRGGBB) — the look players know from server lines. */
+    /** Minecraft's chat colours (0xRRGGBB), the ones players know from server lines. */
     public static final int GRAY = 0xAAAAAA, DARK_GRAY = 0x555555, WHITE = 0xFFFFFF, YELLOW = 0xFFFF55,
             GOLD = 0xFFAA00, GREEN = 0x55FF55, RED = 0xFF5555, AQUA = 0x55FFFF;
 
@@ -27,9 +27,9 @@ public final class ChatText {
      * @param rgb     0xRRGGBB, or -1 for the chat default
      * @param hover   shown while hovering, or null
      * @param suggest put into the chat box on click (not sent), or null
-     * @param font    font id ({@code "minecraft:default"} = null), for server-pack glyphs
+     * @param font    font id (null means {@code "minecraft:default"}), for server-pack glyphs
      * @param sprite  block-atlas sprite id drawn instead of {@code text} ({@code "telos:material/pet/onyx"}), or null;
-     *                {@code text} is its fallback / copy text
+     *                {@code text} is then the fallback and copy text
      */
     public record Span(String text, int rgb, int styles, ChatText hover, String suggest, String font, String sprite) {
         public Span(String text, int rgb, int styles, ChatText hover, String suggest, String font) {
@@ -38,8 +38,8 @@ public final class ChatText {
     }
 
     /**
-     * Chat-side tag of the whole line (the coloured bar left of it, hover = {@code text}), like the server's system
-     * tag. Null = Minecraft's default for client lines.
+     * The chat-side tag of the whole line: the coloured bar to its left, with {@code text} on hover, like the server's
+     * system tag. Null uses Minecraft's default for client lines.
      *
      * @param rgb 0xRRGGBB bar colour
      */
@@ -64,13 +64,13 @@ public final class ChatText {
         return this;
     }
 
-    /** A picture from the block atlas (item textures of the server pack, e.g. a drop's model id), one line tall. */
+    /** A picture from the block atlas, one line tall. Used for the server pack's item textures, e.g. a drop's model id. */
     public ChatText sprite(String spriteId, String fallback) {
         spans.add(new Span(fallback, 0xFFFFFF, 0, null, null, null, spriteId));
         return this;
     }
 
-    /** Sets the line's chat tag (indicator bar + hover). */
+    /** Sets the line's chat tag (the indicator bar and its hover). */
     public ChatText tag(Tag tag) {
         this.tag = tag;
         return this;
@@ -80,7 +80,7 @@ public final class ChatText {
         return tag;
     }
 
-    /** A glyph from a resource-pack font (e.g. a Telos loot icon). */
+    /** A glyph from a resource-pack font, such as a Telos loot icon. */
     public ChatText glyph(String text, String font) {
         spans.add(new Span(text, 0xFFFFFF, 0, null, null, font));
         return this;
@@ -91,7 +91,7 @@ public final class ChatText {
         return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), hover, s.suggest(), s.font(), s.sprite()));
     }
 
-    /** Click on the last span puts {@code text} into the chat box. */
+    /** Clicking the last span puts {@code text} into the chat box. */
     public ChatText suggest(String text) {
         return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), s.hover(), text, s.font(), s.sprite()));
     }
@@ -110,7 +110,7 @@ public final class ChatText {
         return spans.isEmpty();
     }
 
-    /** Plain text (logs, tests). */
+    /** Plain text, for logs and tests. */
     @Override
     public String toString() {
         StringBuilder b = new StringBuilder();

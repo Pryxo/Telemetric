@@ -17,9 +17,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * MC ADAPTER — dungeon portals near you. A Telos portal is an Evoker wearing the portal model on its head
- * ({@code telos:…/<portal_name>}), with a timer name tag {@code -=[42]=-} above it (seconds the portal stays open).
- * Read once per Callouts key press (one entity query in a small box).
+ * MC ADAPTER: dungeon portals near you. A Telos portal is an Evoker wearing the portal model on its head
+ * ({@code telos:…/<portal_name>}), with a timer name tag {@code -=[42]=-} above it (the seconds the portal stays open).
+ * Read once per Callouts key press, with one entity query in a small box.
  */
 public final class PortalAdapter {
 

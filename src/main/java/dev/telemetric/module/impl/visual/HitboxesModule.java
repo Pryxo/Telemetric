@@ -15,7 +15,7 @@ import dev.telemetric.ui.render.ColorUtil;
 import java.util.EnumMap;
 import java.util.Map;
 
-/** Draws entity hitboxes (outline and/or translucent fill), with an on/off switch and colour per entity kind. */
+/** Draws entity hitboxes (outline and/or translucent fill), with an on/off switch and a colour per entity kind. */
 public final class HitboxesModule extends Module {
 
     private final ModeSetting style = add(new ModeSetting("Style", "How a hitbox is drawn",

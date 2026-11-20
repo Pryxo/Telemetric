@@ -11,12 +11,12 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
- * {@code tables/serverMessages.json} — server lines Social → Server Messages can hide. {@code bosses}: boss name →
- * its lines (ticking the boss hides all of them); {@code misc}: one line per entry (each is its own option). Every
- * entry is a regex over the whole plain text. Pure Java.
+ * {@code tables/serverMessages.json}: the server lines that Social → Server Messages can hide. {@code bosses} maps a
+ * boss name to its lines (ticking the boss hides all of them). {@code misc} has one line per entry, and each one is
+ * its own option. Every entry is a regex over the whole plain text. Pure Java.
  *
- * @param bosses boss name → its line regexes, in file order
- * @param misc   option label → line regex, in file order
+ * @param bosses boss name to its line regexes, in file order
+ * @param misc   option label to line regex, in file order
  */
 public record ServerMessageTable(Map<String, List<Pattern>> bosses, Map<String, Pattern> misc) {
 
@@ -53,14 +53,14 @@ public record ServerMessageTable(Map<String, List<Pattern>> bosses, Map<String, 
         return List.copyOf(misc.keySet());
     }
 
-    /** A regex shown readably in the dropdown: wildcards become "…", escapes and groups are dropped. */
+    /** Makes a regex readable for the dropdown: wildcards become "…", and escapes and groups are dropped. */
     static String label(String regex) {
         String s = regex
                 .replace("[^\\n]*", "…").replace(".*", "…").replace(".+", "…").replace(".?", "")
                 .replace("\\d+", "#").replace("\\n", " ");
         s = s.replaceAll("\\(\\?:[^()]*\\)\\?", "")          // optional groups
                 .replaceAll("\\[[^\\]]*\\](?:\\{[^}]*\\}|[*+?])?", "") // character classes
-                .replaceAll("\\(\\?:([^()|]*)\\|[^()]*\\)", "$1")       // (?:a|b) → a
+                .replaceAll("\\(\\?:([^()|]*)\\|[^()]*\\)", "$1")       // (?:a|b) becomes a
                 .replaceAll("\\(\\?<\\w+>|\\(\\?:|[()]", "")
                 .replaceAll("\\\\(.)", "$1");
         s = s.replaceAll("…+", "…").replaceAll("\\s{2,}", " ").strip();

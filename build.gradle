@@ -33,7 +33,7 @@ processResources {
 		expand props
 	}
 
-	// Shared data tables (data/ submodule) bundled as the offline fallback — see docs/data.md.
+	// Shared data tables (data/ submodule) bundled as the offline fallback. See docs/data.md.
 	from("data") {
 		// the tables the mod reads (TelosData)
 		include("tables/*.json")

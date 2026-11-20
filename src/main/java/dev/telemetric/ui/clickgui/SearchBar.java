@@ -14,9 +14,10 @@ import dev.telemetric.ui.theme.Theme;
 import java.util.function.Consumer;
 
 /**
- * ClickGUI search field, centred at the bottom of the screen. Only takes input after it is clicked. Every change calls the listener, which filters the panels (see {@link Panel#setSearch}).
- * Backspace deletes, Ctrl+Backspace / the × clears, Ctrl+V pastes, Enter keeps the filter and unfocuses,
- * Esc clears and unfocuses. Not persisted: every ClickGUI opens unfiltered.
+ * The ClickGUI search field, centred at the bottom of the screen. It only takes input after you click it. Every change
+ * calls the listener, which filters the panels (see {@link Panel#setSearch}).
+ * Backspace deletes, Ctrl+Backspace or the × clears, Ctrl+V pastes, Enter keeps the filter and unfocuses, and Esc
+ * clears and unfocuses. It isn't saved, so the ClickGUI always opens unfiltered.
  */
 public class SearchBar extends UIComponent {
 
@@ -35,12 +36,12 @@ public class SearchBar extends UIComponent {
         this.onChange = onChange;
     }
 
-    /** Slides up with the panels' open sequence. */
+    /** Slides up along with the panels' open sequence. */
     public void playAppear(int delayMs) {
         appear.snapTo(0).animateTo(1, delayMs);
     }
 
-    /** Positions the bar bottom-centre for a {@code screenW × screenH} ClickGUI area, then renders it. */
+    /** Places the bar at the bottom centre of a {@code screenW × screenH} ClickGUI area, then renders it. */
     public void render(Render2D r, int mouseX, int mouseY, float delta, int screenW, int screenH) {
         double a = appear.get();
         setBounds((screenW - WIDTH) / 2, screenH - HEIGHT - BOTTOM_MARGIN + (int) Math.round((1 - a) * 10), WIDTH, HEIGHT);
@@ -61,7 +62,7 @@ public class SearchBar extends UIComponent {
         if (ctx.themes().shadows()) r.shadow(x, y, width, height, radius, p.shadow(), Layout.SHADOW_SIZE);
         r.roundedRect(x, y, width, height, radius, ColorUtil.lerp(p.panel(), p.surfaceHover(), h * 0.5));
         r.outline(x, y, width, height, ColorUtil.lerp(p.border(), p.accent(), Math.max(f, query.isEmpty() ? 0 : 0.5)));
-        // accent underline grows from the centre while focused
+        // the accent underline grows from the centre while focused
         int lineW = (int) Math.round((width - 4) * f);
         if (lineW > 0) r.gradientH(x + (width - lineW) / 2, y + height - 1, lineW, 1, p.accent(), p.accentAlt());
 
@@ -86,7 +87,7 @@ public class SearchBar extends UIComponent {
         if (caretOn) r.rect(tx + (query.isEmpty() ? 0 : 1), ty - 1, 1, 9, p.accent());
     }
 
-    /** Small magnifying glass: a ring plus a short handle to the bottom-right. */
+    /** A small magnifying glass: a ring plus a short handle towards the bottom right. */
     private static void magnifier(Render2D r, int cx, int cy, int color, int hole) {
         r.circle(cx - 1, cy - 1, 3.5, color);
         r.circle(cx - 1, cy - 1, 2.2, hole);
@@ -99,7 +100,7 @@ public class SearchBar extends UIComponent {
         return !query.isEmpty() && mouseX >= x + width - 13 && mouseX < x + width && mouseY >= y && mouseY < y + height;
     }
 
-    /** Focuses the field (and starts the caret blink on). */
+    /** Focuses the field (and starts the caret blink in its on phase). */
     public void focus() {
         ctx.focus(this);
         caretTime = System.currentTimeMillis();

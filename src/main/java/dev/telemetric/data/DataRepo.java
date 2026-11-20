@@ -6,8 +6,9 @@ import java.net.http.HttpRequest;
 import java.time.Duration;
 
 /**
- * The shared data repo (<a href="https://github.com/Pryxo/Telemetric-Data">Pryxo/Telemetric-Data</a>, git submodule
- * {@code data/}): base URL and the one HTTP client every download uses. Pure Java, no Minecraft imports.
+ * The shared data repo (<a href="https://github.com/Pryxo/Telemetric-Data">Pryxo/Telemetric-Data</a>, the git
+ * submodule {@code data/}). Holds the base URL and the one HTTP client every download uses. Pure Java, no Minecraft
+ * imports.
  */
 public final class DataRepo {
 
@@ -23,7 +24,7 @@ public final class DataRepo {
         return request(path, timeout).GET().build();
     }
 
-    /** Request builder for a repo path, to add headers (e.g. {@code If-None-Match}) before {@code GET().build()}. */
+    /** Request builder for a repo path, so you can add headers (e.g. {@code If-None-Match}) before {@code GET().build()}. */
     static HttpRequest.Builder request(String path, Duration timeout) {
         return HttpRequest.newBuilder(URI.create(BASE_URL + path.replace(" ", "%20"))).timeout(timeout)
                 .header("User-Agent", "Telemetric");

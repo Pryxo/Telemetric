@@ -7,9 +7,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A toggle that owns its own sub-settings (e.g. one puzzle inside a "Puzzle Solver" module). The value is the
- * on/off switch; right-clicking the row in the ClickGUI opens/closes the children below it. Children are
- * ordinary settings of the same module — register them with {@code add(group.child(new …))}.
+ * A toggle that owns its own sub-settings (e.g. one puzzle inside a "Puzzle Solver" module). The value is the on/off
+ * switch, and right-clicking the row in the ClickGUI opens or closes the children below it. Children are ordinary
+ * settings of the same module; register them with {@code add(group.child(new …))}.
  */
 public class GroupToggleSetting extends BooleanSetting {
 
@@ -20,7 +20,7 @@ public class GroupToggleSetting extends BooleanSetting {
         super(name, description, defaultValue);
     }
 
-    /** Makes {@code setting} a child: it is only shown (indented) while this group is open. */
+    /** Makes {@code setting} a child, so it only shows (indented) while this group is open. */
     public <S extends Setting<?>> S child(S setting) {
         setting.setGroup(this);
         children.add(setting);
@@ -31,7 +31,7 @@ public class GroupToggleSetting extends BooleanSetting {
         return Collections.unmodifiableList(children);
     }
 
-    /** UI state: whether the children are shown (remembered with the GUI layout, not in profiles). */
+    /** UI state: whether the children are showing (remembered with the GUI layout, not in profiles). */
     public boolean isOpen() {
         return open;
     }

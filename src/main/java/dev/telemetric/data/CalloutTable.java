@@ -9,8 +9,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * {@code tables/callouts.json} — what the Callouts key needs to know about bosses and portals: the public
- * call cooldown, partial boss bars, duo bosses, phase names by HP and portal labels. Pure Java.
+ * {@code tables/callouts.json}: what the Callouts key needs to know about bosses and portals. That's the public call
+ * cooldown, partial boss bars, duo bosses, phase names by HP, and portal labels. Pure Java.
  */
 public record CalloutTable(Cooldown cooldown, Map<String, Integer> barFrom, List<Duo> duos,
                            Map<String, List<Stage>> phases, Map<String, String> portals,
@@ -19,7 +19,7 @@ public record CalloutTable(Cooldown cooldown, Map<String, Integer> barFrom, List
     static final CalloutTable EMPTY = new CalloutTable(new Cooldown(15, 10, 10), Map.of(), List.of(), Map.of(),
             Map.of(), "", "");
 
-    /** Public call cooldown: {@code seconds}, or {@code hpChangedSeconds} once the HP moved by {@code hpStep} %. */
+    /** Public call cooldown: {@code seconds}, or {@code hpChangedSeconds} once the HP has moved by {@code hpStep} %. */
     public record Cooldown(int seconds, int hpChangedSeconds, int hpStep) {}
 
     /** Bosses fought together and called out as one ({@code "Apostle & Hierophant"}). */
@@ -66,7 +66,7 @@ public record CalloutTable(Cooldown cooldown, Map<String, Integer> barFrom, List
                 Map.copyOf(portals), JsonFields.str(un, "area"), JsonFields.str(un, "portal"));
     }
 
-    /** The boss's own HP % for a bar at {@code barPercent} (partial bars rescaled), clamped to 0..100. */
+    /** The boss's own HP % for a bar at {@code barPercent} (partial bars get rescaled), clamped to 0..100. */
     public int bossPercent(String boss, int barPercent) {
         Integer from = barFrom.get(Names.key(boss));
         if (from == null) return barPercent;
@@ -80,7 +80,7 @@ public record CalloutTable(Cooldown cooldown, Map<String, Integer> barFrom, List
         return null;
     }
 
-    /** Phase name for the boss at {@code hp} %, or null when the boss has no phase table. */
+    /** Phase name for the boss at {@code hp} %, or null if the boss has no phase table. */
     public String phase(String boss, int hp) {
         List<Stage> stages = phases.get(Names.key(boss));
         if (stages == null) return null;
@@ -89,8 +89,9 @@ public record CalloutTable(Cooldown cooldown, Map<String, Integer> barFrom, List
     }
 
     /**
-     * Readable portal label for an Evoker head model name ({@code TOMB_OF_SHADOWS}): the table entry, else the known
-     * dungeon with that name, else the name title-cased. Null for portals that are not called out ({@code RETURN}).
+     * Readable portal label for an Evoker head model name ({@code TOMB_OF_SHADOWS}). Uses the table entry if there is
+     * one, then a known dungeon with that name, then the name in title case. Null for portals that aren't called out
+     * ({@code RETURN}).
      */
     public String portalLabel(String modelName, List<String> knownPlaces) {
         String upper = modelName.toUpperCase(Locale.ROOT);

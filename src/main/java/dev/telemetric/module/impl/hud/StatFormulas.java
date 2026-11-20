@@ -6,8 +6,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Telos Realms stat point → real effect, per the official wiki (wiki.telosrealms.com/wiki/Stats).
- * Pure math, no Minecraft.
+ * Turns Telos Realms stat points into their real effect, following the official wiki
+ * (wiki.telosrealms.com/wiki/Stats). Pure math, no Minecraft.
  */
 final class StatFormulas {
 
@@ -26,23 +26,23 @@ final class StatFormulas {
     /**
      * @param label stat label (e.g. "Attack")
      * @param value Tab value text (e.g. "+50.6")
-     * @return the real effect as display text (e.g. "17.3%"), or null if unknown / unparsable
+     * @return the real effect as display text (e.g. "17.3%"), or null if it's unknown or can't be parsed
      */
     static String real(String label, String value) {
         Double v = parse(value);
         if (v == null) return null;
         return switch (label.toLowerCase(Locale.ROOT)) {
-            // 0.5·x / (50 + 0.2·x) · 100 %  — damage increase / crit chance
+            // damage increase / crit chance: 0.5·x / (50 + 0.2·x) · 100 %
             case "attack", "critical chance" -> pct(0.5 * v / (50 + 0.2 * v) * 100);
             // +0.8 % movement speed per point
             case "speed" -> pct(0.8 * v);
-            // (1 − 100 / (def + 100)) · 100 %  — damage reduction
+            // damage reduction: (1 − 100 / (def + 100)) · 100 %
             case "defense" -> pct((1 - 100 / (v + 100)) * 100);
             // 20 base HP + 1 per point
             case "health" -> fmt(20 + v) + " HP";
             // 0.1 HP/s base + 0.02 HP/s per point
             case "vitality" -> fmt(0.1 + 0.02 * v) + " HP/s";
-            // ev / (ev + 75) · 100 %  — dodge chance
+            // dodge chance: ev / (ev + 75) · 100 %
             case "evasion" -> pct(v / (v + 75) * 100);
             default -> null;
         };

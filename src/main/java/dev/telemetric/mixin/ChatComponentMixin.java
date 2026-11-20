@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
-/** Chat HUD hooks for {@code game/ChatHudAdapter}: links on new lines, tab filter, censoring, longer history. */
+/** Chat HUD hooks for {@code game/ChatHudAdapter}: links on new lines, the tab filter, censoring, and a longer history. */
 @Mixin(ChatComponent.class)
 public abstract class ChatComponentMixin {
 
@@ -28,7 +28,7 @@ public abstract class ChatComponentMixin {
         return ChatHudAdapter.decorate(message);
     }
 
-    /** Lines of other tabs stay in the history (allMessages) but are not shown. */
+    /** Lines from other tabs stay in the history (allMessages) but aren't shown. */
     @Inject(method = "addMessageToDisplayQueue", at = @At("HEAD"), cancellable = true)
     private void telemetric$filter(GuiMessage message, CallbackInfo ci) {
         if (!ChatHudAdapter.isVisible(message)) ci.cancel();
@@ -51,19 +51,19 @@ public abstract class ChatComponentMixin {
         return ChatHudAdapter.displayLimit();
     }
 
-    /** Every new line (not re-layouts): All Chat archive + unread counts. */
+    /** Every new line (not re-layouts), for the All Chat archive and the unread counts. */
     @Inject(method = "addMessageToQueue", at = @At("HEAD"))
     private void telemetric$stored(GuiMessage message, CallbackInfo ci) {
         ChatHudAdapter.onStored(message);
     }
 
-    /** All Chat open: the visible lines come from the archive instead of the trimmed history. */
+    /** With All Chat open, the visible lines come from the archive instead of the trimmed history. */
     @Inject(method = "refreshTrimmedMessages", at = @At("HEAD"), cancellable = true)
     private void telemetric$refresh(CallbackInfo ci) {
         if (ChatHudAdapter.refreshFromArchive((ChatComponent) (Object) this)) ci.cancel();
     }
 
-    /** The archive survives a chat clear (reconnect, F3 + D); All Chat shows it again. */
+    /** The archive survives a chat clear (reconnect, F3 + D), and All Chat shows it again. */
     @Inject(method = "clearMessages", at = @At("TAIL"))
     private void telemetric$cleared(boolean history, CallbackInfo ci) {
         ChatHudAdapter.afterClear();

@@ -6,9 +6,9 @@ import net.minecraft.client.multiplayer.ServerData;
 import java.util.Locale;
 
 /**
- * MC ADAPTER — "are we on Telos Realms?". The whole mod (ClickGUI, HUD, module ticks, keybinds)
- * only runs while connected to a server whose address matches {@code *.telosrealms.*}
- * (e.g. {@code play.telosrealms.com}, {@code telosrealms.com}). Singleplayer / LAN / other servers → off.
+ * MC ADAPTER: "are we on Telos Realms?". The whole mod (ClickGUI, HUD, module ticks, keybinds) only runs while you're
+ * connected to a server whose address matches {@code *.telosrealms.*} (e.g. {@code play.telosrealms.com},
+ * {@code telosrealms.com}). In singleplayer, on LAN or on other servers it's off.
  */
 public final class ServerGate {
 
@@ -20,7 +20,7 @@ public final class ServerGate {
         ServerData server = mc.getCurrentServer();
         if (server == null) return false;
         String ip = server.ip;
-        if (ip != lastIp) { // cheap per-entity / per-frame use: the address is parsed once per server
+        if (ip != lastIp) { // cheap enough for per-entity and per-frame use, since the address is only parsed once per server
             lastIp = ip;
             lastResult = isTelosAddress(ip);
         }
@@ -35,7 +35,7 @@ public final class ServerGate {
         if (address == null) return false;
         String host = address.trim().toLowerCase(Locale.ROOT);
         int colon = host.lastIndexOf(':');
-        if (colon >= 0 && host.indexOf(':') == colon) host = host.substring(0, colon); // strip port (not IPv6)
+        if (colon >= 0 && host.indexOf(':') == colon) host = host.substring(0, colon); // strip the port (not for IPv6)
         if (host.endsWith(".")) host = host.substring(0, host.length() - 1);
         String[] labels = host.split("\\.");
         for (int i = 0; i < labels.length - 1; i++) {

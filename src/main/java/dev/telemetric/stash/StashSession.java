@@ -11,40 +11,40 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * Tracks the open Telos stash: which page and mode are shown, saves each page as it is seen, and walks to a
+ * Tracks the open Telos stash: which page and mode are showing. It saves each page as it's seen, and walks to a
  * requested page by clicking the stash's own arrows.
  * <p>
- * Telos shows no page number anywhere (title is a fixed glyph, the arrows are invisible items), so the page
- * is tracked from the arrow clicks — ours and the player's, both caught in
+ * Telos doesn't show a page number anywhere (the title is a fixed glyph and the arrows are invisible items), so the
+ * page is tracked from the arrow clicks. Both ours and the player's are caught in
  * {@code MultiPlayerGameMode#handleContainerInput}:
  * <ul>
- *   <li>slot 47 (yellow, far left) → page 1</li>
- *   <li>slot 48 / 50 → one page back / forward (Telos does not wrap)</li>
- *   <li>slot 51 (yellow, far right) → last page (needs the page count)</li>
- *   <li>slot 53 → switch normal / seasonal pages (page unknown afterwards)</li>
+ *   <li>slot 47 (yellow, far left) goes to page 1</li>
+ *   <li>slot 48 / 50 go one page back / forward (Telos doesn't wrap)</li>
+ *   <li>slot 51 (yellow, far right) goes to the last page (needs the page count)</li>
+ *   <li>slot 53 switches between normal and seasonal pages (the page is unknown afterwards)</li>
  * </ul>
- * The page count is learned by a scan: first page, last page, then back one at a time until the content
- * matches page 1 again. After every click we wait for the server's container packets to settle before
- * saving or clicking again.
+ * The page count is learned with a scan: first page, last page, then back one at a time until the content matches
+ * page 1 again. After every click we wait for the server's container packets to settle before saving or clicking
+ * again.
  */
 public final class StashSession {
 
     public static final int SLOT_FIRST = 47, SLOT_PREV = 48, SLOT_CONVERT = 49, SLOT_NEXT = 50, SLOT_LAST = 51,
             SLOT_MODE = 53;
 
-    /** After an item move, wait this long without container packets before re-reading the page. */
+    /** After an item move, wait this long without container packets before reading the page again. */
     private static final long SETTLE_MS = 120;
     /**
-     * After a page click, the server must be quiet this long after its last container packet before the page
-     * counts as loaded. Measured live (Telos, 2026-11-14): the whole answer arrives ~25-30 ms after the click.
+     * After a page click, the server has to be quiet for this long after its last container packet before the page
+     * counts as loaded. Measured live (Telos, 2026-11-14), the whole answer arrives about 25-30 ms after the click.
      */
     private static final long PAGE_QUIET_MS = 50;
-    /** Page Delay slider bounds (ms between two page clicks). */
+    /** Bounds of the Page Delay slider (ms between two page clicks). */
     public static final long MIN_PAGE_DELAY_MS = 50, MAX_PAGE_DELAY_MS = 500;
-    /** Give up on a click that got no answer after this long. */
+    /** Give up on a click that hasn't been answered after this long. */
     private static final long TIMEOUT_MS = 2500;
     private static final int MAX_SCAN_PAGES = 120;
-    /** After a mode-switch click, a screen that is not the stash this soon is taken as Telos' confirm pop-up. */
+    /** After a mode-switch click, a screen that isn't the stash showing up this soon is taken to be Telos' confirm pop-up. */
     private static final long POPUP_WINDOW_MS = 4000;
     private static final long POPUP_RETRY_MS = 400;
     private static final long NOTICE_MS = 5000;
@@ -58,7 +58,7 @@ public final class StashSession {
     private boolean firstSettle;
     private StashMode mode;
     private StashMode lastMode = StashMode.NORMAL;
-    /** 1-based page currently shown, 0 = unknown. */
+    /** The page shown right now (starting at 1), or 0 if unknown. */
     private int page;
 
     private boolean awaiting;
@@ -71,20 +71,20 @@ public final class StashSession {
     private Scan scan = Scan.NONE;
     private StashPage scanFirst;
     private final List<StashPage> scanBack = new ArrayList<>();
-    /** Page to walk to after a mode switch or scan finishes, 0 = none. */
+    /** The page to walk to once a mode switch or scan finishes, or 0 for none. */
     private int pendingTarget;
     private StashMode pendingMode;
     private boolean justSwitched;
-    /** Time of the last mode-switch click (kept across the stash closing for the confirm pop-up). */
+    /** When the last mode-switch click happened (kept while the stash is closed for the confirm pop-up). */
     private long modeSwitchAt = -POPUP_WINDOW_MS;
     private long lastPopupTry;
-    /** Mode shown when slot 53 was clicked, and whether Telos' warning pop-up followed (both kept across the reopen). */
+    /** The mode that was showing when slot 53 was clicked, and whether Telos' warning pop-up followed (both kept across the reopen). */
     private StashMode switchFrom;
     private boolean popupSeen;
-    /** Short message for the overlay header (e.g. why a mode switch did nothing). */
+    /** A short message for the overlay header (e.g. why a mode switch did nothing). */
     private String notice;
     private long noticeUntil;
-    /** Last ← / → click (slot, page before it, content before it) for page-count math; 0 = none. */
+    /** The last ← / → click (slot, page before it, content before it) for the page-count math. 0 for none. */
     private int arrowSlot, arrowFrom;
     private StashPage arrowBefore;
     /** Item click to send once the stash shows {@link PendingClick#page}. */
@@ -93,10 +93,10 @@ public final class StashSession {
     private boolean syncOnOpen = true;
     private boolean autoScan = true;
     private long pageDelay = 100;
-    /** Last page/mode click time and the first container packet after it (for pacing and the benchmark). */
+    /** When the last page or mode click happened, and the first container packet after it (for pacing and the benchmark). */
     private long lastClickAt = Long.MIN_VALUE / 2;
     private long firstPacket;
-    /** A mode switch is in progress (from the slot-53 click until the new stash has settled). */
+    /** True while a mode switch is in progress (from the slot-53 click until the new stash has settled). */
     private boolean switching;
     private boolean popupAnswered;
     /** Benchmark: a scan at the fastest pace that times every page click. */
@@ -119,7 +119,7 @@ public final class StashSession {
 
     public int page() { return page; }
 
-    /** Mode shown in the stash, or the last one seen while it is still being read. */
+    /** The mode shown in the stash, or the last one seen while it's still being read. */
     public StashMode mode() { return mode != null ? mode : lastMode; }
 
     public boolean isBusy() { return awaiting || !queue.isEmpty(); }
@@ -133,7 +133,7 @@ public final class StashSession {
 
     public boolean isPopupAnswered() { return popupAnswered; }
 
-    /** Player closed the "switching" screen: stop waiting for the new stash. */
+    /** The player closed the "switching" screen, so stop waiting for the new stash. */
     public void cancelSwitch() { switching = false; }
 
     public StashBook book() { return book(mode()); }
@@ -158,7 +158,7 @@ public final class StashSession {
         switch (slot) {
             case SLOT_FIRST -> page = 1;
             case SLOT_PREV, SLOT_NEXT -> {
-                // remember the page before the arrow: if nothing changes we are at an edge (see settleArrow)
+                // remember the page before the arrow: if nothing changes, we're at an edge (see settleArrow)
                 if (page > 0 && mode != null && scan == Scan.NONE) {
                     arrowSlot = slot;
                     arrowFrom = page;
@@ -169,7 +169,7 @@ public final class StashSession {
             case SLOT_LAST -> page = count > 0 ? count : 0;
             case SLOT_MODE -> {
                 switchFrom = mode;
-                // show the target mode's saved pages right away instead of the old ones while it loads
+                // show the target mode's saved pages right away, instead of the old ones while it loads
                 if (mode != null) lastMode = mode.other();
                 switching = true;
                 popupAnswered = false;
@@ -180,17 +180,17 @@ public final class StashSession {
                 modeSwitchAt = now();
             }
             case SLOT_CONVERT -> {
-                // Telos ignores the button on a page that is not empty
+                // Telos ignores the button on a page that isn't empty
                 if (page < 1 || mode == null || !StashAdapter.isPageEmpty()) return;
                 book(mode).removePage(page);
                 book(mode.other()).appendEmptyPage(System.currentTimeMillis());
                 store.markDirty();
-                page = 1;    // Telos shows page 1 afterwards (of the other mode if this one has no pages left)
-                mode = null; // re-read once it has settled
+                page = 1;    // Telos shows page 1 afterwards (of the other mode, if this one has no pages left)
+                mode = null; // read it again once it has settled
             }
             default -> {
-                // Item move. Telos sends nothing back when the client's prediction was right, so re-read the
-                // page once the click has been applied instead of waiting for packets.
+                // An item move. Telos sends nothing back when the client's prediction was right, so we read the page again once the
+                // click has been applied, instead of waiting for packets.
                 dirty = true;
                 lastPacket = now();
                 return;
@@ -213,8 +213,8 @@ public final class StashSession {
         if (!stashOpen) {
             if (open) close();
             long t = now();
-            // Telos asks to confirm the normal/seasonal switch in a pop-up: answer it for the player
-            // (normally already done the moment it opened, see answerPopup; this is the fallback).
+            // Telos asks you to confirm the normal/seasonal switch in a pop-up, so answer it for the player. (Normally that
+            // already happened the moment it opened, see answerPopup; this is the fallback.)
             if (!popupAnswered && t - modeSwitchAt < POPUP_WINDOW_MS && t - lastPopupTry >= POPUP_RETRY_MS) {
                 lastPopupTry = t;
                 answerPopup();
@@ -264,8 +264,8 @@ public final class StashSession {
     }
 
     /**
-     * Presses Ok on Telos' mode-switch pop-up (called the moment a non-container screen opens during a switch,
-     * before it is drawn, and as a fallback from tick), then keeps the overlay up until the stash reopens.
+     * Presses Ok on Telos' mode-switch pop-up, then keeps the overlay up until the stash reopens. It's called the moment
+     * a non-container screen opens during a switch (before it's drawn), and from tick as a fallback.
      */
     public void answerPopup() {
         if (popupAnswered || now() - modeSwitchAt >= POPUP_WINDOW_MS) return;
@@ -303,7 +303,7 @@ public final class StashSession {
 
         if (firstSettle) {
             firstSettle = false;
-            // Telos shows its warning, then reopens the stash unchanged when the other mode has no pages
+            // when the other mode has no pages, Telos shows its warning and then reopens the stash unchanged
             if (switchFrom != null && popupSeen && mode == switchFrom) {
                 StashBook other = book(switchFrom.other());
                 noticeUntil = now() + NOTICE_MS;
@@ -312,7 +312,7 @@ public final class StashSession {
                     other.markEmpty();
                     store.markDirty();
                 } else {
-                    // saved pages say otherwise: keep them, the switch just did not go through
+                    // the saved pages say otherwise, so keep them; the switch just didn't go through
                     notice = "Couldn't switch to " + switchFrom.other().label() + " — try again";
                 }
             }
@@ -349,9 +349,9 @@ public final class StashSession {
     }
 
     /**
-     * Page-count math from the last ← / → click, so a scan is rarely needed. Telos does not wrap: an arrow that
-     * leaves a non-empty page unchanged means we are at the first / last page. → from the known last page that
-     * shows new content means pages were added.
+     * Page-count math from the last ← / → click, so a scan is rarely needed. Telos doesn't wrap, so an arrow that
+     * leaves a non-empty page unchanged means we're on the first or last page. A → from the known last page that shows
+     * new content means pages were added.
      */
     private void settleArrow(StashPage live) {
         if (arrowSlot == 0 || mode == null) return;
@@ -359,7 +359,7 @@ public final class StashSession {
         arrowSlot = 0;
         StashBook b = book();
         boolean same = live.sameContent(arrowBefore);
-        boolean unchanged = same && !arrowBefore.isEmpty(); // two empty pages in a row look alike
+        boolean unchanged = same && !arrowBefore.isEmpty(); // two empty pages in a row look the same
         int count = b.pageCount();
         if (slot == SLOT_NEXT) {
             if (unchanged) {
@@ -370,7 +370,7 @@ public final class StashSession {
                 }
             } else if (count > 0 && page > count) {
                 if (same) {
-                    page = count; // empty last page: assume → did nothing
+                    page = count; // empty last page, so assume → did nothing
                 } else {
                     b.setPageCount(page);
                     store.markDirty();
@@ -381,7 +381,7 @@ public final class StashSession {
         }
     }
 
-    /** Stash just opened or switched mode: learn the page count, or at least find page 1. */
+    /** The stash just opened or switched mode: learn the page count, or at least find page 1. */
     private void afterModeKnown() {
         if (mode == null) return;
         if (autoScan && book().pageCount() == 0 && !book().isKnownEmpty()) startScan();
@@ -418,7 +418,7 @@ public final class StashSession {
 
     // ------------------------------------------------------------------ commands (overlay)
 
-    /** Walk to {@code target} (1-based) with the fewest arrow clicks. */
+    /** Walks to {@code target} (starting at 1) with the fewest arrow clicks. */
     public void goTo(int target) {
         if (!open || target < 1 || isScanning()) return;
         pendingClick = null;
@@ -437,7 +437,7 @@ public final class StashSession {
     }
 
     /**
-     * Item click on stash slot {@code slot} (0–44) of {@code target}: sent now if that page is shown,
+     * An item click on stash slot {@code slot} (0–44) of {@code target}. It's sent right away if that page is showing,
      * otherwise after walking there.
      */
     public void clickPageSlot(int target, int slot, SlotAction action, int button) {
@@ -450,17 +450,17 @@ public final class StashSession {
         pendingClick = new PendingClick(target, slot, action, button);
     }
 
-    /** Renames a page of the shown mode (blank = back to "Page N") and saves at once. */
+    /** Renames a page of the shown mode (blank goes back to "Page N") and saves right away. */
     public void renamePage(int index, String name) {
         book().setName(index, name);
         store.markDirty();
         store.saveIfDirty();
     }
 
-    /** Switch the stash to {@code m} pages (clicks slot 53 if needed). */
+    /** Switches the stash to {@code m} pages (clicks slot 53 if needed). */
     public void switchMode(StashMode m) {
         if (!open || isScanning() || m == mode()) return;
-        // always ask Telos, even for a mode marked empty: a stale "empty" must never lock the player out
+        // always ask Telos, even for a mode marked empty, so a stale "empty" can never lock the player out
         queue.clear();
         pendingTarget = 0;
         if (mode == null || awaiting) pendingMode = m; // decided once the current page has settled
@@ -472,24 +472,24 @@ public final class StashSession {
         return open && mode != null && page > 0 && !isBusy() && !isScanning() && StashAdapter.isPageEmpty();
     }
 
-    /** Moves the open (empty) page to the other mode via slot 49. */
+    /** Moves the open (empty) page to the other mode through slot 49. */
     public void convertPage() {
         if (canConvert()) queue.add(SLOT_CONVERT);
     }
 
-    /** Header message to show now, or {@code null}. */
+    /** The header message to show right now, or {@code null}. */
     public String notice() {
         return notice != null && now() < noticeUntil ? notice : null;
     }
 
-    /** Visit every page once, save it, and learn the page count. */
+    /** Visits every page once, saves it, and learns the page count. */
     public void startScan() {
         startScan(false);
     }
 
     /**
-     * Scan that also times every page click at the fastest pace (Page Delay ignored) and shows the result in
-     * the header + log.
+     * A scan that also times every page click at the fastest pace (ignoring Page Delay) and shows the result in the
+     * header and the log.
      */
     public void startBenchmark() {
         startScan(true);
@@ -516,7 +516,7 @@ public final class StashSession {
 
         // Options: from here with ±1 clicks, from page 1, or from the last page (if the count is known).
         int bestCost = Integer.MAX_VALUE;
-        int start = -1; // -1 = from here, SLOT_FIRST or SLOT_LAST
+        int start = -1; // -1 means from here, otherwise SLOT_FIRST or SLOT_LAST
         if (page > 0) {
             bestCost = Math.abs(target - page);
             start = -1;
@@ -574,7 +574,7 @@ public final class StashSession {
         }
     }
 
-    /** scanBack holds pages count, count-1, ..., 1. */
+    /** scanBack holds the pages count, count-1, ..., 1. */
     private void finishScan(int count) {
         StashBook book = book();
         book.setPageCount(count);

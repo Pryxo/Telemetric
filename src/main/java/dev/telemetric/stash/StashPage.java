@@ -6,8 +6,8 @@ import dev.telemetric.game.StashAdapter;
 import java.util.Arrays;
 
 /**
- * One saved stash page: the 45 item slots (5 rows x 9) as serialized item JSON ({@code null} = empty).
- * Items are decoded lazily for drawing ({@link #item(int)}) because decoding needs the world's registries.
+ * One saved stash page: the 45 item slots (5 rows x 9) as serialized item JSON ({@code null} means empty).
+ * Items are decoded lazily for drawing ({@link #item(int)}), because decoding needs the world's registries.
  */
 public final class StashPage {
 
@@ -37,7 +37,7 @@ public final class StashPage {
         return other != null && Arrays.equals(slots, other.slots);
     }
 
-    /** Decoded item in slot {@code i}, or {@code null} if empty / not decodable. */
+    /** The decoded item in slot {@code i}, or {@code null} if it's empty or can't be decoded. */
     public GameItem item(int i) {
         if (slots[i] == null) return null;
         if (decoded == null) decoded = new GameItem[SLOTS];

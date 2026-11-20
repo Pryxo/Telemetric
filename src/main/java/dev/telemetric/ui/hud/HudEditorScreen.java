@@ -22,15 +22,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * MC ADAPTER — the HUD editor. Shows every <b>enabled</b> HUD element (with placeholder data where the
- * real data is missing) and lets you:
+ * MC ADAPTER: the HUD editor. It shows every <b>enabled</b> HUD element (with placeholder data where the real data is
+ * missing) and lets you:
  * <ul>
- *   <li>left-drag an element to move it (snaps to screen edges, centre and other elements; Shift = free),</li>
- *   <li>drag the corner handle or scroll over an element to resize it,</li>
- *   <li>right-click an element to reset its size, arrow keys to nudge the selection (Shift = 10px),</li>
- *   <li>Delete to switch the selected element off, Esc to finish (returns to the ClickGUI if opened from it).</li>
+ *   <li>left-drag an element to move it (it snaps to screen edges, the centre and other elements; Shift for free),</li>
+ *   <li>drag the corner handle, or scroll over an element, to resize it,</li>
+ *   <li>right-click an element to reset its size, and use the arrow keys to nudge the selection (Shift for 10px),</li>
+ *   <li>press Delete to switch the selected element off, and Esc to finish (back to the ClickGUI if it was opened from there).</li>
  * </ul>
- * Positions are stored in the elements' own settings, so they are saved with the active profile.
+ * Positions are stored in the elements' own settings, so they get saved with the active profile.
  */
 public class HudEditorScreen extends Screen {
 
@@ -56,7 +56,7 @@ public class HudEditorScreen extends Screen {
         open.animateTo(1);
     }
 
-    /** Opens the editor; when called from the ClickGUI, Esc returns there. */
+    /** Opens the editor. When it's called from the ClickGUI, Esc goes back there. */
     public static void openFromGui() {
         Minecraft mc = Minecraft.getInstance();
         mc.setScreen(new HudEditorScreen(mc.screen instanceof ClickGuiScreen));
@@ -181,7 +181,7 @@ public class HudEditorScreen extends Screen {
         dragging.setTopLeft(left, top, sw, sh, w, h);
     }
 
-    /** Snaps an element edge/centre to the screen edges, the screen centre or other elements' edges/centres. */
+    /** Snaps an element's edge or centre to the screen edges, the screen centre, or other elements' edges and centres. */
     private double snap(double start, int size, int screen, boolean vertical) {
         List<Integer> targets = new ArrayList<>();
         targets.add(HudModule.MARGIN);
@@ -232,7 +232,7 @@ public class HudEditorScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         double mx = event.x(), my = event.y();
-        if (!r.isActive()) r.begin(null, false); // measurement only needs the font
+        if (!r.isActive()) r.begin(null, false); // measuring only needs the font
         HudModule hit = elementAt(mx, my);
         selected = hit;
         if (hit == null) return false;
@@ -273,7 +273,7 @@ public class HudEditorScreen extends Screen {
         return true;
     }
 
-    /** After a scale change keep the element's outer corner (right edge for right-side elements) in place. */
+    /** After a scale change, keeps the element's outer corner in place (the right edge for elements on the right side). */
     private void keepCorner(HudModule e, int[] oldBounds) {
         int w = e.scaledWidth(r, true), h = e.scaledHeight(r, true);
         double left = e.isRightSide() ? oldBounds[0] + oldBounds[2] - w : oldBounds[0];
@@ -307,7 +307,7 @@ public class HudEditorScreen extends Screen {
                 return true;
             }
         }
-        return super.keyPressed(event); // Esc → onClose()
+        return super.keyPressed(event); // Esc goes to onClose()
     }
 
     // ================================================================== lifecycle

@@ -8,14 +8,14 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 /**
- * Crash-safe file writes for every Telemetric save file: the text goes to a sibling {@code .tmp} first, which is
- * then moved over the target (atomically where the file system can). Pure Java.
+ * Crash-safe writes for every Telemetric save file. The text goes to a sibling {@code .tmp} file first, which is
+ * then moved over the target (atomically where the file system supports it). Pure Java.
  */
 public final class AtomicFiles {
 
     private AtomicFiles() {}
 
-    /** Writes {@code text} (UTF-8) to {@code file}, creating its folders. */
+    /** Writes {@code text} (UTF-8) to {@code file}, creating any missing folders. */
     public static void writeString(Path file, String text) throws IOException {
         Files.createDirectories(file.getParent());
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
@@ -27,7 +27,7 @@ public final class AtomicFiles {
         }
     }
 
-    /** Moves an unreadable file aside ({@code <name>.corrupt-<time>}) so the next save keeps it. Best effort. */
+    /** Moves an unreadable file aside as {@code <name>.corrupt-<time>} so the next save doesn't overwrite it. Best effort. */
     public static void backupCorrupt(Path file) {
         try {
             Files.move(file, file.resolveSibling(file.getFileName() + ".corrupt-" + System.currentTimeMillis()),
