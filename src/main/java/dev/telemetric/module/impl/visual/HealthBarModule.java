@@ -302,7 +302,7 @@ public final class HealthBarModule extends HudModule {
         double f = fraction(false);
         if (f < 0) return;
         String t = text(false);
-        float s = getScale();
+        float s = effectiveScale();
         int w = flatWidth(r, t), h = flatHeight(r, t);
         double cx, bottom;
         if (first) {

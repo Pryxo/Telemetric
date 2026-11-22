@@ -34,8 +34,8 @@ import java.util.function.UnaryOperator;
 public final class HeadStatusApi {
 
     public static final String BASE = "https://headstatus.rasmus.zip/api/v1";
-    /** How long the realm list is cached. The selector only asks again after this. */
-    public static final long REALM_TTL_MS = 5 * 60_000L;
+    /** How long the realm list is cached. Opening the selector asks again only after this; nothing refreshes in between. */
+    public static final long REALM_TTL_MS = 30_000L;
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(TIMEOUT)

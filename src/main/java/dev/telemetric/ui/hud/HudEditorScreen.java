@@ -167,7 +167,7 @@ public class HudEditorScreen extends Screen {
             int baseW = dragging.frameWidth(r, true), baseH = dragging.frameHeight(r, true);
             double ratio = Math.max((mx - resizeLeft) / (double) Math.max(1, baseW),
                     (my - resizeTop) / (double) Math.max(1, baseH));
-            dragging.setScale(ratio);
+            dragging.setScale(ratio / HudModule.screenFit()); // the corner follows the mouse in drawn size
             int w = dragging.scaledWidth(r, true), h = dragging.scaledHeight(r, true);
             dragging.setTopLeft(resizeLeft, resizeTop, sw, sh, w, h);
             return;

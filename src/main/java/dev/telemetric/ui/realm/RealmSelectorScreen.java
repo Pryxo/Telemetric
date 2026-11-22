@@ -91,7 +91,7 @@ public class RealmSelectorScreen extends Screen {
 
     /**
      * Opens the selector (on the client thread). This is the only place the live realm list gets requested again, and
-     * only once the {@link HeadStatusApi#REALM_TTL_MS 5 min} cache has run out. Otherwise the cached list is shown.
+     * only once the {@link HeadStatusApi#REALM_TTL_MS 30 s} cache has run out. Otherwise the cached list is shown.
      */
     public static void open(String previous) {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();

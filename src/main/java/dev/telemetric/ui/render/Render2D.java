@@ -97,6 +97,20 @@ public final class Render2D {
         return Math.max(1, Math.round(Minecraft.getInstance().getWindow().getGuiScale()));
     }
 
+    /** Reference canvas for "Fit to Screen": 4K at GUI scale 3 (1280×720 GUI pixels). */
+    public static final float REF_WIDTH = 1280f, REF_HEIGHT = 720f;
+
+    /**
+     * Factor that makes something sized for the reference canvas cover the same share of the current screen, whatever
+     * the resolution or GUI scale (1 at 4K / GUI scale 3, 0.5 at 4K / GUI scale 6 …).
+     */
+    public static float screenFit() {
+        var window = Minecraft.getInstance().getWindow();
+        int w = window.getGuiScaledWidth(), h = window.getGuiScaledHeight();
+        if (w <= 0 || h <= 0) return 1f;
+        return Math.min(w / REF_WIDTH, h / REF_HEIGHT);
+    }
+
     /**
      * The largest scale ≤ {@code fit} at which one GUI unit is a whole number of window pixels, so items and textures
      * render pixel-exact like vanilla (no atlas bleed or uneven texels). Returns {@code fit} itself if even one window

@@ -76,7 +76,14 @@ public final class ModUserBadgeAdapter {
         if (profileName != null && !profileName.isEmpty()) ModUsers.learn(info.getProfile().id().toString(), profileName);
         if (!ModUsers.any()) return false;
         if (!ModUsers.isUser(profileName) && !ModUsers.isUser(displayName(info))) return false;
-        g.text(Minecraft.getInstance().font, BADGE, x + width - BADGE_W, y, 0xFFFFFFFF, false);
+        var font = Minecraft.getInstance().font;
+        int bx = x + width - BADGE_W;
+        // High GUI scale: vanilla clamps the column to the screen, so long names run past the cell edge — keep the
+        // badge after the name instead of on top of it (name starts after the 8 px head + 1 px gap).
+        Component name = info.getTabListDisplayName();
+        if (name == null && profileName != null) name = Component.literal(profileName);
+        if (name != null) bx = Math.max(bx, x + 9 + font.width(name) + 1);
+        g.text(font, BADGE, bx, y, 0xFFFFFFFF, false);
         return true;
     }
 

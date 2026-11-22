@@ -109,7 +109,7 @@ public class ClickGuiScreen extends Screen {
      * is scaled so the ClickGUI covers the same share of the screen, and saved panel positions (stored in canvas
      * pixels) end up in the same place.
      */
-    private static final float REF_WIDTH = 1280f, REF_HEIGHT = 720f;
+    private static final float REF_WIDTH = Render2D.REF_WIDTH, REF_HEIGHT = Render2D.REF_HEIGHT;
 
     private float fitFactor() {
         if (!ui().fitToScreen.get() || this.width <= 0 || this.height <= 0) return 1f;

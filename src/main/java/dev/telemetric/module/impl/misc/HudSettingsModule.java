@@ -21,6 +21,9 @@ public final class HudSettingsModule extends Module {
     public final ActionSetting openEditor = add(new ActionSetting(
             "Edit HUD", "Open the HUD editor: move and resize every active HUD element", HudEditorScreen::openFromGui));
 
+    public final BooleanSetting fitToScreen = add(new BooleanSetting(
+            "Fit to Screen", "Keeps HUD elements the same size relative to the screen on every resolution / GUI scale (like the ClickGUI)", true));
+
     public final BooleanSetting background = add(new BooleanSetting(
             "Background", "Draw a panel behind every HUD element (sets each element's own Background)", true));
 

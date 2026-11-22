@@ -32,7 +32,7 @@ public final class HudRenderer {
     /** Draws one element at its stored position and scale. */
     public static void render(Render2D r, HudModule m, int sw, int sh, boolean preview) {
         int[] b = bounds(r, m, sw, sh, preview);
-        r.pushTransform(b[0], b[1], m.getScale());
+        r.pushTransform(b[0], b[1], m.effectiveScale());
         try {
             m.render(r, preview, m.isMirrored());
         } finally {

@@ -392,12 +392,26 @@ public abstract class HudModule extends Module {
         scale.set(value);
     }
 
+    /**
+     * Misc → HUD → Fit to Screen: factor applied on top of every element's own Scale so the HUD covers the same share of
+     * the screen on every resolution / GUI scale (same reference canvas as the ClickGUI). 1 when off.
+     */
+    public static float screenFit() {
+        HudSettingsModule global = Telemetric.get().modules().get(HudSettingsModule.class);
+        return global != null && global.fitToScreen.get() ? Render2D.screenFit() : 1f;
+    }
+
+    /** The scale the element is actually drawn at: its own Scale × {@link #screenFit()}. */
+    public float effectiveScale() {
+        return getScale() * screenFit();
+    }
+
     public int scaledWidth(Render2D r, boolean preview) {
-        return Math.round(frameWidth(r, preview) * getScale());
+        return Math.round(frameWidth(r, preview) * effectiveScale());
     }
 
     public int scaledHeight(Render2D r, boolean preview) {
-        return Math.round(frameHeight(r, preview) * getScale());
+        return Math.round(frameHeight(r, preview) * effectiveScale());
     }
 
     public int left(int screenWidth, int width) {
