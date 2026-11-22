@@ -8,6 +8,7 @@ import dev.telemetric.game.TelosCharacter;
 import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.LinesHudModule;
 import dev.telemetric.hud.TextRun;
+import dev.telemetric.module.Category;
 import dev.telemetric.setting.Setting;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
@@ -42,7 +43,12 @@ public class TabStatsHud extends LinesHudModule {
     /** @param serverColorToggle add "Use Server Color" (not for Stats Info, where every stat has its own colour) */
     public TabStatsHud(String name, String description, String title, List<String> labels,
                        double defaultX, double defaultY, boolean serverColorToggle) {
-        super(name, description, defaultX, defaultY, false);
+        this(name, description, Category.STATS, title, labels, defaultX, defaultY, serverColorToggle);
+    }
+
+    public TabStatsHud(String name, String description, Category category, String title, List<String> labels,
+                       double defaultX, double defaultY, boolean serverColorToggle) {
+        super(name, description, category, defaultX, defaultY, false);
         this.title = title;
         this.showTitle = add(new BooleanSetting("Show Title", "Show the \"" + title + "\" heading", true));
         if (serverColorToggle) addUseServerColor();
@@ -248,7 +254,7 @@ public class TabStatsHud extends LinesHudModule {
     }
 
     public static TabStatsHud characterInfo() {
-        return new TabStatsHud("Character Info", "Class, Fame, Tier Points and fragments from the Tab list",
+        return new TabStatsHud("Character Info", "Class, Fame, Tier Points and fragments from the Tab list", Category.PLAYER,
                 "Character Info", List.of("Class", "Fame", "Tier Points", "Irradiated Fragments",
                         "Gilded Fragments", "Royal Fragments", "Bloodshot Fragments"), 1.0, 0.40, true) {};
     }

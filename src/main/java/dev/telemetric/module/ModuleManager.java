@@ -34,6 +34,7 @@ import dev.telemetric.module.impl.social.ChatModule;
 import dev.telemetric.module.impl.social.DiscordRpcModule;
 import dev.telemetric.module.impl.social.ServerMessagesModule;
 import dev.telemetric.module.impl.visual.BossBarScaleModule;
+import dev.telemetric.module.impl.visual.TooltipScaleModule;
 import dev.telemetric.module.impl.visual.BossStageTrackerModule;
 import dev.telemetric.module.impl.visual.CameraModule;
 import dev.telemetric.module.impl.visual.CustomBagsModule;
@@ -74,8 +75,8 @@ public final class ModuleManager {
         register(new ConfigModule());
         register(new ShareSettingsModule());
 
-        // ---- Features, grouped by category ----
-        // Player
+        // ---- Features. Each module names its own category (panel); panels sort their modules by name. ----
+        // Movement & Controls
         register(new AutoJumpModule());
         register(new AutoSprintModule());
         register(new KeybindsModule());
@@ -92,7 +93,7 @@ public final class ModuleManager {
         register(new LowHealthWarningHud());
         register(new AutoClickerModule());
 
-        // Visual
+        // Character / World & Rendering / Inventory & Loot / Dungeons & Bosses (former Visual modules)
         register(new StashOverlayModule());
         register(new VoxyModifierModule());
         register(new BossStageTrackerModule());
@@ -100,6 +101,7 @@ public final class ModuleManager {
         register(new FullbrightModule());
         register(new CameraModule());
         register(new BossBarScaleModule());
+        register(new TooltipScaleModule());
         register(new HitboxesModule());
         register(new PlayerSizeModule());
         register(new HideArmorModule());
@@ -112,7 +114,7 @@ public final class ModuleManager {
         register(new HealthBarModule());
         register(new CustomBagsModule());
 
-        // Dungeon (only active in telos:dungeon/<n>)
+        // Dungeons & Bosses (Wayfinder and map only active in telos:dungeon/<n>)
         register(new WayfinderModule());
         register(new DungeonMapHud()); // HUD element that's listed in the Dungeon panel
 
@@ -122,7 +124,9 @@ public final class ModuleManager {
         register(new ServerMessagesModule());
         register(new DiscordRpcModule());
 
-        // HUD (elements drawn in-game; the layout is edited through Misc â†’ HUD â†’ Edit HUD)
+        // HUD elements (drawn in-game; layout edited through Misc → HUD → Edit HUD). Most sit in Stats;
+        // Watermark → World, Character Info → Player, Dungeon Info → Combat,
+        // Pity Counter → Inventory.
         WatermarkHud watermark = register(new WatermarkHud());
         register(watermark.connectionHud()); // hidden HUD element, toggled by Watermark → Show Connection
         PerformanceHud performance = register(new PerformanceHud());

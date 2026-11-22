@@ -23,7 +23,7 @@ public class TraitDetailsModule extends Module {
             "Only show the descriptions while Shift is held", true));
 
     public TraitDetailsModule() {
-        super("Trait Details", "Trait descriptions with their tier's numbers in item tooltips", Category.VISUAL);
+        super("Trait Details", "Trait descriptions with their tier's numbers in item tooltips", Category.PLAYER);
         TooltipAdapter.addEditor(this::describe);
     }
 

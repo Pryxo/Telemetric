@@ -15,7 +15,7 @@ public final class BossBarScaleModule extends Module {
             "Size of a boss's bar compared to vanilla", 70, 25, 100, 5).withSuffix("%"));
 
     public BossBarScaleModule() {
-        super("Boss Bar Scale", "Makes boss bars smaller so they cover less of the screen", Category.VISUAL);
+        super("Boss Bar Scale", "Makes boss bars smaller so they cover less of the screen", Category.COMBAT);
         syncOn(() -> BossBarAdapter.setBossBarScale(isEnabled() ? scale.getFloat() / 100f : 1f), scale);
     }
 }

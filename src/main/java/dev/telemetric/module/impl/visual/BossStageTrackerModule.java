@@ -49,7 +49,7 @@ public final class BossStageTrackerModule extends Module {
 
     public BossStageTrackerModule() {
         super("Boss Stage Tracker", "Shows under each boss whether it is immune, shielded or vulnerable",
-                Category.VISUAL);
+                Category.COMBAT);
         WorldLabelAdapter.addSource(this::labels);
     }
 

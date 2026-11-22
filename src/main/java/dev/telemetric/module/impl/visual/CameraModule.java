@@ -18,7 +18,7 @@ public final class CameraModule extends Module {
             .withSuffix("°").visibleWhen(auto::get));
 
     public CameraModule() {
-        super("Camera", "No front camera; optional automatic third person while looking down", Category.VISUAL);
+        super("Camera", "No front camera; optional automatic third person while looking down", Category.WORLD);
         syncOn(() -> ViewAdapter.setCameraRules(isEnabled()
                 ? new ViewAdapter.CameraRules(noFront.get(), auto.get(), pitch.getFloat()) : null), noFront, auto, pitch);
     }

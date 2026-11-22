@@ -33,7 +33,7 @@ public final class StatusColorsHud extends HudModule {
     private final BooleanSetting toggle;
 
     StatusColorsHud(BooleanSetting toggle) {
-        super("Status Colors", "Status Title: example status title of each position", Category.VISUAL, 0.0, 0.5, true);
+        super("Status Colors", "Status Title: example status title of each position", Category.PLAYER, 0.0, 0.5, true);
         this.toggle = toggle;
     }
 

@@ -3,6 +3,7 @@ package dev.telemetric.module.impl.hud;
 import dev.telemetric.api.TelemetricServer;
 import dev.telemetric.hud.HudColor;
 import dev.telemetric.hud.HudModule;
+import dev.telemetric.module.Category;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
@@ -21,7 +22,7 @@ public final class ConnectionHud extends HudModule {
     private final BooleanSetting toggle;
 
     ConnectionHud(WatermarkHud watermark, BooleanSetting toggle) {
-        super("Connection", "Shows whether the mod is connected to the Telemetric server", 1.0, 1.0, true);
+        super("Connection", "Shows whether the mod is connected to the Telemetric server", Category.STATS, 1.0, 1.0, true);
         addFrameSettings(false);
         connectedColor = hudColor("Connected", "Text while connected", () -> GREEN);
         disconnectedColor = paletteColor("Disconnected", "Text while disconnected", Theme::textMuted);

@@ -7,6 +7,7 @@ import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.ServerInfoAdapter;
 import dev.telemetric.game.TelosServer;
 import dev.telemetric.hud.LinesHudModule;
+import dev.telemetric.module.Category;
 import dev.telemetric.module.impl.dungeon.DungeonTracker;
 import dev.telemetric.setting.impl.BooleanSetting;
 
@@ -36,7 +37,7 @@ public final class DungeonInfoHud extends LinesHudModule {
     private boolean acquired;
 
     public DungeonInfoHud() {
-        super("Dungeon Info", "Clear mobs, objective, treasure chests and players of the current dungeon", 0.0, 0.45, false);
+        super("Dungeon Info", "Clear mobs, objective, treasure chests and players of the current dungeon", Category.COMBAT, 0.0, 0.45, false);
     }
 
     @Override

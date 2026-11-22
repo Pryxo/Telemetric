@@ -136,7 +136,7 @@ public final class WayfinderModule extends Module {
     private Hole lastHole;
 
     public WayfinderModule() {
-        super("Wayfinder", "Shows the shortest way to treasure rooms and the boss drop", Category.DUNGEON);
+        super("Wayfinder", "Shows the shortest way to treasure rooms and the boss drop", Category.COMBAT);
         WorldRenderAdapter.addDrawer(this::draw);
     }
 

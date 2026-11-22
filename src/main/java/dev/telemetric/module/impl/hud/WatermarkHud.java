@@ -4,6 +4,7 @@ import dev.telemetric.Telemetric;
 import dev.telemetric.api.TelemetricServer;
 import dev.telemetric.hud.HudColor;
 import dev.telemetric.hud.HudModule;
+import dev.telemetric.module.Category;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
@@ -25,7 +26,7 @@ public final class WatermarkHud extends HudModule {
     private final HudColor nameColor, versionColor, onlineColor, underlineColor, underlineFade;
 
     public WatermarkHud() {
-        super("Watermark", "Shows the Telemetric name on screen, also outside the ClickGUI", 1.0, 0.0, true);
+        super("Watermark", "Shows the Telemetric name on screen, also outside the ClickGUI", Category.WORLD, 1.0, 0.0, true);
         addFrameSettings(false);
         nameColor = paletteColor("Name", "\"Telemetric\"", Theme::accent);
         versionColor = paletteColor("Version", "The version after the name", Theme::textMuted);

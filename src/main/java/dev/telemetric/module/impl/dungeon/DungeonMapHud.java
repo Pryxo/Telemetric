@@ -67,7 +67,7 @@ public final class DungeonMapHud extends HudModule {
 
     public DungeonMapHud() {
         super("Dungeon Map", "Minimap of the dungeon rooms (spawn, boss drop, treasure) and players",
-                Category.DUNGEON, 0.0, 0.3, false);
+                Category.COMBAT, 0.0, 0.3, false);
     }
 
     @Override

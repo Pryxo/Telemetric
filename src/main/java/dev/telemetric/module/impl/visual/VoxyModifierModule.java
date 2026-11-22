@@ -66,7 +66,7 @@ public final class VoxyModifierModule extends Module {
     public VoxyModifierModule() {
         super("Voxy Modifier",
                 "Voxy tweaks: one save folder for all Telos regions, shared LODs per dungeon/realm/hub",
-                Category.VISUAL);
+                Category.PLAYER);
         VoxyAdapter.setSharedPathEnabled(this::isEnabled);
         VoxyAdapter.setLockLods(() -> isEnabled() && lockLods.get());
     }

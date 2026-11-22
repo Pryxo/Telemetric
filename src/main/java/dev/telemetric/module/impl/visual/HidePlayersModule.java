@@ -25,7 +25,7 @@ public final class HidePlayersModule extends Module {
             .onSubmit(this::addToWhitelist));
 
     public HidePlayersModule() {
-        super("Hide Players", "Hides other players and their name tags, except whitelisted names", Category.VISUAL);
+        super("Hide Players", "Hides other players and their name tags, except whitelisted names", Category.WORLD);
         addPlayer.notPersistent();
         syncOn(this::sync, whitelist);
     }

@@ -116,7 +116,7 @@ public final class HealthBarModule extends HudModule {
     private float lastHealth = -1;
 
     public HealthBarModule() {
-        super("Health Bar", "Your health as a bar above your head or on the HUD", Category.VISUAL, 0.5, 0.78, false);
+        super("Health Bar", "Your health as a bar above your head or on the HUD", Category.PLAYER, 0.5, 0.78, false);
         scale.visibleWhen(() -> !world3D());
         hudSettings.visibleWhen(() -> false); // the bar has no HUD Settings
         WorldRenderAdapter.addDrawer(this::drawWorld);

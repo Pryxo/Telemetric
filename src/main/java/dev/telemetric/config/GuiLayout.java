@@ -21,7 +21,7 @@ import java.util.Set;
 public final class GuiLayout implements JsonSerializable {
 
     /** v3 brought a new panel order (Player | Visual | Dungeon | HUD | Misc), so older layouts get re-arranged once. */
-    public static final int FORMAT_VERSION = 3;
+    public static final int FORMAT_VERSION = 5;
 
     /** Mutable per-panel state. {@code x/y} are in ClickGUI units (after UI scale). */
     public static final class PanelState {
@@ -154,7 +154,7 @@ public final class GuiLayout implements JsonSerializable {
         }
         JsonElement version = json.get("version");
         int loaded = version != null && version.isJsonPrimitive() ? version.getAsInt() : 1;
-        if (loaded < 3) reset(); // new panel order: re-arrange the positions once but keep the open state
+        if (loaded < 5) reset(); // new panel order / renamed panels: re-arrange the positions once but keep the open state
     }
 
     private static void readStrings(JsonElement element, Set<String> out) {

@@ -32,6 +32,13 @@ public final class TooltipAdapter {
 
     private TooltipAdapter() {}
 
+    // ── Tooltip Scale (read by GuiGraphicsExtractorTooltipMixin) ──
+    private static volatile float tooltipScale = 1f;
+
+    public static void setTooltipScale(float s) { tooltipScale = Math.max(0.25f, Math.min(3f, s)); }
+
+    public static float tooltipScale() { return tooltipScale; }
+
     public static synchronized void addEditor(Function<List<String>, List<Insert>> editor) {
         EDITORS.add(editor);
         if (registered) return;

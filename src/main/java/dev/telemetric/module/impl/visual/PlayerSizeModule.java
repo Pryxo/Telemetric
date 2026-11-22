@@ -27,7 +27,7 @@ public final class PlayerSizeModule extends Module {
     private final NumberSetting otherDepth = add(others.child(size("Others Depth", "Depth", "Scale front/back")));
 
     public PlayerSizeModule() {
-        super("Player Size", "Changes how big players look (visual only)", Category.VISUAL);
+        super("Player Size", "Changes how big players look (visual only)", Category.PLAYER);
         syncOn(() -> EntityVisualsAdapter.setPlayerSize(isEnabled()
                         ? new EntityVisualsAdapter.PlayerSize(
                         me.get() ? scale(meWidth, meHeight, meDepth) : null,

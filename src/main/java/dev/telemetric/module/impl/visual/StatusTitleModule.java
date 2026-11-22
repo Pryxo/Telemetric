@@ -55,7 +55,7 @@ public final class StatusTitleModule extends Module {
     private final List<Predicate<PlayerNametag>> hideRules = new CopyOnWriteArrayList<>();
 
     public StatusTitleModule() {
-        super("Status Title", "Shows HeadStatus titles in Telos name tags (Hide Players uses it too)", Category.VISUAL);
+        super("Status Title", "Shows HeadStatus titles in Telos name tags (Hide Players uses it too)", Category.PLAYER);
         syncOn(this::sync, hideOwn, topWave, statusTheme, statusPosition);
         sync();
         NametagAdapter.setTitleSource(this::statusLine);

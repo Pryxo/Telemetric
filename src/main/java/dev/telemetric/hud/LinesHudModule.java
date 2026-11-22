@@ -84,7 +84,7 @@ public abstract class LinesHudModule extends HudModule {
     private final HudColor titleColor, labelColor, valueColor, separatorColor, dividerColor;
 
     protected LinesHudModule(String name, String description, double defaultX, double defaultY, boolean enabledByDefault) {
-        this(name, description, Category.HUD, defaultX, defaultY, enabledByDefault);
+        this(name, description, Category.STATS, defaultX, defaultY, enabledByDefault);
     }
 
     /** A row element listed in another panel (e.g. Combat → Assassin Stacks). */

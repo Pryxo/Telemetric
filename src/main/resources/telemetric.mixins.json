@@ -9,6 +9,7 @@
 		"AvatarRendererMixin",
 		"BossHealthOverlayAccessor",
 		"BossHealthOverlayMixin",
+		"GuiGraphicsExtractorTooltipMixin",
 		"ChatComponentAccessor",
 		"ChatComponentMixin",
 		"ChatScreenMixin",

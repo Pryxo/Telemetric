@@ -34,7 +34,7 @@ public final class HitboxesModule extends Module {
     private record Kind(GroupToggleSetting shown, ColorSetting color) {}
 
     public HitboxesModule() {
-        super("Hitboxes", "Shows entity hitboxes with a colour per entity kind", Category.VISUAL);
+        super("Hitboxes", "Shows entity hitboxes with a colour per entity kind", Category.WORLD);
         kind(BoxKind.SELF, "Yourself", "your own hitbox (third person)", true, 0xFF8A5CF6);
         kind(BoxKind.PLAYER, "Players", "other players' hitboxes", true, 0xFF3B82F6);
         kind(BoxKind.MOB, "Mobs", "mob hitboxes", true, 0xFFE5484D);

@@ -31,7 +31,7 @@ public final class StashOverlayModule extends Module {
 
     public StashOverlayModule() {
         super("Stash Overlay", "Replaces the stash with all saved pages + your inventory; right-click a page name to rename it",
-                Category.HUD);
+                Category.INVENTORY);
     }
 
     @Override

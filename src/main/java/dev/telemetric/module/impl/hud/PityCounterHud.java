@@ -15,6 +15,7 @@ import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.PlayerAdapter;
 import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.LinesHudModule;
+import dev.telemetric.module.Category;
 import dev.telemetric.hud.ShinyColors;
 import dev.telemetric.hud.TextRun;
 import dev.telemetric.setting.impl.ActionSetting;
@@ -83,7 +84,7 @@ public final class PityCounterHud extends LinesHudModule {
 
     public PityCounterHud() {
         super("Pity Counter", "Kills since each drop of the boss you are at (dungeon, boss bar or boss spawn); hidden without one",
-                0.0, 0.20, false);
+                Category.INVENTORY, 0.0, 0.20, false);
         addUseServerColor();
         LootTracker.get().addListener(new LootTracker.Listener() {
             @Override

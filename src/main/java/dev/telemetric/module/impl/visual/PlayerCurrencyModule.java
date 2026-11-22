@@ -69,7 +69,7 @@ public final class PlayerCurrencyModule extends Module {
 
     public PlayerCurrencyModule() {
         super("Player Currency", "Shows each player's fame and fragments in their name tag (via /balance)",
-                Category.VISUAL);
+                Category.INVENTORY);
         syncOn(this::sync, position, replaceHp);
         sync();
         BalanceLookup.register();

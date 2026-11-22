@@ -21,7 +21,7 @@ import java.util.function.IntSupplier;
 import java.util.function.ToIntFunction;
 
 /**
- * Base class for every HUD element. A HUD element is a toggleable module in the {@link Category#HUD} panel. While
+ * Base class for every HUD element. A HUD element is a toggleable module in the {@link Category#STATS} panel (unless it names another category). While
  * it's enabled, the HUD overlay draws it in-game, and you can move and resize it in the HUD editor.
  * <p>
  * The <b>position</b> is stored as two fractions (hidden settings {@code X}/{@code Y}) of the free space
@@ -70,7 +70,7 @@ public abstract class HudModule extends Module {
     private final List<HudColor> colors = new ArrayList<>();
 
     protected HudModule(String name, String description, double defaultX, double defaultY, boolean enabledByDefault) {
-        this(name, description, Category.HUD, defaultX, defaultY, enabledByDefault);
+        this(name, description, Category.STATS, defaultX, defaultY, enabledByDefault);
     }
 
     /** A HUD element listed in another panel (e.g. the Dungeon minimap). It's still drawn and edited like every HUD element. */

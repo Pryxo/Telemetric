@@ -43,7 +43,7 @@ public final class CustomBagsModule extends Module {
             "Stop the custom sound when you change world or dimension. Off = it keeps playing", true));
 
     public CustomBagsModule() {
-        super("Custom Bags", "Your own picture and drop sound for loot bags", Category.TEXTURE_PACK);
+        super("Custom Bags", "Your own picture and drop sound for loot bags", Category.INVENTORY);
         add(new ActionSetting("Set Picture", "Pick a PNG, JPG or GIF (max 15 MB) for this bag",
                 () -> withBag(b -> CustomBagAdapter.pickImage(b, err -> report(err, "Picture set for " + b.label())))));
         add(new ActionSetting("Clear Picture", "Back to the normal bag picture",

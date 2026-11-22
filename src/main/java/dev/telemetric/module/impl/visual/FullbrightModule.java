@@ -12,7 +12,7 @@ public final class FullbrightModule extends Module {
             "How bright dark places get (100% = everything fully lit)", 100, 10, 100, 5).withSuffix("%"));
 
     public FullbrightModule() {
-        super("Fullbright", "See in the dark: full ambient light everywhere", Category.VISUAL);
+        super("Fullbright", "See in the dark: full ambient light everywhere", Category.WORLD);
         syncOn(() -> ViewAdapter.setFullbright(isEnabled() ? strength.getFloat() / 100f : 0f), strength);
     }
 }

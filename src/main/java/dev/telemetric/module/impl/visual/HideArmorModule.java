@@ -35,7 +35,7 @@ public final class HideArmorModule extends Module {
     private boolean hiding = true;
 
     public HideArmorModule() {
-        super("Hide Armor", "Hides worn armor; a key reveals real item models under skins", Category.VISUAL);
+        super("Hide Armor", "Hides worn armor; a key reveals real item models under skins", Category.PLAYER);
         syncOn(this::sync, players, helmet, chestplate, leggings, boots);
     }
 

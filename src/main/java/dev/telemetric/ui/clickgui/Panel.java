@@ -179,8 +179,20 @@ public class Panel extends UIComponent {
 
         // title, count and chevron
         int ty = y + Layout.textY(Layout.HEADER_HEIGHT);
-        r.text(category.getName(), x + Layout.PAD, ty, p.text());
         String count = String.valueOf(shown.size());
+        String title = category.getName();
+        int titleRoom = width - Layout.PAD - 10 - r.textWidth(count) - 4 - Layout.PAD;
+        int titleW = r.textWidth(title);
+        if (titleW > titleRoom && titleRoom > 0) {
+            // long names ("Inventory") shrink to fit narrow panels instead of running into the count
+            float s = Math.max(0.6f, (float) titleRoom / titleW);
+            int fontH = 8;
+            r.pushTransform(x + Layout.PAD, ty + fontH * (1 - s) / 2f, s);
+            r.text(title, 0, 0, p.text());
+            r.popTransform();
+        } else {
+            r.text(title, x + Layout.PAD, ty, p.text());
+        }
         r.textRight(count, x + width - Layout.PAD - 10, ty, p.textDisabled());
         Icons.chevron(r, x + width - Layout.PAD - 3, y + Layout.HEADER_HEIGHT / 2, ex, p.textMuted());
 
