@@ -30,10 +30,16 @@ public final class ChatText {
      * @param font    font id (null means {@code "minecraft:default"}), for server-pack glyphs
      * @param sprite  block-atlas sprite id drawn instead of {@code text} ({@code "telos:material/pet/onyx"}), or null;
      *                {@code text} is then the fallback and copy text
+     * @param url     opened on click (Minecraft's "open link?" prompt), or null; wins over {@code suggest}
      */
-    public record Span(String text, int rgb, int styles, ChatText hover, String suggest, String font, String sprite) {
+    public record Span(String text, int rgb, int styles, ChatText hover, String suggest, String font, String sprite,
+                       String url) {
+        public Span(String text, int rgb, int styles, ChatText hover, String suggest, String font, String sprite) {
+            this(text, rgb, styles, hover, suggest, font, sprite, null);
+        }
+
         public Span(String text, int rgb, int styles, ChatText hover, String suggest, String font) {
-            this(text, rgb, styles, hover, suggest, font, null);
+            this(text, rgb, styles, hover, suggest, font, null, null);
         }
     }
 
@@ -80,6 +86,18 @@ public final class ChatText {
         return tag;
     }
 
+    private boolean centered;
+
+    /** Centres the line in the chat box (padded with spaces when it's posted, for the chat width at that moment). */
+    public ChatText center() {
+        centered = true;
+        return this;
+    }
+
+    public boolean centered() {
+        return centered;
+    }
+
     /** A glyph from a resource-pack font, such as a Telos loot icon. */
     public ChatText glyph(String text, String font) {
         spans.add(new Span(text, 0xFFFFFF, 0, null, null, font));
@@ -88,12 +106,17 @@ public final class ChatText {
 
     /** Hover text for the last span. */
     public ChatText hover(ChatText hover) {
-        return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), hover, s.suggest(), s.font(), s.sprite()));
+        return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), hover, s.suggest(), s.font(), s.sprite(), s.url()));
+    }
+
+    /** Clicking the last span opens {@code url} (https only). */
+    public ChatText url(String url) {
+        return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), s.hover(), s.suggest(), s.font(), s.sprite(), url));
     }
 
     /** Clicking the last span puts {@code text} into the chat box. */
     public ChatText suggest(String text) {
-        return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), s.hover(), text, s.font(), s.sprite()));
+        return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), s.hover(), text, s.font(), s.sprite(), s.url()));
     }
 
     /** Appends another text's spans. */

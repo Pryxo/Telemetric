@@ -76,7 +76,7 @@ public final class AnimatedTextAdapter {
 
     private AnimatedTextAdapter() {}
 
-    /** Turns the wave bob of the #1 status title on or off (Nametags → Top 1 Wave). */
+    /** Turns the wave bob of the #1 status title on or off (Status Title → Top 1 Wave). */
     public static void setWave(boolean on) {
         wave = on;
     }

@@ -69,6 +69,46 @@ public final class ServerInfoAdapter {
         return Minecraft.getInstance().getFps();
     }
 
+    // ---------------------------------------------------------------- TPS
+
+    /** The server sends the world time once every 20 ticks, so the gap between two time packets is 1 s at 20 TPS. */
+    private static final int TPS_SAMPLES = 5;
+    private static final long TPS_STALE_MS = 10_000;
+    private static final double[] tpsSamples = new double[TPS_SAMPLES];
+    private static int tpsCount, tpsNext;
+    private static long lastTimePacket;
+    private static Object tpsWorld;
+
+    /** Called from {@code ClientPacketListenerMixin} for every world-time packet (client thread). */
+    public static void onTimePacket() {
+        long now = System.currentTimeMillis();
+        Object world = Minecraft.getInstance().level;
+        if (world != tpsWorld) { // new world / server: the old gaps don't mean anything there
+            tpsWorld = world;
+            tpsCount = 0;
+            tpsNext = 0;
+            lastTimePacket = 0;
+        }
+        if (lastTimePacket > 0) {
+            long gap = now - lastTimePacket;
+            if (gap > 0) {
+                tpsSamples[tpsNext] = Math.min(20.0, 20_000.0 / gap);
+                tpsNext = (tpsNext + 1) % TPS_SAMPLES;
+                tpsCount = Math.min(TPS_SAMPLES, tpsCount + 1);
+            }
+        }
+        lastTimePacket = now;
+    }
+
+    /** Estimated server TPS (0..20) from the last few time packets, or -1 if there's no recent estimate yet. */
+    public static double tps() {
+        if (tpsCount == 0 || System.currentTimeMillis() - lastTimePacket > TPS_STALE_MS
+                || Minecraft.getInstance().level != tpsWorld) return -1;
+        double sum = 0;
+        for (int i = 0; i < tpsCount; i++) sum += tpsSamples[i];
+        return sum / tpsCount;
+    }
+
     /** Your own latency in ms as the server reports it, or -1 outside multiplayer or when unknown. */
     public static int ping() {
         Minecraft mc = Minecraft.getInstance();

@@ -22,8 +22,9 @@ import java.util.function.Predicate;
  * MC ADAPTER: Telos player name tags. Telos hides the vanilla name tag (every player's team has
  * {@code nameTagVisibility: NEVER}) and puts a text display on the player as a passenger instead, e.g.
  * {@code "<rank glyph> [Member] Name\nHP: 20"}. This class finds those displays, works out who they belong to, and asks
- * the Nametags module's rule whether to draw them. Hooks: {@link #hidden} from {@code EntityRenderDispatcherMixin} via
- * {@link PlayerVisibilityAdapter}, and the title line on top through {@link #titleFor} from {@code TextDisplayTitleMixin}.
+ * the Status Title module's rule whether to draw them. Hooks: {@link #hidden} from {@code EntityRenderDispatcherMixin}
+ * via {@link PlayerVisibilityAdapter}, and the extra lines (status title, Player Currency) through {@link #extrasFor} /
+ * {@link #decorate} from {@code TextDisplayTitleMixin}.
  * All of it is off away from Telos.
  */
 public final class NametagAdapter {
@@ -83,17 +84,128 @@ public final class NametagAdapter {
         titlePosition = position == null ? TitlePosition.TOP : position;
     }
 
-    public static TitlePosition titlePosition() {
-        return titlePosition;
+    // ------------------------------------------------------------------ currency line
+
+    /** One fragment count of a currency line: {@code "93"} and its Telos glyph (drawn in {@link #FRAGMENT_FONT}). */
+    public record FragmentCount(String count, String glyph) {}
+
+    /**
+     * A currency line for a name tag: {@code "❖1,632,163.3 | 0 <icon> 93 <icon> …"}.
+     *
+     * @param fame   null for no fame part
+     * @param colors RGB colours of the parts
+     */
+    public record CurrencyLine(String fame, java.util.List<FragmentCount> fragments, CurrencyColors colors) {}
+
+    /** RGB colours of a currency line: the ❖ fame icon, fame number, " | " separator, fragment numbers and icons. */
+    public record CurrencyColors(int fameIcon, int fame, int separator, int fragmentCount, int fragmentIcon) {}
+
+    /**
+     * Where currency lines come from: (owner username, is it you, their mode from the tag's ruleset glyph —
+     * {@code normal} / {@code seasonal} / {@code hardcore} / {@code group} or "") gives a line, or null for none.
+     */
+    public interface CurrencySource {
+        CurrencyLine currencyFor(String ownerName, boolean self, String mode);
+    }
+
+    /** Font of the fragment glyphs in Telos' /balance reply. */
+    private static final Identifier FRAGMENT_FONT = Identifier.parse("telos:material");
+
+    private static volatile CurrencySource currencySource;
+    private static volatile TitlePosition currencyPosition = TitlePosition.MIDDLE;
+    private static volatile boolean currencyReplacesHp;
+
+    /** A null source means no currency lines. */
+    public static void setCurrencySource(CurrencySource source) {
+        currencySource = source;
+    }
+
+    /** Where the currency line goes, and whether it takes the place of the "HP:" line (if the tag has one). */
+    public static void setCurrencyLayout(TitlePosition position, boolean replaceHp) {
+        currencyPosition = position == null ? TitlePosition.MIDDLE : position;
+        currencyReplacesHp = replaceHp;
+    }
+
+    /** Per display, the {CurrencyLine, Component} built last time, so the same line stays the same instance. */
+    private static final Map<Display.TextDisplay, Object[]> CURRENCY_CACHE = new WeakHashMap<>();
+
+    private static Component currencyFor(Display.TextDisplay display, Player owner) {
+        CurrencySource source = currencySource;
+        if (source == null || owner == null) return null;
+        CurrencyLine line = source.currencyFor(owner.getScoreboardName(), owner == Minecraft.getInstance().player,
+                TelosCharacter.modeFromGlyph(nametagText(display)));
+        if (line == null) return null;
+        Object[] cached = CURRENCY_CACHE.get(display);
+        if (cached != null && cached[0].equals(line)) return (Component) cached[1];
+        Component built = build(line);
+        CURRENCY_CACHE.put(display, new Object[]{line, built});
+        return built;
+    }
+
+    /** Colours come from {@link CurrencyLine#colors()} (defaults match Telos' /balance reply). */
+    private static Component build(CurrencyLine line) {
+        CurrencyColors c = line.colors();
+        MutableComponent out = Component.empty();
+        if (line.fame() != null) {
+            out.append(Component.literal("❖").withColor(c.fameIcon() & 0xFFFFFF));
+            out.append(Component.literal(line.fame()).withColor(c.fame() & 0xFFFFFF));
+            if (!line.fragments().isEmpty()) out.append(Component.literal(" | ").withColor(c.separator() & 0xFFFFFF));
+        }
+        boolean first = true;
+        for (FragmentCount f : line.fragments()) {
+            if (!first) out.append(" ");
+            first = false;
+            out.append(Component.literal(f.count() + " ").withColor(c.fragmentCount() & 0xFFFFFF));
+            out.append(Component.literal(f.glyph()).withStyle(Style.EMPTY.withColor(c.fragmentIcon() & 0xFFFFFF)
+                    .withFont(new FontDescription.Resource(FRAGMENT_FONT))));
+        }
+        return out;
+    }
+
+    // ------------------------------------------------------------------ extra lines
+
+    /**
+     * What gets added to one name tag: the status title and the currency line (either may be null) with their
+     * positions. {@link #extrasFor} returns the same instance as long as nothing changes, so the mixin can compare by
+     * identity and only re-split the lines when needed.
+     */
+    public record Extras(Component title, TitlePosition titlePosition, Component currency,
+                         TitlePosition currencyPosition, boolean replaceHp) {
+        boolean same(Extras o) {
+            return o != null && title == o.title && currency == o.currency && titlePosition == o.titlePosition
+                    && currencyPosition == o.currencyPosition && replaceHp == o.replaceHp;
+        }
+    }
+
+    private static final Map<Display.TextDisplay, Extras> EXTRAS_CACHE = new WeakHashMap<>();
+
+    /**
+     * Mixin hook ({@code TextDisplayTitleMixin}, every time the display's lines are needed): the lines to add to this
+     * Telos name tag, or null for none.
+     */
+    public static Extras extrasFor(Display.TextDisplay display) {
+        if (!ServerGate.onTelos() || nametagText(display) == null) return null;
+        if (titleSource == null && currencySource == null) return null;
+        Player owner = owner(display);
+        Component title = titleFor(display, owner);
+        Component currency = currencyFor(display, owner);
+        if (title == null && currency == null) {
+            EXTRAS_CACHE.remove(display);
+            return null;
+        }
+        Extras next = new Extras(title, titlePosition, currency, currencyPosition, currencyReplacesHp);
+        Extras prev = EXTRAS_CACHE.get(display);
+        if (next.same(prev)) return prev;
+        EXTRAS_CACHE.put(display, next);
+        return next;
     }
 
     /**
-     * Mixin hook: the name tag text with {@code title} added as its own line. Top puts it first, Middle right before the
-     * "HP:" line (after the first line if there's none), and Bottom last. Styles are kept.
+     * Mixin hook: the name tag text with the extra lines. Top puts a line first, Middle right before the "HP:" line
+     * (after the first line if there's none), and Bottom last; with both on the same spot the title comes first. With
+     * Replace HP the currency line takes the "HP:" line's place instead. Styles are kept.
      */
-    public static Component withTitle(Component text, Component title, TitlePosition position) {
-        if (position == TitlePosition.TOP) return Component.empty().append(title).append("\n").append(text);
-        if (position == TitlePosition.BOTTOM) return Component.empty().append(text).append("\n").append(title);
+    public static Component decorate(Component text, Extras extras) {
         java.util.List<MutableComponent> lines = new java.util.ArrayList<>();
         java.util.List<StringBuilder> plain = new java.util.ArrayList<>();
         lines.add(Component.empty());
@@ -112,48 +224,67 @@ public final class NametagAdapter {
             }
             return java.util.Optional.empty();
         }, net.minecraft.network.chat.Style.EMPTY);
-        int at = Math.min(1, lines.size());
+        int hp = -1;
         for (int i = 0; i < plain.size(); i++) {
             if (plain.get(i).indexOf("HP:") >= 0) {
-                at = i;
+                hp = i;
                 break;
             }
         }
-        MutableComponent out = Component.empty();
+        int at = hp >= 0 ? hp : Math.min(1, lines.size());
+        Component currency = extras.currency();
+        boolean replace = currency != null && extras.replaceHp() && hp >= 0;
+        java.util.List<Component> top = new java.util.ArrayList<>(), middle = new java.util.ArrayList<>(),
+                bottom = new java.util.ArrayList<>();
+        place(extras.title(), extras.titlePosition(), top, middle, bottom);
+        if (!replace) place(currency, extras.currencyPosition(), top, middle, bottom);
+
+        java.util.List<Component> rows = new java.util.ArrayList<>(top);
         for (int i = 0; i <= lines.size(); i++) {
-            if (i == at) {
-                if (i > 0) out.append("\n");
-                out.append(title);
-            }
-            if (i < lines.size()) {
-                if (i > 0 || at == 0) out.append("\n");
-                out.append(lines.get(i));
-            }
+            if (i == at) rows.addAll(middle);
+            if (i < lines.size()) rows.add(replace && i == hp ? currency : lines.get(i));
+        }
+        rows.addAll(bottom);
+        MutableComponent out = Component.empty();
+        for (int i = 0; i < rows.size(); i++) {
+            if (i > 0) out.append("\n");
+            out.append(rows.get(i));
         }
         return out;
+    }
+
+    private static void place(Component line, TitlePosition position, java.util.List<Component> top,
+                              java.util.List<Component> middle, java.util.List<Component> bottom) {
+        if (line == null) return;
+        switch (position) {
+            case TOP -> top.add(line);
+            case MIDDLE -> middle.add(line);
+            case BOTTOM -> bottom.add(line);
+        }
     }
 
     /** Per display, the {TitleLine, Component} built last time, so the same title stays the same instance. */
     private static final Map<Display.TextDisplay, Object[]> TITLE_CACHE = new WeakHashMap<>();
 
     /**
-     * Line width for a text display carrying {@code title}. It's at least the title's own width, so the status title
-     * never gets wrapped (cut) in the middle, e.g. a long {@code "Name"} like "True Ophanim".
+     * Line width for a text display carrying {@code extras}. It's at least each added line's own width, so a status
+     * title or currency line never gets wrapped (cut) in the middle, e.g. a long {@code "Name"} like "True Ophanim".
      */
-    public static int lineWidthFor(Component title, int width) {
-        if (title == null) return width;
-        return Math.max(width, Minecraft.getInstance().font.width(title) + 1);
+    public static int lineWidthFor(Extras extras, int width) {
+        if (extras == null) return width;
+        var font = Minecraft.getInstance().font;
+        if (extras.title() != null) width = Math.max(width, font.width(extras.title()) + 1);
+        if (extras.currency() != null) width = Math.max(width, font.width(extras.currency()) + 1);
+        return width;
     }
 
     /**
-     * Mixin hook ({@code TextDisplayTitleMixin}, every time the display's lines are needed): the line to put on top of
-     * this Telos name tag, or null. It returns the same instance as long as the title doesn't change. The animation
-     * runs in the font hook ({@link AnimatedTextAdapter}), so the line never has to be rebuilt.
+     * The status title for this Telos name tag, or null. It returns the same instance as long as the title doesn't
+     * change. The animation runs in the font hook ({@link AnimatedTextAdapter}), so the line never has to be rebuilt.
      */
-    public static Component titleFor(Display.TextDisplay display) {
+    private static Component titleFor(Display.TextDisplay display, Player owner) {
         TitleSource source = titleSource;
-        if (source == null || !ServerGate.onTelos() || nametagText(display) == null) return null;
-        Player owner = owner(display);
+        if (source == null) return null;
         TitleLine line = owner == null ? null
                 : source.titleFor(owner.getUUID().toString(), owner == Minecraft.getInstance().player);
         if (line == null) return null;
@@ -164,7 +295,7 @@ public final class NametagAdapter {
         return built;
     }
 
-    /** Built previews by line (Nametags → Show Status Colors HUD). Same instance as long as the line doesn't change. */
+    /** Built previews by line (Status Title → Show Status Colors HUD). Same instance as long as the line doesn't change. */
     private static final Map<TitleLine, Component> PREVIEW_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** The status title exactly as it goes into a name tag, for drawing on the HUD ({@code Render2D#statusTitle}). */

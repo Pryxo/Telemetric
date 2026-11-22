@@ -16,10 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Nametags → <i>Show Status Colors</i>: a HUD preview of the current Status Theme. It shows one example status title per
+ * Status Title → <i>Show Status Colors</i>: a HUD preview of the current Status Theme. It shows one example status title per
  * leaderboard slot ({@code "#1"} … {@code "#21-#25"}), drawn exactly like on a name tag (same text, animated gradient,
  * #1 wave, icon, text-display background). It uses your own status (board and count) if you have one, otherwise an
- * example. Not listed in the ClickGUI; shown while the Nametags toggle is on, and movable in the HUD editor.
+ * example. Not listed in the ClickGUI; shown while the Status Title toggle is on, and movable in the HUD editor.
  */
 public final class StatusColorsHud extends HudModule {
 
@@ -33,7 +33,7 @@ public final class StatusColorsHud extends HudModule {
     private final BooleanSetting toggle;
 
     StatusColorsHud(BooleanSetting toggle) {
-        super("Status Colors", "Nametags: example status title of each position", Category.VISUAL, 0.0, 0.5, true);
+        super("Status Colors", "Status Title: example status title of each position", Category.VISUAL, 0.0, 0.5, true);
         this.toggle = toggle;
     }
 
@@ -47,7 +47,7 @@ public final class StatusColorsHud extends HudModule {
         return toggle.get();
     }
 
-    /** HUD editor "Del" turns off the Nametags toggle. */
+    /** HUD editor "Del" turns off the Status Title toggle. */
     @Override
     public void hide() {
         toggle.set(false);
@@ -58,7 +58,7 @@ public final class StatusColorsHud extends HudModule {
         HeadStatusApi.HeadStatus own = HeadStatusCache.get(MojangSessionAdapter.playerUuid()).orElse(EXAMPLE);
         List<TitleLine> out = new ArrayList<>(POSITIONS.length);
         for (int pos : POSITIONS) {
-            out.add(NametagsModule.statusLine(new HeadStatusApi.HeadStatus(own.text(), pos, own.count())));
+            out.add(StatusTitleModule.statusLine(new HeadStatusApi.HeadStatus(own.text(), pos, own.count())));
         }
         return out;
     }

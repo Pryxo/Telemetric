@@ -3,6 +3,7 @@ package dev.telemetric.game;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.telemetric.Telemetric;
+import dev.telemetric.chat.ChatStyle;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -147,11 +148,27 @@ public final class ClientCommandAdapter {
     }
 
     private static int runOwn(String root, Consumer<Consumer<String>> handler, FabricClientCommandSource source) {
-        Consumer<String> reply = line -> Minecraft.getInstance().execute(() -> source.sendFeedback(Component.literal(line)));
+        // Lines the handler replies with right away become ONE message with the "Telemetric ›" prefix only once
+        // (chat/ChatStyle). Lines sent later (async results) are their own message, each with the prefix.
+        java.util.List<String> now = new java.util.ArrayList<>();
+        boolean[] done = {false};
+        Consumer<String> reply = line -> {
+            synchronized (now) {
+                if (!done[0]) {
+                    now.add(line);
+                    return;
+                }
+            }
+            ChatAdapter.post(ChatStyle.reply(line));
+        };
         try {
             handler.accept(reply);
         } catch (RuntimeException e) {
             Telemetric.LOGGER.error("Client command /{} failed", root, e);
+        }
+        synchronized (now) {
+            done[0] = true;
+            if (!now.isEmpty()) ChatAdapter.post(ChatStyle.reply(now));
         }
         return 1;
     }

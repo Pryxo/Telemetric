@@ -88,10 +88,23 @@ public final class ChatAdapter {
         mc.execute(() -> {
             if (mc.gui == null) return;
             ChatText.Tag tag = text.tag();
-            if (tag == null) mc.gui.getChat().addClientSystemMessage(toComponent(text));
-            else mc.gui.getChat().addPlayerMessage(toComponent(text), null,
+            Component line = toComponent(text);
+            if (text.centered()) line = centered(mc, line);
+            if (tag == null) mc.gui.getChat().addClientSystemMessage(line);
+            else mc.gui.getChat().addPlayerMessage(line, null,
                     new GuiMessageTag(tag.rgb(), null, tag.text() == null ? null : toComponent(tag.text()), tag.logTag()));
         });
+    }
+
+    /** {@code line} with leading spaces so it sits in the middle of the chat box (same width and scale chat wraps at). */
+    private static Component centered(Minecraft mc, Component line) {
+        double scale = Math.max(0.01, mc.options.chatScale().get());
+        int chatWidth = (int) Math.floor(net.minecraft.client.gui.components.ChatComponent.getWidth(
+                mc.options.chatWidth().get()) / scale);
+        int free = chatWidth - mc.font.width(line);
+        int space = Math.max(1, mc.font.width(" "));
+        if (free <= space * 2) return line;
+        return Component.empty().append(Component.literal(" ".repeat(free / 2 / space))).append(line);
     }
 
     static Component toComponent(ChatText text) {
@@ -107,7 +120,11 @@ public final class ChatAdapter {
                 style = style.withFont(new FontDescription.Resource(Identifier.parse(s.font())));
             }
             if (s.hover() != null) style = style.withHoverEvent(new HoverEvent.ShowText(toComponent(s.hover())));
-            if (s.suggest() != null) style = style.withClickEvent(new ClickEvent.SuggestCommand(s.suggest()));
+            if (s.url() != null && s.url().startsWith("https://")) {
+                style = style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(s.url())));
+            } else if (s.suggest() != null) {
+                style = style.withClickEvent(new ClickEvent.SuggestCommand(s.suggest()));
+            }
             Identifier sprite = s.sprite() == null ? null : Identifier.tryParse(s.sprite());
             if (sprite != null) {
                 out.append(Component.object(new AtlasSprite(AtlasSprite.DEFAULT_ATLAS, sprite), Component.literal(s.text()))

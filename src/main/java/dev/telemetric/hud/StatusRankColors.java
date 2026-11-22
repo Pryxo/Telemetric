@@ -7,9 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Animated colours for a HeadStatus title, by leaderboard position (Nametags → Show Status). Positions map to a
+ * Animated colours for a HeadStatus title, by leaderboard position (Status Title → Show Status). Positions map to a
  * {@link Tier} slot (#1, #2, #3, #4–10, #11–20, #21–25; anything lower stays plain). The selected {@link Theme}
- * (Nametags → Status Theme, from {@code statusColor.json}) gives each slot its {@link ColorCycle} (a single colour
+ * (Status Title → Status Theme, from {@code statusColor.json}) gives each slot its {@link ColorCycle} (a single colour
  * means solid). The theme is read at draw time, so switching it recolours existing name tags right away. Pure Java.
  */
 public final class StatusRankColors {
@@ -23,7 +23,7 @@ public final class StatusRankColors {
         return new ColorCycle(frames, STEP, Durations.STATUS_GRADIENT_LOOP);
     }
 
-    /** A leaderboard slot. {@code wave} means the characters also bob up and down (Nametags → Top 1 Wave). */
+    /** A leaderboard slot. {@code wave} means the characters also bob up and down (Status Title → Top 1 Wave). */
     public enum Tier {
         TOP_1(true, "#1"), TOP_2(false, "#2"), TOP_3(false, "#3"), TOP_10(false, "#4-10"),
         TOP_20(false, "#11-20"), TOP_25(false, "#21-25");
@@ -37,7 +37,7 @@ public final class StatusRankColors {
             this.key = key;
         }
 
-        /** Display label, e.g. {@code "#21-#25"} (Nametags → Show Status Colors HUD). */
+        /** Display label, e.g. {@code "#21-#25"} (Status Title → Show Status Colors HUD). */
         public String label() {
             return key.replace("-", "-#");
         }

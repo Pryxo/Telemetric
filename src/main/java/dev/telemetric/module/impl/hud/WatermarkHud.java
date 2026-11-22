@@ -18,6 +18,9 @@ public final class WatermarkHud extends HudModule {
             "Show Version", "Append the mod version", true));
     private final BooleanSetting showOnline = add(new BooleanSetting(
             "Show Online", "Append how many players are online with Telemetric right now", true));
+    private final BooleanSetting showConnection = add(new BooleanSetting(
+            "Show Connection", "Show \"Connected\" / \"Disconnected\" (Telemetric server) in the bottom-right", true));
+    private final ConnectionHud connectionHud = new ConnectionHud(this, showConnection);
 
     private final HudColor nameColor, versionColor, onlineColor, underlineColor, underlineFade;
 
@@ -29,6 +32,11 @@ public final class WatermarkHud extends HudModule {
         onlineColor = paletteColor("Online", "The online-user count", Theme::textMuted);
         underlineColor = paletteColor("Underline", "Start of the underline", Theme::accent);
         underlineFade = paletteColor("Underline Fade", "End of the underline (fades out)", Theme::accentAlt);
+    }
+
+    /** The Show Connection HUD element. Register it after this module. */
+    public ConnectionHud connectionHud() {
+        return connectionHud;
     }
 
     private String version() {

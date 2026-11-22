@@ -408,7 +408,7 @@ public final class TelosData {
     // ------------------------------------------------------------------ head status colour themes
 
     /**
-     * {@code statusColor.json}: presets for Nametags → Status Theme. Maps a theme name to leaderboard slots
+     * {@code statusColor.json}: presets for Status Title → Status Theme. Maps a theme name to leaderboard slots
      * ({@code "#1"}, {@code "#2"}, {@code "#3"}, {@code "#4-10"}, {@code "#11-20"}, {@code "#21-25"}) and each slot to
      * its colours. A slot value is one {@code "#RRGGBB"} (solid, no gradient), a list of them (moving gradient), or
      * {@code "shiny"} for the shiny cycle.
@@ -454,7 +454,7 @@ public final class TelosData {
 
     // ------------------------------------------------------------------ head status icons
 
-    /** {@code statusIcons.json}: one icon per HeadStatus leaderboard ID, drawn in the Nametags status title. */
+    /** {@code statusIcons.json}: one icon per HeadStatus leaderboard ID, drawn in the Status Title line. */
     public static final SharedFile<StatusIcons> STATUS_ICONS =
             SharedData.file(DIR + "statusIcons.json", StatusIcons::parse, StatusIcons.EMPTY);
 

@@ -52,6 +52,21 @@ public record TelosCharacter(int level, String className, String mode) {
     }
 
     private static String mode(String value, String lower) {
+        String glyph = modeFromGlyph(value);
+        if (!glyph.isEmpty()) return glyph;
+        if (lower.contains("season")) return "seasonal";
+        if (lower.contains("hardcore") || lower.contains("ironman")) return "hardcore";
+        return "";
+    }
+
+    /**
+     * The mode from the first ruleset glyph in {@code text} ({@code normal} / {@code seasonal} / {@code hardcore} /
+     * {@code group}), or "" if there's none. Telos puts the same glyph in front of the rank in chat and name tags
+     * ({@code "𕼜Ͱ [Member] OKDang"}), so it works for other players too. Glyphs only: a name can't fake it.
+     */
+    public static String modeFromGlyph(String text) {
+        if (text == null) return "";
+        String value = text;
         for (int i = 0; i < value.length(); ) {
             int cp = value.codePointAt(i);
             if (cp == NORMAL || cp == NORMAL_GLOW) return "normal";
@@ -60,8 +75,6 @@ public record TelosCharacter(int level, String className, String mode) {
             if ((cp >= GROUP_FIRST && cp <= GROUP_LAST) || (cp >= GROUP_GLOW_FIRST && cp <= GROUP_GLOW_LAST)) return "group";
             i += Character.charCount(cp);
         }
-        if (lower.contains("season")) return "seasonal";
-        if (lower.contains("hardcore") || lower.contains("ironman")) return "hardcore";
         return "";
     }
 

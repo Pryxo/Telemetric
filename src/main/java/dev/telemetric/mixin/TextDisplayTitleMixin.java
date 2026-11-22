@@ -12,28 +12,26 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Nametags → Show Status: puts a title line on top of a Telos name tag, inside the text display itself, so it's laid
- * out, backed and billboarded exactly like the lines Telos sends. Only the client's line cache changes, and the
- * synced text stays untouched. The logic is in {@link NametagAdapter#titleFor}.
+ * Status Title → Show Status and Visual → Player Currency: put extra lines into a Telos name tag, inside the text
+ * display itself, so they're laid out, backed and billboarded exactly like the lines Telos sends. Only the client's
+ * line cache changes, and the synced text stays untouched. The logic is in {@link NametagAdapter#extrasFor} and
+ * {@link NametagAdapter#decorate}.
  */
 @Mixin(Display.TextDisplay.class)
 public abstract class TextDisplayTitleMixin {
 
     @Shadow private Display.TextDisplay.CachedInfo clientDisplayCache;
 
-    /** The title baked into {@link #clientDisplayCache}, or null for none. Same instance as long as the title doesn't change. */
-    @Unique private Component telemetric$title;
-    @Unique private NametagAdapter.TitlePosition telemetric$position = NametagAdapter.TitlePosition.TOP;
+    /** The lines baked into {@link #clientDisplayCache}, or null for none. Same instance as long as nothing changes. */
+    @Unique private NametagAdapter.Extras telemetric$extras;
 
     @Inject(method = "cacheDisplay", at = @At("HEAD"))
     private void telemetric$refreshTitle(Display.TextDisplay.LineSplitter splitter,
                                          CallbackInfoReturnable<Display.TextDisplay.CachedInfo> cir) {
-        Component title = NametagAdapter.titleFor((Display.TextDisplay) (Object) this);
-        NametagAdapter.TitlePosition position = NametagAdapter.titlePosition();
-        if (title != telemetric$title || position != telemetric$position) {
-            telemetric$title = title;
-            telemetric$position = position;
-            clientDisplayCache = null; // split again with (or without) the title line
+        NametagAdapter.Extras extras = NametagAdapter.extrasFor((Display.TextDisplay) (Object) this);
+        if (extras != telemetric$extras) {
+            telemetric$extras = extras;
+            clientDisplayCache = null; // split again with (or without) the extra lines
         }
     }
 
@@ -42,16 +40,16 @@ public abstract class TextDisplayTitleMixin {
                     target = "Lnet/minecraft/world/entity/Display$TextDisplay$LineSplitter;split(Lnet/minecraft/network/chat/Component;I)Lnet/minecraft/world/entity/Display$TextDisplay$CachedInfo;"),
             index = 0)
     private Component telemetric$prependTitle(Component text) {
-        Component title = telemetric$title;
-        return title == null ? text : NametagAdapter.withTitle(text, title, telemetric$position);
+        NametagAdapter.Extras extras = telemetric$extras;
+        return extras == null ? text : NametagAdapter.decorate(text, extras);
     }
 
-    /** Widens the wrap width to fit the title, so it never gets split across lines. */
+    /** Widens the wrap width to fit the extra lines, so they never get split across lines. */
     @ModifyArg(method = "cacheDisplay",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/entity/Display$TextDisplay$LineSplitter;split(Lnet/minecraft/network/chat/Component;I)Lnet/minecraft/world/entity/Display$TextDisplay$CachedInfo;"),
             index = 1)
     private int telemetric$fitTitle(int width) {
-        return NametagAdapter.lineWidthFor(telemetric$title, width);
+        return NametagAdapter.lineWidthFor(telemetric$extras, width);
     }
 }

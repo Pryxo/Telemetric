@@ -9,7 +9,7 @@ import java.util.function.Predicate;
 
 /**
  * MC ADAPTER: which entities aren't drawn at all. Hide Players skips other players' models and everything riding
- * them, while Telos name tags are handled by {@link NametagAdapter} (the Nametags module). The hook is
+ * them, while Telos name tags are handled by {@link NametagAdapter} (the Status Title module). The hook is
  * {@link #skipRender}, called from {@code EntityRenderDispatcherMixin} ({@code shouldRender}). Only real accounts
  * (UUID v4) count as players, so NPC player entities stay visible. All of it is off away from Telos.
  */

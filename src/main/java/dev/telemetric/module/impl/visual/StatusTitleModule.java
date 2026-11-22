@@ -27,7 +27,7 @@ import java.util.function.Predicate;
  * as a new top line in their Telos name tag ("#1 <icon> Miraj - 1,234 kills"), coloured and animated by leaderboard
  * position.
  */
-public final class NametagsModule extends Module {
+public final class StatusTitleModule extends Module {
 
     private final BooleanSetting hideOwn = add(new BooleanSetting("Hide Own",
             "Hide your own name tag in third person", false));
@@ -54,8 +54,8 @@ public final class NametagsModule extends Module {
     /** Rules from other modules. Each one checks its own module's state. */
     private final List<Predicate<PlayerNametag>> hideRules = new CopyOnWriteArrayList<>();
 
-    public NametagsModule() {
-        super("Nametags", "Edits Telos player name tags (other modules like Hide Players use it too)", Category.VISUAL);
+    public StatusTitleModule() {
+        super("Status Title", "Shows HeadStatus titles in Telos name tags (Hide Players uses it too)", Category.VISUAL);
         syncOn(this::sync, hideOwn, topWave, statusTheme, statusPosition);
         sync();
         NametagAdapter.setTitleSource(this::statusLine);
@@ -81,7 +81,7 @@ public final class NametagsModule extends Module {
         HeadStatusApi.HeadStatus forced = override == null ? null : override.statusFor(ownerId, self);
         if (forced != null) return statusLine(forced);
         if (!isEnabled() || !showStatus.get()) return null;
-        return HeadStatusCache.get(ownerId).map(NametagsModule::statusLine).orElse(null);
+        return HeadStatusCache.get(ownerId).map(StatusTitleModule::statusLine).orElse(null);
     }
 
     /**

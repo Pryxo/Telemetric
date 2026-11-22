@@ -250,8 +250,16 @@ public final class ConfigManager {
     private JsonObject migrate(JsonObject json) {
         int version = json.has("version") ? json.get("version").getAsInt() : 1;
         // if (version < 2) { ...; version = 2; }
+        renameModule(json, "Nametags", "Status Title");
         json.addProperty("version", Math.max(version, FORMAT_VERSION));
         return json;
+    }
+
+    /** A module that was renamed keeps its saved entry (only if nothing is saved under the new name yet). */
+    private static void renameModule(JsonObject json, String oldName, String newName) {
+        if (!json.has("modules") || !json.get("modules").isJsonObject()) return;
+        JsonObject modules = json.getAsJsonObject("modules");
+        if (modules.has(oldName) && !modules.has(newName)) modules.add(newName, modules.remove(oldName));
     }
 
     // ================================================================== io

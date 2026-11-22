@@ -2,7 +2,6 @@ package dev.telemetric.module;
 
 import dev.telemetric.module.impl.visual.BossTrackerModule;
 import dev.telemetric.module.impl.hud.PityCounterHud;
-import dev.telemetric.module.impl.hud.ConnectionHud;
 import dev.telemetric.module.impl.hud.LifetimeStatsHud;
 import dev.telemetric.module.impl.hud.SessionStatsHud;
 import dev.telemetric.Telemetric;
@@ -42,7 +41,8 @@ import dev.telemetric.module.impl.visual.FullbrightModule;
 import dev.telemetric.module.impl.visual.HealthBarModule;
 import dev.telemetric.module.impl.visual.HideArmorModule;
 import dev.telemetric.module.impl.visual.HidePlayersModule;
-import dev.telemetric.module.impl.visual.NametagsModule;
+import dev.telemetric.module.impl.visual.PlayerCurrencyModule;
+import dev.telemetric.module.impl.visual.StatusTitleModule;
 import dev.telemetric.module.impl.visual.HitboxesModule;
 import dev.telemetric.module.impl.visual.ItemRarityModule;
 import dev.telemetric.module.impl.visual.PlayerSizeModule;
@@ -103,8 +103,9 @@ public final class ModuleManager {
         register(new HitboxesModule());
         register(new PlayerSizeModule());
         register(new HideArmorModule());
-        NametagsModule nametags = register(new NametagsModule());
+        StatusTitleModule nametags = register(new StatusTitleModule());
         register(nametags.colorsHud()); // hidden HUD element, toggled by Show Status Colors
+        register(new PlayerCurrencyModule()); // after Status Title: both add lines to name tags
         register(new HidePlayersModule());
         register(new ItemRarityModule());
         register(new TraitDetailsModule());
@@ -122,8 +123,8 @@ public final class ModuleManager {
         register(new DiscordRpcModule());
 
         // HUD (elements drawn in-game; the layout is edited through Misc â†’ HUD â†’ Edit HUD)
-        register(new WatermarkHud());
-        register(new ConnectionHud());
+        WatermarkHud watermark = register(new WatermarkHud());
+        register(watermark.connectionHud()); // hidden HUD element, toggled by Watermark → Show Connection
         PerformanceHud performance = register(new PerformanceHud());
         performance.parts().forEach(this::register);
         register(TabStatsHud.generalInfo());

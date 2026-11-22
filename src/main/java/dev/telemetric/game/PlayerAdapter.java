@@ -214,6 +214,24 @@ public final class PlayerAdapter {
         return out;
     }
 
+    /**
+     * Usernames of every real player the client has loaded around you (same filter as {@link #loadedPlayerIds}),
+     * nearest first, yourself included. Empty outside a world.
+     */
+    public static java.util.List<String> loadedPlayerNames() {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer me = mc.player;
+        if (mc.level == null || me == null) return java.util.List.of();
+        java.util.List<net.minecraft.world.entity.player.Player> players = new java.util.ArrayList<>();
+        for (net.minecraft.world.entity.player.Player pl : mc.level.players()) {
+            if (pl.getUUID().version() == 4) players.add(pl);
+        }
+        players.sort(java.util.Comparator.comparingDouble(me::distanceToSqr));
+        java.util.List<String> out = new java.util.ArrayList<>(players.size());
+        for (net.minecraft.world.entity.player.Player pl : players) out.add(pl.getScoreboardName());
+        return out;
+    }
+
     /** Eye position, or null. */
     public static Point eyes() {
         LocalPlayer p = player();

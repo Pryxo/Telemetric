@@ -97,6 +97,8 @@ public final class Telemetric implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             dev.telemetric.api.HeadStatusApi.refreshStatuses();
             dev.telemetric.api.TelemetricServer.start(); // online-with-the-mod count (Watermark)
+            // newest GitHub release (pre-releases count); shown when you join Telos, or right away if already there
+            dev.telemetric.api.UpdateChecker.check().thenAccept(r -> client.execute(this::showUpdateNotice));
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             configManager.onShutdown();
@@ -112,6 +114,7 @@ public final class Telemetric implements ClientModInitializer {
         if (onTelos && !wasOnTelos) {
             // just joined Telos: load your top-25 statuses now, so /telemetric status set has its Tab list right away
             dev.telemetric.api.HeadStatusApi.myTop25().exceptionally(e -> null);
+            showUpdateNotice();
         }
         wasOnTelos = onTelos;
         if (!onTelos) {
@@ -124,6 +127,7 @@ public final class Telemetric implements ClientModInitializer {
         if (Keybinds.consumeOpenGui() && client.screen == null) {
             client.setScreen(new ClickGuiScreen());
         }
+        dev.telemetric.game.ScreenOpener.tick(client); // /tm, /tm edithud
         moduleKeyHandler.tick();
         DungeonTracker.get().tick();
         RealmBossTracker.get().tick();
@@ -136,6 +140,19 @@ public final class Telemetric implements ClientModInitializer {
             LOGGER.error("Cooldown tracker tick failed", e);
         }
         moduleManager.tick();
+    }
+
+    private boolean updateShown;
+
+    /** Posts the update block once per start, the first time we're on Telos and a newer release is known. */
+    private void showUpdateNotice() {
+        var r = dev.telemetric.api.UpdateChecker.newerVersion();
+        if (updateShown || r == null || !ServerGate.onTelos()) return;
+        updateShown = true;
+        for (var line : dev.telemetric.chat.UpdateNotice.lines(
+                dev.telemetric.api.UpdateChecker.strip(version()), r.version(), dev.telemetric.api.UpdateChecker.MODRINTH)) {
+            ChatAdapter.post(line);
+        }
     }
 
     // ------------------------------------------------------------------ access

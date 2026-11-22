@@ -311,7 +311,7 @@ public final class Render2D {
         g.text(font, Component.literal(glyph.text()).withStyle(style(0, glyph.font())), x, y, c(tint), false);
     }
 
-    /** A Nametags status title the way it looks in a name tag (animated gradient, wave, icon), with no shadow, like a text display. */
+    /** A Status Title line the way it looks in a name tag (animated gradient, wave, icon), with no shadow, like a text display. */
     public void statusTitle(NametagAdapter.TitleLine line, int x, int y) {
         g.text(font, NametagAdapter.titleComponent(line), x, y, c(0xFFFFFFFF), false);
     }

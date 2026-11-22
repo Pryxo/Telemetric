@@ -36,7 +36,7 @@ public final class Durations {
     public static final int AMBIENT_LOOP = 1600;
     /** One pass of the shiny colour cycle (Telos' shiny tooltip: 9 frames × 4 ticks). Looping, so not capped. */
     public static final int SHINY_LOOP = 1800;
-    /** One pass of a status title gradient (Nametags → Show Status, #2–#25). Looping, so not capped. */
+    /** One pass of a status title gradient (Status Title → Show Status, #2–#25). Looping, so not capped. */
     public static final int STATUS_GRADIENT_LOOP = 2400;
     /** One up-and-down bob of the #1 status title's wave. Looping, so not capped. */
     public static final int STATUS_WAVE_LOOP = 1400;

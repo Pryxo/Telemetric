@@ -12,7 +12,7 @@ import java.util.List;
 
 /**
  * Hides every other player (the model, everything riding them, and their Telos name tag through
- * {@link NametagsModule}) except whitelisted usernames. You type names into "Add Player" and press Enter, and clicking
+ * {@link StatusTitleModule}) except whitelisted usernames. You type names into "Add Player" and press Enter, and clicking
  * a name in the Whitelist dropdown removes it. Game access goes through {@link PlayerVisibilityAdapter}.
  */
 public final class HidePlayersModule extends Module {
@@ -32,7 +32,7 @@ public final class HidePlayersModule extends Module {
 
     @Override
     public void onPostInit() {
-        Telemetric.get().modules().get(NametagsModule.class)
+        Telemetric.get().modules().get(StatusTitleModule.class)
                 .addHideRule(tag -> isEnabled() && !tag.self() && hides(tag.owner()));
     }
 
