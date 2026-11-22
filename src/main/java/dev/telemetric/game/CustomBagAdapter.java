@@ -66,7 +66,7 @@ public final class CustomBagAdapter {
      * game stopped on a world / dimension change picks up where it was.
      */
     public record Settings(float volume, boolean showBanner, float scale, float maxSoundSeconds, boolean stopOnWorldChange,
-                           Shiny shiny, float shinyStrength) {}
+                           Shiny shiny, float shinyStrength, float animSpeed) {}
 
     /** Which pictures get the animated shiny effect ({@link ShinyEffect}). */
     public enum Shiny { OFF, SHINY_BAG, ALL_BAGS }
@@ -76,6 +76,8 @@ public final class CustomBagAdapter {
     private static volatile Settings settings;
     /** Scale for the pop on screen right now (1 unless it shows a custom picture). */
     private static volatile float popScale = 1f;
+    /** Pop playback speed right now (1 unless it shows a custom picture) and the tick progress carried between ticks. */
+    private static volatile float popSpeed = 1f, popTickAcc = 0f;
 
     /** The custom sound playing right now (for resuming it after a world change), or null. */
     private record Playing(Path file, long startMs, float volume, float maxSeconds) {}
@@ -89,7 +91,7 @@ public final class CustomBagAdapter {
     private static final Set<String> DECODING = new HashSet<>();
 
     /** The pop on screen right now: GIF frames and/or the shiny effect ({@code shiny} = strength, 0 = off). */
-    private record Anim(List<ImageFrames.Frame> frames, long start, int total, float shiny) {}
+    private record Anim(List<ImageFrames.Frame> frames, long start, int total, float shiny, long durationMs) {}
 
     private static Anim anim;
     private static boolean previewing, ticking;
@@ -266,6 +268,8 @@ public final class CustomBagAdapter {
     /** {@code GameRendererMixin}: a totem pop is about to show {@code stack}. */
     public static void onDropAnimation(ItemStack stack) {
         popScale = 1f;
+        popSpeed = 1f;
+        popTickAcc = 0f;
         Settings s = settings;
         if (s == null || !ServerGate.onTelos() && !previewing) return;
         Identifier model = stack.get(DataComponents.ITEM_MODEL);
@@ -283,10 +287,11 @@ public final class CustomBagAdapter {
             stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath(Telemetric.MOD_ID,
                     s.showBanner() ? "bags/" + bag.model() : IMAGE_ONLY_MODEL));
             popScale = s.scale();
+            popSpeed = Math.clamp(s.animSpeed(), 0.05f, 1f);
             int total = 0;
             for (ImageFrames.Frame f : d.frames()) total += f.delayMs();
             anim = d.frames().size() > 1 || shiny > 0
-                    ? new Anim(d.frames(), System.currentTimeMillis(), total, shiny) : null;
+                    ? new Anim(d.frames(), System.currentTimeMillis(), total, shiny, (long) (ANIM_MS / popSpeed)) : null;
             if (anim == null) ShinyEffect.release();
         } catch (RuntimeException e) {
             Telemetric.LOGGER.warn("Custom bag picture not shown: {}", e.toString());
@@ -336,13 +341,40 @@ public final class CustomBagAdapter {
         return popScale;
     }
 
+    /**
+     * {@code ScreenEffectRendererMixin} (pop tick): true = let vanilla count this tick down. At Animation Speed below
+     * 100 % only every 1/speed-th tick counts, so the pop stays on screen longer.
+     */
+    public static boolean popTickAdvances(boolean active) {
+        if (!active) {
+            popSpeed = 1f;
+            popTickAcc = 0f;
+            return true;
+        }
+        float sp = popSpeed;
+        if (sp >= 1f) return true;
+        float acc = popTickAcc + sp;
+        if (acc < 1f) {
+            popTickAcc = acc;
+            return false;
+        }
+        popTickAcc = acc - 1f;
+        return true;
+    }
+
+    /** {@code ScreenEffectRendererMixin}: the partial tick for the pop, slowed by Animation Speed. */
+    public static float popPartialTick(float partialTick) {
+        float sp = popSpeed;
+        return sp >= 1f ? partialTick : popTickAcc + partialTick * sp;
+    }
+
     /** Swaps GIF frames while the pop shows, reopens the screen that a preview closed, resumes stopped sounds. */
     private static void tick() {
         tickWorldChange();
         Anim a = anim;
         if (a != null) {
             long elapsed = System.currentTimeMillis() - a.start();
-            if (elapsed > ANIM_MS) {
+            if (elapsed > a.durationMs()) {
                 anim = null;
                 ShinyEffect.release();
             } else {

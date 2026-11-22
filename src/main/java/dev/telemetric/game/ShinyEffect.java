@@ -9,7 +9,7 @@ import com.mojang.blaze3d.platform.NativeImage;
  * 2 ticks per frame (0.9 s loop) whose hue runs backwards round the colour wheel — pink-red → purple → blue → cyan
  * → green → yellow → orange — with a pastel outline ({@code shiny_outline}) of the same hue and white glints
  * ({@code shiny_effect}). Here that becomes: a luminance-keeping rainbow tint, a pastel outline along the picture's
- * transparent edges (or its border for photos), and a white diagonal glint that sweeps across.
+ * transparent edges (none on photos), and a white diagonal glint that sweeps across.
  * <p>
  * Runs on the render thread only. The output buffer is reused between calls; {@link #release} frees it.
  */
@@ -40,7 +40,7 @@ final class ShinyEffect {
         // pastel outline = tint mixed 60 % toward white
         int oR = (int) (255 * (tr + (1 - tr) * 0.6f)), oG = (int) (255 * (tg + (1 - tg) * 0.6f)),
                 oB = (int) (255 * (tb + (1 - tb) * 0.6f));
-        int edge = Math.max(1, Math.min(w, h) / 48);
+        int edge = Math.max(1, Math.min(w, h) / 128);
         float glintAt = (ms % (long) GLINT_MS) / GLINT_MS * 1.6f - 0.3f, glintWidth = 0.07f;
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
@@ -69,9 +69,9 @@ final class ShinyEffect {
         return buf;
     }
 
-    /** Opaque pixel next to transparency (or the image border) within {@code k} pixels. */
+    /** Opaque pixel next to transparency within {@code k} pixels. */
     private static boolean isEdge(int[] px, int w, int h, int x, int y, int k) {
-        if (x < k || y < k || x >= w - k || y >= h - k) return true;
+        if (x < k || y < k || x >= w - k || y >= h - k) return false; // no frame around photos
         return px[y * w + x - k] >>> 24 < 128 || px[y * w + x + k] >>> 24 < 128
                 || px[(y - k) * w + x] >>> 24 < 128 || px[(y + k) * w + x] >>> 24 < 128;
     }

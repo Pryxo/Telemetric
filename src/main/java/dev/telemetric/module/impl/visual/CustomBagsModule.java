@@ -28,6 +28,9 @@ public final class CustomBagsModule extends Module {
             "Show the bag's name banner above your picture", true));
     private final NumberSetting size = add(new NumberSetting("Picture Size",
             "How big the drop pop is while it shows your picture", 100, 25, 300, 5).withSuffix("%"));
+    private final NumberSetting animSpeed = add(new NumberSetting("Animation Speed",
+            "How fast the drop pop plays while it shows your picture. Lower = it stays on screen longer (the GIF itself keeps its speed)",
+            100, 5, 100, 5).withSuffix("%"));
     private final ModeSetting shiny = add(new ModeSetting("Shiny Effect",
             "Animated rainbow tint, outline and glint on your picture, like the Telos shiny pouch",
             "Shiny Bag", "Off", "Shiny Bag", "All Bags"));
@@ -52,8 +55,9 @@ public final class CustomBagsModule extends Module {
         add(new ActionSetting("Preview", "Show this bag's drop with your picture and sound", this::preview));
         syncOn(() -> CustomBagAdapter.setSettings(isEnabled()
                 ? new CustomBagAdapter.Settings(volume.getFloat() / 100f, showBanner.get(), size.getFloat() / 100f,
-                        maxLength.getFloat(), stopOnWorldChange.get(), shinyMode(), shinyStrength.getFloat() / 100f) : null),
-                volume, showBanner, size, maxLength, stopOnWorldChange, shiny, shinyStrength);
+                        maxLength.getFloat(), stopOnWorldChange.get(), shinyMode(), shinyStrength.getFloat() / 100f,
+                        animSpeed.getFloat() / 100f) : null),
+                volume, showBanner, size, animSpeed, maxLength, stopOnWorldChange, shiny, shinyStrength);
     }
 
     private CustomBagAdapter.Shiny shinyMode() {
