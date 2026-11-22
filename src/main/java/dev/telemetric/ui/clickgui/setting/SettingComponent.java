@@ -130,7 +130,7 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
     // ------------------------------------------------------------------ helpers for subclasses
 
     protected int textColor(Theme p) {
-        return ColorUtil.lerp(p.textMuted(), p.text(), 0.55 + hover.get() * 0.45);
+        return ColorUtil.lerp(p.textMuted(), p.text(), 0.4 + hover.get() * 0.6);
     }
 
     protected int labelY() {

@@ -28,6 +28,7 @@
 		"LivingEntityRendererMixin",
 		"LocalPlayerMixin",
 		"MultiPlayerGameModeMixin",
+		"PlayerTabOverlayMixin",
 		"RenderPipelinesAccessor",
 		"RenderTypeInvoker",
 		"ScreenMixin",

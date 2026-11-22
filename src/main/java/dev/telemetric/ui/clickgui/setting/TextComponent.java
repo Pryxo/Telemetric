@@ -19,7 +19,7 @@ import dev.telemetric.ui.theme.Theme;
  */
 public class TextComponent extends SettingComponent<TextSetting> {
 
-    private static final int HEIGHT = 27, BOX_H = 12;
+    private static final int HEIGHT = 30, BOX_H = 12;
     private static final int CTRL_MASK = 0x0002;
 
     private final Animation focus = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
@@ -44,9 +44,9 @@ public class TextComponent extends SettingComponent<TextSetting> {
         boolean focused = ctx.isFocused(this);
         focus.animateTo(focused ? 1 : 0);
 
-        r.text(setting.getLabel(), left(), y + 3, textColor(p));
+        r.text(setting.getLabel(), left(), y + Layout.textY(Layout.SETTING_HEIGHT), textColor(p));
 
-        int bx = left(), by = y + 13, bw = right() - left();
+        int bx = left(), by = y + 15, bw = right() - left();
         r.roundedRect(bx, by, bw, BOX_H, 2, p.control());
         int lineW = (int) Math.round(bw * focus.get());
         if (lineW > 0) r.rect(bx + (bw - lineW) / 2, by + BOX_H - 1, lineW, 1, p.accent());

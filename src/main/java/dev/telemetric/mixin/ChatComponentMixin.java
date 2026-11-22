@@ -3,6 +3,7 @@ package dev.telemetric.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import dev.telemetric.game.ChatHudAdapter;
+import dev.telemetric.game.ModUserBadgeAdapter;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
@@ -25,7 +26,7 @@ public abstract class ChatComponentMixin {
     @ModifyVariable(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private Component telemetric$decorate(Component message) {
-        return ChatHudAdapter.decorate(message);
+        return ModUserBadgeAdapter.decorateChat(ChatHudAdapter.decorate(message));
     }
 
     /** Lines from other tabs stay in the history (allMessages) but aren't shown. */

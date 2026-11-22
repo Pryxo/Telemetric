@@ -173,14 +173,15 @@ public class Panel extends UIComponent {
         // accent line under the header, which grows with the expand animation
         if (ctx.themes().headerGradient() && ex > 0.01) {
             int lineW = (int) Math.round(width * ex);
-            r.gradientH(x + (width - lineW) / 2, y + Layout.HEADER_HEIGHT - 1, lineW, 1, p.accent(), p.accentAlt());
+            r.gradientH(x + (width - lineW) / 2, y + Layout.HEADER_HEIGHT - 1, lineW, 1,
+                    ColorUtil.fade(p.accent(), 0.85), ColorUtil.fade(p.accentAlt(), 0.85));
         }
 
         // title, count and chevron
         int ty = y + Layout.textY(Layout.HEADER_HEIGHT);
-        r.text(category.getName(), x + Layout.PAD + 1, ty, p.text());
+        r.text(category.getName(), x + Layout.PAD, ty, p.text());
         String count = String.valueOf(shown.size());
-        r.textRight(count, x + width - Layout.PAD - 10, ty, p.textMuted());
+        r.textRight(count, x + width - Layout.PAD - 10, ty, p.textDisabled());
         Icons.chevron(r, x + width - Layout.PAD - 3, y + Layout.HEADER_HEIGHT / 2, ex, p.textMuted());
 
         // ---- body

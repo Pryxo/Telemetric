@@ -12,12 +12,12 @@ public final class Layout {
     /** Extra indent per level for children of a group toggle. */
     public static final int GROUP_INDENT = 6;
     /** Empty space above the first and below the last setting of an open module. */
-    public static final int SETTINGS_PAD_Y = 3;
+    public static final int SETTINGS_PAD_Y = 4;
     /** Width of the drag grip at the left edge of movable setting rows. */
     public static final int GRIP_WIDTH = 6;
     public static final int PANEL_GAP = 10;
     public static final int PANEL_MARGIN_TOP = 24;
-    public static final int PANEL_FOOTER = 3;
+    public static final int PANEL_FOOTER = 4;
     public static final int SHADOW_SIZE = 6;
     public static final int TEXT_OFFSET_Y = 3;
     public static final int SCROLL_STEP = 24;

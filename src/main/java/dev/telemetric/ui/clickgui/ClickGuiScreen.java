@@ -97,7 +97,8 @@ public class ClickGuiScreen extends Screen {
      * new value gets applied on release.
      */
     private float scale() {
-        if (heldButtons == 0 || appliedScale <= 0) appliedScale = ui().uiScale.getFloat() * fitFactor();
+        if (heldButtons == 0 || appliedScale <= 0)
+            appliedScale = Render2D.nearestPixelScale(ui().uiScale.getFloat() * fitFactor());
         return appliedScale;
     }
 

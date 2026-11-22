@@ -16,7 +16,7 @@ import java.util.List;
  *   README.txt         what lives where
  *   settings/          meta.json, layout.json, profiles/  (your module settings + GUI layout)
  *   saved/             things the mod records for you: stash.json, tracking/, dungeon-sizes.json
- *   custom/            your own files: bags/ (custom bag pictures), sounds/ (notification sounds)
+ *   custom/            your own files: bags/ (custom bag pictures)
  *   data/overrides/    hand-placed copies of shared data tables (win over everything)
  *   data/cache/        downloaded shared data tables (safe to delete)
  * </pre>
@@ -58,7 +58,6 @@ public final class ModPaths {
               dungeon-sizes.json  Learned dungeon room sizes (Wayfinder / map).
             custom/            Your own files.
               bags/            Custom bag pictures.
-              sounds/          Notification sounds.
             data/
               overrides/       Put a shared data table here to override it locally.
               cache/           Downloaded shared data tables (safe to delete).

@@ -51,7 +51,7 @@ public enum ThemePreset implements EnumSetting.Nameable {
     LAVENDER("Lavender", dark(0xFF15121C, 0xFFB794F6, 0xFFE9D5FF)),
     VAMPIRE("Vampire", dark(0xFF1C1D27, 0xFFBD93F9, 0xFFFF79C6)),
     PASTEL("Pastel", dark(0xFF1B1B29, 0xFFCBA6F7, 0xFFF5C2E7)),
-    SYNTHWAVE("Synthwave", dark(0xFF140B22, 0xFFFF2E97, 0xFF00E5FF)),
+    SYNTHWAVE("Synthwave", dark(0xFF140B22, 0xFFE64A98, 0xFF33D4E6)),
     SAKURA("Sakura", dark(0xFF170E15, 0xFFF472B6, 0xFFFBCFE8)),
     ROSE("Rose", dark(0xFF160B10, 0xFFF43F5E, 0xFFFDA4AF)),
 
@@ -112,13 +112,13 @@ public enum ThemePreset implements EnumSetting.Nameable {
     private static Theme dark(int base, int accent, int accentAlt) {
         return new Theme(
                 ColorUtil.withAlpha(ColorUtil.shade(base, -0.6), 0xA0),
-                base,
+                ColorUtil.shade(base, -0.12),
                 ColorUtil.lerp(ColorUtil.shade(base, 0.04), accent, 0.10),
                 ColorUtil.lerp(base, accent, 0.05),
                 ColorUtil.shade(base, 0.02),
                 ColorUtil.lerp(ColorUtil.shade(base, 0.06), accent, 0.06),
                 ColorUtil.lerp(base, accent, 0.15),
-                ColorUtil.shade(base, -0.3),
+                ColorUtil.shade(base, -0.4),
                 ColorUtil.lerp(ColorUtil.shade(base, 0.10), accent, 0.08),
                 ColorUtil.lerp(ColorUtil.shade(base, 0.12), accent, 0.10),
                 ColorUtil.lerp(0xFFF0F0F2, accent, 0.06),

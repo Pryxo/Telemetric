@@ -56,6 +56,7 @@ public final class Telemetric implements ClientModInitializer {
     private ConfigManager configManager;
     private ThemeManager themeManager;
     private ModuleKeyHandler moduleKeyHandler;
+    private boolean wasOnTelos;
 
     @Override
     public void onInitializeClient() {
@@ -93,17 +94,27 @@ public final class Telemetric implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
         // once the client and its session services are up, load the settable head statuses (once per start)
-        ClientLifecycleEvents.CLIENT_STARTED.register(client -> dev.telemetric.api.HeadStatusApi.refreshStatuses());
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            dev.telemetric.api.HeadStatusApi.refreshStatuses();
+            dev.telemetric.api.TelemetricServer.start(); // online-with-the-mod count (Watermark)
+        });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             configManager.onShutdown();
             TrackingStore.saveAll();
+            dev.telemetric.api.TelemetricServer.stop();
         });
 
         LOGGER.info("{} {} initialised with {} modules", NAME, version(), moduleManager.getModules().size());
     }
 
     private void onEndTick(Minecraft client) {
-        if (!ServerGate.onTelos()) {
+        boolean onTelos = ServerGate.onTelos();
+        if (onTelos && !wasOnTelos) {
+            // just joined Telos: load your top-25 statuses now, so /telemetric status set has its Tab list right away
+            dev.telemetric.api.HeadStatusApi.myTop25().exceptionally(e -> null);
+        }
+        wasOnTelos = onTelos;
+        if (!onTelos) {
             Keybinds.consumeOpenGui(); // throw away presses made off Telos
             if (client.screen instanceof ClickGuiScreen || client.screen instanceof HudEditorScreen) {
                 client.setScreen(null);

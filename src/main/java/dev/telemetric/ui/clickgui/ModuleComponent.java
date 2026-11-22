@@ -37,7 +37,7 @@ import java.util.Set;
 public class ModuleComponent extends UIComponent {
 
     /** Alpha factor for the background of the open settings area (the world shows through a little). */
-    private static final double SETTINGS_BG_OPACITY = 0.72;
+    private static final double SETTINGS_BG_OPACITY = 0.9;
     /** Hue step (0..1) between the lines of nested group-toggle levels. */
     private static final float GROUP_HUE_STEP = 0.12f;
 
@@ -199,7 +199,7 @@ public class ModuleComponent extends UIComponent {
         // name (slides right a touch on hover)
         double emphasis = module.isToggleable() ? h : Math.max(h, 0.75);
         int nameColor = ColorUtil.lerp(p.textMuted(), p.text(), emphasis);
-        if (e > 0) nameColor = ColorUtil.lerp(nameColor, 0xFFFFFFFF, e * 0.6);
+        if (e > 0) nameColor = ColorUtil.lerp(nameColor, p.text(), e);
         int nx = x + Layout.PAD + (int) Math.round(h * 2);
         r.text(r.trim(module.getName(), width - Layout.PAD * 2 - 12), nx, y + Layout.textY(Layout.MODULE_HEIGHT), nameColor);
 
@@ -309,7 +309,7 @@ public class ModuleComponent extends UIComponent {
     /** A vertical neon line: a clean bright core (tinted towards white), no halo. */
     private static void neonLine(Render2D r, int lx, int ly, int w, int h, int color, double strength) {
         if (h <= 0 || strength <= 0.001) return;
-        r.rect(lx, ly, w, h, ColorUtil.fade(ColorUtil.lerp(color, 0xFFFFFFFF, 0.25), strength));
+        r.rect(lx, ly, w, h, ColorUtil.fade(ColorUtil.lerp(color, 0xFFFFFFFF, 0.1), strength));
     }
 
     /** A light pulse that travels down a line from top to bottom, then starts again at the top ({@link Durations#AMBIENT_LOOP}). */
@@ -319,7 +319,7 @@ public class ModuleComponent extends UIComponent {
         double t = (System.currentTimeMillis() % period) / (double) period;
         int len = Math.max(3, h / 2);
         int center = ly - len + (int) Math.round(t * (h + len * 2));
-        int bright = ColorUtil.fade(ColorUtil.lerp(color, 0xFFFFFFFF, 0.7), strength);
+        int bright = ColorUtil.fade(ColorUtil.lerp(color, 0xFFFFFFFF, 0.45), strength * 0.8);
         int clear = ColorUtil.withAlpha(bright, 0);
         r.pushClip(lx, ly, w, h);
         r.gradientV(lx, center - len, w, len, clear, bright);

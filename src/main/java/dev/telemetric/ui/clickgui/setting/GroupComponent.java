@@ -31,8 +31,8 @@ public class GroupComponent extends SettingComponent<GroupSetting> {
     protected void renderContent(Render2D r, int mouseX, int mouseY, float delta, Theme p) {
         open.animateTo(setting.isOpen() ? 1 : 0);
         double t = open.get();
-        r.text(r.trim(setting.getLabel(), width - Layout.PAD * 3 - 10), left(), labelY(), textColor(p));
-        Icons.chevron(r, right() - 4, y + Layout.SETTING_HEIGHT / 2, t,
+        r.text(r.trim(setting.getLabel(), width - Layout.PAD * 3 - 10), left(), labelY(), p.text());
+        Icons.chevron(r, right() - 3, y + Layout.SETTING_HEIGHT / 2, t,
                 ColorUtil.lerp(p.textDisabled(), p.textMuted(), Math.max(hover.get(), t)));
     }
 

@@ -108,6 +108,16 @@ public final class Render2D {
         return px >= 1 ? (float) px / gs : fit;
     }
 
+    /**
+     * {@code scale} rounded to the nearest scale at which one GUI unit is a whole number of window pixels (at least one),
+     * so the pixel font, 1 px lines and the layout grid land exactly on screen pixels instead of being resampled.
+     */
+    public static float nearestPixelScale(float scale) {
+        int gs = guiScale();
+        int px = Math.max(1, Math.round(scale * gs));
+        return (float) px / gs;
+    }
+
     /** {@code v} (GUI units) rounded down to a whole window pixel. */
     public static float snapToPixel(float v) {
         int gs = guiScale();

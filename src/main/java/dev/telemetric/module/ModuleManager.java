@@ -2,6 +2,7 @@ package dev.telemetric.module;
 
 import dev.telemetric.module.impl.visual.BossTrackerModule;
 import dev.telemetric.module.impl.hud.PityCounterHud;
+import dev.telemetric.module.impl.hud.ConnectionHud;
 import dev.telemetric.module.impl.hud.LifetimeStatsHud;
 import dev.telemetric.module.impl.hud.SessionStatsHud;
 import dev.telemetric.Telemetric;
@@ -120,8 +121,9 @@ public final class ModuleManager {
         register(new ServerMessagesModule());
         register(new DiscordRpcModule());
 
-        // HUD (elements drawn in-game; the layout is edited through Misc → HUD → Edit HUD)
+        // HUD (elements drawn in-game; the layout is edited through Misc â†’ HUD â†’ Edit HUD)
         register(new WatermarkHud());
+        register(new ConnectionHud());
         PerformanceHud performance = register(new PerformanceHud());
         performance.parts().forEach(this::register);
         register(TabStatsHud.generalInfo());

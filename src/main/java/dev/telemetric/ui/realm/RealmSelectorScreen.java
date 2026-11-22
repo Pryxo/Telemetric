@@ -61,9 +61,17 @@ public class RealmSelectorScreen extends Screen {
 
     /** Always offered in every region, even when the API doesn't list it. */
     private static final String MISSIONS = "Missions";
+    private static final String TUTORIAL = "Tutorial";
 
-    /** @param name realm / hub name for {@code /joinq}; @param players online players, -1 if not in the API list */
-    private record Entry(String name, int players) {
+    /**
+     * @param name button name; @param players online players, -1 if not in the API list;
+     * @param join server for {@code /joinq} (the name, or the real {@code tutorial-N} behind the Tutorial button)
+     */
+    private record Entry(String name, int players, String join) {
+        Entry(String name, int players) {
+            this(name, players, name);
+        }
+
         String label() {
             return players < 0 ? name : name + " (" + players + ")";
         }
@@ -104,14 +112,20 @@ public class RealmSelectorScreen extends Screen {
             byName.put(k.name().toUpperCase(Locale.ROOT), new LiveRegion(k.name(), new ArrayList<>(), new ArrayList<>()));
         }
         for (HeadStatusApi.LiveRealm lr : HeadStatusApi.realms()) {
-            if (lr.name().startsWith("tutorial")) continue; // tutorial servers are never offered
             String rn = REGION_NAMES.getOrDefault(lr.region(), lr.region().toUpperCase(Locale.ROOT));
             LiveRegion reg = byName.computeIfAbsent(rn.toUpperCase(Locale.ROOT),
                     n -> new LiveRegion(rn, new ArrayList<>(), new ArrayList<>()));
             Realms.Region k = known.stream().filter(x -> x.name().equalsIgnoreCase(reg.name())).findFirst().orElse(null);
             String hubName = k == null ? null : match(k.hubs(), lr.name());
             String realmName = k == null ? null : match(k.realms(), lr.name());
-            if (hubName != null) reg.hubs().add(new Entry(hubName, lr.players()));
+            // mission-N / tutorial-N → one Missions / Tutorial button (summed players); Tutorial only while one exists
+            String group = lr.name().startsWith("mission") ? MISSIONS : lr.name().startsWith("tutorial") ? TUTORIAL : null;
+            if (group != null) {
+                Entry old = reg.hubs().stream().filter(e -> e.name().equals(group)).findFirst().orElse(null);
+                if (old != null) reg.hubs().remove(old);
+                String join = group.equals(TUTORIAL) ? (old == null ? lr.name() : old.join()) : group;
+                reg.hubs().add(new Entry(group, (old == null ? 0 : old.players()) + Math.max(0, lr.players()), join));
+            } else if (hubName != null) reg.hubs().add(new Entry(hubName, lr.players()));
             else if (realmName != null) reg.realms().add(new Entry(realmName, lr.players()));
             else if (lr.name().startsWith("hub") || lr.name().startsWith("missions")) {
                 reg.hubs().add(new Entry(capitalise(lr.name()), lr.players()));
@@ -217,7 +231,7 @@ public class RealmSelectorScreen extends Screen {
 
         for (int i = 0; i < g.realms().size(); i++) {
             Entry e = g.realms().get(i);
-            buttons.add(new Button(e.label(), e.name(), left + (i % cols) * (bw + GAP), y + (i / cols) * (BTN_H + GAP), bw,
+            buttons.add(new Button(e.label(), e.join(), left + (i % cols) * (bw + GAP), y + (i / cols) * (BTN_H + GAP), bw,
                     BTN_H, isHere(e.name())));
         }
         y += rows * (BTN_H + GAP) + GAP;
@@ -226,7 +240,7 @@ public class RealmSelectorScreen extends Screen {
         int hx = (width - (rowN * bw + Math.max(0, rowN - 1) * GAP)) / 2;
         for (List<Entry> list : List.of(g.hubs())) {
             for (Entry e : list) {
-                buttons.add(new Button(e.label(), e.name(), hx, y, bw, BTN_H, isHere(e.name())));
+                buttons.add(new Button(e.label(), e.join(), hx, y, bw, BTN_H, isHere(e.name())));
                 hx += bw + GAP;
             }
         }

@@ -6,18 +6,13 @@ import dev.telemetric.chat.ChatChannels;
 import dev.telemetric.chat.ChatPattern;
 import dev.telemetric.chat.ChatTabs;
 import dev.telemetric.chat.ChatView;
-import dev.telemetric.data.BossTable;
-import dev.telemetric.data.Names;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.game.ChatHudAdapter;
 import dev.telemetric.game.ClientCommandAdapter;
-import dev.telemetric.game.NotificationSoundAdapter;
 import dev.telemetric.game.PlayerAdapter;
-import dev.telemetric.game.TelosLocations;
 import dev.telemetric.input.InputUtil;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
-import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
@@ -26,11 +21,6 @@ import dev.telemetric.setting.impl.MultiChoiceSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.notification.Toasts;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 
@@ -74,29 +64,6 @@ public class ChatModule extends Module implements ChatView {
             "Guild chat on / back to default", KeybindSetting.NONE).onPress(() -> toggleMode("guild"))));
     private final KeybindSetting groupKey = add(modeKeys.child(new KeybindSetting("Toggle Group Chat",
             "Group chat on / back to default", KeybindSetting.NONE).onPress(() -> toggleMode("group"))));
-
-    private final GroupToggleSetting notifyGroup = add(new GroupToggleSetting("Notifications",
-            "Plays your sound when someone calls out a boss or portal you picked", false));
-    private final MultiChoiceSetting notifyTargets = add(notifyGroup.child(new MultiChoiceSetting("Bosses & Portals",
-            "Call-outs ('Teleport for …') that play the sound", ChatModule::notifyOptions)));
-    private final ActionSetting uploadSound = add(notifyGroup.child(new ActionSetting("Upload Sound",
-            "Pick an OGG or WAV file (max 10 s played)", () -> NotificationSoundAdapter.pick(err -> {
-                if (err != null) Toasts.error(err);
-                else {
-                    Toasts.success("Notification sound set");
-                    playNotification();
-                }
-            }))));
-    private final ActionSetting testSound = add(notifyGroup.child(new ActionSetting("Test Sound",
-            "Plays the uploaded sound", () -> {
-                if (!playNotification()) Toasts.error("No sound uploaded yet");
-            })));
-    private final NumberSetting notifyVolume = add(notifyGroup.child(new NumberSetting("Volume",
-            "Notification sound volume (%)", 100, 0, 100, 5)));
-
-    /** If the same target is called again within this time, no second sound plays. */
-    private static final long NOTIFY_COOLDOWN_MS = 10_000L;
-    private final Map<String, Long> lastNotified = new HashMap<>();
 
     private final ChatTabs tabs = new ChatTabs(Callouts::isCallout);
     private final ChatChannels channels = new ChatChannels(new ChatChannels.Server() {
@@ -226,48 +193,6 @@ public class ChatModule extends Module implements ChatView {
     @Override
     public void onNewLine(String plain, String category, boolean hidden) {
         if (showsTabBar() && plain.codePoints().anyMatch(Character::isLetterOrDigit)) tabs.countNew(category, hidden); // spacer lines don't count
-        if (!hidden && notifyGroup.get()) notify(plain);
-    }
-
-    // ------------------------------------------------------------------ notifications
-
-    /** Realm bosses, then dungeon portals (Telos tables). */
-    private static List<String> notifyOptions() {
-        Set<String> out = new LinkedHashSet<>();
-        List<String> bosses = new ArrayList<>();
-        for (BossTable.Boss b : TelosData.BOSSES.get().all()) if (!b.isDungeonBoss() && !b.name().isBlank()) bosses.add(b.name());
-        bosses.sort(String.CASE_INSENSITIVE_ORDER);
-        out.addAll(bosses);
-        List<String> portals = new ArrayList<>(TelosLocations.dungeons());
-        portals.sort(String.CASE_INSENSITIVE_ORDER);
-        out.addAll(portals);
-        return List.copyOf(out);
-    }
-
-    /**
-     * A {@code Teleport for <boss | portal>} call-out for a picked target plays the sound (display only, nothing is
-     * sent). Your own call-outs and repeats within 10 s are skipped.
-     */
-    private void notify(String plain) {
-        if (notifyTargets.get().isEmpty()) return;
-        Callouts.Call call = Callouts.parseTeleport(plain);
-        if (call == null || call.line().player().equalsIgnoreCase(String.valueOf(PlayerAdapter.name()))) return;
-        for (String part : call.target().split(" & ")) {
-            String key = Names.placeKey(part);
-            for (String picked : notifyTargets.get()) {
-                if (key.isEmpty() || !key.equals(Names.placeKey(picked))) continue;
-                long now = now();
-                Long last = lastNotified.get(key);
-                if (last != null && now - last < NOTIFY_COOLDOWN_MS) return;
-                lastNotified.put(key, now);
-                playNotification();
-                return;
-            }
-        }
-    }
-
-    private boolean playNotification() {
-        return NotificationSoundAdapter.play(notifyVolume.getFloat() / 100f);
     }
 
     // ------------------------------------------------------------------ copy

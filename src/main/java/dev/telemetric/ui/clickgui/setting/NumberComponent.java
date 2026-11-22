@@ -20,7 +20,7 @@ import dev.telemetric.ui.theme.Theme;
  */
 public class NumberComponent extends SettingComponent<NumberSetting> {
 
-    private static final int HEIGHT = 22, TRACK_H = 3, CTRL_MASK = 0x0002;
+    private static final int HEIGHT = 24, TRACK_H = 2, CTRL_MASK = 0x0002;
 
     private final Animation fill;
     private final Animation knob = new Animation(Durations.MICRO, Easing.OUT_CUBIC);
@@ -56,35 +56,37 @@ public class NumberComponent extends SettingComponent<NumberSetting> {
         boolean editing = ctx.isFocused(this);
         String value = editing ? buffer : setting.format();
         valueW = Math.max(r.textWidth(value), 12);
-        r.text(r.trim(setting.getLabel(), trackW - valueW - 6), left(), y + 3, textColor(p));
+        // the label line sits on the same baseline as every other setting row
+        int ty = y + Layout.textY(Layout.SETTING_HEIGHT);
+        r.text(r.trim(setting.getLabel(), trackW - valueW - 6), left(), ty, textColor(p));
         if (editing) {
             int vx = right() - valueW;
-            r.rect(vx - 2, y + 11, valueW + 2, 1, p.accent());
+            r.rect(vx - 2, ty + 9, valueW + 2, 1, p.accent());
             if (selectAll && !buffer.isEmpty())
-                r.rect(right() - r.textWidth(buffer) - 1, y + 2, r.textWidth(buffer) + 2, 10, ColorUtil.fade(p.accent(), 0.45));
-            r.textRight(buffer, right(), y + 3, p.text());
+                r.rect(right() - r.textWidth(buffer) - 1, ty - 1, r.textWidth(buffer) + 2, 10, ColorUtil.fade(p.accent(), 0.45));
+            r.textRight(buffer, right(), ty, p.text());
             boolean caretOn = !selectAll && ((System.currentTimeMillis() - focusTime) / 530) % 2 == 0;
-            if (caretOn) r.rect(right() + 1, y + 2, 1, 9, p.text());
+            if (caretOn) r.rect(right() + 1, ty - 1, 1, 9, p.text());
         } else {
-            r.textRight(value, right(), y + 3, dragging ? p.accent() : p.textMuted());
+            r.textRight(value, right(), ty, dragging ? p.accent() : p.textMuted());
         }
 
-        int trackY = y + HEIGHT - 6;
+        // 2 px track centred 3 px above the row's bottom, knob centred on whole pixels
+        int trackY = y + HEIGHT - 7;
         r.pill(trackX, trackY, trackW, TRACK_H, p.control());
         int filled = (int) Math.round(trackW * fill.get());
-        if (filled > 0) r.roundedRect(trackX, trackY, filled, TRACK_H, 1, p.accent());
+        if (filled > 0) r.pill(trackX, trackY, filled, TRACK_H, p.accent());
 
         boolean hot = dragging || (isActive() && isHovered(mouseX, mouseY));
         knob.animateTo(hot ? 1 : 0);
-        double radius = 2.5 + knob.get() * 1.0;
-        r.circle(trackX + trackW * fill.get(), trackY + TRACK_H / 2.0, radius,
-                ColorUtil.lerp(p.text(), 0xFFFFFFFF, knob.get()));
+        double radius = 3 + knob.get();
+        r.circle(trackX + filled, trackY + TRACK_H / 2.0, radius, ColorUtil.lerp(p.text(), 0xFFFFFFFF, knob.get() * 0.5));
     }
 
     @Override
     protected boolean onClick(double mouseX, double mouseY, int button) {
         if (button == MouseButton.LEFT) {
-            if (mouseY < y + 13 && mouseX >= right() - valueW - 4) {
+            if (mouseY < y + Layout.SETTING_HEIGHT - 2 && mouseX >= right() - valueW - 4) {
                 startEdit();
                 return true;
             }
