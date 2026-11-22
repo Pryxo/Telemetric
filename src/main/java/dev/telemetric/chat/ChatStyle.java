@@ -60,7 +60,7 @@ public final class ChatStyle {
     }
 
     /** Colour at {@code t} (0..1) along the stops. */
-    static int colorAt(int[] stops, double t) {
+    public static int colorAt(int[] stops, double t) {
         if (stops.length == 1) return stops[0];
         double p = Math.max(0, Math.min(1, t)) * (stops.length - 1);
         int a = Math.min((int) p, stops.length - 2);

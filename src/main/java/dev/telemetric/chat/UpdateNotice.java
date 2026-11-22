@@ -34,8 +34,12 @@ public final class UpdateNotice {
         if (DISCORD != null) download.hover(ChatText.of().add(DISCORD, t)).url(DISCORD);
         download.add("!", t);
 
-        List<ChatText> out = List.of(title, wheel, versions, adapt, download);
-        for (ChatText line : out) line.center().tag(ChatStyle.TAG);
+        List<ChatText> body = List.of(title, wheel, versions, adapt, download);
+        for (ChatText line : body) line.center().tag(ChatStyle.TAG);
+        List<ChatText> out = new java.util.ArrayList<>();
+        out.add(ChatText.divider(g).tag(ChatStyle.TAG)); // fills the chat width when posted
+        out.addAll(body);
+        out.add(ChatText.divider(g).tag(ChatStyle.TAG));
         return out;
     }
 }

@@ -20,8 +20,7 @@ import java.util.function.Consumer;
 
 /**
  * {@code /telemetric} (alias {@code /tm}), the mod's own client command. It works on every server. Every reply is one
- * chat message with the {@code Telemetric ›} prefix only once (see {@code ClientCommandAdapter#runOwn}); the help list
- * follows Melinoe's layout ({@code > /tm ping - Shows your ping}).
+ * chat message with the {@code Telemetric ›} prefix only once (see {@code ClientCommandAdapter#runOwn});
  * <ul>
  *   <li>{@code /telemetric} opens the ClickGUI on Telos (elsewhere it prints the help).</li>
  *   <li>{@code /telemetric help} lists the sub-commands.</li>
@@ -68,7 +67,6 @@ public final class TelemetricCommand {
 
     // ---------------------------------------------------------------- help / utility
 
-    /** One help line in Melinoe's layout: grey bold {@code >}, gold command, grey {@code -}, grey description. */
     private static String line(String command, String description) {
         return "§8§l> §r§6" + command + " §8- §7" + description;
     }

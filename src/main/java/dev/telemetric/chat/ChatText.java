@@ -87,6 +87,24 @@ public final class ChatText {
     }
 
     private boolean centered;
+    private int[] divider;
+
+    /**
+     * A divider line: a strikethrough line across the whole chat box with a {@code ✦} in the middle, coloured along
+     * {@code stops} from the ends (last stop) to the middle (first stop). Its length is worked out when it's posted, for
+     * the chat width at that moment, so it never wraps and never looks too short.
+     */
+    public static ChatText divider(int[] stops) {
+        ChatText t = new ChatText();
+        t.divider = stops.clone();
+        t.add("✦", stops[0]); // copy text / not empty
+        return t;
+    }
+
+    /** The divider's colour stops, or null for a normal line. */
+    public int[] dividerStops() {
+        return divider;
+    }
 
     /** Centres the line in the chat box (padded with spaces when it's posted, for the chat width at that moment). */
     public ChatText center() {

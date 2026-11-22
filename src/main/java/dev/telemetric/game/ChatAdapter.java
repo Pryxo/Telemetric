@@ -88,20 +88,46 @@ public final class ChatAdapter {
         mc.execute(() -> {
             if (mc.gui == null) return;
             ChatText.Tag tag = text.tag();
-            Component line = toComponent(text);
-            if (text.centered()) line = centered(mc, line);
+            Component line = text.dividerStops() != null ? divider(mc, text.dividerStops()) : toComponent(text);
+            if (text.centered() && text.dividerStops() == null) line = centered(mc, line);
             if (tag == null) mc.gui.getChat().addClientSystemMessage(line);
             else mc.gui.getChat().addPlayerMessage(line, null,
                     new GuiMessageTag(tag.rgb(), null, tag.text() == null ? null : toComponent(tag.text()), tag.logTag()));
         });
     }
 
+    /** Width (in unscaled chat pixels) that chat lines wrap at right now. */
+    private static int chatWidth(Minecraft mc) {
+        double scale = Math.max(0.01, mc.options.chatScale().get());
+        return (int) Math.floor(net.minecraft.client.gui.components.ChatComponent.getWidth(
+                mc.options.chatWidth().get()) / scale);
+    }
+
+    /** {@code ━━━ ✦ ━━━} as strikethrough spaces filling the chat width, dark at the ends and bright in the middle. */
+    private static Component divider(Minecraft mc, int[] stops) {
+        Style strike = Style.EMPTY.withStrikethrough(true);
+        int space = Math.max(1, mc.font.width(Component.literal(" ").withStyle(strike)));
+        Component mid = Component.literal(" ✦ ").withStyle(Style.EMPTY.withBold(true).withColor(TextColor.fromRgb(stops[0])));
+        int free = chatWidth(mc) - mc.font.width(mid) - space; // one space of slack so it never wraps
+        int side = Math.max(3, free / 2 / space);
+        MutableComponent out = Component.empty();
+        for (int i = 0; i < side; i++) { // left: ends → middle
+            double t = side <= 1 ? 1 : (double) i / (side - 1);
+            out.append(Component.literal(" ").withStyle(strike.withColor(TextColor.fromRgb(
+                    dev.telemetric.chat.ChatStyle.colorAt(stops, 1 - t)))));
+        }
+        out.append(mid);
+        for (int i = 0; i < side; i++) { // right: middle → ends
+            double t = side <= 1 ? 1 : (double) i / (side - 1);
+            out.append(Component.literal(" ").withStyle(strike.withColor(TextColor.fromRgb(
+                    dev.telemetric.chat.ChatStyle.colorAt(stops, t)))));
+        }
+        return out;
+    }
+
     /** {@code line} with leading spaces so it sits in the middle of the chat box (same width and scale chat wraps at). */
     private static Component centered(Minecraft mc, Component line) {
-        double scale = Math.max(0.01, mc.options.chatScale().get());
-        int chatWidth = (int) Math.floor(net.minecraft.client.gui.components.ChatComponent.getWidth(
-                mc.options.chatWidth().get()) / scale);
-        int free = chatWidth - mc.font.width(line);
+        int free = chatWidth(mc) - mc.font.width(line);
         int space = Math.max(1, mc.font.width(" "));
         if (free <= space * 2) return line;
         return Component.empty().append(Component.literal(" ".repeat(free / 2 / space))).append(line);
