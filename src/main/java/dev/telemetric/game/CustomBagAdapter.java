@@ -43,7 +43,8 @@ import java.util.function.Consumer;
  *   <li><b>Picture</b>: Telos shows a drop as a totem pop of {@code telos:<totem>}. {@code GameRendererMixin} hands the
  *       floating stack to {@link #onDropAnimation}, which switches it to {@code telemetric:bags/<model>} (the bag's
  *       banner plus a flat screen) and writes the picture into the screen's sprite ({@code telemetric:mob/bags/image})
- *       in every atlas that holds it. GIF frames get swapped each tick while the pop lasts.</li>
+ *       in every atlas that holds it. GIF frames get swapped each tick while the pop lasts. With Shiny Effect the
+ *       picture gets the Telos shiny pouch look each tick ({@link ShinyEffect}).</li>
  *   <li><b>Sound</b>: {@code SoundEngineMixin} asks {@link #replaceDropSound} about each
  *       {@code noise:player.bags.create_<sound>}, and a custom file plays instead if there is one (via
  *       {@link SoundFiles}).</li>
@@ -57,19 +58,38 @@ public final class CustomBagAdapter {
     private static final String DROP_SOUND = "noise:player.bags.create_";
     private static final String[] IMAGE_EXT = {"gif", "png", "jpg", "jpeg"}, SOUND_EXT = {"ogg", "wav"};
     private static final long MAX_FILE_BYTES = 15L << 20, ANIM_MS = 4000, PREVIEW_REOPEN_TICKS = 40;
-    private static final float MAX_SOUND_SECONDS = 6f;
+    private static final String IMAGE_ONLY_MODEL = "bags/image_only";
 
-    /** Module settings. Null means off. */
-    public record Settings(float volume) {}
+    /**
+     * Module settings. Null means off. {@code scale} = size of the drop pop while it shows a custom picture (1 = normal),
+     * {@code maxSoundSeconds} = where a custom sound gets cut off, {@code stopOnWorldChange} false = a custom sound the
+     * game stopped on a world / dimension change picks up where it was.
+     */
+    public record Settings(float volume, boolean showBanner, float scale, float maxSoundSeconds, boolean stopOnWorldChange,
+                           Shiny shiny, float shinyStrength) {}
+
+    /** Which pictures get the animated shiny effect ({@link ShinyEffect}). */
+    public enum Shiny { OFF, SHINY_BAG, ALL_BAGS }
+
+    private static final String SHINY_KEY = "shiny";
 
     private static volatile Settings settings;
+    /** Scale for the pop on screen right now (1 unless it shows a custom picture). */
+    private static volatile float popScale = 1f;
+
+    /** The custom sound playing right now (for resuming it after a world change), or null. */
+    private record Playing(Path file, long startMs, float volume, float maxSeconds) {}
+
+    private static Playing playing;
+    private static Object lastLevel;
 
     private record Decoded(FileTime mtime, List<ImageFrames.Frame> frames) {}
 
     private static final Map<String, Decoded> CACHE = new HashMap<>();
     private static final Set<String> DECODING = new HashSet<>();
 
-    private record Anim(List<ImageFrames.Frame> frames, long start, int total) {}
+    /** The pop on screen right now: GIF frames and/or the shiny effect ({@code shiny} = strength, 0 = off). */
+    private record Anim(List<ImageFrames.Frame> frames, long start, int total, float shiny) {}
 
     private static Anim anim;
     private static boolean previewing, ticking;
@@ -189,7 +209,10 @@ public final class CustomBagAdapter {
     }
 
     private static void close(Decoded d) {
-        if (anim != null && anim.frames() == d.frames()) anim = null;
+        if (anim != null && anim.frames() == d.frames()) {
+            anim = null;
+            ShinyEffect.release();
+        }
         for (ImageFrames.Frame f : d.frames()) f.image().close();
     }
 
@@ -242,7 +265,9 @@ public final class CustomBagAdapter {
 
     /** {@code GameRendererMixin}: a totem pop is about to show {@code stack}. */
     public static void onDropAnimation(ItemStack stack) {
-        if (settings == null || !ServerGate.onTelos() && !previewing) return;
+        popScale = 1f;
+        Settings s = settings;
+        if (s == null || !ServerGate.onTelos() && !previewing) return;
         Identifier model = stack.get(DataComponents.ITEM_MODEL);
         Bag bag = model == null ? null : TelosData.BAGS.get().byTotem().get(model.getPath());
         Path file = bag == null ? null : file(bag.key(), IMAGE_EXT);
@@ -250,11 +275,19 @@ public final class CustomBagAdapter {
         Decoded d = frames(bag.key(), file);
         if (d == null) return; // still decoding, so the default totem shows this time
         try {
-            if (!upload(d.frames().getFirst().image())) return;
-            stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath(Telemetric.MOD_ID, "bags/" + bag.model()));
+            Shiny mode = s.shiny();
+            float shiny = mode == Shiny.ALL_BAGS || mode == Shiny.SHINY_BAG && bag.key().equals(SHINY_KEY)
+                    ? s.shinyStrength() : 0f;
+            NativeImage first = d.frames().getFirst().image();
+            if (!upload(shiny > 0 ? ShinyEffect.apply(first, 0, shiny) : first)) return;
+            stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath(Telemetric.MOD_ID,
+                    s.showBanner() ? "bags/" + bag.model() : IMAGE_ONLY_MODEL));
+            popScale = s.scale();
             int total = 0;
             for (ImageFrames.Frame f : d.frames()) total += f.delayMs();
-            anim = d.frames().size() > 1 ? new Anim(d.frames(), System.currentTimeMillis(), total) : null;
+            anim = d.frames().size() > 1 || shiny > 0
+                    ? new Anim(d.frames(), System.currentTimeMillis(), total, shiny) : null;
+            if (anim == null) ShinyEffect.release();
         } catch (RuntimeException e) {
             Telemetric.LOGGER.warn("Custom bag picture not shown: {}", e.toString());
         }
@@ -298,26 +331,38 @@ public final class CustomBagAdapter {
         ClientTickEvents.END_CLIENT_TICK.register(mc -> tick());
     }
 
-    /** Swaps GIF frames while the pop shows, and reopens the screen that a preview closed. */
+    /** {@code ScreenEffectRendererMixin}: how much to scale the totem pop on screen. */
+    public static float popScale() {
+        return popScale;
+    }
+
+    /** Swaps GIF frames while the pop shows, reopens the screen that a preview closed, resumes stopped sounds. */
     private static void tick() {
+        tickWorldChange();
         Anim a = anim;
         if (a != null) {
             long elapsed = System.currentTimeMillis() - a.start();
-            if (elapsed > ANIM_MS || a.total() <= 0) anim = null;
-            else {
-                long t = elapsed % a.total(), acc = 0;
-                NativeImage frame = a.frames().getLast().image();
-                for (ImageFrames.Frame f : a.frames()) {
-                    acc += f.delayMs();
-                    if (t < acc) {
-                        frame = f.image();
-                        break;
+            if (elapsed > ANIM_MS) {
+                anim = null;
+                ShinyEffect.release();
+            } else {
+                NativeImage frame = a.frames().getFirst().image();
+                if (a.frames().size() > 1 && a.total() > 0) {
+                    long t = elapsed % a.total(), acc = 0;
+                    frame = a.frames().getLast().image();
+                    for (ImageFrames.Frame f : a.frames()) {
+                        acc += f.delayMs();
+                        if (t < acc) {
+                            frame = f.image();
+                            break;
+                        }
                     }
                 }
                 try {
-                    upload(frame);
+                    upload(a.shiny() > 0 ? ShinyEffect.apply(frame, elapsed, a.shiny()) : frame);
                 } catch (RuntimeException e) {
                     anim = null;
+                    ShinyEffect.release();
                 }
             }
         }
@@ -338,8 +383,30 @@ public final class CustomBagAdapter {
         Bag bag = TelosData.BAGS.get().bySound().get(soundId.toString().substring(DROP_SOUND.length()));
         Path file = bag == null ? null : file(bag.key(), SOUND_EXT);
         if (file == null) return false;
-        SoundFiles.play(file, s.volume(), MAX_SOUND_SECONDS);
+        SoundFiles.play(file, s.volume(), s.maxSoundSeconds());
+        playing = new Playing(file, System.currentTimeMillis(), s.volume(), s.maxSoundSeconds());
         return true;
+    }
+
+    /**
+     * The game stops every sound when the world / dimension changes. With Stop On World Change off, a custom sound
+     * that was still inside its length cap starts again where it was.
+     */
+    private static void tickWorldChange() {
+        Object level = Minecraft.getInstance().level;
+        if (level == lastLevel) return;
+        boolean switched = lastLevel != null && level != null;
+        lastLevel = level;
+        Playing p = playing;
+        if (p == null) return;
+        float elapsed = (System.currentTimeMillis() - p.startMs()) / 1000f;
+        Settings s = settings;
+        if (!switched || s == null || s.stopOnWorldChange() || elapsed >= p.maxSeconds()) {
+            playing = null;
+            SoundFiles.stop();
+            return;
+        }
+        SoundFiles.play(p.file(), p.volume(), p.maxSeconds(), elapsed);
     }
 
     // ================================================================== preview

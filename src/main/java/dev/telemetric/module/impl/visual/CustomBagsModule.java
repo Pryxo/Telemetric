@@ -6,6 +6,7 @@ import dev.telemetric.game.CustomBagAdapter;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.ActionSetting;
+import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.ModeSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.notification.Toasts;
@@ -23,6 +24,20 @@ public final class CustomBagsModule extends Module {
             () -> TelosData.BAGS.get().labels()));
     private final NumberSetting volume = add(new NumberSetting("Sound Volume", "Loudness of custom drop sounds",
             100, 5, 100, 5).withSuffix("%"));
+    private final BooleanSetting showBanner = add(new BooleanSetting("Show Banner",
+            "Show the bag's name banner above your picture", true));
+    private final NumberSetting size = add(new NumberSetting("Picture Size",
+            "How big the drop pop is while it shows your picture", 100, 25, 300, 5).withSuffix("%"));
+    private final ModeSetting shiny = add(new ModeSetting("Shiny Effect",
+            "Animated rainbow tint, outline and glint on your picture, like the Telos shiny pouch",
+            "Shiny Bag", "Off", "Shiny Bag", "All Bags"));
+    private final NumberSetting shinyStrength = add(new NumberSetting("Shiny Strength",
+            "How strongly the shiny effect colours your picture", 60, 10, 100, 5).withSuffix("%")
+            .visibleWhen(() -> !shiny.get().equals("Off")));
+    private final NumberSetting maxLength = add(new NumberSetting("Max Sound Length",
+            "Custom sounds are cut off (with a short fade) after this long", 6, 1, 30, 1).withSuffix(" s"));
+    private final BooleanSetting stopOnWorldChange = add(new BooleanSetting("Stop On World Change",
+            "Stop the custom sound when you change world or dimension. Off = it keeps playing", true));
 
     public CustomBagsModule() {
         super("Custom Bags", "Your own picture and drop sound for loot bags", Category.TEXTURE_PACK);
@@ -30,13 +45,23 @@ public final class CustomBagsModule extends Module {
                 () -> withBag(b -> CustomBagAdapter.pickImage(b, err -> report(err, "Picture set for " + b.label())))));
         add(new ActionSetting("Clear Picture", "Back to the normal bag picture",
                 () -> withBag(b -> Toasts.info(CustomBagAdapter.clear(b, true) ? "Picture removed" : "No custom picture"))));
-        add(new ActionSetting("Set Sound", "Pick an OGG or WAV file (max 15 MB, plays up to 6 s) for this bag",
+        add(new ActionSetting("Set Sound", "Pick an OGG or WAV file (max 15 MB, cut at Max Sound Length) for this bag",
                 () -> withBag(b -> CustomBagAdapter.pickSound(b, err -> report(err, "Sound set for " + b.label())))));
         add(new ActionSetting("Clear Sound", "Back to the normal drop sound",
                 () -> withBag(b -> Toasts.info(CustomBagAdapter.clear(b, false) ? "Sound removed" : "No custom sound"))));
         add(new ActionSetting("Preview", "Show this bag's drop with your picture and sound", this::preview));
         syncOn(() -> CustomBagAdapter.setSettings(isEnabled()
-                ? new CustomBagAdapter.Settings(volume.getFloat() / 100f) : null), volume);
+                ? new CustomBagAdapter.Settings(volume.getFloat() / 100f, showBanner.get(), size.getFloat() / 100f,
+                        maxLength.getFloat(), stopOnWorldChange.get(), shinyMode(), shinyStrength.getFloat() / 100f) : null),
+                volume, showBanner, size, maxLength, stopOnWorldChange, shiny, shinyStrength);
+    }
+
+    private CustomBagAdapter.Shiny shinyMode() {
+        return switch (shiny.get()) {
+            case "Off" -> CustomBagAdapter.Shiny.OFF;
+            case "All Bags" -> CustomBagAdapter.Shiny.ALL_BAGS;
+            default -> CustomBagAdapter.Shiny.SHINY_BAG;
+        };
     }
 
     private void withBag(java.util.function.Consumer<Bag> action) {

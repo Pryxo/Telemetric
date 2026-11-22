@@ -31,6 +31,7 @@
 		"PlayerTabOverlayMixin",
 		"RenderPipelinesAccessor",
 		"RenderTypeInvoker",
+		"ScreenEffectRendererMixin",
 		"ScreenMixin",
 		"SoundBufferLibraryMixin",
 		"SoundEngineMixin",

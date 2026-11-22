@@ -248,9 +248,9 @@ public class ClickGuiScreen extends Screen {
     }
 
     private void finishClose() {
-        if (finished) return;
-        persist();
-        Minecraft.getInstance().setScreen(null);
+        persist(); // no-op if removed() already persisted — still leave the screen, or it stays open invisibly
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen == this) mc.setScreen(null);
     }
 
     /** This also covers the screen being replaced from outside (disconnect, another mod opening a screen…). */

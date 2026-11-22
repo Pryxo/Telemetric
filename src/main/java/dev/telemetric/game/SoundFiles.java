@@ -40,7 +40,7 @@ public final class SoundFiles {
     private static final String STREAM_PREFIX = "sounds/file/", STREAM_SUFFIX = ".ogg";
     private static final float FADE_SECONDS = 0.4f;
 
-    private record Entry(Path file, float maxSeconds) {}
+    private record Entry(Path file, float maxSeconds, float startSeconds) {}
 
     private static final Map<String, Entry> STREAMS = new ConcurrentHashMap<>();
     private static final AtomicInteger NEXT = new AtomicInteger();
@@ -55,12 +55,20 @@ public final class SoundFiles {
 
     /** Plays {@code file} (stopping the previous file sound) at volume 0..1, cut off after {@code maxSeconds}. */
     public static void play(Path file, float volume, float maxSeconds) {
+        play(file, volume, maxSeconds, 0f);
+    }
+
+    /**
+     * Like {@link #play(Path, float, float)}, but starts {@code startSeconds} into the file (the cut-off still counts
+     * from the file's start). Used to resume a sound that the game stopped.
+     */
+    public static void play(Path file, float volume, float maxSeconds, float startSeconds) {
         Minecraft mc = Minecraft.getInstance();
         if (!Files.isRegularFile(file) || !isSupported(file)) return;
         stop();
         String token = String.valueOf(NEXT.incrementAndGet());
         STREAMS.clear(); // only the newest stream is ever opened
-        STREAMS.put(token, new Entry(file, maxSeconds));
+        STREAMS.put(token, new Entry(file, maxSeconds, Math.max(0f, startSeconds)));
         current = new FileSound(Identifier.fromNamespaceAndPath(Telemetric.MOD_ID, "file/" + token),
                 Math.clamp(volume, 0f, 1f));
         mc.getSoundManager().play(current);
@@ -83,7 +91,7 @@ public final class SoundFiles {
         if (e == null) throw new IOException("Unknown sound file stream " + id);
         String name = e.file().getFileName().toString().toLowerCase(Locale.ROOT);
         AudioStream raw = name.endsWith(".wav") ? wav(e.file()) : new JOrbisAudioStream(Files.newInputStream(e.file()));
-        return new Limited(raw, e.maxSeconds());
+        return new Limited(raw, e.maxSeconds(), e.startSeconds());
     }
 
     private static String token(Identifier id) {
@@ -149,15 +157,18 @@ public final class SoundFiles {
         }
     }
 
-    /** Cuts a stream off after {@code maxSeconds}, fading 16-bit PCM out over the last {@link #FADE_SECONDS}. */
+    /**
+     * Skips the first {@code startSeconds} and cuts a stream off after {@code maxSeconds} (counted from the file's
+     * start), fading 16-bit PCM out over the last {@link #FADE_SECONDS}.
+     */
     private static final class Limited implements AudioStream {
         private final AudioStream in;
-        private final long limit, fadeFrom;
+        private final long limit, fadeFrom, skip;
         private final boolean pcm16;
         private final int frame;
         private long pos;
 
-        Limited(AudioStream in, float maxSeconds) {
+        Limited(AudioStream in, float maxSeconds, float startSeconds) {
             this.in = in;
             AudioFormat f = in.getFormat();
             this.frame = Math.max(1, f.getFrameSize());
@@ -165,6 +176,7 @@ public final class SoundFiles {
             long perSecond = (long) (f.getFrameRate() * frame);
             this.limit = maxSeconds <= 0 || perSecond <= 0 ? Long.MAX_VALUE : (long) (maxSeconds * perSecond) / frame * frame;
             this.fadeFrom = limit == Long.MAX_VALUE ? Long.MAX_VALUE : Math.max(0, limit - (long) (FADE_SECONDS * perSecond));
+            this.skip = perSecond <= 0 ? 0 : (long) (startSeconds * perSecond) / frame * frame;
         }
 
         @Override
@@ -176,6 +188,18 @@ public final class SoundFiles {
         public ByteBuffer read(int size) throws IOException {
             if (pos >= limit) return BufferUtils.createByteBuffer(0);
             ByteBuffer data = in.read(size);
+            while (pos < skip) { // resume: decode and drop everything before the start point
+                int got = data.remaining();
+                if (got == 0) return data;
+                if (pos + got > skip) {
+                    data.position(data.position() + (int) (skip - pos));
+                    pos = skip;
+                    break;
+                }
+                pos += got;
+                data = in.read(size);
+            }
+            if (pos >= limit) return BufferUtils.createByteBuffer(0);
             int n = data.remaining();
             if (pos + n <= fadeFrom) {
                 pos += n;
