@@ -1,0 +1,15 @@
+{
+    "model": {
+        "type": "minecraft:composite",
+        "models": [
+            {
+                "type": "minecraft:model",
+                "model": "telemetric:bags/valentine_totem"
+            },
+            {
+                "type": "minecraft:model",
+                "model": "telemetric:bags/image_only_layered"
+            }
+        ]
+    }
+}

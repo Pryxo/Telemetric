@@ -90,15 +90,6 @@ public final class Callouts {
         return null;
     }
 
-    /** The realm call-out ({@code Teleport for <boss | portal> - …}) in {@code plain}, or null. */
-    public static Call parseTeleport(String plain) {
-        Line line = line(plain);
-        if (line == null) return null;
-        Matcher m = TELEPORT.matcher(plain.substring(line.contentStart()));
-        if (!m.find()) return null;
-        return new Call(line, m.group(1), m.group(2) == null ? -1 : Integer.parseInt(m.group(2)));
-    }
-
     public static boolean isCallout(String plain) {
         return parse(plain) != null;
     }

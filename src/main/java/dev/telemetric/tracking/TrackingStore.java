@@ -86,10 +86,6 @@ public final class TrackingStore {
         this.scope = scope == null || scope.isBlank() ? PityScopes.NORMAL : scope;
     }
 
-    public synchronized String pityScope() {
-        return scope;
-    }
-
     private Map<String, Integer> pool() {
         return pity.computeIfAbsent(scope, k -> new HashMap<>());
     }

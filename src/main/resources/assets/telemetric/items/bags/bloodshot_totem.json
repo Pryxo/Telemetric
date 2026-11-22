@@ -1,6 +1,15 @@
 {
     "model": {
-        "type": "minecraft:model",
-        "model": "telemetric:bags/bloodshot_totem"
+        "type": "minecraft:composite",
+        "models": [
+            {
+                "type": "minecraft:model",
+                "model": "telemetric:bags/bloodshot_totem"
+            },
+            {
+                "type": "minecraft:model",
+                "model": "telemetric:bags/image_only"
+            }
+        ]
     }
 }

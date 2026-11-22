@@ -58,7 +58,9 @@ public final class CustomBagAdapter {
     private static final String DROP_SOUND = "noise:player.bags.create_";
     private static final String[] IMAGE_EXT = {"gif", "png", "jpg", "jpeg"}, SOUND_EXT = {"ogg", "wav"};
     private static final long MAX_FILE_BYTES = 15L << 20, ANIM_MS = 4000, PREVIEW_REOPEN_TICKS = 40;
-    private static final String IMAGE_ONLY_MODEL = "bags/image_only";
+    private static final String IMAGE_ONLY_MODEL = "bags/image_only", IMAGE_ONLY_LAYERED_MODEL = "bags/image_only_layered";
+    /** Share of (mostly) transparent pixels from which the banner-less picture uses the see-through-sides model. */
+    private static final float TRANSPARENT_SHARE = 0.10f;
 
     /**
      * Module settings. Null means off. {@code scale} = size of the drop pop while it shows a custom picture (1 = normal),
@@ -287,8 +289,11 @@ public final class CustomBagAdapter {
                     ? s.shinyStrength() : 0f;
             NativeImage first = d.frames().getFirst().image();
             if (!upload(shiny > 0 ? ShinyEffect.apply(first, 0, shiny) : first)) return;
-            stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath(Telemetric.MOD_ID,
-                    s.showBanner() ? "bags/" + bag.model() : IMAGE_ONLY_MODEL));
+            boolean flat = transparentShare(first) >= TRANSPARENT_SHARE;
+            // items/bags/<bag>(_flat) = banner + picture model; _flat uses the extruded picture (no edge-strip sides)
+            String custom = s.showBanner() ? "bags/" + bag.model() + (flat ? "_flat" : "")
+                    : flat ? IMAGE_ONLY_LAYERED_MODEL : IMAGE_ONLY_MODEL;
+            stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath(Telemetric.MOD_ID, custom));
             popScale = s.scale();
             popDepth = Math.max(0.02f, s.thickness());
             popSpeed = Math.clamp(s.animSpeed(), 0.05f, 1f);
@@ -300,6 +305,15 @@ public final class CustomBagAdapter {
         } catch (RuntimeException e) {
             Telemetric.LOGGER.warn("Custom bag picture not shown: {}", e.toString());
         }
+    }
+
+    /** Share of pixels with alpha below 50 %. */
+    private static float transparentShare(NativeImage image) {
+        int[] px = image.getPixels(); // ARGB
+        if (px.length == 0) return 0f;
+        int n = 0;
+        for (int p : px) if (p >>> 24 < 128) n++;
+        return n / (float) px.length;
     }
 
     /** Writes {@code image} over the screen sprite (every mip level) in each atlas that holds it. */
@@ -321,13 +335,33 @@ public final class CustomBagAdapter {
         for (int i = 0; i < sprites.size(); i++) {
             TextureAtlasSprite s = sprites.get(i);
             GpuTexture tex = atlases.get(i).getTexture();
+            // getX/getY are the padded slot's corner; the picture itself starts `pad` pixels in. Writing the
+            // picture at getX/getY shifted it 1 px up-left and left the placeholder's last column/row showing
+            // (the black right/bottom border). So: build the padded slot (border = clamped edge pixels) and write that.
             int w = s.contents().width(), h = s.contents().height();
-            for (int mip = 0; mip < tex.getMipLevels(); mip++) {
-                int mw = w >> mip, mh = h >> mip;
-                if (mw <= 0 || mh <= 0) break;
-                try (NativeImage scaled = new NativeImage(mw, mh, false)) {
-                    resample(image, scaled);
-                    encoder.writeToTexture(tex, scaled, mip, 0, s.getX() >> mip, s.getY() >> mip, mw, mh, 0, 0);
+            // vanilla has no padding getter: the UVs point at the picture itself, getX at the padded slot
+            int pad = Math.max(0, Math.round(s.getU0() * tex.getWidth(0)) - s.getX());
+            try (NativeImage inner = new NativeImage(w, h, false);
+                 NativeImage padded = new NativeImage(w + 2 * pad, h + 2 * pad, false)) {
+                resample(image, inner);
+                for (int y = 0; y < h + 2 * pad; y++) {
+                    int sy = Math.clamp(y - pad, 0, h - 1);
+                    for (int x = 0; x < w + 2 * pad; x++) {
+                        padded.setPixel(x, y, inner.getPixel(Math.clamp(x - pad, 0, w - 1), sy));
+                    }
+                }
+                for (int mip = 0; mip < tex.getMipLevels(); mip++) {
+                    int mw = (w + 2 * pad) >> mip, mh = (h + 2 * pad) >> mip;
+                    if (mw <= 0 || mh <= 0) break;
+                    int tx = s.getX() >> mip, ty = s.getY() >> mip;
+                    if (mip == 0) {
+                        encoder.writeToTexture(tex, padded, 0, 0, tx, ty, mw, mh, 0, 0);
+                        continue;
+                    }
+                    try (NativeImage scaled = new NativeImage(mw, mh, false)) {
+                        resample(padded, scaled);
+                        encoder.writeToTexture(tex, scaled, mip, 0, tx, ty, mw, mh, 0, 0);
+                    }
                 }
             }
         }
@@ -341,6 +375,7 @@ public final class CustomBagAdapter {
     private static void resample(NativeImage src, NativeImage dst) {
         int sw = src.getWidth(), sh = src.getHeight(), dw = dst.getWidth(), dh = dst.getHeight();
         int[] px = src.getPixels(); // ARGB
+        int[] res = new int[dw * dh];
         for (int y = 0; y < dh; y++) {
             int y0 = y * sh / dh, y1 = Math.max(y0 + 1, (y + 1) * sh / dh);
             for (int x = 0; x < dw; x++) {
@@ -360,7 +395,26 @@ public final class CustomBagAdapter {
                 }
                 int out = 0;
                 if (a > 0) out = (int) (a / n) << 24 | (int) (r / a) << 16 | (int) (g / a) << 8 | (int) (b / a);
-                dst.setPixel(x, y, out);
+                res[y * dw + x] = out;
+            }
+        }
+        // Colour bleed: transparent texels take their opaque neighbours' colour (alpha stays 0), so filtering at the
+        // picture's edges and on the edge-strip side faces never blends toward black.
+        for (int y = 0; y < dh; y++) {
+            for (int x = 0; x < dw; x++) {
+                int p = res[y * dw + x];
+                if (p >>> 24 == 0) {
+                    int r = 0, g = 0, b = 0, n = 0;
+                    for (int k = 0; k < 4; k++) {
+                        int nx = x + (k == 0 ? -1 : k == 1 ? 1 : 0), ny = y + (k == 2 ? -1 : k == 3 ? 1 : 0);
+                        if (nx < 0 || ny < 0 || nx >= dw || ny >= dh) continue;
+                        int q = res[ny * dw + nx];
+                        if (q >>> 24 == 0) continue;
+                        r += q >> 16 & 0xFF; g += q >> 8 & 0xFF; b += q & 0xFF; n++;
+                    }
+                    if (n > 0) p = (r / n) << 16 | (g / n) << 8 | (b / n);
+                }
+                dst.setPixel(x, y, p);
             }
         }
     }

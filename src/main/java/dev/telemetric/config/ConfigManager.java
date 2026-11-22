@@ -43,7 +43,6 @@ public final class ConfigManager {
     private final ModuleManager modules;
     private final GuiLayout layout = new GuiLayout();
 
-    private final Path root;
     private final Path profilesDir;
     private final Path metaFile;
     private final Path layoutFile;
@@ -53,7 +52,6 @@ public final class ConfigManager {
 
     public ConfigManager(ModuleManager modules) {
         this.modules = modules;
-        this.root = ModPaths.ROOT;
         this.profilesDir = ModPaths.PROFILES;
         this.metaFile = ModPaths.META;
         this.layoutFile = ModPaths.LAYOUT;
@@ -236,7 +234,6 @@ public final class ConfigManager {
     public String getActiveProfile() { return activeProfile; }
     public boolean isAutoSave() { return autoSave; }
     public GuiLayout getLayout() { return layout; }
-    public Path getRoot() { return root; }
 
     public void setAutoSave(boolean autoSave) {
         if (this.autoSave == autoSave) return;

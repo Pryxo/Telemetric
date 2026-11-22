@@ -27,11 +27,6 @@ public final class HudColor {
         return custom.getAsBoolean() ? setting.get() : themeColor.getAsInt();
     }
 
-    /** Whether the user's own colour is used (Theme Colors off). */
-    public boolean isCustom() {
-        return custom.getAsBoolean();
-    }
-
     /** The colour the theme gives right now. */
     int themeColor() {
         return themeColor.getAsInt();
