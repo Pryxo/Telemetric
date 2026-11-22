@@ -5,6 +5,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.telemetric.config.JsonSerializable;
 import dev.telemetric.setting.Setting;
+import dev.telemetric.config.Acknowledgements;
+import dev.telemetric.ui.confirm.Confirm;
+import dev.telemetric.ui.confirm.ConfirmRequest;
 import dev.telemetric.setting.SettingBundle;
 import dev.telemetric.setting.impl.KeybindSetting;
 
@@ -207,6 +210,34 @@ public abstract class Module implements JsonSerializable {
 
     public void toggle() {
         setEnabled(!enabled);
+    }
+
+    /**
+     * Toggle asked for by the user (ClickGUI click, keybind). Turning on a module with an {@link #enableWarning()}
+     * opens a confirmation dialog first and only enables it on "Enable". Config/profile loads use {@link #setEnabled}.
+     */
+    public void toggleByUser() {
+        String warning = enabled ? null : getWarning();
+        if (warning == null || Acknowledgements.has(warningKey())) {
+            toggle();
+            return;
+        }
+        Confirm.show(ConfirmRequest.warning(name, warning, () -> {
+            Acknowledgements.add(warningKey()); // asked once: never again after "Enable"
+            setEnabled(true);
+        }));
+    }
+
+    /**
+     * Override to warn about this module: the text is asked once (confirmation dialog) the first time the user turns it
+     * on, and shown as a yellow ⚠ tooltip on its ClickGUI row. A line break starts a new paragraph. {@code null} = none.
+     */
+    public String getWarning() {
+        return null;
+    }
+
+    private String warningKey() {
+        return "enable:" + name;
     }
 
     /** Restores every persistent setting and the enabled state to defaults. */

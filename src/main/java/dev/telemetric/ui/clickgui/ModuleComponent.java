@@ -13,6 +13,7 @@ import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Icons;
 import dev.telemetric.ui.render.Render2D;
+import dev.telemetric.ui.render.WarningColors;
 import dev.telemetric.ui.theme.Theme;
 
 import java.util.ArrayList;
@@ -169,6 +170,20 @@ public class ModuleComponent extends UIComponent {
         return !settings.isEmpty();
     }
 
+    private final Object warningOwner = new Object();
+
+    /** The warning as one tooltip paragraph, without a closing question (e.g. "Enable anyway?"). */
+    private static String tooltipWarning(String warning) {
+        StringBuilder sb = new StringBuilder();
+        for (String para : warning.split("\n")) {
+            String t = para.strip();
+            if (t.isEmpty() || t.endsWith("?")) continue;
+            if (!sb.isEmpty()) sb.append(' ');
+            sb.append(t);
+        }
+        return sb.toString();
+    }
+
     @Override
     public void render(Render2D r, int mouseX, int mouseY, float delta) {
         syncOrder();
@@ -201,13 +216,25 @@ public class ModuleComponent extends UIComponent {
         int nameColor = ColorUtil.lerp(p.textMuted(), p.text(), emphasis);
         if (e > 0) nameColor = ColorUtil.lerp(nameColor, p.text(), e);
         int nx = x + Layout.PAD + (int) Math.round(h * 2);
-        r.text(r.trim(module.getName(), width - Layout.PAD * 2 - 12), nx, y + Layout.textY(Layout.MODULE_HEIGHT), nameColor);
+        String warning = module.getWarning();
+        r.text(r.trim(module.getName(), width - Layout.PAD * 2 - (warning != null ? 26 : 12)), nx, y + Layout.textY(Layout.MODULE_HEIGHT), nameColor);
 
         // expand indicator: a plus that morphs into a minus
         if (hasSettings()) Icons.plusMinus(r, x + width - Layout.PAD - 3, y + Layout.MODULE_HEIGHT / 2, ex,
                 ColorUtil.lerp(p.textDisabled(), p.textMuted(), Math.max(h, ex)));
 
-        if (rowHovered) ctx.requestTooltip(module, module.getName(), module.getDescription());
+        // warning icon left of the +/- (hover = yellow warning tooltip)
+        boolean warnHovered = false;
+        if (warning != null) {
+            int iw = 9, ih = 8;
+            int ix = x + width - Layout.PAD - 3 - (hasSettings() ? 6 + iw : iw / 2);
+            int iy = y + (Layout.MODULE_HEIGHT - ih) / 2;
+            Icons.warning(r, ix, iy, iw, ih, WarningColors.YELLOW, WarningColors.DARK);
+            warnHovered = rowHovered && mouseX >= ix - 2 && mouseX < ix + iw + 2;
+        }
+
+        if (warnHovered) ctx.requestWarningTooltip(warningOwner, "Warning", tooltipWarning(warning));
+        else if (rowHovered) ctx.requestTooltip(module, module.getName(), module.getDescription());
 
         // settings accordion
         if (ex > 0.001 && hasSettings()) {
@@ -417,7 +444,7 @@ public class ModuleComponent extends UIComponent {
         if (!isHovered(mouseX, mouseY)) return false;
         if (mouseY < y + Layout.MODULE_HEIGHT) {
             if (button == MouseButton.LEFT) {
-                if (module.isToggleable()) module.toggle();
+                if (module.isToggleable()) module.toggleByUser();
                 else toggleOpen();
                 return true;
             }

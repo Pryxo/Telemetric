@@ -8,8 +8,8 @@ import dev.telemetric.setting.impl.NumberSetting;
 /** Scales every item/text tooltip. Tooltips still stay on screen (positioned in the scaled space). */
 public final class TooltipScaleModule extends Module {
 
-    private final NumberSetting scale = new NumberSetting("Scale", "Size of tooltips compared to vanilla",
-            75, 25, 200, 5).withSuffix("%");
+    private final NumberSetting scale = add(new NumberSetting("Scale", "Size of tooltips compared to vanilla",
+            75, 25, 200, 5).withSuffix("%"));
 
     public TooltipScaleModule() {
         super("Tooltip Scaling", "Makes tooltips smaller or bigger", Category.INVENTORY);

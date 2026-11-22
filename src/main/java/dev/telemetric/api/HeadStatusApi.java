@@ -124,11 +124,11 @@ public final class HeadStatusApi {
     /**
      * A player's current head status from {@code /status/{uuid}}.
      *
-     * @param text     status text as the API sends it
+     * @param id       leaderboard ID ({@code STATUS-CHARACTER-SLOTS}); looked up in {@code statusIcons.json}
      * @param position leaderboard position ({@code 0} if missing)
      * @param count    the counted value, e.g. kills ({@code 0} if missing)
      */
-    public record HeadStatus(String text, int position, long count) {}
+    public record HeadStatus(String id, int position, long count) {}
 
     /** Every status, ID to display name ({@code STATUS-LUNA} → {@code Luna Kills}), from {@code /status-list}. */
     private static volatile Map<String, String> statusNames = Map.of();
@@ -254,11 +254,12 @@ public final class HeadStatusApi {
     }
 
     private static HeadStatus parseStatus(JsonObject o) {
-        String text = str(o, "text");
-        if (text == null) return null;
+        String id = str(o, "id"); // the API's "text" is ignored: names come from statusIcons.json
+        if (id == null || id.isBlank()) return null;
+        id = id.trim();
         int pos = o.has("position") && o.get("position").isJsonPrimitive() ? o.get("position").getAsInt() : 0;
         long count = o.has("count") && o.get("count").isJsonPrimitive() ? o.get("count").getAsLong() : 0;
-        return new HeadStatus(text, pos, count);
+        return new HeadStatus(id, pos, count);
     }
 
     /**

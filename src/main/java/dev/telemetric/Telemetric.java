@@ -119,7 +119,8 @@ public final class Telemetric implements ClientModInitializer {
         wasOnTelos = onTelos;
         if (!onTelos) {
             Keybinds.consumeOpenGui(); // throw away presses made off Telos
-            if (client.screen instanceof ClickGuiScreen || client.screen instanceof HudEditorScreen) {
+            if (client.screen instanceof ClickGuiScreen || client.screen instanceof HudEditorScreen
+                    || client.screen instanceof dev.telemetric.ui.confirm.ConfirmScreen) {
                 client.setScreen(null);
             }
             return;

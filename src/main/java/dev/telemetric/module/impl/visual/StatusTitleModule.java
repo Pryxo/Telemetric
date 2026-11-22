@@ -15,7 +15,6 @@ import dev.telemetric.setting.impl.ModeSetting;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
@@ -85,55 +84,23 @@ public final class StatusTitleModule extends Module {
     }
 
     /**
-     * Builds "#1 <icon> Miraj - 1,234 kills": the position (if the API sends one), the leaderboard's icon from
-     * {@code statusIcons.json}, its name, and the count, coloured by position ({@link StatusRankColors}). The name is
-     * the table's {@code "Name"} if set; otherwise a "… Kills" board drops "Kills" and puts "kills" after the count.
+     * Builds "#1 <icon> Miraj - 1,234 Kills": the position (if the API sends one), and the icon, {@code "Name"} and
+     * category unit of the API's leaderboard ID in {@code statusIcons.json}, coloured by position
+     * ({@link StatusRankColors}). An ID missing from the table is shown as the raw ID. The API's own text is not used.
      * This is the one place that decides the status text.
      */
     static TitleLine statusLine(HeadStatusApi.HeadStatus status) {
-        // the API may send the text already formatted ("#25 Miraj - 172 kills"), so drop its own rank and count
-        String name = HeadStatusApi.statusName(status.text()).replaceFirst("^#\\d+\\s*", "");
-        int dash = name.indexOf(" - ");
-        String unit = "";
-        if (dash > 0) {
-            String rest = name.substring(dash + 3).replaceFirst("^[\\d,.]+", "").trim(); // "172 kills" becomes "kills"
-            if (!rest.isEmpty()) unit = " " + rest;
-            name = name.substring(0, dash).trim();
-        }
-        String id = boardId(status.text(), name);
+        String id = status.id();
         TelosData.StatusIcons table = TelosData.STATUS_ICONS.get();
+        String name = table.name(id);
+        if (name == null) name = id;
         TelosData.StatusCategory cat = table.category(id);
-        if (cat != null) {
-            // "Miraj Kills" becomes "Miraj", with the unit from the category ("1 kill" / "2 kills")
-            String suffix = " " + cat.name();
-            if (name.regionMatches(true, name.length() - suffix.length(), suffix, 0, suffix.length()))
-                name = name.substring(0, name.length() - suffix.length());
-            if (status.count() > 0) unit = " " + cat.unit(status.count());
-        } else if (name.endsWith(" Kills") && status.count() > 0) {
-            name = name.substring(0, name.length() - " Kills".length());
-            unit = status.count() == 1 ? " Kill" : " Kills"; // the same words as the "Kills" category
-        }
-        String custom = table.name(id);
-        if (custom != null) name = custom; // a hand-written "Name" beats the automatic name
+        String unit = cat != null && status.count() > 0 ? " " + cat.unit(status.count()) : "";
         String text = status.count() > 0
                 ? name + " - " + String.format(Locale.ROOT, "%,d", status.count()) + unit
                 : name;
         String rank = status.position() > 0 ? "#" + status.position() : "";
         return new TitleLine(rank, table.of(id), text, StatusRankColors.forPosition(status.position()));
-    }
-
-    /**
-     * The leaderboard ID of a status, for the icon table. That's the text itself if it's an ID, otherwise the ID whose
-     * display name is {@code name} or "{@code name} Kills" (the API sends formatted texts like "#25 Miraj - 172 kills").
-     */
-    private static String boardId(String text, String name) {
-        Map<String, String> all = HeadStatusApi.statuses();
-        if (all.containsKey(text)) return text;
-        for (Map.Entry<String, String> e : all.entrySet()) {
-            String n = e.getValue();
-            if (n.equalsIgnoreCase(name) || n.equalsIgnoreCase(name + " Kills")) return e.getKey();
-        }
-        return "STATUS-" + name.trim().toUpperCase(Locale.ROOT).replace(' ', '-');
     }
 
     /** Adds a rule that hides the name tags it matches (called from other modules' {@code onPostInit}). */

@@ -6,6 +6,7 @@ import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
+import dev.telemetric.ui.render.WarningColors;
 import dev.telemetric.ui.theme.Theme;
 
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ public final class TooltipRenderer {
     private Object owner;
     private String text;
     private String title;
+    private boolean warning;
     private static final float TITLE_SCALE = 1.15f;
     /** The overall tooltip text size (title and description). */
     private static final float TEXT_SCALE = 0.7f;
@@ -43,6 +45,7 @@ public final class TooltipRenderer {
             owner = requested;
             text = ctx.tooltipText();
             title = ctx.tooltipTitle();
+            warning = ctx.tooltipWarning();
             hoverStart = System.currentTimeMillis();
             fade.snapTo(0);
         } else if (System.currentTimeMillis() - hoverStart >= Durations.TOOLTIP_DELAY) {
@@ -74,15 +77,19 @@ public final class TooltipRenderer {
         Theme p = ctx.palette();
         r.pushAlpha(a);
         r.shadow(tx, ty, w, h, 3, p.shadow(), 4);
-        r.roundedRect(tx, ty, w, h, 3, ColorUtil.withAlpha(p.panel(), 245));
-        r.rect(tx, ty + 2, 1, h - 4, p.accent());
+        int accent = warning ? WarningColors.YELLOW : p.accent();
+        int titleColor = warning ? WarningColors.TITLE : p.accent();
+        int textColor = warning ? WarningColors.YELLOW : p.text();
+        r.roundedRect(tx, ty, w, h, 3, warning ? WarningColors.BOX : ColorUtil.withAlpha(p.panel(), 245));
+        if (warning) r.outline(tx, ty, w, h, WarningColors.DIVIDER);
+        r.rect(tx, ty + 2, 1, h - 4, accent);
         r.pushTransform(tx + PAD, ty + PAD, TEXT_SCALE);
         if (hasTitle) {
             r.pushTransform(0, 0, TITLE_SCALE);
-            r.text(title, 0, 0, p.accent());
+            r.text(title, 0, 0, titleColor);
             r.popTransform();
         }
-        for (int i = 0; i < lines.size(); i++) r.text(lines.get(i), 0, titleH + i * lineH, p.text());
+        for (int i = 0; i < lines.size(); i++) r.text(lines.get(i), 0, titleH + i * lineH, textColor);
         r.popTransform();
         r.popAlpha();
     }

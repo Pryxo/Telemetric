@@ -161,12 +161,18 @@ public final class TelemetricCommand {
             } else {
                 HeadStatusApi.HeadStatus s = st.get();
                 StringBuilder msg = new StringBuilder("Your status is §f")
-                        .append(HeadStatusApi.statusName(s.text()));
+                        .append(statusTitle(s.id()));
                 if (s.count() > 0) msg.append(" §7(§f").append(String.format(Locale.ROOT, "%,d", s.count())).append("§7)");
                 if (s.position() > 0) msg.append(" §8- §f#").append(s.position());
                 reply.accept(msg.toString());
             }
         });
+    }
+
+    /** The {@code statusIcons.json} name of a leaderboard ID, or the ID itself if the table has none. */
+    private static String statusTitle(String id) {
+        String name = dev.telemetric.data.TelosData.STATUS_ICONS.get().name(id);
+        return name != null ? name : id;
     }
 
     private static void statusSet(String name, Consumer<String> reply) {

@@ -9,6 +9,8 @@ import dev.telemetric.module.impl.hud.WatermarkHud;
 import dev.telemetric.module.impl.misc.InterfaceModule;
 import dev.telemetric.ui.hud.HudRenderer;
 import dev.telemetric.ui.animation.Animation;
+import dev.telemetric.ui.confirm.Confirm;
+import dev.telemetric.ui.confirm.ConfirmDialog;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.framework.GuiContext;
@@ -206,6 +208,12 @@ public class ClickGuiScreen extends Screen {
         WatermarkHud hudWatermark = Telemetric.get().modules().get(WatermarkHud.class);
         if (!hudWatermark.isEnabled()) drawWatermark(sw);
 
+        ConfirmDialog dialog = Confirm.current();
+        if (dialog != null) {
+            r.nextLayer();
+            dialog.render(r, mx, my, sw, sh);
+        }
+
         r.popAlpha();
         r.popScale();
         // HUD watermark: same spot as in-game, drawn above the backdrop at full opacity (so it doesn't blink on open)
@@ -256,6 +264,7 @@ public class ClickGuiScreen extends Screen {
     /** This also covers the screen being replaced from outside (disconnect, another mod opening a screen…). */
     @Override
     public void removed() {
+        Confirm.dismiss();
         persist();
         super.removed();
     }
@@ -277,6 +286,8 @@ public class ClickGuiScreen extends Screen {
         double mx = event.x() / scale(), my = event.y() / scale();
         int button = event.button();
         if (button >= 0 && button < 31) heldButtons |= 1 << button;
+        ConfirmDialog dialog = Confirm.current();
+        if (dialog != null) return dialog.mouseClicked(mx, my, button); // modal
 
         UIComponent focused = ctx.getFocused();
         // a key binder that's listening takes middle and side buttons wherever the mouse is
@@ -306,7 +317,7 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (closing) return true;
+        if (closing || Confirm.isOpen()) return true;
         double mx = mouseX / scale(), my = mouseY / scale();
         for (int i = panels.size() - 1; i >= 0; i--) {
             Panel panel = panels.get(i);
@@ -318,6 +329,8 @@ public class ClickGuiScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (closing) return true;
+        ConfirmDialog dialog = Confirm.current();
+        if (dialog != null) return dialog.keyPressed(event.key()); // modal: Esc cancels the dialog, not the GUI
         UIComponent focused = ctx.getFocused();
         if (focused != null && focused.keyPressed(event.key(), event.scancode(), event.modifiers())) return true;
         return super.keyPressed(event); // Esc goes to onClose()
@@ -325,6 +338,7 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public boolean charTyped(CharacterEvent event) {
+        if (Confirm.isOpen()) return true;
         UIComponent focused = ctx.getFocused();
         if (focused != null && focused.charTyped(event.codepoint(), 0)) return true;
         return super.charTyped(event);

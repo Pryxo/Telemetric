@@ -34,7 +34,7 @@ public final class ModuleKeyHandler {
         Set<Integer> heldNow = new HashSet<>();
         for (Module module : modules.getModules()) {
             if (module.isToggleable() && module.getBind().isBound()) {
-                if (pressed(module.getBind().get(), heldNow)) module.toggle();
+                if (pressed(module.getBind().get(), heldNow)) module.toggleByUser();
             }
             if (!module.isEnabled()) continue;
             for (Setting<?> s : module.getSettings()) {

@@ -22,6 +22,23 @@ public final class Icons {
         if (half > 0) r.rect(cx, cy - half, 1, half * 2 + 1, color);
     }
 
+    /**
+     * Warning triangle ({@code w × h}, top-left at x, y) filled with {@code color} and a {@code mark}-coloured "!".
+     */
+    public static void warning(Render2D r, int x, int y, int w, int h, int color, int mark) {
+        double mid = x + w / 2.0;
+        for (int i = 0; i < h; i++) {
+            double half = (i + 1) * (w / 2.0) / h;
+            int left = round(mid - half), right = round(mid + half);
+            r.rect(left, y + i, Math.max(1, right - left), 1, color);
+        }
+        int cx = x + w / 2, bar = Math.max(1, w / 8);
+        int top = y + round(h * 0.36), dot = Math.max(1, round(h * 0.14));
+        int bottom = y + h - 1 - dot;
+        r.rect(cx - bar / 2 - (bar > 1 ? 0 : 0), top, bar, Math.max(1, bottom - top - 1), mark);
+        r.rect(cx - bar / 2, bottom, bar, dot, mark);
+    }
+
     private static double lerp(double a, double b, double t) {
         return a + (b - a) * t;
     }

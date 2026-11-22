@@ -28,7 +28,7 @@ public final class StatusColorsHud extends HudModule {
     private static final int TAG_BG = 0x40000000;
     /** An example position for each slot: the slot's first position. */
     private static final int[] POSITIONS = {1, 2, 3, 4, 11, 21};
-    private static final HeadStatusApi.HeadStatus EXAMPLE = new HeadStatusApi.HeadStatus("Luna Kills", 0, 1234);
+    private static final HeadStatusApi.HeadStatus EXAMPLE = new HeadStatusApi.HeadStatus("STATUS-LUNA", 0, 1234);
 
     private final BooleanSetting toggle;
 
@@ -58,7 +58,7 @@ public final class StatusColorsHud extends HudModule {
         HeadStatusApi.HeadStatus own = HeadStatusCache.get(MojangSessionAdapter.playerUuid()).orElse(EXAMPLE);
         List<TitleLine> out = new ArrayList<>(POSITIONS.length);
         for (int pos : POSITIONS) {
-            out.add(StatusTitleModule.statusLine(new HeadStatusApi.HeadStatus(own.text(), pos, own.count())));
+            out.add(StatusTitleModule.statusLine(new HeadStatusApi.HeadStatus(own.id(), pos, own.count())));
         }
         return out;
     }

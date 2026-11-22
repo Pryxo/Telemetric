@@ -1,6 +1,8 @@
 package dev.telemetric.game;
 
 import dev.telemetric.ui.clickgui.ClickGuiScreen;
+import dev.telemetric.ui.confirm.Confirm;
+import dev.telemetric.ui.confirm.ConfirmScreen;
 import dev.telemetric.ui.hud.HudEditorScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -25,10 +27,20 @@ public final class ScreenOpener {
         pending = () -> new HudEditorScreen(false);
     }
 
+    /** Gives an open {@link Confirm} dialog a screen of its own, unless the ClickGUI is already showing it. */
+    public static void confirmHost() {
+        pending = () -> {
+            Screen current = Minecraft.getInstance().screen;
+            if (!Confirm.isOpen() || current instanceof ClickGuiScreen || current instanceof ConfirmScreen) return null;
+            return new ConfirmScreen(current);
+        };
+    }
+
     public static void tick(Minecraft client) {
         Supplier<Screen> s = pending;
         if (s == null) return;
         pending = null;
-        client.setScreen(s.get());
+        Screen next = s.get();
+        if (next != null) client.setScreen(next);
     }
 }

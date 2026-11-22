@@ -62,6 +62,13 @@ public final class CustomBagsModule extends Module {
                 volume, showBanner, size, thickness, animSpeed, maxLength, stopOnWorldChange, shiny, shinyStrength);
     }
 
+    @Override
+    public String getWarning() {
+        return "Custom bag pictures and sounds change how loot bags look and sound on your screen.\n\n"
+                        + "Using custom bag textures is a valid reason for a reimbursement to be denied.\n\n"
+                        + "Enable Custom Bags anyway?";
+    }
+
     private CustomBagAdapter.Shiny shinyMode() {
         return switch (shiny.get()) {
             case "Off" -> CustomBagAdapter.Shiny.OFF;

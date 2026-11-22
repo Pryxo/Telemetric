@@ -18,6 +18,7 @@ public final class GuiContext {
     private String tooltipText;
     private String tooltipTitle;
     private Object tooltipOwner;
+    private boolean tooltipWarning;
 
     public GuiContext(ThemeManager themes) {
         this.themes = themes;
@@ -110,13 +111,23 @@ public final class GuiContext {
         tooltipOwner = owner;
         tooltipTitle = title;
         tooltipText = text;
+        tooltipWarning = false;
+    }
+
+    /** A tooltip in the fixed yellow warning colours. */
+    public void requestWarningTooltip(Object owner, String title, String text) {
+        requestTooltip(owner, title, text);
+        if (tooltipOwner == owner) tooltipWarning = true;
     }
 
     public void clearTooltipRequest() {
         tooltipOwner = null;
         tooltipTitle = null;
         tooltipText = null;
+        tooltipWarning = false;
     }
+
+    public boolean tooltipWarning() { return tooltipWarning; }
 
     public String tooltipTitle() { return tooltipTitle; }
     public Object tooltipOwner() { return tooltipOwner; }
