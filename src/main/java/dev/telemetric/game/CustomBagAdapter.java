@@ -66,7 +66,7 @@ public final class CustomBagAdapter {
      * game stopped on a world / dimension change picks up where it was.
      */
     public record Settings(float volume, boolean showBanner, float scale, float maxSoundSeconds, boolean stopOnWorldChange,
-                           Shiny shiny, float shinyStrength, float animSpeed) {}
+                           Shiny shiny, float shinyStrength, float animSpeed, float thickness) {}
 
     /** Which pictures get the animated shiny effect ({@link ShinyEffect}). */
     public enum Shiny { OFF, SHINY_BAG, ALL_BAGS }
@@ -76,6 +76,8 @@ public final class CustomBagAdapter {
     private static volatile Settings settings;
     /** Scale for the pop on screen right now (1 unless it shows a custom picture). */
     private static volatile float popScale = 1f;
+    /** Depth of the custom picture (1 = model default), applied as a Z scale on top of popScale. */
+    private static volatile float popDepth = 1f;
     /** Pop playback speed right now (1 unless it shows a custom picture) and the tick progress carried between ticks. */
     private static volatile float popSpeed = 1f, popTickAcc = 0f;
 
@@ -268,6 +270,7 @@ public final class CustomBagAdapter {
     /** {@code GameRendererMixin}: a totem pop is about to show {@code stack}. */
     public static void onDropAnimation(ItemStack stack) {
         popScale = 1f;
+        popDepth = 1f;
         popSpeed = 1f;
         popTickAcc = 0f;
         Settings s = settings;
@@ -287,6 +290,7 @@ public final class CustomBagAdapter {
             stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath(Telemetric.MOD_ID,
                     s.showBanner() ? "bags/" + bag.model() : IMAGE_ONLY_MODEL));
             popScale = s.scale();
+            popDepth = Math.max(0.02f, s.thickness());
             popSpeed = Math.clamp(s.animSpeed(), 0.05f, 1f);
             int total = 0;
             for (ImageFrames.Frame f : d.frames()) total += f.delayMs();
@@ -322,12 +326,43 @@ public final class CustomBagAdapter {
                 int mw = w >> mip, mh = h >> mip;
                 if (mw <= 0 || mh <= 0) break;
                 try (NativeImage scaled = new NativeImage(mw, mh, false)) {
-                    image.resizeSubRectTo(0, 0, image.getWidth(), image.getHeight(), scaled);
+                    resample(image, scaled);
                     encoder.writeToTexture(tex, scaled, mip, 0, s.getX() >> mip, s.getY() >> mip, mw, mh, 0, 0);
                 }
             }
         }
         return true;
+    }
+
+    /**
+     * Box-filter resize (alpha-weighted) that fills every target pixel. The vanilla resize left a dark last
+     * column/row, which showed as a black line on the right and bottom of the picture.
+     */
+    private static void resample(NativeImage src, NativeImage dst) {
+        int sw = src.getWidth(), sh = src.getHeight(), dw = dst.getWidth(), dh = dst.getHeight();
+        int[] px = src.getPixels(); // ARGB
+        for (int y = 0; y < dh; y++) {
+            int y0 = y * sh / dh, y1 = Math.max(y0 + 1, (y + 1) * sh / dh);
+            for (int x = 0; x < dw; x++) {
+                int x0 = x * sw / dw, x1 = Math.max(x0 + 1, (x + 1) * sw / dw);
+                long a = 0, r = 0, g = 0, b = 0;
+                int n = 0;
+                for (int sy = y0; sy < y1; sy++) {
+                    for (int sx = x0; sx < x1; sx++) {
+                        int p = px[sy * sw + sx];
+                        int pa = p >>> 24;
+                        a += pa;
+                        r += (long) ((p >> 16) & 0xFF) * pa;
+                        g += (long) ((p >> 8) & 0xFF) * pa;
+                        b += (long) (p & 0xFF) * pa;
+                        n++;
+                    }
+                }
+                int out = 0;
+                if (a > 0) out = (int) (a / n) << 24 | (int) (r / a) << 16 | (int) (g / a) << 8 | (int) (b / a);
+                dst.setPixel(x, y, out);
+            }
+        }
     }
 
     private static void ensureTicker() {
@@ -339,6 +374,11 @@ public final class CustomBagAdapter {
     /** {@code ScreenEffectRendererMixin}: how much to scale the totem pop on screen. */
     public static float popScale() {
         return popScale;
+    }
+
+    /** {@code ScreenEffectRendererMixin}: extra Z scale (Picture Thickness) for the totem pop. */
+    public static float popDepth() {
+        return popDepth;
     }
 
     /**

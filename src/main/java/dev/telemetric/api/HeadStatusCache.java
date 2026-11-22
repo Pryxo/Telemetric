@@ -14,15 +14,20 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Head statuses of the players loaded around you (you included), for the features that show them.
  * Every {@link #SCAN_MS} it checks the loaded players. Anyone not cached, or cached longer than {@link #TTL_MS}, gets
- * requested through {@code /status-bulk} in batches of up to {@link HeadStatusApi#BULK_MAX}. Players without a
+ * requested through {@code /status-bulk} (collected for {@link #BATCH_MS} first) in batches of up to
+ * {@link HeadStatusApi#BULK_MAX}. Players without a
  * status are cached as "none" too, so we don't ask about them again before the TTL runs out. Read with {@link #get}.
  */
 public final class HeadStatusCache {
 
     /** How long one player's status is kept before it is asked for again. */
-    public static final long TTL_MS = 15 * 60_000L;
-    /** How often the loaded players are checked for missing or stale statuses. */
-    public static final long SCAN_MS = 10_000L;
+    public static final long TTL_MS = 5 * 60_000L;
+    /** How often the loaded players are checked for missing or stale statuses (cheap: only reads the cache). */
+    public static final long SCAN_MS = 250L;
+    /** How long newly due players are collected before one bulk request goes out (a crowd loading together). */
+    public static final long BATCH_MS = 400L;
+    /** Pause after a failed request before asking again. */
+    public static final long RETRY_MS = 5_000L;
 
     private record Entry(HeadStatusApi.HeadStatus status, long at) {}
 
@@ -31,6 +36,10 @@ public final class HeadStatusCache {
     /** Normalised UUIDs that are part of a running request, so none is asked for twice at once. */
     private static final Set<String> PENDING = ConcurrentHashMap.newKeySet();
     private static long lastScan;
+    /** When the first currently due player was seen (0 = none due). */
+    private static long dueSince;
+    /** No request before this time (set after a failure). */
+    private static volatile long retryAt;
 
     private HeadStatusCache() {}
 
@@ -71,6 +80,13 @@ public final class HeadStatusCache {
             String k = key(id);
             if (!CACHE.containsKey(k) && !PENDING.contains(k)) due.add(id);
         }
+        if (due.isEmpty()) {
+            dueSince = 0;
+            return;
+        }
+        if (dueSince == 0) dueSince = now;
+        if (now - dueSince < BATCH_MS || now < retryAt) return;
+        dueSince = 0;
         for (int i = 0; i < due.size(); i += HeadStatusApi.BULK_MAX) {
             request(List.copyOf(due.subList(i, Math.min(due.size(), i + HeadStatusApi.BULK_MAX))));
         }
@@ -81,7 +97,8 @@ public final class HeadStatusCache {
         HeadStatusApi.statusBulk(ids).whenComplete((res, e) -> {
             try {
                 if (e != null) {
-                    // nothing gets cached, so the next scan (10 s later) tries again
+                    // nothing gets cached, so a scan after RETRY_MS tries again
+                    retryAt = System.currentTimeMillis() + RETRY_MS;
                     Telemetric.LOGGER.warn("[Telemetric] HeadStatus bulk status failed: {}", HeadStatusApi.rootMessage(e));
                     return;
                 }

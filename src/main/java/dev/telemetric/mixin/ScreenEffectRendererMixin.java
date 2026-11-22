@@ -35,6 +35,7 @@ public abstract class ScreenEffectRendererMixin {
             target = "Lnet/minecraft/client/renderer/item/ItemStackRenderState;submit(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;III)V"))
     private void telemetric$bagScale(PoseStack pose, float partialTick, SubmitNodeCollector collector, CallbackInfo ci) {
         float s = CustomBagAdapter.popScale();
-        if (s != 1f) pose.scale(s, s, s);
+        float d = CustomBagAdapter.popDepth();
+        if (s != 1f || d != 1f) pose.scale(s, s, s * d);
     }
 }
