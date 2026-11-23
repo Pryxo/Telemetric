@@ -1,6 +1,8 @@
 package dev.telemetric.module.impl.hud;
 
+import dev.telemetric.Telemetric;
 import dev.telemetric.game.BossBarAdapter;
+import dev.telemetric.module.impl.visual.BossStageTrackerModule;
 import dev.telemetric.game.DamageNumberAdapter;
 import dev.telemetric.game.DamageNumberAdapter.DamageNumber;
 import dev.telemetric.hud.LinesHudModule;
@@ -49,6 +51,8 @@ public final class DpsMeterHud extends LinesHudModule {
     private final BooleanSetting compact = add(new BooleanSetting("Compact Numbers", "12.3k instead of 12,345", true));
     private final BooleanSetting tierColors = add(new BooleanSetting("Damage Colors",
             "Colour Max / Last Hit by size (50, 100, 150, 200, 300, 400, 500, 700, shiny at 1k) like the DPS Log", true));
+    private final BooleanSetting hideNumbers = add(new BooleanSetting("Hide Damage Numbers",
+            "Remove the floating damage numbers from the world once they're counted (only on your screen)", false));
     private final BooleanSetting useServerColor = addUseServerColor();
     private final ActionSetting resetAction = add(new ActionSetting("Reset", "End the current fight", this::resetStats));
 
@@ -88,6 +92,7 @@ public final class DpsMeterHud extends LinesHudModule {
         long now = now();
         for (DamageNumber n : DamageFeed.thisTick()) {
             tracker.add(now, n.amount(), timeoutMs());
+            if (hideNumbers.get()) DamageNumberAdapter.hide(n.entityId());
         }
         if (showMax.get() && resetMax.get()) tracker.expireMax(now, Math.round(resetMaxAfter.get() * 1000));
     }
@@ -103,19 +108,49 @@ public final class DpsMeterHud extends LinesHudModule {
         return tracker.active(now, timeoutMs());
     }
 
+    /** One DPS stat for the Boss Stage Tracker label: name, value and its damage-tier colour (ARGB, 0 = none). */
+    public record Row(String label, String value, int argb) {}
+
+    /**
+     * The stats this meter has toggled on (same order as the HUD), for the current fight, for the Boss Stage Tracker's
+     * world label. Empty while the meter is off or there's no fight yet.
+     */
+    public List<Row> statRows() {
+        if (!isEnabled() || !tracker.hasFight()) return List.of();
+        long now = now();
+        boolean running = tracker.active(now, timeoutMs());
+        String dps = fmt(running ? tracker.dps(now, Math.round(dpsWindow.get() * 1000)) : 0);
+        List<Row> rows = new ArrayList<>();
+        if (showDps.get()) rows.add(new Row("DPS", dps, 0));
+        if (showMax.get()) rows.add(hitRow("Max Hit", tracker.max()));
+        if (showLast.get()) rows.add(hitRow("Last Hit", tracker.last()));
+        if (showTotal.get()) rows.add(new Row("Total", fmt(tracker.total()), 0));
+        if (showHits.get()) rows.add(new Row("Hits", Integer.toString(tracker.hits()), 0));
+        if (rows.isEmpty()) rows.add(new Row("DPS", dps, 0));
+        return rows;
+    }
+
+    private Row hitRow(String label, double amount) {
+        return new Row(label, fmt(amount), tierColors.get() ? DamageTiers.color(DamageTiers.tier(amount)) : 0);
+    }
+
     @Override
     protected List<Line> lines(boolean preview) {
         long now = now();
+        // Boss Stage Tracker → DPS → Hide DPS HUD: the stats sit on the boss label instead
+        if (!preview && Telemetric.get().modules().get(BossStageTrackerModule.class).hidesDpsHud()) return List.of();
         if (!visible(now) || (preview && !tracker.hasFight())) return preview ? placeholder() : List.of();
 
-        long end = tracker.hasFight() ? tracker.clock(now, timeoutMs()) : now;
+        // DPS drops to 0 once the fight ended (a frozen clock kept the last value forever); Max/Total stay.
+        boolean running = tracker.active(now, timeoutMs());
+        String dps = fmt(running ? tracker.dps(now, Math.round(dpsWindow.get() * 1000)) : 0);
         List<Line> rows = new ArrayList<>();
-        if (showDps.get()) rows.add(new Line("DPS", fmt(tracker.dps(end, Math.round(dpsWindow.get() * 1000)))));
+        if (showDps.get()) rows.add(new Line("DPS", dps));
         if (showMax.get()) rows.add(hit("Max Hit", tracker.max()));
         if (showLast.get()) rows.add(hit("Last Hit", tracker.last()));
         if (showTotal.get()) rows.add(new Line("Total", fmt(tracker.total())));
         if (showHits.get()) rows.add(new Line("Hits", Integer.toString(tracker.hits())));
-        if (rows.isEmpty()) rows.add(new Line("DPS", fmt(tracker.dps(end, Math.round(dpsWindow.get() * 1000)))));
+        if (rows.isEmpty()) rows.add(new Line("DPS", dps));
         return rows;
     }
 

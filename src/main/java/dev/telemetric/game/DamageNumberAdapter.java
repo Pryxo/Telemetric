@@ -129,6 +129,17 @@ public final class DamageNumberAdapter {
         return out;
     }
 
+    /**
+     * Removes a damage number (from {@link #poll}) from the client world so it isn't drawn. Client-side only: the
+     * server never learns about it and later updates for that entity id are ignored.
+     */
+    public static void hide(int entityId) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) return;
+        Entity entity = level.getEntity(entityId);
+        if (entity != null) entity.discard();
+    }
+
     // ------------------------------------------------------------------ entity text
 
     /** The text of a text display, or the visible custom name of an armor stand or non-living marker entity. */
@@ -242,6 +253,27 @@ public final class DamageNumberAdapter {
         if (g == null) return 0;
         char c = g.ch();
         return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == ' ' ? c : 0;
+    }
+
+    /**
+     * Decodes Telos text-font glyphs in {@code s} to their characters (letters, digits, ' ', '.', '-', '/'); frame
+     * glyphs are dropped, plain ASCII is kept and any other code point is dropped. E.g. a mob HP plate reads "24 / 24".
+     */
+    public static String textFontText(String s) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != null) refreshGlyphs(level);
+        StringBuilder b = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); ) {
+            int cp = s.codePointAt(i);
+            i += Character.charCount(cp);
+            if (cp < 0x80) {
+                b.append((char) cp);
+                continue;
+            }
+            Glyph g = glyphs.get(cp);
+            if (g != null && g.ch() != DECOR) b.append(g.ch());
+        }
+        return b.toString();
     }
 
     private static Map<Integer, Glyph> loadGlyphs() {

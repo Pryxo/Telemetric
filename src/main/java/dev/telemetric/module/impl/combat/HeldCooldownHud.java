@@ -11,8 +11,9 @@ import dev.telemetric.ui.render.Render2D;
 
 /**
  * Weapon Cooldown / Ability Cooldown: a small bar and item icon beside the crosshair (movable in the HUD editor)
- * showing the cooldown of the held weapon or ability. When nothing of that kind is held, the most recently used one
- * keeps showing until its cooldown ends. When it's ready you get a full bar, a short "!" flash, the Ready Alert and
+ * showing the cooldown of the held weapon or ability. When the held one is ready (or nothing of that kind is held), the
+ * most recently used one that is still cooling down (e.g. a hotbar ability next to an off-hand one) shows instead
+ * until its cooldown ends. When it's ready you get a full bar, a short "!" flash, the Ready Alert and
  * the Ready Sound.
  * <p>
  * One class with two instances ({@link #weapon()}, {@link #ability()}). The data comes from {@link CooldownTracker}.
@@ -60,9 +61,12 @@ public final class HeldCooldownHud extends HudModule {
     public void onTick() {
         CooldownTracker tracker = CooldownTracker.get();
         ItemInfo held = CombatAdapter.held(kind);
-        Cooldown c = held != null ? tracker.get(held.group()) : tracker.latest(kind);
+        Cooldown c = held != null ? tracker.get(held.group()) : null;
+        // the held item is ready (e.g. the off-hand ability), but another one of this kind is still cooling down
+        // (e.g. a heal ability used from the hotbar): show that one, so its cooldown isn't lost when you switch back
+        if (c == null) c = tracker.latest(kind);
         cooldown = c;
-        icon = held != null ? held.item() : c != null ? c.info().item() : null;
+        icon = c != null ? c.info().item() : held != null ? held.item() : null;
     }
 
     @Override

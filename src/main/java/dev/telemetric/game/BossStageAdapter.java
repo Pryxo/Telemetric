@@ -18,6 +18,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * MC ADAPTER: the boss damage stage on Telos Realms. A boss carries a stack of {@code text_display} passengers. One
@@ -29,8 +31,20 @@ public final class BossStageAdapter {
 
     public enum Kind { IMMUNE, SHIELDED, DAMAGEABLE }
 
-    /** One boss status display: entity id, stage, raw glyph colour (RGB, -1 for none), and the floor Y under the player. */
-    public record Stage(int entityId, Kind kind, int rgb, double groundY) {}
+    /**
+     * One boss status display: entity id, stage, raw glyph colour (RGB, -1 for none), the floor Y under the player, and
+     * the boss health: {@code hp}/{@code maxHp} from its HP plate (NaN when it has none), {@code percent} 0..100 from
+     * the plate or, without one, from the only known boss bar (-1 when unknown), and its squared distance to the player. {@link #scan} lists nearest first.
+     */
+    public record Stage(int entityId, Kind kind, int rgb, double groundY, double hp, double maxHp, double percent,
+                        double distanceSq) {
+        public boolean hasHp() {
+            return !Double.isNaN(hp) && !Double.isNaN(maxHp) && maxHp > 0;
+        }
+    }
+
+    /** A decoded HP plate, e.g. "24 / 24" or "1.2k/3.5k". */
+    private static final Pattern HP = Pattern.compile("^\\s*([0-9][0-9.,]*)\\s*([kmb]?)\\s*/\\s*([0-9][0-9.,]*)\\s*([kmb]?)\\s*$");
 
     private static final String STATUS_GLYPH = new String(Character.toChars(0x15FF8));
     private static final String PAIR_GLYPH = new String(Character.toChars(0x1604C));
@@ -60,14 +74,20 @@ public final class BossStageAdapter {
         }
         double floorY = cachedFloorY;
         Set<String> keys = bossKeys();
+        List<BossBarAdapter.KnownBar> bars = BossBarAdapter.knownBossBars();
+        double barPercent = bars.size() == 1 ? bars.getFirst().percent() : -1;
         for (Entity e : level.entitiesForRendering()) {
             if (!(e instanceof Display.TextDisplay td) || e.isRemoved()) continue;
             if (e.distanceToSqr(player) > r2) continue;
             Component text = ((TextDisplayAccessor) td).telemetric$getText();
             if (text == null || !text.getString().contains(STATUS_GLYPH) || !hasPair(td, keys)) continue;
             int rgb = statusColor(text);
-            out.add(new Stage(e.getId(), kindOf(rgb), rgb, floorY));
+            double[] hp = hpOf(td);
+            double percent = hp != null ? Math.clamp(hp[0] / hp[1] * 100.0, 0, 100) : barPercent;
+            out.add(new Stage(e.getId(), kindOf(rgb), rgb, floorY, hp != null ? hp[0] : Double.NaN,
+                    hp != null ? hp[1] : Double.NaN, percent, e.distanceToSqr(player)));
         }
+        out.sort(java.util.Comparator.comparingDouble(Stage::distanceSq)); // nearest first
         return out;
     }
 
@@ -97,6 +117,41 @@ public final class BossStageAdapter {
             if (!keys.isEmpty() && keys.contains(DungeonAdapter.plateLetters(s))) return true;
         }
         return false;
+    }
+
+    /** {current, max} from the HP plate riding with the status display, or null if the boss has none. */
+    private static double[] hpOf(Display.TextDisplay status) {
+        Entity root = status.getRootVehicle();
+        for (Entity p : root.getPassengers()) {
+            if (p == status || !(p instanceof Display.TextDisplay td)) continue;
+            Component t = ((TextDisplayAccessor) td).telemetric$getText();
+            if (t == null) continue;
+            Matcher m = HP.matcher(DamageNumberAdapter.textFontText(t.getString()).toLowerCase(java.util.Locale.ROOT));
+            if (!m.matches()) continue;
+            double cur = number(m.group(1), m.group(2)), max = number(m.group(3), m.group(4));
+            if (Double.isNaN(cur) || Double.isNaN(max) || max <= 0) continue;
+            return new double[]{cur, max};
+        }
+        return null;
+    }
+
+    /** "1,234" / "1.5" with an optional k/m/b suffix, or NaN. */
+    private static double number(String digits, String suffix) {
+        String d = digits.endsWith(".") || digits.endsWith(",") ? digits.substring(0, digits.length() - 1) : digits;
+        // "1,234" is a thousands separator; a lone comma with 1-2 decimals ("1,5") is a decimal comma
+        if (d.matches("\\d{1,3}(,\\d{3})+(\\.\\d+)?")) d = d.replace(",", "");
+        else d = d.replace(',', '.');
+        try {
+            double v = Double.parseDouble(d);
+            return switch (suffix) {
+                case "k" -> v * 1e3;
+                case "m" -> v * 1e6;
+                case "b" -> v * 1e9;
+                default -> v;
+            };
+        } catch (NumberFormatException e) {
+            return Double.NaN;
+        }
     }
 
     /** Boss names from {@code Boss.json} as nameplate letters, rebuilt when the table is reloaded. */

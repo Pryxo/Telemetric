@@ -277,11 +277,13 @@ public final class Render2D {
         if (s == null || s.isEmpty() || ColorUtil.alpha(c(color)) < 5) return;
         int col = c(color);
         if (look == TextLook.OUTLINE) {
+            // all 8 neighbours: with only the 4 straight ones, diagonal glyph corners were left without black
             int outline = col & 0xFF000000;
-            g.text(font, s, x - 1, y, outline, false);
-            g.text(font, s, x + 1, y, outline, false);
-            g.text(font, s, x, y - 1, outline, false);
-            g.text(font, s, x, y + 1, outline, false);
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx != 0 || dy != 0) g.text(font, s, x + dx, y + dy, outline, false);
+                }
+            }
         }
         g.text(font, s, x, y, col, look == TextLook.SHADOW);
     }

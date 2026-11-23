@@ -11,6 +11,7 @@ import dev.telemetric.data.TelosData.Bag;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.component.DataComponents;
@@ -88,6 +89,16 @@ public final class CustomBagAdapter {
 
     private static Playing playing;
     private static Object lastLevel;
+
+    private static final String TOTEM_SOUND = "minecraft:item.totem.use";
+    /** How long a totem sound waits for its bag drop, and how long after a custom drop totem sounds stay muted. */
+    private static final long TOTEM_WAIT_MS = 150, TOTEM_MUTE_MS = 1500;
+    /** When the last drop with a custom sound was seen (0 = never). */
+    private static volatile long lastCustomDropMs;
+    /** A held-back totem sound that plays after {@link #TOTEM_WAIT_MS} unless a custom-sound drop shows up. */
+    private static SoundInstance pendingTotem;
+    private static long pendingTotemMs;
+    private static boolean replayingTotem;
 
     private record Decoded(FileTime mtime, List<ImageFrames.Frame> frames) {}
 
@@ -279,6 +290,7 @@ public final class CustomBagAdapter {
         if (s == null || !ServerGate.onTelos() && !previewing) return;
         Identifier model = stack.get(DataComponents.ITEM_MODEL);
         Bag bag = model == null ? null : TelosData.BAGS.get().byTotem().get(model.getPath());
+        if (bag != null && hasSound(bag.key())) customDropSeen();
         Path file = bag == null ? null : file(bag.key(), IMAGE_EXT);
         if (file == null) return;
         Decoded d = frames(bag.key(), file);
@@ -465,6 +477,7 @@ public final class CustomBagAdapter {
     /** Swaps GIF frames while the pop shows, reopens the screen that a preview closed, resumes stopped sounds. */
     private static void tick() {
         tickWorldChange();
+        tickPendingTotem();
         Anim a = anim;
         if (a != null) {
             long elapsed = System.currentTimeMillis() - a.start();
@@ -511,7 +524,50 @@ public final class CustomBagAdapter {
         if (file == null) return false;
         SoundFiles.play(file, s.volume(), s.maxSoundSeconds());
         playing = new Playing(file, System.currentTimeMillis(), s.volume(), s.maxSoundSeconds());
+        customDropSeen();
         return true;
+    }
+
+    /**
+     * {@code SoundEngineMixin}: true = mute this {@code item.totem.use}. Telos plays it with every bag pop, so it would
+     * sound over a custom file. Near a custom-sound drop it's muted; otherwise it's held back for
+     * {@link #TOTEM_WAIT_MS} (the drop may come right after it) and played normally if no custom drop showed up.
+     */
+    public static boolean muteTotemSound(SoundInstance sound) {
+        if (replayingTotem || settings == null || !TOTEM_SOUND.equals(sound.getIdentifier().toString())) return false;
+        if (!ServerGate.onTelos() && !previewing) return false;
+        if (System.currentTimeMillis() - lastCustomDropMs < TOTEM_MUTE_MS) return true;
+        if (!anyCustomSound()) return false;
+        if (pendingTotem == null) {
+            pendingTotem = sound;
+            pendingTotemMs = System.currentTimeMillis();
+        }
+        return true;
+    }
+
+    private static boolean anyCustomSound() {
+        for (Bag bag : TelosData.BAGS.get().list()) if (hasSound(bag.key())) return true;
+        return false;
+    }
+
+    private static void customDropSeen() {
+        lastCustomDropMs = System.currentTimeMillis();
+        pendingTotem = null;
+    }
+
+    /** Plays a held-back totem sound once its wait is over (no custom-sound drop came). */
+    private static void tickPendingTotem() {
+        SoundInstance s = pendingTotem;
+        if (s == null || System.currentTimeMillis() - pendingTotemMs < TOTEM_WAIT_MS) return;
+        pendingTotem = null;
+        replayingTotem = true;
+        try {
+            Minecraft.getInstance().getSoundManager().play(s);
+        } catch (RuntimeException e) {
+            Telemetric.LOGGER.debug("Held-back totem sound not played: {}", e.toString());
+        } finally {
+            replayingTotem = false;
+        }
     }
 
     /**

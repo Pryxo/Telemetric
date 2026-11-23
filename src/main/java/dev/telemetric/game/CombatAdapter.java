@@ -130,6 +130,18 @@ public final class CombatAdapter {
         return p == null ? null : info(p, p.getItemBySlot(slot.vanilla));
     }
 
+    /** Armor pieces with an ability in the inventory (hotbar + main, not worn), in inventory order. */
+    public static List<ItemInfo> inventoryArmor() {
+        LocalPlayer p = player();
+        if (p == null) return List.of();
+        List<ItemInfo> out = new ArrayList<>();
+        for (ItemStack stack : p.getInventory().getNonEquipmentItems()) {
+            ItemInfo info = info(p, stack);
+            if (info != null && info.kind() == Kind.ARMOR && info.slot() != null && info.hasAbility()) out.add(info);
+        }
+        return out;
+    }
+
     /** The first item on the player (hands, armor, inventory) that uses cooldown {@code group}, or null. */
     public static ItemInfo findByGroup(String group) {
         LocalPlayer p = player();
