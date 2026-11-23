@@ -110,7 +110,7 @@ public final class WorldRenderAdapter {
     private record Quad(float[] xyz, int argb) {}
 
     /** One layer's shapes for this frame. */
-    private static final class Batch {
+    static final class Batch {
         final List<Segment> depth = new ArrayList<>(), seeThrough = new ArrayList<>();
         final List<Quad> quadsDepth = new ArrayList<>(), quadsSeeThrough = new ArrayList<>();
 
@@ -298,11 +298,39 @@ public final class WorldRenderAdapter {
         }
     }
 
+    // ------------------------------------------------------------------ 3D preview scene
+
+    /**
+     * For the Settings window's 3D preview ({@code ScenePreviewAdapter}): the shapes {@code drawer} makes (world
+     * coordinates), stored relative to {@code origin}. Billboards face a camera at {@code yRot / xRot} (degrees, like
+     * the game camera); line widths are multiplied by {@code widthScale}.
+     */
+    static Batch collectFor(Drawer drawer, Vec3 origin, float yRot, float xRot, float widthScale) {
+        Batch batch = new Batch();
+        Sink sink = new Sink(origin, yRot, xRot);
+        sink.batch = batch;
+        sink.widthScale = widthScale;
+        try {
+            drawer.draw(sink);
+        } catch (RuntimeException e) {
+            Telemetric.LOGGER.error("Preview drawer failed", e);
+        }
+        return batch;
+    }
+
+    /** Draws a {@link #collectFor} batch like the world's bottom layer: depth-tested, writes no depth. */
+    static void emitFor(MultiBufferSource.BufferSource buffers, PoseStack.Pose pose, Batch batch) {
+        if (batch == null || batch.isEmpty()) return;
+        RenderType lines = underLines();
+        emitBatch(buffers, pose, batch, lines != null ? lines : RenderTypes.linesTranslucent());
+    }
+
     /** Collects shapes relative to the camera for this frame. */
     private static final class Sink implements LineSink {
         private final Vec3 cam;
         private final Vector3f right, up;
         Batch batch = MAIN;
+        float widthScale = 1;
 
         Sink(Vec3 cam, float yRot, float xRot) {
             this.cam = cam;
@@ -316,7 +344,8 @@ public final class WorldRenderAdapter {
         public void line(double x1, double y1, double z1, double x2, double y2, double z2, int argb, float width,
                          boolean throughWalls) {
             (throughWalls ? batch.seeThrough : batch.depth).add(new Segment((float) (x1 - cam.x), (float) (y1 - cam.y),
-                    (float) (z1 - cam.z), (float) (x2 - cam.x), (float) (y2 - cam.y), (float) (z2 - cam.z), argb, width));
+                    (float) (z1 - cam.z), (float) (x2 - cam.x), (float) (y2 - cam.y), (float) (z2 - cam.z), argb,
+                    width * widthScale));
         }
 
         @Override

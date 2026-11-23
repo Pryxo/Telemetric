@@ -51,7 +51,7 @@ public class KeybindComponent extends SettingComponent<KeybindSetting> {
         // a pulsing border while listening
         double pulse = listening ? 0.55 + 0.45 * Math.sin(System.currentTimeMillis() / 160.0) : 0;
         int bg = ColorUtil.lerp(p.control(), ColorUtil.shade(p.accent(), -0.55), listen.get());
-        r.roundedRect(cx, cy, cw, ch, 2, bg);
+        r.roundedRect(cx, cy, cw, ch, 4, bg);
         if (listen.get() > 0.01) r.outline(cx, cy, cw, ch, ColorUtil.fade(p.accent(), listen.get() * (0.5 + pulse * 0.5)));
         int textColor = ColorUtil.lerp(setting.isBound() ? p.text() : p.textMuted(), p.accent(), listen.get());
         r.textCentered(label, cx + cw / 2, labelY(), textColor);

@@ -32,17 +32,22 @@ public class GroupToggleSetting extends BooleanSetting {
     }
 
     /** UI state: whether the children are showing (remembered with the GUI layout, not in profiles). */
+    @Override
+    public boolean isGroup() {
+        return true;
+    }
+
+    @Override
+    public boolean isGroupExpanded() {
+        return open;
+    }
+
     public boolean isOpen() {
         return open;
     }
 
     public void setOpen(boolean open) {
         this.open = open;
-    }
-
-    @Override
-    protected boolean isGroupOpen() {
-        return open;
     }
 
     @Override

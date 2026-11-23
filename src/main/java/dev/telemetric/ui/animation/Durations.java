@@ -40,6 +40,8 @@ public final class Durations {
     public static final int STATUS_GRADIENT_LOOP = 2400;
     /** One up-and-down bob of the #1 status title's wave. Looping, so not capped. */
     public static final int STATUS_WAVE_LOOP = 1400;
+    /** One full turn of a Settings window 3D preview with Auto Rotate on. Looping, so not capped. */
+    public static final int PREVIEW_SPIN_LOOP = 24000;
 
     /** The delay before a tooltip starts to appear. Not a transition but a dwell time. */
     public static final int TOOLTIP_DELAY = 400;

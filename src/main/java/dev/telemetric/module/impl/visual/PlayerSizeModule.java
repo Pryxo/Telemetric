@@ -5,6 +5,8 @@ import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.ui.clickgui.window.PlayerPreview;
+import dev.telemetric.ui.clickgui.window.SettingsPreview;
 
 /**
  * Draws players bigger, smaller or squashed, with separate sizes for you and for other players. It's purely visual,
@@ -41,5 +43,11 @@ public final class PlayerSizeModule extends Module {
 
     private static EntityVisualsAdapter.Scale scale(NumberSetting x, NumberSetting y, NumberSetting z) {
         return new EntityVisualsAdapter.Scale(x.getFloat(), y.getFloat(), z.getFloat());
+    }
+
+    /** The Settings window shows your player model, which picks this module up live. */
+    @Override
+    public SettingsPreview createPreview() {
+        return new PlayerPreview();
     }
 }

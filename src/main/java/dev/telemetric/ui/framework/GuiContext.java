@@ -1,6 +1,7 @@
 package dev.telemetric.ui.framework;
 
 import dev.telemetric.Telemetric;
+import dev.telemetric.module.Module;
 import dev.telemetric.module.impl.misc.InterfaceModule;
 import dev.telemetric.ui.theme.Theme;
 import dev.telemetric.ui.theme.ThemeManager;
@@ -52,6 +53,35 @@ public final class GuiContext {
 
     public InterfaceModule ui() {
         return Telemetric.get().modules().get(InterfaceModule.class);
+    }
+
+    // ------------------------------------------------------------------ settings window
+
+    /** Opens / reports the module Settings window. Set by the screen that hosts the window. */
+    public interface SettingsWindowHost {
+        void openSettings(Module module);
+
+        /** The module the window shows right now, or null when it's closed. */
+        Module settingsModule();
+    }
+
+    private SettingsWindowHost settingsHost;
+
+    public void setSettingsWindowHost(SettingsWindowHost host) {
+        this.settingsHost = host;
+    }
+
+    /** Whether a Settings window can be opened from here (false outside the ClickGUI). */
+    public boolean hasSettingsWindow() {
+        return settingsHost != null;
+    }
+
+    public void openSettings(Module module) {
+        if (settingsHost != null) settingsHost.openSettings(module);
+    }
+
+    public Module settingsModule() {
+        return settingsHost == null ? null : settingsHost.settingsModule();
     }
 
     // ------------------------------------------------------------------ focus

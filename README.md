@@ -19,7 +19,7 @@ Discord: https://discord.gg/dqjD94x3Ra
 
 - **Right Shift** to open the ClickGUI (rebindable in Controls → *Telemetric*).
 - Panel header: **left-drag** to move, **right-click** to collapse.
-- Module row: **left-click** to toggle, **right-click** to open its settings.
+- Module row: **left-click** to toggle, the **gear** opens its Settings window (sections on the left, drag the title to move, edges to resize, ☆ pins a setting), **right-click** shows the bind and your pinned settings.
 - **Misc → HUD → Edit HUD** then drag to move, corner/scroll to resize, **M** to mirror, **Esc** when done.
 
 ## Credits

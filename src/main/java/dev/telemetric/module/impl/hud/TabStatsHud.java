@@ -66,6 +66,15 @@ public class TabStatsHud extends LinesHudModule {
                 stats.put(label, add(new BooleanSetting(label, desc, true).movable()));
             }
         }
+        realLeft = real.isEmpty() ? null : add(new BooleanSetting("Real % Left",
+                "Put the real % in front of the value (\"(17.3%) 50\") instead of after it", false));
+    }
+
+    /** Real % in front of the value instead of after it; null when no stat here has a formula. */
+    private final BooleanSetting realLeft;
+
+    private boolean realOnLeft() {
+        return realLeft != null && realLeft.get();
     }
 
     @Override
@@ -155,6 +164,14 @@ public class TabStatsHud extends LinesHudModule {
     protected List<TextRun> mirroredValueRuns(Line line) {
         List<TextRun> runs = line.valueRuns();
         if (real.isEmpty() || runs == null || runs.size() < 2) return runs;
+        if (realOnLeft()) {
+            // "(12%) 5" mirrored keeps the extra on the outside: "5 (12%) :Attack"
+            TextRun first = runs.getFirst();
+            if (!first.text().startsWith("(") || !first.text().endsWith(") ")) return runs;
+            List<TextRun> out = new ArrayList<>(runs.subList(1, runs.size()));
+            out.add(new TextRun(" " + first.text().substring(0, first.text().length() - 1), first.color(), first.font()));
+            return out;
+        }
         TextRun last = runs.getLast();
         if (!last.text().startsWith(" (") || !last.text().endsWith(")")) return runs;
         List<TextRun> out = new ArrayList<>(runs.size());
@@ -201,9 +218,15 @@ public class TabStatsHud extends LinesHudModule {
         String extra = realToggle != null && realToggle.get() ? StatFormulas.real(label, s.value()) : null;
         if (extra != null) {
             List<TextRun> withExtra = new ArrayList<>(runs.isEmpty() ? List.of(new TextRun(value, valueColor, null)) : runs);
-            withExtra.add(new TextRun(" (" + extra + ")", Telemetric.get().theme().palette().textMuted(), null));
+            int muted = Telemetric.get().theme().palette().textMuted();
+            if (realOnLeft()) {
+                withExtra.addFirst(new TextRun("(" + extra + ") ", muted, null));
+                value = "(" + extra + ") " + value;
+            } else {
+                withExtra.add(new TextRun(" (" + extra + ")", muted, null));
+                value = value + " (" + extra + ")";
+            }
             runs = withExtra;
-            value = value + " (" + extra + ")";
         }
         HudIcon icon = TelosIcons.resolve(label, s.value(), tabIcon);
         // icon-only mode drops the name, but only if there's an icon to stand in for it

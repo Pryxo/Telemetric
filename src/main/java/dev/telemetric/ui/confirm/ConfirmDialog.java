@@ -31,7 +31,6 @@ public final class ConfirmDialog {
     private static final int CANCEL_BG = 0xFF3A3218;
     private static final int CANCEL_HOVER = 0xFF51461F;
     private static final int CONFIRM_HOVER = 0xFFFFDC7A;
-    private static final int DARK_TEXT = WarningColors.DARK;
     private static final int SHADOW = 0x90000000;
 
     private static final int WIDTH = 270, PAD = 10, ICON_W = 16, ICON_H = 14, LINE = 11;
@@ -77,7 +76,7 @@ public final class ConfirmDialog {
         r.roundedRect(bx, by, WIDTH, bh, 4, BOX);
 
         int hy = by + PAD;
-        Icons.warning(r, bx + PAD, hy + (headerH - ICON_H) / 2, ICON_W, ICON_H, YELLOW, DARK_TEXT);
+        Icons.warning(r, bx + PAD, hy + (headerH - ICON_H) / 2, ICON_W, ICON_H, YELLOW);
         r.text(r.trim(request.title(), WIDTH - PAD * 3 - ICON_W), bx + PAD + ICON_W + 6,
                 hy + (headerH - r.fontHeight()) / 2 + 1, TITLE);
         int dy = hy + headerH + 4;

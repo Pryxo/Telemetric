@@ -85,7 +85,7 @@ final class DropdownSearch {
     void renderField(Render2D r, int x, int y, int w, boolean focused, Theme p) {
         focus.animateTo(focused ? 1 : 0);
         int fy = y + 1, fh = FIELD_H - 2;
-        r.roundedRect(x, fy, w, fh, 2, p.control());
+        r.roundedRect(x, fy, w, fh, 4, p.control());
         int lineW = (int) Math.round(w * focus.get());
         if (lineW > 0) r.rect(x + (w - lineW) / 2, fy + fh - 1, lineW, 1, p.accent());
 

@@ -19,7 +19,6 @@ public final class Layout {
     public static final int PANEL_MARGIN_TOP = 24;
     public static final int PANEL_FOOTER = 4;
     public static final int SHADOW_SIZE = 6;
-    public static final int TEXT_OFFSET_Y = 3;
     public static final int SCROLL_STEP = 24;
 
     private Layout() {}

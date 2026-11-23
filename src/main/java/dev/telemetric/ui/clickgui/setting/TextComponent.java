@@ -47,7 +47,7 @@ public class TextComponent extends SettingComponent<TextSetting> {
         r.text(setting.getLabel(), left(), y + Layout.textY(Layout.SETTING_HEIGHT), textColor(p));
 
         int bx = left(), by = y + 15, bw = right() - left();
-        r.roundedRect(bx, by, bw, BOX_H, 2, p.control());
+        r.roundedRect(bx, by, bw, BOX_H, 4, p.control());
         int lineW = (int) Math.round(bw * focus.get());
         if (lineW > 0) r.rect(bx + (bw - lineW) / 2, by + BOX_H - 1, lineW, 1, p.accent());
 

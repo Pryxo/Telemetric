@@ -39,7 +39,7 @@ public class ActionComponent extends SettingComponent<ActionSetting> {
         double flash = press.get();
         int bg = ColorUtil.lerp(p.control(), ColorUtil.shade(p.accent(), -0.45), h * 0.8);
         bg = ColorUtil.lerp(bg, p.accent(), flash);
-        r.roundedRect(bx, by, bw, bh, 2, bg);
+        r.roundedRect(bx, by, bw, bh, 4, bg);
         if (h > 0.01) r.outline(bx, by, bw, bh, ColorUtil.fade(p.accent(), h * 0.6));
         int text = ColorUtil.lerp(ColorUtil.lerp(p.textMuted(), p.text(), h), 0xFFFFFFFF, flash);
         r.textCentered(r.trim(setting.getLabel(), bw - 4), bx + bw / 2, by + Layout.textY(bh), text);

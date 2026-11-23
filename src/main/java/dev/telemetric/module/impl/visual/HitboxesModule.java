@@ -1,7 +1,9 @@
 package dev.telemetric.module.impl.visual;
 
-import dev.telemetric.game.EntityVisualsAdapter;
+import dev.telemetric.game.EntityPreviewAdapter;
 import dev.telemetric.game.EntityVisualsAdapter.BoxKind;
+import dev.telemetric.game.EntityVisualsAdapter;
+import dev.telemetric.game.WorldPreviewAdapter;
 import dev.telemetric.game.WorldRenderAdapter;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
@@ -10,9 +12,15 @@ import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.ModeSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.ui.clickgui.window.PlayerPreview;
+import dev.telemetric.ui.clickgui.window.SettingsPreview;
+import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.render.Render2D;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 /** Draws entity hitboxes (outline and/or translucent fill), with an on/off switch and a colour per entity kind. */
@@ -65,5 +73,66 @@ public final class HitboxesModule extends Module {
             if (fill) sink.boxFill(x0, y0, z0, x1, y1, z1, ColorUtil.withAlpha(argb, fillAlpha), walls);
             if (outline) sink.boxOutline(x0, y0, z0, x1, y1, z1, argb, width, walls);
         });
+    }
+
+    // ------------------------------------------------------------------ Settings window preview
+
+    @Override
+    public SettingsPreview createPreview() {
+        return new PlayerPreview(new PreviewBox());
+    }
+
+    /**
+     * The hitboxes in the preview, drawn like in the world (same style, colours, widths, Through Walls) as real 3D
+     * lines and fills in the preview scene: your own box ("Yourself") around the preview player, plus the boxes of
+     * the nearby entities when Interface > 3D View > Show Entities is on. Falls back to a flat overlay of your own box
+     * if the scene can't be drawn.
+     */
+    private final class PreviewBox implements PlayerPreview.Layer {
+        @Override
+        public void sceneShapes(WorldRenderAdapter.LineSink sink, double radius, boolean entities) {
+            double[] feet = WorldPreviewAdapter.feet();
+            if (feet == null) return;
+            boolean outline = !style.get().equals("Fill"), fill = !style.get().equals("Outline");
+            float width = lineWidth.getFloat();
+            int fillAlpha = (int) Math.round(fillOpacity.get() * 2.55);
+            boolean walls = throughWalls.get();
+            EntityVisualsAdapter.BoxConsumer box = (kind, x0, y0, z0, x1, y1, z1) -> {
+                Kind k = kinds.get(kind);
+                if (k == null || !k.shown().get()) return;
+                int argb = k.color().get();
+                if (fill) sink.boxFill(x0, y0, z0, x1, y1, z1, ColorUtil.withAlpha(argb, fillAlpha), walls);
+                if (outline) sink.boxOutline(x0, y0, z0, x1, y1, z1, argb, width, walls);
+            };
+            double hw = EntityPreviewAdapter.playerWidth() / 2, h = EntityPreviewAdapter.playerHeight();
+            box.box(BoxKind.SELF, feet[0] - hw, feet[1], feet[2] - hw, feet[0] + hw, feet[1] + h, feet[2] + hw);
+            if (entities) EntityVisualsAdapter.forEachBox(radius, false, box);
+        }
+
+        @Override
+        public void render(Render2D r, GuiContext ctx, PlayerPreview.View v, int mouseX, int mouseY) {
+            if (v.scene()) return; // drawn in 3D by sceneShapes
+            Kind k = kinds.get(BoxKind.SELF);
+            if (k == null || !k.shown().get()) return;
+            double hw = EntityPreviewAdapter.playerWidth() / 2, h = v.playerHeight();
+            List<double[]> corners = new ArrayList<>(8);
+            for (int i = 0; i < 8; i++) {
+                corners.add(v.project((i & 1) == 0 ? -hw : hw, (i & 2) == 0 ? 0 : h, (i & 4) == 0 ? -hw : hw));
+            }
+            int argb = k.color().get();
+            if (!style.get().equals("Outline")) {
+                PlayerPreview.fillHull(r, corners, ColorUtil.withAlpha(argb, (int) Math.round(fillOpacity.get() * 2.55)));
+            }
+            if (!style.get().equals("Fill")) {
+                int t = lineWidth.get() >= 3 ? 2 : 1;
+                for (int i = 0; i < 8; i++) {
+                    for (int bit = 1; bit <= 4; bit <<= 1) {
+                        if ((i & bit) != 0) continue;
+                        double[] a = corners.get(i), b = corners.get(i | bit);
+                        PlayerPreview.line(r, a[0], a[1], b[0], b[1], argb, t);
+                    }
+                }
+            }
+        }
     }
 }

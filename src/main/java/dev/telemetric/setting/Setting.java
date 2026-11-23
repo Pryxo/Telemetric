@@ -106,26 +106,29 @@ public abstract class Setting<T> {
         return false;
     }
 
-    /** Whether this is an open group toggle (children unfolded), ignoring visibility. */
-    protected boolean isGroupOpen() {
-        return false;
-    }
-
     /** The setting's own visibility rules up the group chain, ignoring whether the groups are open (used by the ClickGUI search). */
     public boolean isVisibleIgnoringGroups() {
         return visibility.getAsBoolean() && (group == null || group.isVisibleIgnoringGroups());
     }
 
     /**
-     * Visibility below {@code root} (one of this setting's group ancestors). Every group between them has to be open,
-     * while {@code root} itself only needs its own rules (the ClickGUI search keeps a matching group shown while it's
-     * closed).
+     * Visibility inside a Settings-window section. {@code section} is a top-level group whose children fill the
+     * section, so it counts as open; groups between this setting and the section still have to be open.
      */
-    public boolean isVisibleUnder(Setting<?> root) {
-        for (Setting<?> s = this; s != root; s = s.group) {
-            if (s == null || !s.visibility.getAsBoolean() || s.group == null || !s.group.isGroupOpen()) return false;
-        }
-        return root.isVisibleIgnoringGroups();
+    public boolean isVisibleInSection(Setting<?> section) {
+        if (!visibility.getAsBoolean() || group == null) return false;
+        if (group == section) return section.isVisibleIgnoringGroups();
+        return group.isGroupExpanded() && group.isVisibleInSection(section);
+    }
+
+    /** True for group settings (a header with children). */
+    public boolean isGroup() {
+        return false;
+    }
+
+    /** For groups: whether the children are expanded right now. */
+    public boolean isGroupExpanded() {
+        return false;
     }
 
     /** The group toggle this setting is a child of, or {@code null}. */

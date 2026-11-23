@@ -5,6 +5,7 @@ import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.notification.Toasts;
@@ -42,6 +43,18 @@ public final class InterfaceModule extends Module {
 
     public final BooleanSetting pauseGame = add(new BooleanSetting(
             "Pause Game", "Pause singleplayer while the GUI is open", false));
+
+    public final GroupToggleSetting view3d = add(new GroupToggleSetting("3D View",
+            "The 3D preview in module Settings windows (Player Size, Hitboxes, Health Bar, ...). Off: only the settings "
+                    + "list; everything the preview can drag is also a setting", true));
+
+    public final BooleanSetting view3dEntities = add(view3d.child(new BooleanSetting("Show Entities",
+            "Also draw nearby players, mobs and display models in the 3D view (each one is an extra model render)",
+            false)));
+
+    public final NumberSetting view3dMaxEntities = add(view3d.child(new NumberSetting("Max Entities",
+            "The most nearby entities drawn in the 3D view (nearest first)", 8, 1, 32, 1)
+            .visibleWhen(view3dEntities::get)));
 
     public final ActionSetting resetLayout = add(new ActionSetting(
             "Reset Layout", "Re-arrange all panels to their default positions", () -> {

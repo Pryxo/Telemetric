@@ -1,10 +1,10 @@
 package dev.telemetric.module.impl.visual;
 
-import dev.telemetric.game.NametagAdapter;
 import dev.telemetric.game.NametagAdapter.CurrencyColors;
 import dev.telemetric.game.NametagAdapter.CurrencyLine;
 import dev.telemetric.game.NametagAdapter.FragmentCount;
 import dev.telemetric.game.NametagAdapter.TitlePosition;
+import dev.telemetric.game.NametagAdapter;
 import dev.telemetric.game.PlayerAdapter;
 import dev.telemetric.game.ServerGate;
 import dev.telemetric.module.Category;
@@ -14,6 +14,9 @@ import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.ModeSetting;
 import dev.telemetric.tracking.BalanceLookup;
+import dev.telemetric.ui.clickgui.window.NametagLayer;
+import dev.telemetric.ui.clickgui.window.PlayerPreview;
+import dev.telemetric.ui.clickgui.window.SettingsPreview;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +27,7 @@ import java.util.List;
  * sent in the background by {@link BalanceLookup} (rate-limited, cached, replies kept out of the chat). Fame picks
  * which balance is shown; Auto (default) follows each player's mode glyph in their name tag
  * ({@code TelosCharacter.modeFromGlyph}): normal → normal, seasonal → seasonal, ironman / group / unknown → none. The line sits between the name and the HP
- * line by default; Position moves it, and Replace HP puts it in the HP line's place.
+ * line by default; Position moves it, and Hide HP removes the HP line from every Telos name tag.
  */
 public final class PlayerCurrencyModule extends Module {
 
@@ -48,8 +51,8 @@ public final class PlayerCurrencyModule extends Module {
     private final ModeSetting position = add(new ModeSetting("Position",
             "Where the line sits: Top (above the name), Middle (between name and HP) or Bottom (under everything)",
             "Middle", "Top", "Middle", "Bottom"));
-    private final BooleanSetting replaceHp = add(new BooleanSetting("Replace HP",
-            "Show the line in place of the HP line (Position is ignored then)", false));
+    private final BooleanSetting hideHp = add(new BooleanSetting("Hide HP",
+            "Remove the HP line from every Telos name tag (Position still moves the currency line)", false));
     private final BooleanSetting hideSelf = add(new BooleanSetting("Hide Yourself",
             "Don't show the line in your own name tag", false));
 
@@ -70,10 +73,19 @@ public final class PlayerCurrencyModule extends Module {
     public PlayerCurrencyModule() {
         super("Player Currency", "Shows each player's fame and fragments in their name tag (via /balance)",
                 Category.INVENTORY);
-        syncOn(this::sync, position, replaceHp);
+        syncOn(this::sync, position, hideHp);
         sync();
         BalanceLookup.register();
         NametagAdapter.setCurrencySource(this::currencyFor);
+    }
+
+    /** Hide HP is one shared choice: switching it here switches Status Title's, and the other way round. */
+    @Override
+    public void onPostInit() {
+        BooleanSetting other = dev.telemetric.Telemetric.get().modules()
+                .get(dev.telemetric.module.impl.visual.StatusTitleModule.class).hideHpSetting();
+        hideHp.onChange(v -> { if (other.get() != hideHp.get()) other.set(hideHp.get()); });
+        other.onChange(v -> { if (hideHp.get() != other.get()) hideHp.set(other.get()); });
     }
 
     private void sync() {
@@ -82,7 +94,7 @@ public final class PlayerCurrencyModule extends Module {
             case "Bottom" -> TitlePosition.BOTTOM;
             default -> TitlePosition.MIDDLE;
         };
-        NametagAdapter.setCurrencyLayout(pos, replaceHp.get());
+        NametagAdapter.setCurrencyLayout(pos, isEnabled() && hideHp.get());
         if (!isEnabled()) BalanceLookup.cancel();
     }
 
@@ -97,6 +109,52 @@ public final class PlayerCurrencyModule extends Module {
 
     private CurrencyLine currencyFor(String ownerName, boolean self, String mode) {
         if (!isEnabled() || (self && hideSelf.get())) return null;
+        return line(ownerName, mode);
+    }
+
+    // ------------------------------------------------------------------ Settings window preview
+
+    @Override
+    public SettingsPreview createPreview() {
+        return new PlayerPreview(new NametagLayer(NametagAdapter.LineKind.CURRENCY));
+    }
+
+    /**
+     * Your currency line for the name tag preview, shown even with the module off: your real balance once it was
+     * looked up, else a sample. Null with Hide Yourself on (or nothing to show).
+     */
+    public CurrencyLine previewCurrency() {
+        if (hideSelf.get()) return null;
+        String name = PlayerAdapter.name();
+        CurrencyLine real = name == null ? null : line(name, "normal");
+        if (real != null) return real;
+        if (fame.is("Nothing")) return null;
+        boolean seasonal = fame.is("Seasonal");
+        return new CurrencyLine("12,345", List.of(), new CurrencyColors(seasonal ? seasonalIcon.get() : normalIcon.get(),
+                fameColor.get(), separatorColor.get(), fragmentColor.get(), fragmentIconColor.get()));
+    }
+
+    public TitlePosition currencyPosition() {
+        return switch (position.get()) {
+            case "Top" -> TitlePosition.TOP;
+            case "Bottom" -> TitlePosition.BOTTOM;
+            default -> TitlePosition.MIDDLE;
+        };
+    }
+
+    public void setCurrencyPosition(TitlePosition pos) {
+        position.set(switch (pos) {
+            case TOP -> "Top";
+            case BOTTOM -> "Bottom";
+            default -> "Middle";
+        });
+    }
+
+    public boolean hidesHp() {
+        return hideHp.get();
+    }
+
+    private CurrencyLine line(String ownerName, String mode) {
         BalanceLookup.Balance b = BalanceLookup.get(ownerName);
         if (b == null) return null;
         String fameMode = switch (fame.get()) {

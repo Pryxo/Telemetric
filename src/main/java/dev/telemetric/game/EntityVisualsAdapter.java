@@ -234,6 +234,11 @@ public final class EntityVisualsAdapter {
      * Paper-thin (display) boxes are skipped.
      */
     public static void forEachBox(double range, BoxConsumer out) {
+        forEachBox(range, true, out);
+    }
+
+    /** {@link #forEachBox(double, BoxConsumer)}; {@code withSelf} false leaves your own box out (the 3D preview draws its own). */
+    public static void forEachBox(double range, boolean withSelf, BoxConsumer out) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         LocalPlayer self = mc.player;
@@ -245,7 +250,7 @@ public final class EntityVisualsAdapter {
         for (Entity e : level.entitiesForRendering()) {
             BoxKind kind;
             if (e == self) {
-                if (!ViewAdapter.isThirdPerson()) continue;
+                if (!withSelf || !ViewAdapter.isThirdPerson()) continue;
                 kind = BoxKind.SELF;
             } else if (e instanceof Player) kind = BoxKind.PLAYER;
             else if (e instanceof ArmorStand) kind = BoxKind.ARMOR_STAND;

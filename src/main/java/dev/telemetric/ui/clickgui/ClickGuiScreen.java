@@ -13,6 +13,8 @@ import dev.telemetric.ui.confirm.Confirm;
 import dev.telemetric.ui.confirm.ConfirmDialog;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
+import dev.telemetric.ui.clickgui.window.SettingsWindow;
+import dev.telemetric.input.InputUtil;
 import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
@@ -50,6 +52,9 @@ public class ClickGuiScreen extends Screen {
     private final TooltipRenderer tooltip;
     private final ToastRenderer toasts;
     private final SearchBar search;
+    private final SettingsWindow window;
+    /** Whether the mouse button held right now was pressed on the Settings window. */
+    private boolean pressOnWindow;
 
     private final Animation open = new Animation(Durations.SCREEN, Easing.OUT_CUBIC, 0);
     private final Animation close = new Animation(Durations.MODAL, Easing.IN_CUBIC, 1);
@@ -75,7 +80,29 @@ public class ClickGuiScreen extends Screen {
         open.animateTo(1);
         for (int i = 0; i < panels.size(); i++) panels.get(i).playAppear(i * Durations.STAGGER);
         restoreZOrder(layout.getZOrder());
-        this.search = new SearchBar(ctx, query -> panels.forEach(panel -> panel.setSearch(query)));
+        this.window = new SettingsWindow(ctx, layout);
+        ctx.setSettingsWindowHost(new GuiContext.SettingsWindowHost() {
+            @Override
+            public void openSettings(Module module) {
+                window.open(module);
+            }
+
+            @Override
+            public Module settingsModule() {
+                return window.getModule();
+            }
+        });
+        String reopen = layout.window().module;
+        if (reopen != null) {
+            for (Module m : mod.modules().getModules()) {
+                if (m.getName().equals(reopen) && m.isVisibleInGui()) window.restore(m);
+            }
+            if (!window.isOpen()) layout.window().module = null;
+        }
+        this.search = new SearchBar(ctx, query -> {
+            panels.forEach(panel -> panel.setSearch(query));
+            window.setSearch(query);
+        });
         search.playAppear(panels.size() * Durations.STAGGER);
     }
 
@@ -194,13 +221,21 @@ public class ClickGuiScreen extends Screen {
         r.pushAlpha(screenAlpha());
 
         ctx.clearTooltipRequest();
+        // the panels and the search bar don't react to a mouse over the Settings window (unless they hold a drag)
+        boolean behind = window.isOver(mx, my) && (heldButtons == 0 || pressOnWindow);
+        int bx = behind ? Integer.MIN_VALUE / 2 : mx, by = behind ? Integer.MIN_VALUE / 2 : my;
         for (Panel panel : panels) {
             r.nextLayer();
-            panel.render(r, mx, my, delta, sw, sh);
+            panel.render(r, bx, by, delta, sw, sh);
         }
 
         r.nextLayer();
-        search.render(r, mx, my, delta, sw, sh);
+        search.render(r, bx, by, delta, sw, sh);
+
+        if (window.isOpen()) {
+            r.nextLayer();
+            window.render(r, mx, my, delta, sw, sh);
+        }
 
         r.nextLayer();
         tooltip.render(r, mx, my, sw, sh);
@@ -273,6 +308,7 @@ public class ClickGuiScreen extends Screen {
         if (finished) return;
         finished = true;
         search.onClose();
+        window.onClose();
         panels.forEach(UIComponent::onClose); // the panels write their open/scroll state into GuiLayout here
         Telemetric.get().config().getLayout().setZOrder(panels.stream().map(Panel::getId).toList());
         Telemetric.get().config().onGuiClosed();
@@ -294,6 +330,11 @@ public class ClickGuiScreen extends Screen {
         if (focused != null && focused.focusedMouseButton(button)) return true;
         if (focused != null && !focused.isHovered(mx, my)) ctx.clearFocus();
 
+        if (window.mouseClicked(mx, my, button)) { // drawn above everything else
+            pressOnWindow = true;
+            return true;
+        }
+        pressOnWindow = false;
         if (search.mouseClicked(mx, my, button)) return true; // drawn above the panels, so it gets input first
         for (int i = panels.size() - 1; i >= 0; i--) {
             Panel panel = panels.get(i);
@@ -308,7 +349,7 @@ public class ClickGuiScreen extends Screen {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         double mx = event.x() / scale(), my = event.y() / scale();
-        boolean handled = false;
+        boolean handled = window.mouseReleased(mx, my, event.button());
         for (Panel panel : panels) handled |= panel.mouseReleased(mx, my, event.button());
         int button = event.button();
         if (button >= 0 && button < 31) heldButtons &= ~(1 << button);
@@ -319,6 +360,7 @@ public class ClickGuiScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (closing || Confirm.isOpen()) return true;
         double mx = mouseX / scale(), my = mouseY / scale();
+        if (window.isOver(mx, my)) return window.mouseScrolled(mx, my, scrollY);
         for (int i = panels.size() - 1; i >= 0; i--) {
             Panel panel = panels.get(i);
             if (panel.isHovered(mx, my)) return panel.mouseScrolled(mx, my, scrollY);
@@ -333,6 +375,10 @@ public class ClickGuiScreen extends Screen {
         if (dialog != null) return dialog.keyPressed(event.key()); // modal: Esc cancels the dialog, not the GUI
         UIComponent focused = ctx.getFocused();
         if (focused != null && focused.keyPressed(event.key(), event.scancode(), event.modifiers())) return true;
+        if (event.key() == InputUtil.KEY_ESCAPE && window.getModule() != null) { // Esc closes the window first
+            window.close();
+            return true;
+        }
         return super.keyPressed(event); // Esc goes to onClose()
     }
 

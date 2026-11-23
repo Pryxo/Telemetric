@@ -6,6 +6,7 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 
@@ -131,6 +132,103 @@ public final class ServerInfoAdapter {
     /** Case-insensitive lookup of one stat. */
     public static Optional<TabStat> tabStat(String label) {
         return Optional.ofNullable(tabStats().get(label.toLowerCase(Locale.ROOT)));
+    }
+
+    // ---------------------------------------------------------------- Tab list extras ("(17.3%)" next to a stat)
+
+    /** Text to show next to one Tab-list stat (e.g. its real %), or null for none. */
+    public interface TabExtraSource {
+        String extraFor(String label, String value);
+    }
+
+    private static volatile TabExtraSource tabExtraSource;
+    private static volatile boolean tabExtraLeft;
+    private static volatile java.util.function.IntSupplier tabExtraColor = () -> 0xFFAAAAAA;
+    private static volatile int tabExtraVersion;
+
+    /** Per entry: the server's display name it was built from, the settings it was built with, and the result. */
+    private record TabDecorated(Component source, int version, int color, Component out) {}
+
+    private static final Map<PlayerInfo, TabDecorated> TAB_DECORATED = new java.util.WeakHashMap<>();
+
+    /**
+     * A null source turns the extras off. {@code left} puts them in front of the value ("Attack: (17.3%) 50"), else
+     * after it ("Attack: 50 (17.3%)").
+     */
+    public static void setTabExtras(TabExtraSource source, boolean left, java.util.function.IntSupplier color) {
+        tabExtraSource = source;
+        tabExtraLeft = left;
+        if (color != null) tabExtraColor = color;
+        tabExtraVersion++;
+    }
+
+    /** Mixin hook ({@code PlayerTabOverlayMixin}, return of {@code getNameForDisplay}): the name with its extra. */
+    public static Component decorateTabName(PlayerInfo info, Component name) {
+        TabExtraSource source = tabExtraSource;
+        if (source == null || name == null || info == null || !ServerGate.onTelos()) return name;
+        Component server = info.getTabListDisplayName();
+        if (server == null) return name;
+        int version = tabExtraVersion, color = tabExtraColor.getAsInt();
+        TabDecorated prev = TAB_DECORATED.get(info);
+        if (prev != null && prev.source() == server && prev.version() == version && prev.color() == color) {
+            return prev.out();
+        }
+        Component out = name;
+        try {
+            TabStat stat = parseEntry(server);
+            String extra = stat == null ? null : source.extraFor(stat.label(), stat.value());
+            if (extra != null) out = withExtra(name, extra, tabExtraLeft, color);
+        } catch (RuntimeException e) {
+            out = name; // odd component: show it unchanged
+        }
+        TAB_DECORATED.put(info, new TabDecorated(server, version, color, out));
+        return out;
+    }
+
+    private record StyledCp(Style style, int cp) {}
+
+    /** {@code name} with "(extra)" right after the colon's spaces (left) or after the value's last visible char. */
+    private static Component withExtra(Component name, String extra, boolean left, int color) {
+        List<StyledCp> cps = new ArrayList<>();
+        name.visit((style, segment) -> {
+            segment.codePoints().forEach(cp -> cps.add(new StyledCp(style, cp)));
+            return Optional.empty();
+        }, Style.EMPTY);
+        int colon = -1;
+        for (int i = 0; i < cps.size(); i++) {
+            if (cps.get(i).cp() == ':' && fontId(cps.get(i).style()) == null) { colon = i; break; }
+        }
+        if (colon < 0) return name;
+        int at = -1;
+        for (int i = colon + 1; i < cps.size(); i++) {
+            int cp = cps.get(i).cp();
+            if (Character.isWhitespace(cp) || isSpacer(cp)) continue;
+            if (left) { at = i; break; }
+            at = i + 1;
+        }
+        if (at < 0) return name;
+        Style extraStyle = Style.EMPTY.withColor(TextColor.fromRgb(color & 0xFFFFFF));
+        MutableComponent out = Component.empty();
+        StringBuilder run = new StringBuilder();
+        Style runStyle = null;
+        for (int i = 0; i <= cps.size(); i++) {
+            if (i == at) {
+                if (runStyle != null && !run.isEmpty()) out.append(Component.literal(run.toString()).setStyle(runStyle));
+                run.setLength(0);
+                runStyle = null;
+                out.append(Component.literal(left ? "(" + extra + ") " : " (" + extra + ")").setStyle(extraStyle));
+            }
+            if (i == cps.size()) break;
+            StyledCp c = cps.get(i);
+            if (runStyle != null && !runStyle.equals(c.style())) {
+                out.append(Component.literal(run.toString()).setStyle(runStyle));
+                run.setLength(0);
+            }
+            runStyle = c.style();
+            run.appendCodePoint(c.cp());
+        }
+        if (runStyle != null && !run.isEmpty()) out.append(Component.literal(run.toString()).setStyle(runStyle));
+        return out;
     }
 
     private static Map<String, TabStat> readTabList() {

@@ -82,7 +82,7 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         int sx = right() - SWATCH_W, sy = y + (Layout.SETTING_HEIGHT - SWATCH_H) / 2;
         r.text(r.trim(setting.getLabel(), sx - 4 - left()), left(), labelY(), textColor(p));
         drawChecker(r, sx, sy, SWATCH_W, SWATCH_H);
-        r.roundedRect(sx, sy, SWATCH_W, SWATCH_H, 2, setting.get());
+        r.roundedRect(sx, sy, SWATCH_W, SWATCH_H, 3, setting.get());
         r.outline(sx, sy, SWATCH_W, SWATCH_H, ColorUtil.fade(p.border(), 0.8));
 
         double o = open.get();
@@ -155,7 +155,7 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         int bx = left();
         hexBoxW = r.textWidth("#" + "D".repeat(hexDigits())) + 8;
         int bw = hexBoxW;
-        r.roundedRect(bx, top, bw, HEX_ROW, 2, p.control());
+        r.roundedRect(bx, top, bw, HEX_ROW, 4, p.control());
         int lineW = (int) Math.round(bw * focus.get());
         if (lineW > 0) r.rect(bx + (bw - lineW) / 2, top + HEX_ROW - 1, lineW, 1, p.accent());
         String shown = "#" + (focused ? hexBuffer : currentHex());

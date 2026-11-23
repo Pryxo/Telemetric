@@ -83,6 +83,7 @@ public final class Telemetric implements ClientModInitializer {
         Keybinds.register();
         HudOverlay.register();
         WorldRenderAdapter.register();
+        dev.telemetric.game.ScenePreviewAdapter.register();
         DungeonAdapter.register();
         ChatAdapter.register();
         StashAdapter.register();

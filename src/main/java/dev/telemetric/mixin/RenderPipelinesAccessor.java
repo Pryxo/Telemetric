@@ -13,4 +13,9 @@ public interface RenderPipelinesAccessor {
     static RenderPipeline.Snippet telemetric$linesSnippet() {
         throw new AssertionError();
     }
+
+    @Accessor("GUI_TEXTURED_SNIPPET")
+    static RenderPipeline.Snippet telemetric$guiTexturedSnippet() {
+        throw new AssertionError();
+    }
 }

@@ -111,23 +111,24 @@ public final class DpsMeterHud extends LinesHudModule {
     /** One DPS stat for the Boss Stage Tracker label: name, value and its damage-tier colour (ARGB, 0 = none). */
     public record Row(String label, String value, int argb) {}
 
+    /** Stat names {@link #allStatRows} uses as keys, in HUD order. */
+    public static final String DPS = "DPS", MAX_HIT = "Max Hit", LAST_HIT = "Last Hit", TOTAL = "Total", HITS = "Hits";
+
     /**
-     * The stats this meter has toggled on (same order as the HUD), for the current fight, for the Boss Stage Tracker's
-     * world label. Empty while the meter is off or there's no fight yet.
+     * Every stat of the current fight by name ({@link #DPS} to {@link #HITS}), whatever this meter's own Show toggles
+     * say, for the Boss Stage Tracker's per-stat label lines. Empty while the meter is off or there's no fight yet.
      */
-    public List<Row> statRows() {
-        if (!isEnabled() || !tracker.hasFight()) return List.of();
+    public java.util.Map<String, Row> allStatRows() {
+        if (!isEnabled() || !tracker.hasFight()) return java.util.Map.of();
         long now = now();
         boolean running = tracker.active(now, timeoutMs());
-        String dps = fmt(running ? tracker.dps(now, Math.round(dpsWindow.get() * 1000)) : 0);
-        List<Row> rows = new ArrayList<>();
-        if (showDps.get()) rows.add(new Row("DPS", dps, 0));
-        if (showMax.get()) rows.add(hitRow("Max Hit", tracker.max()));
-        if (showLast.get()) rows.add(hitRow("Last Hit", tracker.last()));
-        if (showTotal.get()) rows.add(new Row("Total", fmt(tracker.total()), 0));
-        if (showHits.get()) rows.add(new Row("Hits", Integer.toString(tracker.hits()), 0));
-        if (rows.isEmpty()) rows.add(new Row("DPS", dps, 0));
-        return rows;
+        java.util.Map<String, Row> out = new java.util.LinkedHashMap<>();
+        out.put(DPS, new Row(DPS, fmt(running ? tracker.dps(now, Math.round(dpsWindow.get() * 1000)) : 0), 0));
+        out.put(MAX_HIT, hitRow(MAX_HIT, tracker.max()));
+        out.put(LAST_HIT, hitRow(LAST_HIT, tracker.last()));
+        out.put(TOTAL, new Row(TOTAL, fmt(tracker.total()), 0));
+        out.put(HITS, new Row(HITS, Integer.toString(tracker.hits()), 0));
+        return out;
     }
 
     private Row hitRow(String label, double amount) {

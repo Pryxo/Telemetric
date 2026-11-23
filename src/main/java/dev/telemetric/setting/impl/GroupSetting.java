@@ -35,6 +35,16 @@ public class GroupSetting extends Setting<Boolean> {
     }
 
     /** UI state: whether the children are showing (remembered with the GUI layout, not in profiles). */
+    @Override
+    public boolean isGroup() {
+        return true;
+    }
+
+    @Override
+    public boolean isGroupExpanded() {
+        return open;
+    }
+
     public boolean isOpen() {
         return open;
     }

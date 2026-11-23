@@ -69,6 +69,12 @@ public final class BossTrackerModule extends LinesHudModule {
             "Look at a boss waypoint someone is fighting and press: /tp to that player", KeybindSetting.NONE)
             .onPress(this::quickTeleport).visibleWhen(waypoints::get)));
 
+    private final GroupSetting bossGroup = add(new GroupSetting("Bosses", "Optional bosses (always tracked, shown only when on)"));
+    private final BooleanSetting showCog = add(bossGroup.child(new BooleanSetting("Cog Sentinel",
+            "Show Cog Sentinel and its Cog Stabilizers in the list and as waypoints", false)));
+    private final BooleanSetting showOmni = add(bossGroup.child(new BooleanSetting("Voided Omnipotent",
+            "Show Voided Omnipotent in the list and as a waypoint", false)));
+
     private final GroupSetting colors = add(new GroupSetting("Colors", "State colours (list + waypoints)"));
     private final ColorSetting availableColor = add(colors.child(new ColorSetting("Available Color",
             "Alive, nobody fighting", 0xFFF2F2FF, false)));
@@ -157,7 +163,7 @@ public final class BossTrackerModule extends LinesHudModule {
         long now = System.currentTimeMillis();
         List<Tracked> list = new ArrayList<>();
         for (Tracked t : here) {
-            if (!t.marker && !t.boss.tracker().counted()) list.add(t);
+            if (!t.marker && !t.boss.tracker().counted() && shown(t.boss)) list.add(t);
         }
         list.sort(Comparator.comparingInt((Tracked t) -> order(t.state())).thenComparing(t -> t.name));
         List<Line> lines = new ArrayList<>(list.size() + 6);
@@ -174,7 +180,7 @@ public final class BossTrackerModule extends LinesHudModule {
         List<Line> out = new ArrayList<>(4);
         List<Line> counters = new ArrayList<>(3);
         for (Boss b : TelosData.BOSSES.get().tracked()) {
-            if (!b.tracker().counted()) continue;
+            if (!b.tracker().counted() || !shown(b)) continue;
             Tracked t = tracker.get(b.name());
             if (b.tracker().progress()) out.add(progressLine(b, t, now));
             else counters.add(counterLine(b, t, now));
@@ -278,12 +284,20 @@ public final class BossTrackerModule extends LinesHudModule {
 
     // ------------------------------------------------------------------ waypoints
 
+    /** Hidden-by-default bosses: still tracked, only drawn when their toggle is on. */
+    private boolean shown(Boss b) {
+        if (b == null) return true;
+        if (b.name().equalsIgnoreCase("Cog Sentinel")) return showCog.get();
+        if (b.name().equalsIgnoreCase("Voided Omnipotent")) return showOmni.get();
+        return true;
+    }
+
     /** The waypoints to draw now: bosses in a shown state, in this place, with a spot. */
     private List<Tracked> waypointBosses() {
         if (!isEnabled() || !waypoints.get()) return List.of();
         List<Tracked> out = new ArrayList<>();
         for (Tracked t : here) {
-            if (t.spot() == null) continue;
+            if (t.spot() == null || !shown(t.boss)) continue;
             boolean show = switch (t.state()) {
                 case DEFEATED -> false;
                 case IDLE -> t.boss.tracker() == null || t.boss.tracker().idle() || open(t); // a counter boss only when it's "Open"

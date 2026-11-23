@@ -54,10 +54,24 @@ public final class Render2D {
         this.alpha = 1f;
         this.alphaStack.clear();
         this.textShadow = textShadow;
+        this.quadCount = 0;
+        this.batchDepth = 0;
+        drawPass++;
+    }
+
+    private static long drawPass;
+
+    /**
+     * Changes on every {@link #begin} and {@link #end} (of any Render2D), so per-frame caches (e.g. HUD rows) keyed on
+     * it are rebuilt once per draw pass and never reused outside one.
+     */
+    public static long drawPass() {
+        return drawPass;
     }
 
     public void end() {
         this.g = null;
+        drawPass++;
     }
 
     // ================================================================== state
@@ -165,14 +179,18 @@ public final class Render2D {
 
     public void rect(int x, int y, int w, int h, int color) {
         if (w <= 0 || h <= 0 || ColorUtil.alpha(color) == 0) return;
-        g.fill(x, y, x + w, y + h, c(color));
+        int col = c(color);
+        if (batchDepth > 0) quad(x, y, x + w, y + h, col, col, col, col);
+        else g.fill(x, y, x + w, y + h, col);
     }
 
     public void outline(int x, int y, int w, int h, int color) {
+        beginBatch();
         rect(x, y, w, 1, color);
         rect(x, y + h - 1, w, 1, color);
         rect(x, y + 1, 1, h - 2, color);
         rect(x + w - 1, y + 1, 1, h - 2, color);
+        endBatch();
     }
 
     public void gradientV(int x, int y, int w, int h, int top, int bottom) {
@@ -180,14 +198,13 @@ public final class Render2D {
         g.fillGradient(x, y, x + w, y + h, c(top), c(bottom));
     }
 
-    /** A horizontal gradient drawn as 1-unit columns (fine for thin bars and small widths). */
+    /** A horizontal gradient: one quad with left/right vertex colours. */
     public void gradientH(int x, int y, int w, int h, int left, int right) {
         if (w <= 0 || h <= 0) return;
-        if (w == 1) {
-            rect(x, y, 1, h, left);
-            return;
-        }
-        for (int i = 0; i < w; i++) rect(x + i, y, 1, h, ColorUtil.lerp(left, right, i / (double) (w - 1)));
+        int l = c(left), r = c(right);
+        beginBatch();
+        quad(x, y, x + w, y + h, l, l, r, r);
+        endBatch();
     }
 
     /** A rounded rectangle with anti-aliased corners. {@code corners} is a bitmask of CORNER_* flags. */
@@ -200,12 +217,14 @@ public final class Render2D {
         }
         boolean top = (corners & CORNERS_TOP) != 0, bottom = (corners & CORNERS_BOTTOM) != 0;
         int topRows = top ? r : 0, bottomRows = bottom ? r : 0;
+        beginBatch();
         rect(x, y + topRows, w, h - topRows - bottomRows, color);
         for (int i = 0; i < r; i++) {
             double inset = cornerInset(r, i);
             if (top) row(x, y + i, w, inset, (corners & CORNER_TL) != 0, (corners & CORNER_TR) != 0, color);
             if (bottom) row(x, y + h - 1 - i, w, inset, (corners & CORNER_BL) != 0, (corners & CORNER_BR) != 0, color);
         }
+        endBatch();
     }
 
     public void roundedRect(int x, int y, int w, int h, int radius, int color) {
@@ -215,6 +234,7 @@ public final class Render2D {
     /** A filled, anti-aliased circle centred on (cx, cy). */
     public void circle(double cx, double cy, double radius, int color) {
         int top = (int) Math.floor(cy - radius), bottom = (int) Math.ceil(cy + radius);
+        beginBatch();
         for (int py = top; py < bottom; py++) {
             double dy = (py + 0.5) - cy;
             double half = radius * radius - dy * dy;
@@ -227,6 +247,7 @@ public final class Render2D {
             if (covL > 0.02) rect(innerL - 1, py, 1, 1, ColorUtil.fade(color, covL));
             if (covR > 0.02) rect(innerR, py, 1, 1, ColorUtil.fade(color, covR));
         }
+        endBatch();
     }
 
     /** A pill (fully rounded ends), for switch tracks and progress bars. */
@@ -237,11 +258,13 @@ public final class Render2D {
     /** A soft drop shadow made of stacked, expanding, translucent rounded rects. */
     public void shadow(int x, int y, int w, int h, int radius, int color, int size) {
         int baseAlpha = ColorUtil.alpha(color);
+        beginBatch();
         for (int i = size; i >= 1; i--) {
             double t = 1.0 - (double) i / (size + 1);
             int a = (int) Math.round(baseAlpha * t * t / size * 1.6);
             roundedRect(x - i, y - i + 1, w + i * 2, h + i * 2, radius + i, ColorUtil.withAlpha(color, a));
         }
+        endBatch();
     }
 
     private void row(int x, int y, int w, double inset, boolean left, boolean right, int color) {
@@ -260,6 +283,91 @@ public final class Render2D {
     private static double cornerInset(int r, int i) {
         double dy = r - i - 0.5;
         return r - Math.sqrt(Math.max(0, r * r - dy * dy));
+    }
+
+    // ================================================================== shape batching
+
+    /*
+     * Every GUI element costs a search through the elements already on screen (GuiRenderState.hasIntersection), so
+     * a shape made of many 1-pixel fills (gradients, anti-aliased corners, circles) gets slow fast. Between
+     * beginBatch/endBatch, rect() collects quads here and endBatch() adds them as ONE element, drawn in order.
+     */
+    private int[] quads = new int[64 * 8];
+    private int quadCount, batchDepth;
+
+    private void beginBatch() {
+        batchDepth++;
+    }
+
+    private void endBatch() {
+        if (--batchDepth > 0) return;
+        batchDepth = 0;
+        if (quadCount == 0) return;
+        int[] data = java.util.Arrays.copyOf(quads, quadCount * 8);
+        quadCount = 0;
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+        for (int i = 0; i < data.length; i += 8) {
+            minX = Math.min(minX, data[i]);
+            minY = Math.min(minY, data[i + 1]);
+            maxX = Math.max(maxX, data[i + 2]);
+            maxY = Math.max(maxY, data[i + 3]);
+        }
+        org.joml.Matrix3x2f pose = new org.joml.Matrix3x2f(g.pose());
+        var bounds = new net.minecraft.client.gui.navigation.ScreenRectangle(minX, minY, maxX - minX, maxY - minY)
+                .transformMaxBounds(pose);
+        var scissor = g.scissorStack.peek();
+        if (scissor != null) {
+            bounds = scissor.intersection(bounds);
+            if (bounds == null) return;
+        }
+        g.guiRenderState.addGuiElement(new ShapeState(pose, data, scissor, bounds));
+    }
+
+    /** One quad with a colour per corner: (x0,y0), (x0,y1), (x1,y1), (x1,y0). Colours already faded by {@link #c}. */
+    private void quad(int x0, int y0, int x1, int y1, int c00, int c01, int c11, int c10) {
+        if (batchDepth == 0) {
+            beginBatch();
+            quad(x0, y0, x1, y1, c00, c01, c11, c10);
+            endBatch();
+            return;
+        }
+        if ((quadCount + 1) * 8 > quads.length) quads = java.util.Arrays.copyOf(quads, quads.length * 2);
+        int i = quadCount++ * 8;
+        quads[i] = x0;
+        quads[i + 1] = y0;
+        quads[i + 2] = x1;
+        quads[i + 3] = y1;
+        quads[i + 4] = c00;
+        quads[i + 5] = c01;
+        quads[i + 6] = c11;
+        quads[i + 7] = c10;
+    }
+
+    /** The GUI element behind a batched shape: untextured quads in the GUI pipeline (same as vanilla fills). */
+    private record ShapeState(org.joml.Matrix3x2f pose, int[] data,
+                              net.minecraft.client.gui.navigation.ScreenRectangle scissorArea,
+                              net.minecraft.client.gui.navigation.ScreenRectangle bounds)
+            implements net.minecraft.client.renderer.state.gui.GuiElementRenderState {
+        @Override
+        public void buildVertices(com.mojang.blaze3d.vertex.VertexConsumer vc) {
+            for (int i = 0; i < data.length; i += 8) {
+                float x0 = data[i], y0 = data[i + 1], x1 = data[i + 2], y1 = data[i + 3];
+                vc.addVertexWith2DPose(pose, x0, y0).setColor(data[i + 4]);
+                vc.addVertexWith2DPose(pose, x0, y1).setColor(data[i + 5]);
+                vc.addVertexWith2DPose(pose, x1, y1).setColor(data[i + 6]);
+                vc.addVertexWith2DPose(pose, x1, y0).setColor(data[i + 7]);
+            }
+        }
+
+        @Override
+        public com.mojang.blaze3d.pipeline.RenderPipeline pipeline() {
+            return RenderPipelines.GUI;
+        }
+
+        @Override
+        public net.minecraft.client.gui.render.TextureSetup textureSetup() {
+            return net.minecraft.client.gui.render.TextureSetup.noTexture();
+        }
     }
 
     // ================================================================== text
@@ -336,6 +444,104 @@ public final class Render2D {
         return font.width(NametagAdapter.titleComponent(line));
     }
 
+    /** One line of a name tag preview ({@link NametagAdapter#previewLines}), white base colour, no shadow. */
+    public void nametagLine(NametagAdapter.PreviewLine line, int x, int y) {
+        g.text(font, line.text(), x, y, c(0xFFFFFFFF), false);
+    }
+
+    public int nametagLineWidth(NametagAdapter.PreviewLine line) {
+        return font.width(line.text());
+    }
+
+    /**
+     * Your player model in a box, turned by {@code yaw} / {@code pitch} (radians), for the Settings window's 3D
+     * preview ({@link dev.telemetric.game.EntityPreviewAdapter}). Returns false without a player.
+     */
+    public boolean playerModel(int x, int y, int w, int h, float pxPerBlock, float shiftX, float lift, float yaw, float pitch) {
+        return dev.telemetric.game.EntityPreviewAdapter.drawLocalPlayer(g, x, y, x + w, y + h, pxPerBlock, shiftX, lift, yaw, pitch);
+    }
+
+    /** True if the 3D preview can draw one depth-tested scene ({@link #previewScene}); else it uses the flat path. */
+    public static boolean sceneAvailable() {
+        return dev.telemetric.game.ScenePreviewAdapter.available();
+    }
+
+    /**
+     * The 3D preview's blocks, models and shapes as one depth-tested picture
+     * ({@link dev.telemetric.game.ScenePreviewAdapter#draw}). Returns false outside a world.
+     */
+    public boolean previewScene(int x, int y, int w, int h, float pxPerBlock, float shiftX, float lift, float yaw,
+                                float pitch, dev.telemetric.game.ScenePreviewAdapter.Request request) {
+        return dev.telemetric.game.ScenePreviewAdapter.draw(g, x, y, x + w, y + h, pxPerBlock, shiftX, lift, yaw,
+                pitch, request);
+    }
+
+    /**
+     * A world label ({@link dev.telemetric.game.WorldLabelAdapter.Label}) drawn flat at (x, y) in its own pixels
+     * (badges are 8 px tall), the way the world draws it: badge font or plain text, its colour and shadow.
+     */
+    public void worldLabel(dev.telemetric.game.WorldLabelAdapter.Label label, int x, int y) {
+        int argb = (label.argb() >>> 24) == 0 ? label.argb() | 0xFF000000 : label.argb();
+        g.text(font, dev.telemetric.game.WorldLabelAdapter.text(label), x, y, c(argb), label.shadow());
+    }
+
+    public int worldLabelWidth(dev.telemetric.game.WorldLabelAdapter.Label label) {
+        return font.width(dev.telemetric.game.WorldLabelAdapter.text(label));
+    }
+
+    /**
+     * Block faces for the 3D previews ({@link dev.telemetric.game.WorldPreviewAdapter}): {@code count} quads from the
+     * block atlas, 8 floats of GUI {x, y} and 8 of atlas {u, v} per quad, one ARGB per quad. They're one GUI element,
+     * so they're drawn in exactly this order (painter's order: far first) and clipped to the current clip.
+     */
+    public void blockFaces(float[] xy, float[] uv, int[] argb, int count) {
+        if (count <= 0) return;
+        org.joml.Matrix3x2f pose = new org.joml.Matrix3x2f(g.pose());
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        org.joml.Vector2f v = new org.joml.Vector2f();
+        for (int i = 0; i < count * 4; i++) {
+            pose.transformPosition(xy[i * 2], xy[i * 2 + 1], v);
+            minX = Math.min(minX, v.x);
+            minY = Math.min(minY, v.y);
+            maxX = Math.max(maxX, v.x);
+            maxY = Math.max(maxY, v.y);
+        }
+        var bounds = new net.minecraft.client.gui.navigation.ScreenRectangle((int) Math.floor(minX), (int) Math.floor(minY),
+                Math.max(1, (int) Math.ceil(maxX - minX) + 1), Math.max(1, (int) Math.ceil(maxY - minY) + 1));
+        var scissor = g.scissorStack.peek();
+        if (scissor != null) {
+            bounds = scissor.intersection(bounds);
+            if (bounds == null) return;
+        }
+        int[] colors = new int[count];
+        for (int i = 0; i < count; i++) colors[i] = c(argb[i]);
+        var texture = Minecraft.getInstance().getTextureManager().getTexture(dev.telemetric.game.WorldPreviewAdapter.atlas());
+        g.guiRenderState.addGuiElement(new FacesState(net.minecraft.client.gui.render.TextureSetup.singleTexture(
+                texture.getTextureView(), texture.getSampler()), pose, xy, uv, colors, count, scissor, bounds));
+    }
+
+    /** The GUI element behind {@link #blockFaces}: textured quads in the GUI_TEXTURED pipeline. */
+    private record FacesState(net.minecraft.client.gui.render.TextureSetup textureSetup, org.joml.Matrix3x2f pose,
+                              float[] xy, float[] uv, int[] colors, int count,
+                              net.minecraft.client.gui.navigation.ScreenRectangle scissorArea,
+                              net.minecraft.client.gui.navigation.ScreenRectangle bounds)
+            implements net.minecraft.client.renderer.state.gui.GuiElementRenderState {
+        @Override
+        public void buildVertices(com.mojang.blaze3d.vertex.VertexConsumer vc) {
+            for (int q = 0; q < count; q++) {
+                for (int k = 0; k < 4; k++) {
+                    int i = q * 4 + k;
+                    vc.addVertexWith2DPose(pose, xy[i * 2], xy[i * 2 + 1]).setUv(uv[i * 2], uv[i * 2 + 1]).setColor(colors[q]);
+                }
+            }
+        }
+
+        @Override
+        public com.mojang.blaze3d.pipeline.RenderPipeline pipeline() {
+            return RenderPipelines.GUI_TEXTURED;
+        }
+    }
+
     public int glyphWidth(HudIcon.Glyph glyph) {
         return font.width(Component.literal(glyph.text()).withStyle(style(0, glyph.font())));
     }
@@ -361,6 +567,36 @@ public final class Render2D {
         if (w <= 0 || h <= 0 || ColorUtil.alpha(c(tint)) < 5) return;
         Identifier id = textureId(path);
         g.blit(RenderPipelines.GUI_TEXTURED, id, x, y, 0f, 0f, w, h, texW, texH, texW, texH, c(tint));
+    }
+
+    /** Smallest / largest pre-rasterized Lucide icon size in window pixels (see {@code textures/gui/icons/}). */
+    private static final int ICON_MIN = 8, ICON_MAX = 48, ICON_STRIP_W = (ICON_MAX * (ICON_MAX + 1) - ICON_MIN * (ICON_MIN - 1)) / 2;
+
+    /**
+     * Draws a Lucide icon ({@code textures/gui/icons/<name>.png}) centred on (cx, cy), {@code size} GUI units wide,
+     * rotated by {@code rotation} radians and tinted. Each icon file is a strip of the icon rasterized at every pixel
+     * size from 8 to 48; the one matching the real on-screen size is drawn 1:1 so the strokes stay crisp.
+     */
+    public void icon(String name, double cx, double cy, double size, int tint, double rotation) {
+        if (size <= 0 || ColorUtil.alpha(c(tint)) < 5) return;
+        var m = g.pose();
+        double poseScale = Math.hypot(m.m00(), m.m01());
+        int px = (int) Math.round(size * poseScale * guiScale());
+        px = Math.max(ICON_MIN, Math.min(ICON_MAX, px));
+        int u = (px * (px - 1) - ICON_MIN * (ICON_MIN - 1)) / 2;
+        float unit = (float) (size / px);
+        g.pose().pushMatrix();
+        g.pose().translate((float) cx, (float) cy);
+        if (rotation != 0) g.pose().rotate((float) rotation);
+        g.pose().scale(unit, unit);
+        int half = px / 2;
+        g.blit(RenderPipelines.GUI_TEXTURED, textureId("textures/gui/icons/" + name + ".png"), -half, -half, u, 0,
+                px, px, px, px, ICON_STRIP_W, ICON_MAX, c(tint));
+        g.pose().popMatrix();
+    }
+
+    public void icon(String name, double cx, double cy, double size, int tint) {
+        icon(name, cx, cy, size, tint, 0);
     }
 
     /** Draws an item (model plus count/durability decorations) at 16x16 GUI units. */

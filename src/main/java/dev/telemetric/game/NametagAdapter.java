@@ -113,17 +113,24 @@ public final class NametagAdapter {
 
     private static volatile CurrencySource currencySource;
     private static volatile TitlePosition currencyPosition = TitlePosition.MIDDLE;
-    private static volatile boolean currencyReplacesHp;
+    private static volatile boolean hideHp;
+    /** Status Title's own Hide HP (same effect as Player Currency's; either one removes the line). */
+    private static volatile boolean titleHideHp;
+
+    /** Status Title → Hide HP: whether the "HP:" line is removed from every Telos name tag. */
+    public static void setTitleHideHp(boolean hide) {
+        titleHideHp = hide;
+    }
 
     /** A null source means no currency lines. */
     public static void setCurrencySource(CurrencySource source) {
         currencySource = source;
     }
 
-    /** Where the currency line goes, and whether it takes the place of the "HP:" line (if the tag has one). */
-    public static void setCurrencyLayout(TitlePosition position, boolean replaceHp) {
+    /** Where the currency line goes, and whether the "HP:" line is removed from every Telos name tag. */
+    public static void setCurrencyLayout(TitlePosition position, boolean hideHpLine) {
         currencyPosition = position == null ? TitlePosition.MIDDLE : position;
-        currencyReplacesHp = replaceHp;
+        hideHp = hideHpLine;
     }
 
     /** Per display, the {CurrencyLine, Component} built last time, so the same line stays the same instance. */
@@ -170,10 +177,10 @@ public final class NametagAdapter {
      * identity and only re-split the lines when needed.
      */
     public record Extras(Component title, TitlePosition titlePosition, Component currency,
-                         TitlePosition currencyPosition, boolean replaceHp) {
+                         TitlePosition currencyPosition, boolean hideHp) {
         boolean same(Extras o) {
             return o != null && title == o.title && currency == o.currency && titlePosition == o.titlePosition
-                    && currencyPosition == o.currencyPosition && replaceHp == o.replaceHp;
+                    && currencyPosition == o.currencyPosition && hideHp == o.hideHp;
         }
     }
 
@@ -189,11 +196,12 @@ public final class NametagAdapter {
         Player owner = owner(display);
         Component title = titleFor(display, owner);
         Component currency = currencyFor(display, owner);
-        if (title == null && currency == null) {
+        boolean noHp = hideHp || titleHideHp;
+        if (title == null && currency == null && !noHp) {
             EXTRAS_CACHE.remove(display);
             return null;
         }
-        Extras next = new Extras(title, titlePosition, currency, currencyPosition, currencyReplacesHp);
+        Extras next = new Extras(title, titlePosition, currency, currencyPosition, noHp);
         Extras prev = EXTRAS_CACHE.get(display);
         if (next.same(prev)) return prev;
         EXTRAS_CACHE.put(display, next);
@@ -203,9 +211,26 @@ public final class NametagAdapter {
     /**
      * Mixin hook: the name tag text with the extra lines. Top puts a line first, Middle right before the "HP:" line
      * (after the first line if there's none), and Bottom last; with both on the same spot the title comes first. With
-     * Replace HP the currency line takes the "HP:" line's place instead. Styles are kept.
+     * Hide HP the "HP:" line is left out (Middle lines go where it was). Styles are kept.
      */
     public static Component decorate(Component text, Extras extras) {
+        java.util.List<PreviewLine> rows = rows(text, extras);
+        MutableComponent out = Component.empty();
+        for (int i = 0; i < rows.size(); i++) {
+            if (i > 0) out.append("\n");
+            out.append(rows.get(i).text());
+        }
+        return out;
+    }
+
+    /** What a name tag line is: the server's own text, the status title or the currency line. */
+    public enum LineKind { TAG, TITLE, CURRENCY }
+
+    /** One line of a name tag preview ({@link #previewLines}). */
+    public record PreviewLine(Component text, LineKind kind) {}
+
+    /** The name tag split into its lines, with the extra lines put in (see {@link #decorate}). */
+    private static java.util.List<PreviewLine> rows(Component text, Extras extras) {
         java.util.List<MutableComponent> lines = new java.util.ArrayList<>();
         java.util.List<StringBuilder> plain = new java.util.ArrayList<>();
         lines.add(Component.empty());
@@ -233,28 +258,60 @@ public final class NametagAdapter {
         }
         int at = hp >= 0 ? hp : Math.min(1, lines.size());
         Component currency = extras.currency();
-        boolean replace = currency != null && extras.replaceHp() && hp >= 0;
-        java.util.List<Component> top = new java.util.ArrayList<>(), middle = new java.util.ArrayList<>(),
+        boolean dropHp = extras.hideHp() && hp >= 0;
+        java.util.List<PreviewLine> top = new java.util.ArrayList<>(), middle = new java.util.ArrayList<>(),
                 bottom = new java.util.ArrayList<>();
-        place(extras.title(), extras.titlePosition(), top, middle, bottom);
-        if (!replace) place(currency, extras.currencyPosition(), top, middle, bottom);
+        if (extras.title() != null) {
+            place(new PreviewLine(extras.title(), LineKind.TITLE), extras.titlePosition(), top, middle, bottom);
+        }
+        if (currency != null) {
+            place(new PreviewLine(currency, LineKind.CURRENCY), extras.currencyPosition(), top, middle, bottom);
+        }
 
-        java.util.List<Component> rows = new java.util.ArrayList<>(top);
+        java.util.List<PreviewLine> rows = new java.util.ArrayList<>(top);
         for (int i = 0; i <= lines.size(); i++) {
             if (i == at) rows.addAll(middle);
-            if (i < lines.size()) rows.add(replace && i == hp ? currency : lines.get(i));
+            if (i < lines.size() && !(dropHp && i == hp)) rows.add(new PreviewLine(lines.get(i), LineKind.TAG));
         }
         rows.addAll(bottom);
-        MutableComponent out = Component.empty();
-        for (int i = 0; i < rows.size(); i++) {
-            if (i > 0) out.append("\n");
-            out.append(rows.get(i));
-        }
-        return out;
+        return rows;
     }
 
-    private static void place(Component line, TitlePosition position, java.util.List<Component> top,
-                              java.util.List<Component> middle, java.util.List<Component> bottom) {
+    /**
+     * Your name tag as it looks with these extra lines (either may be null), for the Settings window preview: your
+     * real Telos name tag if one is loaded, else your name and a sample "HP:" line.
+     */
+    public static java.util.List<PreviewLine> previewLines(TitleLine title, TitlePosition titlePosition,
+                                                           CurrencyLine currency, TitlePosition currencyPosition,
+                                                           boolean hideHpLine) {
+        Component base = ownTagText();
+        if (base == null) {
+            var player = Minecraft.getInstance().player;
+            String name = player == null ? "Player" : player.getScoreboardName();
+            base = Component.literal(name).withStyle(ChatFormatting.WHITE).append("\n")
+                    .append(Component.literal("HP: ").withStyle(ChatFormatting.GRAY))
+                    .append(Component.literal("20/20").withStyle(ChatFormatting.RED));
+        }
+        Extras extras = new Extras(title == null ? null : titleComponent(title),
+                titlePosition == null ? TitlePosition.TOP : titlePosition,
+                currency == null ? null : build(currency),
+                currencyPosition == null ? TitlePosition.MIDDLE : currencyPosition, hideHpLine);
+        return rows(base, extras);
+    }
+
+    /** The text of your own Telos name tag, or null if none is loaded. */
+    private static Component ownTagText() {
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        if (level == null || mc.player == null) return null;
+        for (net.minecraft.world.entity.Entity e : level.entitiesForRendering()) {
+            if (e instanceof Display.TextDisplay d && isNametag(d) && owner(d) == mc.player) return d.getText();
+        }
+        return null;
+    }
+
+    private static <L> void place(L line, TitlePosition position, java.util.List<L> top,
+                                  java.util.List<L> middle, java.util.List<L> bottom) {
         if (line == null) return;
         switch (position) {
             case TOP -> top.add(line);

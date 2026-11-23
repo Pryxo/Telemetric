@@ -13,5 +13,4 @@ public final class WarningColors {
     public static final int TEXT = 0xFFF2EAD2;
     public static final int BOX = 0xF01E1A0C;
     public static final int DIVIDER = 0x60FFC83D;
-    public static final int DARK = 0xFF1A1405;
 }

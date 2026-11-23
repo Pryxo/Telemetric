@@ -10,6 +10,7 @@ import dev.telemetric.ui.confirm.Confirm;
 import dev.telemetric.ui.confirm.ConfirmRequest;
 import dev.telemetric.setting.SettingBundle;
 import dev.telemetric.setting.impl.KeybindSetting;
+import dev.telemetric.ui.clickgui.window.SettingsPreview;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,7 +23,7 @@ import java.util.Objects;
  * There are two flavours:
  * <ul>
  *   <li><b>Toggleable</b> (the default): a feature with an on/off state and a keybind.
- *       Left-click toggles it, right-click opens its settings.</li>
+ *       Left-click toggles it, the gear opens its Settings window, right-click shows the bind and pinned settings.</li>
  *   <li><b>Settings group</b> ({@code toggleable = false}), e.g. Theme or Interface. No on/off and no keybind; any
  *       click opens the settings.</li>
  * </ul>
@@ -276,6 +277,14 @@ public abstract class Module implements JsonSerializable {
 
     /** Override this to hide a module from the ClickGUI. It still loads and saves. */
     public boolean isVisibleInGui() { return true; }
+
+    /**
+     * A live preview for the right column of this module's Settings window (e.g. a 3D player model), or null for
+     * none. Called each time the window opens this module.
+     */
+    public SettingsPreview createPreview() {
+        return null;
+    }
 
     // ------------------------------------------------------------------ serialisation
 

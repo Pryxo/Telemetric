@@ -171,7 +171,29 @@ public abstract class LinesHudModule extends HudModule {
 
     @Override
     public boolean hasData() {
-        return !lines(false).isEmpty();
+        return !rows(false).isEmpty();
+    }
+
+    // One draw asks for the rows ~6 times (hasData, bounds, width/height, draw), and some lines() sort or format, so
+    // they're built once per draw pass (Render2D.drawPass) and per mode.
+    private List<Line> liveRows, previewRows;
+    private long livePass = -1, previewPass = -1;
+
+    /** {@link #lines(boolean)}, cached for the current draw pass. */
+    protected final List<Line> rows(boolean preview) {
+        long pass = Render2D.drawPass();
+        if (preview) {
+            if (previewRows == null || previewPass != pass) {
+                previewRows = lines(true);
+                previewPass = pass;
+            }
+            return previewRows;
+        }
+        if (liveRows == null || livePass != pass) {
+            liveRows = lines(false);
+            livePass = pass;
+        }
+        return liveRows;
     }
 
     protected static HudSettingsModule style() {
@@ -222,7 +244,7 @@ public abstract class LinesHudModule extends HudModule {
 
     @Override
     public int contentWidth(Render2D r, boolean preview) {
-        List<Line> lines = lines(preview);
+        List<Line> lines = rows(preview);
         String title = shownTitle();
         int w = title == null ? 0 : r.textWidth(title);
         int slot = iconSlot(r, lines);
@@ -232,7 +254,7 @@ public abstract class LinesHudModule extends HudModule {
 
     @Override
     public int contentHeight(Render2D r, boolean preview) {
-        List<Line> lines = lines(preview);
+        List<Line> lines = rows(preview);
         int dividers = 0;
         for (Line line : lines) if (line.divider()) dividers++;
         int rows = lines.size() - dividers + (shownTitle() == null ? 0 : 1);
@@ -242,7 +264,7 @@ public abstract class LinesHudModule extends HudModule {
     @Override
     public void draw(Render2D r, boolean preview, boolean alignRight) {
         HudSettingsModule style = style();
-        List<Line> lines = lines(preview);
+        List<Line> lines = rows(preview);
         int w = contentWidth(r, preview), h = contentHeight(r, preview);
         boolean centered = !alignRight && isCentered();
 

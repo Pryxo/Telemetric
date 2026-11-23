@@ -62,6 +62,9 @@ public final class PityCounterHud extends LinesHudModule {
     private final BooleanSetting separateShiny = add(new BooleanSetting("Separate Shiny",
             "Shiny variants as their own rows; off = in brackets on the item's row: Item 1% (0.03%): 52 (1994)", false)
             .visibleWhen(shinyCounts::get));
+    private final BooleanSetting shinyLeft = add(new BooleanSetting("Shiny Count Left",
+            "Bracketed shiny pity in front of the normal count: Item 1% (0.03%): (1994) 52", false)
+            .visibleWhen(() -> shinyCounts.get() && !separateShiny.get()));
     private final GroupSetting chat = add(new GroupSetting("Chat", "Drop and pity lines in the chat"));
     private final BooleanSetting dropMessage = add(chat.child(new BooleanSetting("Drop Message",
             "Replace the server's line for your drop with one that shows the pity it came at", true)));
@@ -260,8 +263,13 @@ public final class PityCounterHud extends LinesHudModule {
         if (!shinyChanceText.isEmpty()) labelRuns.addAll(ShinyColors.runs(" (" + shinyChanceText + ")", 0));
         List<TextRun> valueRuns = new ArrayList<>();
         String count = Integer.toString(pity);
-        valueRuns.add(new TextRun(count, 0, null));
-        valueRuns.addAll(ShinyColors.runs(" (" + shinyPity + ")", shinyChanceText.length() + 3));
+        if (shinyLeft.get()) {
+            valueRuns.addAll(ShinyColors.runs("(" + shinyPity + ") ", shinyChanceText.length() + 3));
+            valueRuns.add(new TextRun(count, 0, null));
+        } else {
+            valueRuns.add(new TextRun(count, 0, null));
+            valueRuns.addAll(ShinyColors.runs(" (" + shinyPity + ")", shinyChanceText.length() + 3));
+        }
         out.add(new Line(label, count, rgb, 0, List.of(), icon).styledRuns(labelRuns, valueRuns));
     }
 

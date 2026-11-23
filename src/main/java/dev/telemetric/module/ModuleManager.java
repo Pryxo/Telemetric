@@ -18,6 +18,7 @@ import dev.telemetric.module.impl.hud.DpsLogHud;
 import dev.telemetric.module.impl.hud.DpsMeterHud;
 import dev.telemetric.module.impl.hud.DungeonInfoHud;
 import dev.telemetric.module.impl.hud.TabStatsHud;
+import dev.telemetric.module.impl.hud.TabRealPercentModule;
 import dev.telemetric.module.impl.hud.PerformanceHud;
 import dev.telemetric.module.impl.hud.WatermarkHud;
 import dev.telemetric.module.impl.misc.ChatColorsModule;
@@ -136,6 +137,7 @@ public final class ModuleManager {
         register(TabStatsHud.generalInfo());
         register(TabStatsHud.characterInfo());
         register(TabStatsHud.statsInfo());
+        register(new TabRealPercentModule());
         register(new DpsMeterHud());
         register(new DpsLogHud());
         register(new DungeonInfoHud());

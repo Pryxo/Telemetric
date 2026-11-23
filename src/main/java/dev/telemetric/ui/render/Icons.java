@@ -1,49 +1,58 @@
 package dev.telemetric.ui.render;
 
-/** Tiny pixel icons drawn from rects, no textures needed. All of them take an animation progress {@code t}. */
+/**
+ * GUI icons. Most are <a href="https://lucide.dev/icons/">Lucide</a> icons (ISC licence, see
+ * {@code textures/gui/icons/LICENSE-lucide.txt}) drawn through {@link Render2D#icon}. The int centre (cx, cy) is the
+ * pixel the old pixel-art icons were centred on, so the Lucide icon is centred on that pixel's middle.
+ */
 public final class Icons {
+
+    /** Default icon size in GUI units. */
+    public static final double SIZE = 8;
 
     private Icons() {}
 
-    /** Chevron morphing from "›" (t = 0, closed) to "⌄" (t = 1, open), centred on (cx, cy). */
+    /** Chevron turning from "›" (t = 0, closed) to "⌄" (t = 1, open), centred on (cx, cy). */
     public static void chevron(Render2D r, int cx, int cy, double t, int color) {
-        for (int i = 0; i < 3; i++) {
-            int cxClosed = cx - 1 + i, cyClosedA = cy - 2 + i, cyClosedB = cy + 2 - i;
-            int cyOpen = cy - 1 + i, cxOpenA = cx - 2 + i, cxOpenB = cx + 2 - i;
-            r.rect(round(lerp(cxClosed, cxOpenA, t)), round(lerp(cyClosedA, cyOpen, t)), 1, 1, color);
-            r.rect(round(lerp(cxClosed, cxOpenB, t)), round(lerp(cyClosedB, cyOpen, t)), 1, 1, color);
+        r.icon("chevron-right", cx + 0.5, cy + 0.5, SIZE, color, t * Math.PI / 2);
+    }
+
+    /** Warning triangle fitted into the {@code w × h} box at (x, y). */
+    public static void warning(Render2D r, int x, int y, int w, int h, int color) {
+        r.icon("warning", x + w / 2.0, y + h / 2.0, Math.max(w, h) * 1.2, color);
+    }
+
+    /** A star centred on (cx, cy): filled (pinned) or just its outline. */
+    public static void star(Render2D r, int cx, int cy, boolean filled, int color) {
+        r.icon(filled ? "star-filled" : "star", cx + 0.5, cy + 0.5, SIZE, color);
+    }
+
+    /** A gear centred on (cx, cy). {@code turn} (0..1) turns it by one tooth step. */
+    public static void gear(Render2D r, int cx, int cy, double turn, int color) {
+        r.icon("settings", cx + 0.5, cy + 0.5, 9, color, turn * Math.PI / 4);
+    }
+
+    /** An "×" centred on (cx, cy). */
+    public static void close(Render2D r, int cx, int cy, int color) {
+        r.icon("x", cx + 0.5, cy + 0.5, SIZE, color);
+    }
+
+    /** A counter-clockwise arrow ("reset view") centred on (cx, cy). */
+    public static void resetView(Render2D r, int cx, int cy, int color) {
+        r.icon("rotate-ccw", cx + 0.5, cy + 0.5, SIZE, color);
+    }
+
+    /** A "‹" back arrow centred on (cx, cy). */
+    public static void back(Render2D r, int cx, int cy, int color) {
+        r.icon("chevron-left", cx + 0.5, cy + 0.5, SIZE, color);
+    }
+
+    /** Round diagonal dots of a resize corner; ({@code right}, {@code bottom}) is the corner pixel. */
+    public static void resizeGrip(Render2D r, int right, int bottom, int color) {
+        for (int row = 0; row < 3; row++) {
+            for (int col = 2 - row; col < 3; col++) {
+                r.circle(right - 0.5 - (2 - col) * 2.5, bottom - 0.5 - (2 - row) * 2.5, 0.85, color);
+            }
         }
-    }
-
-    /** A "+" that collapses into a "−" as {@code t} goes from 0 to 1. */
-    public static void plusMinus(Render2D r, int cx, int cy, double t, int color) {
-        r.rect(cx - 3, cy, 7, 1, color);
-        int half = round(3 * (1 - t));
-        if (half > 0) r.rect(cx, cy - half, 1, half * 2 + 1, color);
-    }
-
-    /**
-     * Warning triangle ({@code w × h}, top-left at x, y) filled with {@code color} and a {@code mark}-coloured "!".
-     */
-    public static void warning(Render2D r, int x, int y, int w, int h, int color, int mark) {
-        double mid = x + w / 2.0;
-        for (int i = 0; i < h; i++) {
-            double half = (i + 1) * (w / 2.0) / h;
-            int left = round(mid - half), right = round(mid + half);
-            r.rect(left, y + i, Math.max(1, right - left), 1, color);
-        }
-        int cx = x + w / 2, bar = Math.max(1, w / 8);
-        int top = y + round(h * 0.36), dot = Math.max(1, round(h * 0.14));
-        int bottom = y + h - 1 - dot;
-        r.rect(cx - bar / 2 - (bar > 1 ? 0 : 0), top, bar, Math.max(1, bottom - top - 1), mark);
-        r.rect(cx - bar / 2, bottom, bar, dot, mark);
-    }
-
-    private static double lerp(double a, double b, double t) {
-        return a + (b - a) * t;
-    }
-
-    private static int round(double v) {
-        return (int) Math.round(v);
     }
 }

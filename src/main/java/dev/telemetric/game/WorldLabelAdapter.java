@@ -191,6 +191,11 @@ public final class WorldLabelAdapter {
         });
     }
 
+    /** The text of a label as the world draws it (badge font glyphs, or plain text with bold / underline). */
+    public static Component text(Label l) {
+        return component(l);
+    }
+
     private static Component component(Label l) {
         if (l.style() == BadgeText.Style.PLAIN) {
             Style style = Style.EMPTY.withBold(l.bold()).withUnderlined(l.underline());

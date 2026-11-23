@@ -84,7 +84,7 @@ public final class ThemeModule extends Module {
             "Panel Opacity", "Opacity of panels and rows", 96, 40, 100, 1).withSuffix("%"));
 
     public final NumberSetting cornerRadius = add(new NumberSetting(
-            "Corner Radius", "Roundness of panels and controls", 3, 0, 6, 1));
+            "Corner Radius", "Roundness of panels and controls", 6, 0, 12, 1));
 
     public final BooleanSetting shadows = add(new BooleanSetting(
             "Shadows", "Soft drop shadow behind panels", true));

@@ -8,6 +8,8 @@ import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.EnumSetting;
 import dev.telemetric.setting.impl.KeybindSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.ui.clickgui.window.PlayerPreview;
+import dev.telemetric.ui.clickgui.window.SettingsPreview;
 import dev.telemetric.ui.notification.Toasts;
 
 /**
@@ -60,5 +62,11 @@ public final class HideArmorModule extends Module {
     private void reveal() {
         EntityVisualsAdapter.revealTrueItems(Math.round(revealTime.get() * 1000));
         Toasts.info("Showing true items for " + revealTime.get() + "s");
+    }
+
+    /** The Settings window shows your player model, which picks this module up live. */
+    @Override
+    public SettingsPreview createPreview() {
+        return new PlayerPreview();
     }
 }

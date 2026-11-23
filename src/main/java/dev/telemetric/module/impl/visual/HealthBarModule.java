@@ -15,10 +15,14 @@ import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
+import dev.telemetric.ui.clickgui.window.PlayerPreview;
+import dev.telemetric.ui.clickgui.window.SettingsPreview;
+import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.hud.HudOverlay;
 import dev.telemetric.ui.render.BadgeText;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
+import dev.telemetric.ui.theme.Theme;
 
 import java.util.List;
 import java.util.Locale;
@@ -376,6 +380,165 @@ public final class HealthBarModule extends HudModule {
         // The camera looks along (-sin yaw, cos yaw), and the bar swings the other way, toward the camera.
         return new Point(p.x() + Math.sin(yaw) * horizontal + offsetX.get(), p.y() - vertical - barHeight / 2,
                 p.z() - Math.cos(yaw) * horizontal + offsetZ.get());
+    }
+
+    // ================================================================== Settings window preview
+
+    @Override
+    public SettingsPreview createPreview() {
+        return new PlayerPreview(new PreviewBar());
+    }
+
+    /** The bar over the 3D preview player (3D World / HUD Projection). Drag it to set X / Y / Z. */
+    private final class PreviewBar implements PlayerPreview.Layer {
+        private int rx, ry, rw, rh; // the bar's GUI rect last frame (rw 0 = not drawn)
+        private double accX, accY, accZ;
+        private boolean held;
+
+        @Override
+        public double topRoom() {
+            double above = Math.max(0, worldOffset.get()) + (world3D() ? worldHeight.get() : 0.25);
+            return Math.min(2.5, above + 0.2);
+        }
+
+        @Override
+        public String hint() {
+            return element() ? "HUD Element: place it in the HUD editor" : "Drag the bar to move it";
+        }
+
+        /** Bottom-centre of the bar in preview blocks (feet at the origin), like {@link #anchor} in the world. */
+        private double[] anchorAt(PlayerPreview.View v, double barHeight) {
+            double y = worldOffset.get();
+            if (y >= 0) return new double[] {offsetX.get(), v.playerHeight() + y, offsetZ.get()};
+            double pitchRatio = Math.clamp((v.cameraPitch() + 90) / 180.0, 0, 1);
+            double arc = (1 - pitchRatio) * Math.PI;
+            double horizontal = -y * Math.cos(arc), vertical = -y * Math.sin(arc);
+            double yaw = Math.toRadians(v.cameraYaw());
+            return new double[] {Math.sin(yaw) * horizontal + offsetX.get(), -vertical - barHeight / 2,
+                    -Math.cos(yaw) * horizontal + offsetZ.get()};
+        }
+
+        @Override
+        public void render(Render2D r, GuiContext ctx, PlayerPreview.View v, int mouseX, int mouseY) {
+            rw = 0;
+            if (element()) return;
+            double f = fraction(true);
+            String t = text(true);
+            double k = v.scale();
+            if (world3D()) {
+                double hw = worldWidth.get() / 2, h = worldHeight.get(), b = h * 0.12;
+                double[] a = anchorAt(v, h);
+                double[] s = v.project(a[0], a[1], a[2]);
+                int left = (int) Math.round(s[0] - hw * k), right = (int) Math.round(s[0] + hw * k);
+                int bottom = (int) Math.round(s[1]), top = (int) Math.round(s[1] - h * k);
+                int pb = Math.max(1, (int) Math.round(b * k));
+                rx = left - pb;
+                ry = top - pb;
+                rw = right - left + pb * 2;
+                rh = bottom - top + pb * 2;
+                if (!textOnly()) {
+                    r.rect(rx, ry, rw, rh, border.get());
+                    r.rect(left, top, right - left, bottom - top, background.get());
+                    int fill = (int) Math.round((right - left) * f);
+                    int c = barColor(f);
+                    if (fill > 0) {
+                        int mid = top + (bottom - top) / 2;
+                        if (style.is("Gradient")) {
+                            r.rect(left, top, fill, mid - top, ColorUtil.shade(c, 0.2));
+                            r.rect(left, mid, fill, bottom - mid, ColorUtil.shade(c, -0.2));
+                        } else {
+                            r.rect(left, top, fill, bottom - top, c);
+                        }
+                    }
+                }
+                if (showText(t)) {
+                    double textH = (textOnly() ? 0.25 : Math.max(0.08, h * 0.8)) * textScale.get();
+                    double lift = textOnly() ? 0 : textAbove() ? h + h * 0.3 : (h - textH) / 2;
+                    float ts = (float) (textH * k / r.fontHeight());
+                    int tw = (int) Math.ceil(r.textWidth(t) * ts);
+                    double tx = s[0] - tw / 2.0;
+                    if (!textOnly() && textPos.is("Left")) tx = left + h * 0.25 * k;
+                    else if (!textOnly() && textPos.is("Right")) tx = right - h * 0.25 * k - tw;
+                    double tyBottom = s[1] - lift * k;
+                    r.pushTransform(Math.round(tx), Math.round(tyBottom - textH * k), ts);
+                    try {
+                        r.text(t, 0, 0, textArgb(f), look());
+                    } finally {
+                        r.popTransform();
+                    }
+                    // grab area: the text alone (Text Only), or the bar plus the text above it
+                    int tyTop = (int) Math.round(tyBottom - textH * k), txi = (int) Math.round(tx);
+                    if (textOnly()) {
+                        rx = txi;
+                        ry = tyTop;
+                        rw = tw;
+                        rh = Math.max(1, (int) Math.round(textH * k));
+                    } else if (textAbove()) {
+                        int x0 = Math.min(rx, txi), x1 = Math.max(rx + rw, txi + tw), y0 = Math.min(ry, tyTop);
+                        rh = ry + rh - y0;
+                        ry = y0;
+                        rx = x0;
+                        rw = x1 - x0;
+                    }
+                }
+            } else {
+                double[] a = anchorAt(v, 0);
+                double[] s = v.project(a[0], a[1], a[2]);
+                float sc = effectiveScale() * 0.85f;
+                int w = flatWidth(r, t), h = flatHeight(r, t);
+                rx = (int) Math.round(s[0] - w * sc / 2.0);
+                ry = (int) Math.round(s[1] - h * sc);
+                rw = (int) Math.ceil(w * sc);
+                rh = (int) Math.ceil(h * sc);
+                r.pushTransform(rx, ry, sc);
+                try {
+                    drawFlat(r, f, t);
+                } finally {
+                    r.popTransform();
+                }
+            }
+            boolean hot = held || over(mouseX, mouseY);
+            if (hot && rw > 0) {
+                Theme p = ctx.palette();
+                r.outline(rx - 2, ry - 2, rw + 4, rh + 4, ColorUtil.fade(p.accent(), held ? 0.95 : 0.6));
+                if (!held) ctx.requestTooltip(this, "Drag to move the bar (X / Z sideways, Y up and down)");
+            }
+        }
+
+        private boolean over(double mx, double my) {
+            return rw > 0 && mx >= rx - 3 && mx < rx + rw + 3 && my >= ry - 3 && my < ry + rh + 3;
+        }
+
+        @Override
+        public boolean grab(PlayerPreview.View view, double mouseX, double mouseY) {
+            if (!over(mouseX, mouseY)) return false;
+            accX = offsetX.get();
+            accY = worldOffset.get();
+            accZ = offsetZ.get();
+            held = true;
+            return true;
+        }
+
+        @Override
+        public void drag(PlayerPreview.View v, double dx, double dy) {
+            double[] right = v.screenRight();
+            accX += right[0] * dx / v.scale();
+            accZ += right[1] * dx / v.scale();
+            accY -= dy * v.blocksPerPixelUp();
+            offsetX.set(snap(offsetX, accX));
+            offsetZ.set(snap(offsetZ, accZ));
+            worldOffset.set(snap(worldOffset, accY));
+        }
+
+        @Override
+        public void release(PlayerPreview.View view) {
+            held = false;
+        }
+
+        private double snap(NumberSetting s, double v) {
+            double step = s.getStep();
+            return Math.clamp(Math.round(v / step) * step, s.getMin(), s.getMax());
+        }
     }
 
     private List<WorldLabelAdapter.Label> worldLabels(float partialTick) {
