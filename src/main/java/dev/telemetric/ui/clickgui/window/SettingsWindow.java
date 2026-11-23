@@ -3,7 +3,9 @@ package dev.telemetric.ui.clickgui.window;
 import dev.telemetric.Telemetric;
 import dev.telemetric.config.GuiLayout;
 import dev.telemetric.module.Module;
+import dev.telemetric.input.InputUtil;
 import dev.telemetric.module.impl.misc.InterfaceModule;
+import dev.telemetric.module.impl.misc.ShareSettingsModule;
 import dev.telemetric.setting.Setting;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.ui.animation.Animation;
@@ -41,7 +43,8 @@ import java.util.function.ToIntFunction;
  * <ul>
  *   <li>Title bar: drag to move; back arrow (after jumping to another module), Reset, the module's on/off switch and
  *   the close button.</li>
- *   <li>Edges / bottom-right corner: drag to resize. Position, size, the open module, each module's section and its
+ *   <li>Left / bottom edge and bottom-right corner: drag to resize (the right edge is left free so the scroll bar
+ *   can be dragged). Position, size, the open module, each module's section and its
  *   open dropdowns are saved in {@link GuiLayout.WindowState}.</li>
  *   <li>Star left of a row: pin the setting to the module's right-click menu.</li>
  * </ul>
@@ -60,7 +63,7 @@ public final class SettingsWindow extends UIComponent {
     private static final int DEFAULT_W = 330, DEFAULT_H = 240;
     private static final int BUTTON = 16;
 
-    private enum Drag { NONE, MOVE, RIGHT, BOTTOM, LEFT, CORNER }
+    private enum Drag { NONE, MOVE, BOTTOM, LEFT, CORNER, SCROLL }
 
     private final GuiLayout.WindowState state;
     private final GuiLayout layout;
@@ -77,6 +80,8 @@ public final class SettingsWindow extends UIComponent {
     private final Animation closeHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private final Animation backHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private final Animation resetHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
+    private final Animation importHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
+    private final Animation copyHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private final Animation enabledAnim = new Animation(Durations.MICRO, Easing.OUT_CUBIC);
     private final Animation edgeHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private boolean closing;
@@ -84,10 +89,15 @@ public final class SettingsWindow extends UIComponent {
     private Drag drag = Drag.NONE;
     private double grabX, grabY;
     private int startX, startY, startW, startH;
+    /** Scroll bar geometry of the last frame, for dragging the thumb. */
+    private int barTrackY, barTrackH, barThumbH;
+    private double startScroll;
     private boolean previewHeld;
     private int screenW = 1, screenH = 1;
     /** Width of the "Reset" label last frame (its click area matches what is drawn). */
     private int resetW = 26;
+    /** Widths of the "Import" / "Copy" labels last frame. */
+    private int importW = 32, copyW = 22;
 
     // layout of the last frame (input uses it)
     private int sideW, listX, listY, listW, listH;
@@ -392,7 +402,11 @@ public final class SettingsWindow extends UIComponent {
                 state.x = startX + dx;
                 state.y = startY + dy;
             }
-            case RIGHT -> state.w = startW + dx;
+            case SCROLL -> {
+                Section s = selected;
+                int range = barTrackH - barThumbH;
+                if (s != null && range > 0) s.scrollTarget = Math.clamp(startScroll + dy * (s.maxScroll / (double) range), 0, s.maxScroll);
+            }
             case BOTTOM -> state.h = startH + dy;
             case CORNER -> {
                 state.w = startW + dx;
@@ -411,7 +425,6 @@ public final class SettingsWindow extends UIComponent {
     private Drag edgeAt(double mx, double my) {
         boolean inY = my >= y + TITLE_H && my < y + height + EDGE;
         if (mx >= x + width - CORNER && mx < x + width + EDGE && my >= y + height - CORNER && my < y + height + EDGE) return Drag.CORNER;
-        if (inY && mx >= x + width - EDGE && mx < x + width + EDGE) return Drag.RIGHT;
         if (inY && mx >= x - EDGE && mx < x + EDGE) return Drag.LEFT;
         if (mx >= x && mx < x + width && my >= y + height - EDGE && my < y + height + EDGE) return Drag.BOTTOM;
         return Drag.NONE;
@@ -504,7 +517,7 @@ public final class SettingsWindow extends UIComponent {
         }
 
         // resize affordances: grip dots in the corner, an accent line along a hovered edge
-        Drag edge = drag != Drag.NONE && drag != Drag.MOVE ? drag : edgeAt(mouseX, mouseY);
+        Drag edge = drag != Drag.NONE && drag != Drag.MOVE && drag != Drag.SCROLL ? drag : edgeAt(mouseX, mouseY);
         edgeHover.animateTo(edge != Drag.NONE ? 1 : 0);
         Icons.resizeGrip(r, x + width - 2, y + height - 2,
                 ColorUtil.lerp(ColorUtil.fade(p.textDisabled(), 0.7), p.accent(), edge == Drag.CORNER ? edgeHover.get() : 0));
@@ -512,7 +525,6 @@ public final class SettingsWindow extends UIComponent {
         if (eh > 0.01) {
             int c = ColorUtil.fade(p.accent(), 0.8 * eh);
             switch (edge) {
-                case RIGHT -> r.rect(x + width - 1, y + TITLE_H, 1, height - TITLE_H - radius, c);
                 case LEFT -> r.rect(x, y + TITLE_H, 1, height - TITLE_H - radius, c);
                 case BOTTOM -> r.rect(x + radius, y + height - 1, width - radius * 2, 1, c);
                 default -> {}
@@ -585,7 +597,21 @@ public final class SettingsWindow extends UIComponent {
             if (backHot) ctx.requestTooltip(this, "Back to " + history.peek().getName());
             tx = x + 15;
         }
-        int room = rr - rw - 8 - tx;
+        // copy / import (share code of this module, see ShareSettingsModule)
+        int ir = rr - rw - 8, iw = r.textWidth("Import");
+        boolean importHot = drag == Drag.NONE && mouseX >= ir - iw - 2 && mouseX < ir + 2 && overTitle;
+        importHover.animateTo(importHot ? 1 : 0);
+        r.textRight("Import", ir, ty, ColorUtil.lerp(p.textDisabled(), p.text(), importHover.get()));
+        if (importHot) ctx.requestTooltip(this, "Import " + module.getName() + " settings from a share code in the clipboard");
+        int cr = ir - iw - 8, cw = r.textWidth("Copy");
+        boolean copyHot = drag == Drag.NONE && mouseX >= cr - cw - 2 && mouseX < cr + 2 && overTitle;
+        copyHover.animateTo(copyHot ? 1 : 0);
+        r.textRight("Copy", cr, ty, ColorUtil.lerp(p.textDisabled(), p.text(), copyHover.get()));
+        if (copyHot) ctx.requestTooltip(this, "Copy " + module.getName() + " settings as a share code");
+        importW = iw;
+        copyW = cw;
+
+        int room = cr - cw - 8 - tx;
         String title = module.getName();
         String category = module.getCategory().getName();
         r.text(r.trim(title, room), tx, ty, p.text());
@@ -697,7 +723,14 @@ public final class SettingsWindow extends UIComponent {
                 int trackH = listH - 4;
                 int thumbH = Math.max(10, (int) (trackH * (listH / (double) content)));
                 int thumbY = listY + 2 + (int) Math.round((trackH - thumbH) * (s.scroll.get() / s.maxScroll));
-                r.pill(listX + listW - 2, thumbY, 2, thumbH, ColorUtil.fade(p.accent(), inList ? 0.9 : 0.4));
+                barTrackY = listY + 2;
+                barTrackH = trackH;
+                barThumbH = thumbH;
+                boolean barHot = drag == Drag.SCROLL || (!ctx.hasCapture() && overScrollBar(mouseX, mouseY));
+                int bw = barHot ? 3 : 2;
+                r.pill(listX + listW - bw, thumbY, bw, thumbH, ColorUtil.fade(p.accent(), barHot ? 1.0 : inList ? 0.9 : 0.4));
+            } else {
+                barTrackH = 0;
             }
         } finally {
             r.popAlpha();
@@ -708,6 +741,12 @@ public final class SettingsWindow extends UIComponent {
 
     private boolean overList(double mx, double my) {
         return mx >= listX && mx < listX + listW && my >= listY && my < listY + listH;
+    }
+
+    /** The scroll bar strip at the right of the settings list (only while the section can scroll). */
+    private boolean overScrollBar(double mx, double my) {
+        return selected != null && selected.maxScroll > 0 && barTrackH > 0
+                && mx >= listX + listW - 6 && mx < listX + listW + 2 && my >= listY && my < listY + listH;
     }
 
     private boolean overPreview(double mx, double my) {
@@ -757,6 +796,15 @@ public final class SettingsWindow extends UIComponent {
             s.toggle().toggle();
             return true;
         }
+        if (s != null && button == MouseButton.LEFT && overScrollBar(mx, my)) {
+            int range = barTrackH - barThumbH;
+            int thumbY = barTrackY + (int) Math.round(range * (s.scroll.get() / s.maxScroll));
+            if ((my < thumbY || my >= thumbY + barThumbH) && range > 0) // track click: jump the thumb under the mouse
+                s.scrollTarget = Math.clamp((my - barTrackY - barThumbH / 2.0) / range * s.maxScroll, 0, s.maxScroll);
+            startDrag(Drag.SCROLL, mx, my);
+            startScroll = s.scrollTarget;
+            return true;
+        }
         if (s != null && overList(mx, my)) s.list.mouseClicked(mx, my, button);
         return true;
     }
@@ -780,6 +828,22 @@ public final class SettingsWindow extends UIComponent {
                         "Reset every setting of " + m.getName() + " to its default? This can't be undone.",
                         "Reset", "Cancel", m::resetToDefaults, null));
             }
+            return true;
+        }
+        int ir = rr - resetW - 8;
+        if (mx >= ir - importW - 2 && mx < ir + 2) {
+            if (button == MouseButton.LEFT) {
+                Module m = module;
+                String clip = InputUtil.getClipboard();
+                Confirm.show(new ConfirmRequest("Import " + m.getName(),
+                        "Overwrite the settings of " + m.getName() + " with the share code in your clipboard?",
+                        "Import", "Cancel", () -> ShareSettingsModule.applyCode(clip, m), null));
+            }
+            return true;
+        }
+        int cr = ir - importW - 8;
+        if (mx >= cr - copyW - 2 && mx < cr + 2) {
+            if (button == MouseButton.LEFT) ShareSettingsModule.copyCode(List.of(module));
             return true;
         }
         if (!history.isEmpty() && mx >= x + 2 && mx < x + 14) {

@@ -5,6 +5,7 @@ import dev.telemetric.game.BossBarAdapter;
 import dev.telemetric.module.impl.visual.BossStageTrackerModule;
 import dev.telemetric.game.DamageNumberAdapter;
 import dev.telemetric.game.DamageNumberAdapter.DamageNumber;
+import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.hud.LinesHudModule;
 import dev.telemetric.hud.TextRun;
 import dev.telemetric.setting.impl.ActionSetting;
@@ -23,6 +24,8 @@ import java.util.List;
 public final class DpsMeterHud extends LinesHudModule {
 
     static final String NEVER_HIDE = "Never Hide", ON_BOSSES = "Only on Bosses", HIDE_AFTER = "Hide After Xs";
+    static final String PEAK_FIGHT = "Each Fight", PEAK_MINUTES = "After Minutes", PEAK_WORLD = "World Change",
+            PEAK_RESTART = "Game Restart";
 
     /** The pause that ends a fight when the meter never hides. There's no slider for it since the meter stays up anyway. */
     private static final long FIGHT_GAP_MS = 5000;
@@ -39,6 +42,16 @@ public final class DpsMeterHud extends LinesHudModule {
     private final NumberSetting dpsWindow = add(new NumberSetting("DPS Window",
             "DPS = damage of the last X seconds ÷ X. 0 = whole fight (total ÷ fight length)", 0, 0, 60, 1)
             .withSuffix("s").visibleWhen(showDps::get));
+    private final BooleanSetting showPeak = add(new BooleanSetting("Show Peak DPS",
+            "Highest DPS you reached (the DPS row's top value, same DPS Window)", false));
+    private final ModeSetting peakReset = add(new ModeSetting("Reset Peak",
+            "Each Fight: kept until the next fight starts. After Minutes: forgotten X minutes after it was set "
+                    + "without a higher one. World Change: kept until you switch world/dimension (realm, dungeon, hub). "
+                    + "Game Restart: kept for the whole game session",
+            PEAK_FIGHT, PEAK_FIGHT, PEAK_MINUTES, PEAK_WORLD, PEAK_RESTART).visibleWhen(showPeak::get));
+    private final NumberSetting peakMinutes = add(new NumberSetting("Reset Peak After",
+            "Minutes without a higher DPS until the peak resets", 5, 1, 30, 1).withSuffix("min")
+            .visibleWhen(() -> showPeak.get() && peakReset.is(PEAK_MINUTES)));
     private final BooleanSetting showMax = add(new BooleanSetting("Show Max Hit", "Highest single hit of the fight", true));
     private final BooleanSetting resetMax = add(new BooleanSetting("Reset Max Hit",
             "Forget the max hit after some seconds without a bigger one", false).visibleWhen(showMax::get));
@@ -58,6 +71,10 @@ public final class DpsMeterHud extends LinesHudModule {
 
     private final DpsTracker tracker = new DpsTracker();
     private boolean bossUp;
+    /** Peak DPS and when it was set (ms, {@link #now()}); lives in the module so it can outlast a fight. */
+    private double peak;
+    private long peakAt = -1;
+    private String lastDim;
 
     public DpsMeterHud() {
         super("DPS Meter", "Damage per second from the server's floating damage numbers", 0.0, 0.62, false);
@@ -75,26 +92,58 @@ public final class DpsMeterHud extends LinesHudModule {
 
     private void resetStats() {
         tracker.reset();
+        resetPeak();
+    }
+
+    private void resetPeak() {
+        peak = 0;
+        peakAt = -1;
+    }
+
+    private long dpsWindowMs() {
+        return Math.round(dpsWindow.get() * 1000);
     }
 
     @Override
     protected void onEnable() {
         tracker.reset();
         bossUp = false;
+        if (!peakReset.is(PEAK_RESTART)) resetPeak(); // Game Restart: the peak survives toggling the meter
     }
 
     @Override
     public void onTick() {
+        long now = now();
         boolean boss = !BossBarAdapter.knownBosses().isEmpty();
-        if (boss && !bossUp && visibility.is(ON_BOSSES)) tracker.reset(); // a new boss means a new fight
+        if (boss && !bossUp && visibility.is(ON_BOSSES)) { // a new boss means a new fight
+            tracker.reset();
+            if (peakReset.is(PEAK_FIGHT)) resetPeak();
+        }
         bossUp = boss;
 
-        long now = now();
+        String dim = DungeonAdapter.dimensionId();
+        if (dim != null) {
+            if (lastDim != null && !dim.equals(lastDim) && peakReset.is(PEAK_WORLD)) resetPeak();
+            lastDim = dim;
+        }
+
         for (DamageNumber n : DamageFeed.thisTick()) {
+            if (!tracker.active(now, timeoutMs()) && peakReset.is(PEAK_FIGHT)) resetPeak(); // this hit starts a fight
             tracker.add(now, n.amount(), timeoutMs());
             if (hideNumbers.get()) DamageNumberAdapter.hide(n.entityId());
         }
         if (showMax.get() && resetMax.get()) tracker.expireMax(now, Math.round(resetMaxAfter.get() * 1000));
+
+        if (peakReset.is(PEAK_MINUTES) && peakAt >= 0 && now - peakAt > Math.round(peakMinutes.get() * 60_000)) {
+            resetPeak();
+        }
+        if (tracker.active(now, timeoutMs())) {
+            double dps = tracker.dps(now, dpsWindowMs());
+            if (dps > peak) {
+                peak = dps;
+                peakAt = now;
+            }
+        }
     }
 
     @Override
@@ -147,6 +196,7 @@ public final class DpsMeterHud extends LinesHudModule {
         String dps = fmt(running ? tracker.dps(now, Math.round(dpsWindow.get() * 1000)) : 0);
         List<Line> rows = new ArrayList<>();
         if (showDps.get()) rows.add(new Line("DPS", dps));
+        if (showPeak.get()) rows.add(new Line("Peak DPS", fmt(peak)));
         if (showMax.get()) rows.add(hit("Max Hit", tracker.max()));
         if (showLast.get()) rows.add(hit("Last Hit", tracker.last()));
         if (showTotal.get()) rows.add(new Line("Total", fmt(tracker.total())));
@@ -166,6 +216,7 @@ public final class DpsMeterHud extends LinesHudModule {
     private List<Line> placeholder() {
         List<Line> rows = new ArrayList<>();
         if (showDps.get()) rows.add(new Line("DPS", "331"));
+        if (showPeak.get()) rows.add(new Line("Peak DPS", "512"));
         if (showMax.get()) rows.add(hit("Max Hit", 1240));
         if (showLast.get()) rows.add(hit("Last Hit", 215));
         if (showTotal.get()) rows.add(new Line("Total", "5,180"));

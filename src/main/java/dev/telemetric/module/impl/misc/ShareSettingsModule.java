@@ -80,17 +80,23 @@ public final class ShareSettingsModule extends Module {
     // ------------------------------------------------------------------ generate
 
     private void generateCode() {
+        List<Module> list = new ArrayList<>();
+        for (String name : shared.get()) Telemetric.get().modules().find(name).ifPresent(list::add);
+        copyCode(list);
+    }
+
+    /** Copies a share code for {@code list} to the clipboard (keybinds left out). Shared with the Settings window. */
+    public static boolean copyCode(List<Module> list) {
         JsonObject modules = new JsonObject();
-        for (String name : shared.get()) {
-            Optional<Module> module = Telemetric.get().modules().find(name);
-            if (module.isEmpty() || module.get() == this) continue;
-            JsonObject json = module.get().toJson();
+        for (Module module : list) {
+            if (module instanceof ShareSettingsModule) continue;
+            JsonObject json = module.toJson();
             json.remove("bind"); // keybinds are personal
-            modules.add(module.get().getName(), json);
+            modules.add(module.getName(), json);
         }
         if (modules.isEmpty()) {
             Toasts.error("Tick at least one module first");
-            return;
+            return false;
         }
         JsonObject root = new JsonObject();
         root.addProperty("format", FORMAT);
@@ -98,28 +104,38 @@ public final class ShareSettingsModule extends Module {
         String out = PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(deflate(root.toString()));
         InputUtil.setClipboard(out);
         Toasts.success("Copied share code (" + modules.size() + (modules.size() == 1 ? " module)" : " modules)"));
+        return true;
     }
 
     // ------------------------------------------------------------------ apply
 
     private void applyCode() {
-        String text = code.get().replaceAll("\\s+", "");
+        if (applyCode(code.get(), null)) code.set("");
+    }
+
+    /**
+     * Applies a share code. With {@code only} set, just that module's entry is applied (Settings window import).
+     * Returns true when at least one module was applied.
+     */
+    public static boolean applyCode(String raw, Module only) {
+        String text = raw == null ? "" : raw.replaceAll("\\s+", "");
         if (text.isEmpty()) {
-            Toasts.error("Paste a share code first");
-            return;
+            Toasts.error(only == null ? "Paste a share code first" : "Clipboard has no share code");
+            return false;
         }
         JsonObject modules;
         try {
             modules = decode(text);
         } catch (IllegalArgumentException e) {
             Toasts.error("Invalid share code");
-            return;
+            return false;
         }
         int applied = 0;
         List<String> missing = new ArrayList<>();
         for (Map.Entry<String, JsonElement> entry : modules.entrySet()) {
+            if (only != null && !only.getName().equals(entry.getKey())) continue;
             Optional<Module> module = Telemetric.get().modules().find(entry.getKey());
-            if (module.isEmpty() || module.get() == this || !entry.getValue().isJsonObject()) {
+            if (module.isEmpty() || module.get() instanceof ShareSettingsModule || !entry.getValue().isJsonObject()) {
                 missing.add(entry.getKey());
                 continue;
             }
@@ -133,13 +149,13 @@ public final class ShareSettingsModule extends Module {
             }
         }
         if (applied == 0) {
-            Toasts.error("Nothing to apply from this code");
-            return;
+            Toasts.error(only == null ? "Nothing to apply from this code" : "Code has no settings for " + only.getName());
+            return false;
         }
-        code.set("");
         String msg = "Applied " + applied + (applied == 1 ? " module" : " modules");
         if (!missing.isEmpty()) msg += " (" + missing.size() + " unknown skipped)";
         Toasts.success(msg);
+        return true;
     }
 
     /** Turns a code into the {@code modules} object. Throws {@link IllegalArgumentException} for anything malformed. */
