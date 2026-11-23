@@ -1,5 +1,7 @@
 package dev.telemetric.game;
 
+import dev.telemetric.data.BossTable;
+import dev.telemetric.data.TelosData;
 import dev.telemetric.mixin.TextDisplayAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -12,13 +14,15 @@ import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * MC ADAPTER: the boss damage stage on Telos Realms. A boss carries a stack of {@code text_display} passengers. One
  * of them shows the status glyph U+15FF8, tinted by stage (blue = immune, purple = shielded, anything else =
- * damageable), and a sibling passenger shows U+1604C. {@link #scan} finds those status displays once per tick,
+ * damageable), and a sibling passenger shows U+1604C or a nameplate that spells a Boss.json boss (e.g. Unrest). {@link #scan} finds those status displays once per tick,
  * {@link #position} gives their frame-interpolated X/Z, and the badge Y is the floor under the player.
  */
 public final class BossStageAdapter {
@@ -30,6 +34,10 @@ public final class BossStageAdapter {
 
     private static final String STATUS_GLYPH = new String(Character.toChars(0x15FF8));
     private static final String PAIR_GLYPH = new String(Character.toChars(0x1604C));
+
+    /** Boss table the cached name keys were built from, and those keys ({@link DungeonAdapter#plateLetters} form). */
+    private static BossTable keysFrom;
+    private static Set<String> bossKeys = Set.of();
     private static final int MAX_DROP = 48;
 
     /** Floor Y under the player, last measured while on the ground (NaN until it's been measured). */
@@ -51,11 +59,12 @@ public final class BossStageAdapter {
             cachedFloorY = groundY(level, player.getX(), player.getY() + 0.5, player.getZ());
         }
         double floorY = cachedFloorY;
+        Set<String> keys = bossKeys();
         for (Entity e : level.entitiesForRendering()) {
             if (!(e instanceof Display.TextDisplay td) || e.isRemoved()) continue;
             if (e.distanceToSqr(player) > r2) continue;
             Component text = ((TextDisplayAccessor) td).telemetric$getText();
-            if (text == null || !text.getString().contains(STATUS_GLYPH) || !hasPair(td)) continue;
+            if (text == null || !text.getString().contains(STATUS_GLYPH) || !hasPair(td, keys)) continue;
             int rgb = statusColor(text);
             out.add(new Stage(e.getId(), kindOf(rgb), rgb, floorY));
         }
@@ -71,15 +80,38 @@ public final class BossStageAdapter {
         return new double[]{Mth.lerp(partialTick, e.xOld, e.getX()), Mth.lerp(partialTick, e.zOld, e.getZ())};
     }
 
-    private static boolean hasPair(Display.TextDisplay status) {
+    /**
+     * True when the status display belongs to a boss: a sibling passenger shows the boss-font glyph U+1604C, or a
+     * sibling nameplate spells a boss name from {@code Boss.json}. Some bosses (Unrest) use the normal-mob font, whose
+     * stack (name, U+15FF7, U+15FF8, title) is the same on every mob, so only the name tells them apart.
+     */
+    private static boolean hasPair(Display.TextDisplay status, Set<String> keys) {
         Entity root = status.getRootVehicle();
         if (root == status) return false;
         for (Entity p : root.getPassengers()) {
             if (p == status || !(p instanceof Display.TextDisplay td)) continue;
             Component t = ((TextDisplayAccessor) td).telemetric$getText();
-            if (t != null && t.getString().contains(PAIR_GLYPH)) return true;
+            if (t == null) continue;
+            String s = t.getString();
+            if (s.contains(PAIR_GLYPH)) return true;
+            if (!keys.isEmpty() && keys.contains(DungeonAdapter.plateLetters(s))) return true;
         }
         return false;
+    }
+
+    /** Boss names from {@code Boss.json} as nameplate letters, rebuilt when the table is reloaded. */
+    private static Set<String> bossKeys() {
+        BossTable table = TelosData.BOSSES.get();
+        if (table != keysFrom) {
+            Set<String> keys = new HashSet<>();
+            for (BossTable.Boss b : table.all()) {
+                String k = DungeonAdapter.normalizeName(b.name());
+                if (!k.isEmpty()) keys.add(k);
+            }
+            bossKeys = keys;
+            keysFrom = table;
+        }
+        return bossKeys;
     }
 
     /** Colour (RGB) of the text run that holds the status glyph, or -1 if there's none. */

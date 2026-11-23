@@ -76,4 +76,9 @@ public final class ViewAdapter {
     public static boolean isThirdPerson() {
         return !Minecraft.getInstance().options.getCameraType().isFirstPerson();
     }
+
+    /** True while the HUD editor is open (elements must stay visible there to be moved). */
+    public static boolean isHudEditorOpen() {
+        return Minecraft.getInstance().screen instanceof dev.telemetric.ui.hud.HudEditorScreen;
+    }
 }

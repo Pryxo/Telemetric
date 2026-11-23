@@ -42,6 +42,9 @@ public final class HealthBarModule extends HudModule {
     private final BooleanSetting firstPerson = add(new BooleanSetting("Show in First Person",
             "HUD Projection: also show the bar in first person (fixed, just below the crosshair)", false)
             .visibleWhen(this::projection));
+    private final BooleanSetting elementFirstPerson = add(new BooleanSetting("Element in First Person",
+            "HUD Element: also show the element in first person (always shown in the HUD editor)", false)
+            .visibleWhen(this::element));
     private final BooleanSetting throughBlocks = add(new BooleanSetting("Through Blocks",
             "3D World: draw the bar and its text on top of blocks, so it stays visible under or behind them", true)
             .visibleWhen(this::world3D));
@@ -273,7 +276,8 @@ public final class HealthBarModule extends HudModule {
 
     @Override
     public boolean isShown() {
-        return isEnabled() && element();
+        if (!isEnabled() || !element()) return false;
+        return elementFirstPerson.get() || ViewAdapter.isThirdPerson() || ViewAdapter.isHudEditorOpen();
     }
 
     @Override

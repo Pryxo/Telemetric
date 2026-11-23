@@ -41,6 +41,7 @@ import dev.telemetric.module.impl.visual.CustomBagsModule;
 import dev.telemetric.module.impl.visual.FullbrightModule;
 import dev.telemetric.module.impl.visual.HealthBarModule;
 import dev.telemetric.module.impl.visual.HideArmorModule;
+import dev.telemetric.module.impl.visual.HideHudModule;
 import dev.telemetric.module.impl.visual.HidePlayersModule;
 import dev.telemetric.module.impl.visual.PlayerCurrencyModule;
 import dev.telemetric.module.impl.visual.StatusTitleModule;
@@ -109,6 +110,7 @@ public final class ModuleManager {
         register(nametags.colorsHud()); // hidden HUD element, toggled by Show Status Colors
         register(new PlayerCurrencyModule()); // after Status Title: both add lines to name tags
         register(new HidePlayersModule());
+        register(new HideHudModule());
         register(new ItemRarityModule());
         register(new TraitDetailsModule());
         register(new HealthBarModule());

@@ -1,6 +1,7 @@
 package dev.telemetric.ui.hud;
 
 import dev.telemetric.Telemetric;
+import dev.telemetric.game.HudHideAdapter;
 import dev.telemetric.game.ServerGate;
 import dev.telemetric.hud.HudModule;
 import dev.telemetric.module.impl.hud.WatermarkHud;
@@ -22,7 +23,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * MC ADAPTER: draws the enabled HUD elements in-game through Fabric's {@link HudElementRegistry}, on a layer just below
  * the chat so the chat stays readable on top.
  * <p>
- * It's skipped off Telos Realms ({@link ServerGate}), while F1 hides the GUI, and while the HUD editor is open (the
+ * It's skipped off Telos Realms ({@link ServerGate}), while F1 hides the GUI, during the black fade when Hide HUD
+ * asks for it ({@link HudHideAdapter}), and while the HUD editor is open (the
  * editor draws its own copies). While the ClickGUI is open, the ClickGUI draws the watermark on top of its backdrop
  * instead.
  * <p>
@@ -57,7 +59,7 @@ public final class HudOverlay {
 
     private static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.options.hideGui) return;
+        if (mc.options.hideGui || HudHideAdapter.hidden()) return;
         Screen screen = mc.screen;
         boolean clickGui = screen instanceof ClickGuiScreen;
 
