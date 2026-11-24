@@ -6,10 +6,13 @@ import dev.telemetric.Telemetric;
 import dev.telemetric.chat.ChatLink;
 import dev.telemetric.chat.ChatView;
 import dev.telemetric.mixin.ChatComponentAccessor;
+import dev.telemetric.mixin.ChatScreenAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ActiveTextCollector;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.client.multiplayer.chat.GuiMessageSource;
 import net.minecraft.network.chat.ClickEvent;
@@ -367,5 +370,19 @@ public final class ChatHudAdapter {
     public static int chatWidth() {
         Minecraft mc = Minecraft.getInstance();
         return ChatComponent.getWidth(mc.options.chatWidth().get());
+    }
+
+    /**
+     * Types {@code text} into the open chat input at the cursor (Emoji Picker), with a space before it if the cursor
+     * sits right after a word and a space after it, so the server sees it as its own word. False without a chat screen.
+     */
+    public static boolean insertWord(String text) {
+        if (!(Minecraft.getInstance().screen instanceof ChatScreen screen)) return false;
+        EditBox box = ((ChatScreenAccessor) screen).telemetric$input();
+        String value = box.getValue();
+        int cursor = Math.clamp(box.getCursorPosition(), 0, value.length());
+        boolean spaceBefore = cursor > 0 && value.charAt(cursor - 1) != ' ';
+        box.insertText((spaceBefore ? " " : "") + text + " ");
+        return true;
     }
 }

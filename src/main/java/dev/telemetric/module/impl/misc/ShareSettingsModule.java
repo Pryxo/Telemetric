@@ -126,6 +126,7 @@ public final class ShareSettingsModule extends Module {
         JsonObject modules;
         try {
             modules = decode(text);
+            dev.telemetric.config.ConfigManager.mergeNametag(modules); // codes from before the Nametag merge
         } catch (IllegalArgumentException e) {
             Toasts.error("Invalid share code");
             return false;

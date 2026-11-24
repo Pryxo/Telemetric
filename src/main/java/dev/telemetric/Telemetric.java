@@ -89,6 +89,7 @@ public final class Telemetric implements ClientModInitializer {
         StashAdapter.register();
         DropAdapter.register();
         BossMenuAdapter.register();
+        dev.telemetric.game.RegionSwitchAdapter.register();
         TelemetricCommand.register();
         LootTracker.get().start();
         RealmBossTracker.get().start();

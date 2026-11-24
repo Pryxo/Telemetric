@@ -4,11 +4,16 @@ import dev.telemetric.Telemetric;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ColorSetting;
+import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A HUD element made of "label value" rows (optionally with a title row) in a shared panel style.
@@ -139,6 +144,43 @@ public abstract class LinesHudModule extends HudModule {
         useServerColor = addHudSetting(new BooleanSetting("Use Server Color",
                 "Draw this element in the server's colours (yellow labels, green values) instead of the theme", true));
         return useServerColor;
+    }
+
+    private BooleanSetting flashOnUpdate;
+    private ColorSetting flashColor;
+    private NumberSetting flashTime;
+    /** Per row label: last drawn value and when it last changed (ms). */
+    private final Map<String, String> flashLast = new HashMap<>();
+    private final Map<String, Long> flashAt = new HashMap<>();
+
+    /**
+     * Adds "Flash on Update": a row's value briefly flashes in the flash colour (white by default) when it changes,
+     * fading back to its normal colour — like hearts flashing when you take damage.
+     */
+    protected final void addUpdateFlash() {
+        flashOnUpdate = addHudSetting(new BooleanSetting("Flash on Update",
+                "Values flash briefly when they change", true));
+        flashColor = addHudSetting(new ColorSetting("Flash Color", "Colour of the update flash", 0xFFFFFFFF)
+                .visibleWhen(flashOnUpdate::get));
+        flashTime = addHudSetting(new NumberSetting("Flash Time", "How long the flash takes to fade",
+                Durations.MICRO, 50, 600, 10).withSuffix("ms").visibleWhen(flashOnUpdate::get));
+    }
+
+    /** 1 right after this row's value changed, falling to 0 over Flash Time (0 = no flash). */
+    private double flashAmount(Line line, boolean preview) {
+        return preview ? 0 : flashAmount(line.label(), line.value());
+    }
+
+    private double flashAmount(String key, String value) {
+        if (flashOnUpdate == null || !flashOnUpdate.get()) return 0;
+        long now = System.nanoTime() / 1_000_000L;
+        String old = flashLast.put(key, value);
+        if (old != null && !old.equals(value)) flashAt.put(key, now);
+        Long at = flashAt.get(key);
+        int dur = Durations.scaled(flashTime.get().intValue());
+        if (at == null || dur <= 0) return 0;
+        double t = (now - at) / (double) dur;
+        return t >= 1 ? 0 : 1 - t;
     }
 
     /** Value runs of a mirrored (right-aligned, "Value :Label") row, the same width as the normal runs. */
@@ -296,6 +338,11 @@ public abstract class LinesHudModule extends HudModule {
             int vc = serverColors && line.valueColor() != 0 ? line.valueColor() : defaultValue;
             int tint = line.tintIcon() ? iconTint(line, vc) : 0xFFFFFFFF;
             boolean runColors = serverColors || line.ownColors();
+            double flash = flashAmount(line, preview);
+            if (flash > 0) {
+                vc = ColorUtil.lerp(vc, flashColor.get(), flash);
+                runColors = false;
+            }
             int x;
             if (alignRight && isTextMirrored()) {
                 // right-aligned: the whole row is mirrored ("Value :Label <icon>"), with icons in a column at the right edge

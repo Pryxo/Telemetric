@@ -44,8 +44,7 @@ import dev.telemetric.module.impl.visual.HealthBarModule;
 import dev.telemetric.module.impl.visual.HideArmorModule;
 import dev.telemetric.module.impl.visual.HideHudModule;
 import dev.telemetric.module.impl.visual.HidePlayersModule;
-import dev.telemetric.module.impl.visual.PlayerCurrencyModule;
-import dev.telemetric.module.impl.visual.StatusTitleModule;
+import dev.telemetric.module.impl.visual.NametagModule;
 import dev.telemetric.module.impl.visual.HitboxesModule;
 import dev.telemetric.module.impl.visual.ItemRarityModule;
 import dev.telemetric.module.impl.visual.PlayerSizeModule;
@@ -107,9 +106,8 @@ public final class ModuleManager {
         register(new HitboxesModule());
         register(new PlayerSizeModule());
         register(new HideArmorModule());
-        StatusTitleModule nametags = register(new StatusTitleModule());
-        register(nametags.colorsHud()); // hidden HUD element, toggled by Show Status Colors
-        register(new PlayerCurrencyModule()); // after Status Title: both add lines to name tags
+        NametagModule nametag = register(new NametagModule()); // every name tag edit: Status Title, Player Currency
+        register(nametag.colorsHud()); // hidden HUD element, toggled by Show Status Colors
         register(new HidePlayersModule());
         register(new HideHudModule());
         register(new ItemRarityModule());

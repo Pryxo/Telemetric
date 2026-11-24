@@ -5,6 +5,8 @@ import dev.telemetric.api.HeadStatusApi;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.data.TelosData.Realms;
 import dev.telemetric.game.PlayerAdapter;
+import dev.telemetric.game.RegionSwitchAdapter;
+import dev.telemetric.game.ServerInfoAdapter;
 import dev.telemetric.game.TelosServer;
 import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
@@ -33,6 +35,10 @@ import java.util.Map;
  * Only the servers the live HeadStatus list ({@link HeadStatusApi}) returns are shown, plus a Missions button in every
  * live region. {@code realms.json} only provides the tab order, display names and the hub split. Theme colours, an
  * open fade of {@link Durations#SCREEN}, and a button hover of {@link Durations#HOVER}.
+ * <p>
+ * With <b>Region Switch</b> on, your region's tab shows your live ping above it, and double-clicking another
+ * region's tab picks that region in {@code /locations} (the server transfers you) without reloading the resource pack
+ * ({@link RegionSwitchAdapter}).
  */
 public class RealmSelectorScreen extends Screen {
 
@@ -55,6 +61,10 @@ public class RealmSelectorScreen extends Screen {
     private boolean regionPicked;
     private final List<Button> buttons = new ArrayList<>();
     private final List<Button> tabs = new ArrayList<>();
+    /** API region id per tab (same index as {@link #tabs}), null if no live server of that region was seen. */
+    private final List<String> tabIds = new ArrayList<>();
+    private final boolean regionSwitch;
+    private static final int PING_H = 10;
 
     /** API region id to tab name. */
     private static final Map<String, String> REGION_NAMES = Map.of("de", "EU", "ny", "NA", "sg", "SG");
@@ -77,12 +87,20 @@ public class RealmSelectorScreen extends Screen {
         }
     }
 
-    private record LiveRegion(String name, List<Entry> realms, List<Entry> hubs) {}
+    private record LiveRegion(String name, List<Entry> realms, List<Entry> hubs, String[] id) {
+        LiveRegion(String name) {
+            this(name, new ArrayList<>(), new ArrayList<>(), new String[1]);
+        }
+    }
 
-    /** @param previous the realm you were on before this one (null for none) */
-    public RealmSelectorScreen(String previous) {
+    /**
+     * @param previous the realm you were on before this one (null for none)
+     * @param regionSwitch show region pings and switch region on a tab double-click
+     */
+    public RealmSelectorScreen(String previous, boolean regionSwitch) {
         super(Component.literal("Realm Selector"));
         this.previous = previous;
+        this.regionSwitch = regionSwitch;
         this.here = TelosServer.current();
         Realms.Region mine = TelosData.REALMS.get().forServerRegion(here == null ? null : here.region());
         this.myRegion = mine == null ? null : mine.name();
@@ -93,9 +111,9 @@ public class RealmSelectorScreen extends Screen {
      * Opens the selector (on the client thread). This is the only place the live realm list gets requested again, and
      * only once the {@link HeadStatusApi#REALM_TTL_MS 30 s} cache has run out. Otherwise the cached list is shown.
      */
-    public static void open(String previous) {
+    public static void open(String previous, boolean regionSwitch) {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-        mc.execute(() -> mc.setScreen(new RealmSelectorScreen(previous)));
+        mc.execute(() -> mc.setScreen(new RealmSelectorScreen(previous, regionSwitch)));
         HeadStatusApi.refreshRealmsIfStale().thenRun(() -> mc.execute(() -> {
             if (mc.screen instanceof RealmSelectorScreen s) s.rebuild();
         }));
@@ -109,12 +127,13 @@ public class RealmSelectorScreen extends Screen {
         List<Realms.Region> known = TelosData.REALMS.get().regions();
         Map<String, LiveRegion> byName = new LinkedHashMap<>();
         for (Realms.Region k : known) {
-            byName.put(k.name().toUpperCase(Locale.ROOT), new LiveRegion(k.name(), new ArrayList<>(), new ArrayList<>()));
+            byName.put(k.name().toUpperCase(Locale.ROOT), new LiveRegion(k.name()));
         }
         for (HeadStatusApi.LiveRealm lr : HeadStatusApi.realms()) {
             String rn = REGION_NAMES.getOrDefault(lr.region(), lr.region().toUpperCase(Locale.ROOT));
             LiveRegion reg = byName.computeIfAbsent(rn.toUpperCase(Locale.ROOT),
-                    n -> new LiveRegion(rn, new ArrayList<>(), new ArrayList<>()));
+                    n -> new LiveRegion(rn));
+            reg.id()[0] = lr.region();
             Realms.Region k = known.stream().filter(x -> x.name().equalsIgnoreCase(reg.name())).findFirst().orElse(null);
             String hubName = k == null ? null : match(k.hubs(), lr.name());
             String realmName = k == null ? null : match(k.realms(), lr.name());
@@ -187,6 +206,7 @@ public class RealmSelectorScreen extends Screen {
     private void layout() {
         buttons.clear();
         tabs.clear();
+        tabIds.clear();
         List<LiveRegion> regions = liveRegions();
         if (regions.isEmpty()) return;
         if (!regionPicked) {
@@ -212,7 +232,7 @@ public class RealmSelectorScreen extends Screen {
         }
         // "Previous" isn't part of the centred block. It hangs below, so the grid never jumps when it appears.
         int totalH = TAB_H + GAP * 2 + rows * (BTN_H + GAP) + GAP + BTN_H;
-        int left = (width - gridW) / 2, y = Math.max(PAD + 12, (height - totalH) / 2);
+        int left = (width - gridW) / 2, y = Math.max(PAD + 12 + (regionSwitch ? PING_H : 0), (height - totalH) / 2);
 
         // region tabs
         int tx = left;
@@ -225,6 +245,7 @@ public class RealmSelectorScreen extends Screen {
             String name = lr.name() + " (" + total + ")";
             int w = font.width(name) + 12;
             tabs.add(new Button(name, Integer.toString(i), tx, y, w, TAB_H, i == region));
+            tabIds.add(lr.id()[0]);
             tx += w + GAP;
         }
         y += TAB_H + GAP * 2;
@@ -251,6 +272,11 @@ public class RealmSelectorScreen extends Screen {
         }
     }
 
+    /** The tab of the region you're connected to (no switch to it). */
+    private boolean isMyRegion(Button tab) {
+        return myRegion != null && tab.label().regionMatches(true, 0, myRegion + " (", 0, myRegion.length() + 2);
+    }
+
     private boolean isHere(String name) {
         return here != null && here.realm().equalsIgnoreCase(name);
     }
@@ -275,11 +301,18 @@ public class RealmSelectorScreen extends Screen {
                         : HeadStatusApi.realmsLoaded() ? "No realms online" : "Realm list unavailable";
                 r.textCentered(msg, width / 2, height / 2, p.textMuted());
             } else {
-                int titleY = Math.max(4, tabs.getFirst().y() - 14);
+                int titleY = Math.max(4, tabs.getFirst().y() - 14 - (regionSwitch ? PING_H : 0));
                 r.textCentered(here == null ? "Realm Selector" : "Realm Selector — " + here.display(), width / 2, titleY, p.text());
             }
-            for (Button t : tabs) {
+            for (int i = 0; i < tabs.size(); i++) {
+                Button t = tabs.get(i);
                 draw(t, mouseX, mouseY, p, t.current() ? p.accent() : p.surface(), t.current() ? p.text() : p.textMuted());
+                // only your own region: every region host sits behind the same DDoS-protection edge, which answers any
+                // outside ping (TCP or server-list) itself, so the only real number is your live in-game latency
+                if (regionSwitch && isMyRegion(t)) {
+                    int ms = ServerInfoAdapter.ping();
+                    if (ms > 0) r.textCentered(ms + " ms", t.x() + t.w() / 2, t.y() - PING_H, p.textMuted());
+                }
             }
             for (Button b : buttons) {
                 draw(b, mouseX, mouseY, p, b.current() ? p.surfaceActive() : p.surface(), b.current() ? p.textDisabled() : p.text());
@@ -305,7 +338,14 @@ public class RealmSelectorScreen extends Screen {
         if (event.button() != MouseButton.LEFT) return super.mouseClicked(event, doubleClick);
         for (Button t : tabs) {
             if (t.contains(event.x(), event.y())) {
-                region = Integer.parseInt(t.target());
+                int i = Integer.parseInt(t.target());
+                String id = tabIds.get(i);
+                if (doubleClick && regionSwitch && RegionSwitchAdapter.canSwitchTo(id) && !isMyRegion(t)) {
+                    onClose();
+                    RegionSwitchAdapter.switchTo(id);
+                    return true;
+                }
+                region = i;
                 regionPicked = true;
                 layout();
                 return true;

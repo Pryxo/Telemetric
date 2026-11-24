@@ -8,6 +8,7 @@ import com.google.gson.JsonParser;
 import dev.telemetric.Telemetric;
 import dev.telemetric.module.Module;
 import dev.telemetric.module.ModuleManager;
+import dev.telemetric.setting.impl.KeybindSetting;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -17,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -248,6 +250,7 @@ public final class ConfigManager {
         int version = json.has("version") ? json.get("version").getAsInt() : 1;
         // if (version < 2) { ...; version = 2; }
         renameModule(json, "Nametags", "Status Title");
+        if (json.has("modules") && json.get("modules").isJsonObject()) mergeNametag(json.getAsJsonObject("modules"));
         json.addProperty("version", Math.max(version, FORMAT_VERSION));
         return json;
     }
@@ -257,6 +260,63 @@ public final class ConfigManager {
         if (!json.has("modules") || !json.get("modules").isJsonObject()) return;
         JsonObject modules = json.getAsJsonObject("modules");
         if (modules.has(oldName) && !modules.has(newName)) modules.add(newName, modules.remove(oldName));
+    }
+
+    /**
+     * Status Title + Player Currency became one <b>Nametag</b> module: their saved entries are merged into a "Nametag"
+     * entry (only if none is saved yet) and removed. {@code modules} maps module names to their JSON (a profile's
+     * "modules" object or a decoded share code). Status Title → the "Status Title" group toggle (on if that module and
+     * its Show Status were on), Player Currency → the "Player Currency" group toggle; Position / Hide Yourself are
+     * renamed, Hide Own / Hide HP only count from a module that was on.
+     */
+    public static void mergeNametag(JsonObject modules) {
+        JsonObject st = objectOf(modules.remove("Status Title"));
+        JsonObject pc = objectOf(modules.remove("Player Currency"));
+        if ((st == null && pc == null) || modules.has("Nametag")) return;
+        boolean stOn = bool(st, "enabled", false), pcOn = bool(pc, "enabled", false);
+        JsonObject stSet = settingsOf(st), pcSet = settingsOf(pc);
+        JsonObject out = new JsonObject();
+        out.addProperty("enabled", stOn || pcOn);
+        JsonElement bind = st != null && st.has("bind") && !isNoBind(st.get("bind")) ? st.get("bind")
+                : pc != null && pc.has("bind") ? pc.get("bind") : null;
+        if (bind != null) out.add("bind", bind);
+        JsonObject set = new JsonObject();
+        for (String k : new String[]{"Top 1 Wave", "Status Theme", "Status Position", "Show Status Colors"}) {
+            if (stSet.has(k)) set.add(k, stSet.get(k));
+        }
+        for (Map.Entry<String, JsonElement> e : pcSet.entrySet()) {
+            switch (e.getKey()) {
+                case "Position" -> set.add("Currency Position", e.getValue());
+                case "Hide Yourself" -> set.add("Hide Own Currency", e.getValue());
+                case "Hide HP" -> { }
+                default -> set.add(e.getKey(), e.getValue());
+            }
+        }
+        set.addProperty("Status Title", stOn && bool(stSet, "Show Status", true));
+        set.addProperty("Player Currency", pcOn);
+        set.addProperty("Hide Own", stOn && bool(stSet, "Hide Own", false));
+        set.addProperty("Hide HP", stOn && bool(stSet, "Hide HP", false) || pcOn && bool(pcSet, "Hide HP", false));
+        out.add("settings", set);
+        modules.add("Nametag", out);
+    }
+
+    private static JsonObject objectOf(JsonElement e) {
+        return e != null && e.isJsonObject() ? e.getAsJsonObject() : null;
+    }
+
+    private static JsonObject settingsOf(JsonObject module) {
+        JsonObject s = module == null ? null : objectOf(module.get("settings"));
+        return s == null ? new JsonObject() : s;
+    }
+
+    private static boolean bool(JsonObject o, String key, boolean fallback) {
+        if (o == null) return fallback;
+        JsonElement e = o.get(key);
+        return e != null && e.isJsonPrimitive() && e.getAsJsonPrimitive().isBoolean() ? e.getAsBoolean() : fallback;
+    }
+
+    private static boolean isNoBind(JsonElement e) {
+        return e.isJsonPrimitive() && e.getAsJsonPrimitive().isNumber() && e.getAsInt() == KeybindSetting.NONE;
     }
 
     // ================================================================== io

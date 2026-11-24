@@ -7,6 +7,7 @@ import dev.telemetric.game.TelosServer;
 import dev.telemetric.input.InputUtil;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
+import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.KeybindSetting;
 import dev.telemetric.ui.notification.Toasts;
@@ -24,6 +25,8 @@ public class KeybindsModule extends Module {
 
     private final KeybindSetting realmSelector = add(new KeybindSetting("Realm Selector",
             "Opens the realm selector (3 presses inside a dungeon)", InputUtil.KEY_C).onPress(this::openRealmSelector));
+    private final BooleanSetting regionSwitch = add(new BooleanSetting("Region Switch",
+            "Realm Selector: your ping above your region, double-click a region to switch to it via /locations (no resource pack reload)", true));
 
     // Settings render in registration order, so each group is added right before its own keys.
     {
@@ -89,6 +92,6 @@ public class KeybindsModule extends Module {
             }
             presses = 0;
         }
-        RealmSelectorScreen.open(previousRealm);
+        RealmSelectorScreen.open(previousRealm, regionSwitch.get());
     }
 }

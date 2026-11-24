@@ -102,7 +102,7 @@ public final class BossStageAdapter {
 
     /**
      * True when the status display belongs to a boss: a sibling passenger shows the boss-font glyph U+1604C, or a
-     * sibling nameplate spells a boss name from {@code Boss.json}. Some bosses (Unrest) use the normal-mob font, whose
+     * sibling nameplate spells a boss name (or its {@code plate}) from {@code Boss.json}. Some bosses (Unrest) use the normal-mob font, whose
      * stack (name, U+15FF7, U+15FF8, title) is the same on every mob, so only the name tells them apart.
      */
     private static boolean hasPair(Display.TextDisplay status, Set<String> keys) {
@@ -160,8 +160,10 @@ public final class BossStageAdapter {
         if (table != keysFrom) {
             Set<String> keys = new HashSet<>();
             for (BossTable.Boss b : table.all()) {
-                String k = DungeonAdapter.normalizeName(b.name());
-                if (!k.isEmpty()) keys.add(k);
+                for (String n : new String[]{b.name(), b.plate()}) {
+                    String k = DungeonAdapter.normalizeName(n);
+                    if (!k.isEmpty()) keys.add(k);
+                }
             }
             bossKeys = keys;
             keysFrom = table;

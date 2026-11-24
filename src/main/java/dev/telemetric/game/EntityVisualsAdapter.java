@@ -248,6 +248,8 @@ public final class EntityVisualsAdapter {
         List<Display.TextDisplay> tags = hpTags(level, self, range);
         boolean boss = BossBarAdapter.hasBossBar();
         for (Entity e : level.entitiesForRendering()) {
+            // Entities that aren't drawn (Hide Players, their riders, hidden name tags) get no hitbox either.
+            if (PlayerVisibilityAdapter.skipRender(e)) continue;
             BoxKind kind;
             if (e == self) {
                 if (!withSelf || !ViewAdapter.isThirdPerson()) continue;

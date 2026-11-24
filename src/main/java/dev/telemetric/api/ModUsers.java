@@ -32,6 +32,8 @@ public final class ModUsers {
     /** Mojang allows ~600 lookups per 10 min; one every 250 ms stays far below that. */
     private static final long LOOKUP_GAP_MS = 250;
     private static final long RETRY_MS = 60_000;
+    /** Mojang has no profile for the UUID (offline / made-up account): ask far less often. */
+    private static final long RETRY_UNKNOWN_MS = 10 * 60_000;
 
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private static final ScheduledExecutorService EXEC = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -96,25 +98,38 @@ public final class ModUsers {
             HttpRequest req = HttpRequest.newBuilder(URI.create(LOOKUP + uuid.replace("-", "")))
                     .timeout(Duration.ofSeconds(10)).header("User-Agent", "Telemetric").GET().build();
             HttpResponse<String> res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
-            if (res.statusCode() != 200) {
-                FAILED.put(uuid, System.currentTimeMillis());
+            int code = res.statusCode();
+            if (code != 200) {
+                failed(uuid, code == 204 || code == 404 ? RETRY_UNKNOWN_MS : RETRY_MS);
                 return;
             }
             JsonObject o = JsonParser.parseString(res.body()).getAsJsonObject();
             String name = o.has("name") ? o.get("name").getAsString() : null;
             if (name == null || name.isEmpty()) {
-                FAILED.put(uuid, System.currentTimeMillis());
+                failed(uuid, RETRY_UNKNOWN_MS);
                 return;
             }
             NAMES.put(uuid, name);
             FAILED.remove(uuid);
             rebuildNames();
         } catch (Exception e) {
-            FAILED.put(uuid, System.currentTimeMillis());
+            failed(uuid, RETRY_MS);
             Telemetric.LOGGER.debug("[Telemetric] Name lookup for {} failed: {}", uuid, e.toString());
         } finally {
             QUEUED.remove(uuid);
         }
+    }
+
+    /**
+     * Notes a failed lookup and asks again later on its own. Before, a failure (429, timeout) was only retried on the
+     * next {@code players} push, which comes only when someone joins or leaves, so that player had no badge for a long
+     * time even though the server listed them.
+     */
+    private static void failed(String uuid, long retryMs) {
+        FAILED.put(uuid, System.currentTimeMillis());
+        EXEC.schedule(() -> {
+            if (online.contains(uuid) && !NAMES.containsKey(uuid) && QUEUED.add(uuid)) lookup(uuid);
+        }, retryMs, TimeUnit.MILLISECONDS);
     }
 
     private static synchronized void rebuildNames() {

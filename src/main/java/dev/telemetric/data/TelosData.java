@@ -231,6 +231,9 @@ public final class TelosData {
     /** {@code callouts.json}: boss and portal call-out data (Callouts). */
     public static final SharedFile<CalloutTable> CALLOUTS = SharedData.file(DIR + "callouts.json", CalloutTable::parse, CalloutTable.EMPTY);
 
+    /** {@code emojis.json}: Telos chat emojis by wiki category (chat Emoji Picker). */
+    public static final SharedFile<EmojiTable> EMOJIS = SharedData.file(DIR + "emojis.json", EmojiTable::parse, EmojiTable.EMPTY);
+
     /** {@code chat.json}: chat tab categories (Chat). */
     public static final SharedFile<ChatRules> CHAT = SharedData.file(DIR + "chat.json", ChatRules::parse, ChatRules.EMPTY);
 

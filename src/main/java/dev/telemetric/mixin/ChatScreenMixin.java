@@ -37,6 +37,11 @@ public abstract class ChatScreenMixin {
         if (ChatScreenHooks.keyPressed(event.key(), event.modifiers())) cir.setReturnValue(true);
     }
 
+    @Inject(method = "removed", at = @At("HEAD"))
+    private void telemetric$closed(CallbackInfo ci) {
+        ChatScreenHooks.onClosed();
+    }
+
     @Inject(method = "handleChatInput", at = @At("HEAD"), cancellable = true)
     private void telemetric$send(String message, boolean addToHistory, CallbackInfo ci) {
         if (ChatScreenHooks.onSend(message, addToHistory)) ci.cancel();

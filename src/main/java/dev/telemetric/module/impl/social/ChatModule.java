@@ -19,8 +19,13 @@ import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.KeybindSetting;
 import dev.telemetric.setting.impl.MultiChoiceSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.setting.impl.TextSetting;
 import dev.telemetric.ui.notification.Toasts;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -64,6 +69,15 @@ public class ChatModule extends Module implements ChatView {
             "Guild chat on / back to default", KeybindSetting.NONE).onPress(() -> toggleMode("guild"))));
     private final KeybindSetting groupKey = add(modeKeys.child(new KeybindSetting("Toggle Group Chat",
             "Group chat on / back to default", KeybindSetting.NONE).onPress(() -> toggleMode("group"))));
+
+    private final BooleanSetting emojiButton = add(new BooleanSetting("Emoji Button",
+            "Emoji icon at the right end of the chat box: opens a picker with every Telos emoji (search, favorites)", true));
+    /** Hidden: favorite emoji codes, space-separated, in the order they were added. */
+    private final TextSetting emojiFavorites = add(new TextSetting("Emoji Favorites", "", "", 4000)
+            .filter(c -> c > 32 && c != 127).visibleWhen(() -> false));
+    /** Hidden: collapsed Emoji Picker sections, '|'-separated. */
+    private final TextSetting emojiCollapsed = add(new TextSetting("Emoji Collapsed", "", "", 1000)
+            .visibleWhen(() -> false));
 
     private final ChatTabs tabs = new ChatTabs(Callouts::isCallout);
     private final ChatChannels channels = new ChatChannels(new ChatChannels.Server() {
@@ -116,6 +130,31 @@ public class ChatModule extends Module implements ChatView {
     /** True if the tab bar is shown (module on, Chat Tabs on, more tabs than just "All"). */
     public boolean showsTabBar() {
         return isEnabled() && tabsGroup.get() && tabs.shown().size() > 1;
+    }
+
+    // ------------------------------------------------------------------ emoji picker
+
+    /** True if the chat box shows the emoji icon. */
+    public boolean showsEmojiButton() {
+        return isEnabled() && emojiButton.get();
+    }
+
+    public List<String> emojiFavorites() {
+        String v = emojiFavorites.get().trim();
+        return v.isEmpty() ? List.of() : List.of(v.split(" +"));
+    }
+
+    public void setEmojiFavorites(List<String> codes) {
+        emojiFavorites.set(String.join(" ", new LinkedHashSet<>(codes)));
+    }
+
+    public Set<String> emojiCollapsed() {
+        String v = emojiCollapsed.get();
+        return v.isEmpty() ? Set.of() : new LinkedHashSet<>(Arrays.asList(v.split(java.util.regex.Pattern.quote("|"))));
+    }
+
+    public void setEmojiCollapsed(Set<String> sections) {
+        emojiCollapsed.set(String.join("|", new ArrayList<>(sections)));
     }
 
     // ------------------------------------------------------------------ tabs

@@ -23,7 +23,8 @@ import java.util.Map;
  * MC ADAPTER (UI): what Social → Chat adds to the chat screen ({@code mixin/ChatScreenMixin}). That's the tab bar
  * between the chat lines and the input box (click a tab, Alt + ←/→ cycles, the scroll wheel over the bar pans it, and a
  * red badge counts the lines a tab got while another one was open), right-click on a line (a link's right-click action,
- * otherwise copy), and typed messages while a queued send is switching chat modes. Colours come from the theme. The
+ * otherwise copy), typed messages while a queued send is switching chat modes, and the emoji icon + {@link EmojiPicker}
+ * at the right end of the input box. Colours come from the theme. The
  * active-tab underline slides ({@link Durations#STANDARD}) and hover fades ({@link Durations#HOVER}).
  */
 public final class ChatScreenHooks {
@@ -56,7 +57,14 @@ public final class ChatScreenHooks {
 
     public static void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         ChatModule chat = chat();
-        if (chat == null || !chat.showsTabBar()) return;
+        if (chat == null) return;
+        renderTabBar(graphics, mouseX, mouseY, chat);
+        var window = Minecraft.getInstance().getWindow();
+        EmojiPicker.render(graphics, mouseX, mouseY, chat, window.getGuiScaledWidth(), window.getGuiScaledHeight());
+    }
+
+    private static void renderTabBar(GuiGraphicsExtractor graphics, int mouseX, int mouseY, ChatModule chat) {
+        if (!chat.showsTabBar()) return;
         Telemetric mod = Telemetric.get();
         Theme p = mod.theme().palette();
         List<String> tabs = chat.tabs().shown();
@@ -183,6 +191,9 @@ public final class ChatScreenHooks {
     public static boolean mouseClicked(double mouseX, double mouseY, int button) {
         ChatModule chat = chat();
         if (chat == null || !chat.isEnabled()) return false;
+        boolean pickerWasOpen = EmojiPicker.isOpen();
+        if (EmojiPicker.mouseClicked(chat, mouseX, mouseY, button)) return true;
+        if (pickerWasOpen && button == MouseButton.RIGHT) return false; // the click only closed the picker
         if (button == MouseButton.LEFT && chat.showsTabBar()) {
             String tab = tabAt(chat, mouseX, mouseY);
             if (tab != null) {
@@ -199,7 +210,9 @@ public final class ChatScreenHooks {
     /** The scroll wheel over the tab bar pans it (it never switches tab): up / left goes left. Returns true if consumed. */
     public static boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         ChatModule chat = chat();
-        if (chat == null || !chat.showsTabBar()) return false;
+        if (chat == null) return false;
+        if (EmojiPicker.mouseScrolled(mouseX, mouseY, scrollY)) return true;
+        if (!chat.showsTabBar()) return false;
         int y = top(), h = barHeight();
         if (mouseY < y || mouseY >= y + h || mouseX < LEFT || mouseX > LEFT + ChatHudAdapter.chatWidth()) return false;
         double amount = scrollY != 0 ? scrollY : -scrollX;
@@ -210,11 +223,24 @@ public final class ChatScreenHooks {
 
     public static boolean keyPressed(int key, int modifiers) {
         ChatModule chat = chat();
-        if (chat == null || !chat.showsTabBar() || (modifiers & GLFW_MOD_ALT) == 0) return false;
+        if (chat == null) return false;
+        if (EmojiPicker.isOpen()) return EmojiPicker.keyPressed(chat, key, modifiers);
+        if (!chat.showsTabBar() || (modifiers & GLFW_MOD_ALT) == 0) return false;
         if (key == InputUtil.KEY_LEFT) chat.cycleTab(-1);
         else if (key == InputUtil.KEY_RIGHT) chat.cycleTab(1);
         else return false;
         return true;
+    }
+
+    /** A character typed into the chat input. True if the Emoji Picker's search box took it. */
+    public static boolean charTyped(int codepoint) {
+        return chat() != null && EmojiPicker.charTyped(codepoint);
+    }
+
+    /** The chat screen closed. */
+    public static void onClosed() {
+        ChatModule chat = chat();
+        EmojiPicker.onChatClosed(chat);
     }
 
     /** Returns true if the message was queued (so don't send it now). */

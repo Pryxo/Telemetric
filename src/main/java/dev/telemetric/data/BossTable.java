@@ -84,12 +84,13 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
      * @param zone    the separate realm region a realm boss spawns in ({@code Shadowlands}), empty for the open realm
      * @param icon    item model of its Boss Tracker icon ({@code telos:material/boss/anubis}), may be empty
      * @param dungeon the dungeon of a dungeon boss, otherwise empty
+     * @param plate   its in-world nameplate if that's different ("Fallen Herald"), or empty
      * @param tracker Boss Tracker data, or null if it isn't tracked
      * @param areas   HUD location names (bottom-right box) where the Pity Counter shows this realm boss's pity when
      *                no boss is near and no boss bar is up. These are {@link Names#placeKey}s and may be empty
      */
     public record Boss(String id, String name, String zone, String icon, List<Spot> positions, String dungeon,
-                       Tracker tracker, List<String> areas) {
+                       String plate, Tracker tracker, List<String> areas) {
         public boolean isDungeonBoss() {
             return !dungeon.isEmpty();
         }
@@ -107,7 +108,7 @@ public record BossTable(List<Boss> all, Map<String, Boss> realmByKey, List<Boss>
             String name = JsonFields.str(o, "name"), dungeon = JsonFields.str(o, "dungeon");
             String zone = dungeon.isEmpty() ? JsonFields.str(o, "zone") : "";
             Boss b = new Boss(Names.key(name), name, zone, JsonFields.str(o, "icon"), spots(o, "positions", name),
-                    dungeon, tracker(o.getAsJsonObject("tracker"), name, defaultPortal), areas(o));
+                    dungeon, JsonFields.str(o, "plate"), tracker(o.getAsJsonObject("tracker"), name, defaultPortal), areas(o));
             all.add(b);
             if (b.isDungeonBoss()) {
                 if (b.tracker() != null && b.tracker().counted()) tracked.add(b); // spawned by a realm counter (Voided Omnipotent)

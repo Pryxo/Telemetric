@@ -20,12 +20,14 @@ import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.clickgui.window.PlayerPreview;
 import dev.telemetric.ui.clickgui.window.SettingsPreview;
 import dev.telemetric.ui.framework.GuiContext;
+import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.render.BadgeText;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,7 +37,7 @@ import java.util.Map;
  * Vulnerable). The stage is read from the boss's status text display ({@link BossStageAdapter}), and the badge is
  * drawn in the world with a badge font ({@link WorldLabelAdapter}).
  * <p>
- * The label is a stack of lines — Stage Label, Health and one line per DPS stat (DPS, Max Hit, Last Hit, Total,
+ * The label is a stack of lines — Stage Label, Health and one line per DPS stat (DPS, Peak DPS, Max Hit, Last Hit, Total,
  * Hits) — whose order the player drags in the ClickGUI (movable settings, like Stats Info). Each line has its own style section (font, bold,
  * underline, shadow / outline, colour, size). DPS only shows on the nearest boss. The Settings window shows a 3D
  * preview of the label with sample values; drag a line there to set the Height Offset, click the badge to try the
@@ -95,11 +97,12 @@ public final class BossStageTrackerModule extends Module {
             REST_HP, REST_HP, PERCENT_HP, CURRENT_MAX).withLabel("Format").attachedTo(healthLine)));
     /** One movable label line per DPS stat; names are {@link DpsMeterHud}'s stat names. */
     private final BooleanSetting dpsLine = add(dpsStat(DpsMeterHud.DPS, "Damage per second"));
+    private final BooleanSetting peakLine = add(dpsStat(DpsMeterHud.PEAK, "Highest DPS reached (resets as the DPS Meter's Peak Reset says)"));
     private final BooleanSetting maxHitLine = add(dpsStat(DpsMeterHud.MAX_HIT, "Highest single hit of the fight"));
     private final BooleanSetting lastHitLine = add(dpsStat(DpsMeterHud.LAST_HIT, "Most recent hit"));
     private final BooleanSetting totalLine = add(dpsStat(DpsMeterHud.TOTAL, "Total damage of the fight"));
     private final BooleanSetting hitsLine = add(dpsStat(DpsMeterHud.HITS, "Number of hits in the fight"));
-    private final List<BooleanSetting> dpsLines = List.of(dpsLine, maxHitLine, lastHitLine, totalLine, hitsLine);
+    private final List<BooleanSetting> dpsLines = List.of(dpsLine, peakLine, maxHitLine, lastHitLine, totalLine, hitsLine);
     private final BooleanSetting hideDpsHud = add(new BooleanSetting("Hide DPS HUD",
             "Hide the DPS Meter HUD element while a boss is tracked here (the stats are on the label instead)", true)
             .visibleWhen(this::anyDpsLine));
@@ -134,7 +137,7 @@ public final class BossStageTrackerModule extends Module {
     private final ColorSetting dpsColor = add(dpsGroup.child(new ColorSetting("DPS Color",
             "Colour of the DPS lines", 0xFFF5A524, false).withLabel("Color")));
     private final BooleanSetting dpsDamageColors = add(dpsGroup.child(new BooleanSetting("DPS Damage Colors",
-            "Max / Last Hit use their damage colour (when the DPS Meter's Damage Colors is on) instead of the colour above",
+            "Peak DPS / Max / Last Hit use their damage colour (when the DPS Meter's Damage Colors is on) instead of the colour above",
             true).withLabel("Damage Colors")));
 
     private final GroupSetting positionGroup = add(new GroupSetting("Position", "Spacing and height of the label"));
@@ -142,6 +145,23 @@ public final class BossStageTrackerModule extends Module {
             "Gap between the lines, in line heights", 0.35, 0, 2, 0.05)));
     private final NumberSetting offset = add(positionGroup.child(new NumberSetting("Height Offset",
             "Blocks above the ground under the boss (negative = into the floor)", 0.05, -1.0, 3.0, 0.05)));
+
+    // ---- Update Flash: a line flashes and fades back when its text changes, toggled per (enabled) line
+    private final GroupSetting flashGroup = add(new GroupSetting("Update Flash",
+            "Lines flash briefly when their text changes (like hearts when you take damage)"));
+    private final ColorSetting flashColor = add(flashGroup.child(new ColorSetting("Flash Color",
+            "Colour of the update flash", 0xFFFFFFFF, false)));
+    private final NumberSetting flashTime = add(flashGroup.child(new NumberSetting("Flash Time",
+            "How long the flash takes to fade", Durations.MICRO, 50, 600, 10).withSuffix("ms")));
+    /** Line setting → its "Flash …" toggle (shown only while that line is on). */
+    private final Map<Setting<?>, BooleanSetting> flashToggles = new HashMap<>();
+    {
+        flashToggle(stageLine, "Stage Label", false);
+        flashToggle(healthLine, "Health", true);
+        for (BooleanSetting l : dpsLines) flashToggle(l, l.getName(), true);
+    }
+    private final Map<String, String> flashLast = new HashMap<>();
+    private final Map<String, Long> flashAt = new HashMap<>();
 
     private volatile List<Stage> stages = List.of();
 
@@ -158,12 +178,35 @@ public final class BossStageTrackerModule extends Module {
 
     @Override
     protected void onDisable() {
+        flashLast.clear();
+        flashAt.clear();
         stages = List.of();
     }
 
     private static BooleanSetting dpsStat(String stat, String what) {
         return new BooleanSetting(stat, what + " on the nearest boss's label (needs the DPS Meter on; drag to reorder)",
                 false).movable();
+    }
+
+    private void flashToggle(BooleanSetting line, String name, boolean def) {
+        flashToggles.put(line, add(flashGroup.child(new BooleanSetting("Flash " + name,
+                name + " flashes when it changes", def).visibleWhen(line::get))));
+    }
+
+    /** {@code row}'s colour, blended toward the flash colour while that line of boss {@code key} is flashing. */
+    private Row flashed(String key, Row row) {
+        BooleanSetting on = flashToggles.get(row.head());
+        if (on == null || !on.get()) return row;
+        String k = key + "|" + row.head().getName();
+        long now = System.nanoTime() / 1_000_000L;
+        String shown = row.text() + "#" + row.argb(); // colour too: a compact stage badge has no text
+        String old = flashLast.put(k, shown);
+        if (old != null && !old.equals(shown)) flashAt.put(k, now);
+        Long at = flashAt.get(k);
+        int dur = Durations.scaled(flashTime.get().intValue());
+        if (at == null || dur <= 0 || now - at >= dur) return row;
+        double f = 1 - (now - at) / (double) dur;
+        return new Row(row.text(), row.look(), ColorUtil.lerp(row.argb(), flashColor.get(), f), row.head());
     }
 
     private boolean anyDpsLine() {
@@ -191,14 +234,14 @@ public final class BossStageTrackerModule extends Module {
             double[] xz = BossStageAdapter.position(s.entityId(), partialTick);
             if (xz == null) continue;
             // DPS is global, so it only goes on the nearest boss
-            List<Row> rows = rows(s.kind(), healthLine.get() ? healthText(s) : null, i == 0 ? dps : Map.of());
+            List<Row> rows = rows(s.kind(), healthLine.get() ? healthText(s) : null, i == 0 ? dps : Map.of(), "boss" + s.entityId());
             out.addAll(stack(rows, xz[0], s.groundY() + offset.get(), xz[1], throughWalls.get()));
         }
         return out;
     }
 
     /** The label lines in the user's order. {@code hp} null = no Health line. */
-    private List<Row> rows(Kind kind, String hp, Map<String, DpsMeterHud.Row> dps) {
+    private List<Row> rows(Kind kind, String hp, Map<String, DpsMeterHud.Row> dps, String key) {
         List<Row> rows = new ArrayList<>();
         for (Setting<?> line : getSettingOrder()) {
             if (line == stageLine && stageLine.get()) {
@@ -214,6 +257,7 @@ public final class BossStageTrackerModule extends Module {
                 rows.add(new Row(r.label() + " " + r.value(), dpsStyle, argb, b));
             }
         }
+        rows.replaceAll(row -> flashed(key, row));
         return rows;
     }
 
@@ -309,6 +353,7 @@ public final class BossStageTrackerModule extends Module {
             if (!live.isEmpty()) return live;
             return Map.of(
                     DpsMeterHud.DPS, new DpsMeterHud.Row(DpsMeterHud.DPS, "48.2k", 0),
+                    DpsMeterHud.PEAK, new DpsMeterHud.Row(DpsMeterHud.PEAK, "61.5k", 0),
                     DpsMeterHud.MAX_HIT, new DpsMeterHud.Row(DpsMeterHud.MAX_HIT, "212k", 0),
                     DpsMeterHud.LAST_HIT, new DpsMeterHud.Row(DpsMeterHud.LAST_HIT, "31.7k", 0),
                     DpsMeterHud.TOTAL, new DpsMeterHud.Row(DpsMeterHud.TOTAL, "1.24M", 0),
@@ -320,7 +365,7 @@ public final class BossStageTrackerModule extends Module {
         /** The label lines bottom first (as stacked), filling {@link #heads} and {@link #stageIndex} to match. */
         private List<WorldLabelAdapter.Label> labels() {
             if (sample == Kind.DAMAGEABLE && !showDamageable.get()) sample = Kind.IMMUNE;
-            List<Row> rows = rows(sample, sampleHp(), sampleDps());
+            List<Row> rows = rows(sample, sampleHp(), sampleDps(), "preview");
             stageIndex = -1;
             heads.clear();
             for (int i = rows.size() - 1; i >= 0; i--) {

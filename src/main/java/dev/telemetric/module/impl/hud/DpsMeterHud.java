@@ -67,6 +67,7 @@ public final class DpsMeterHud extends LinesHudModule {
     private final BooleanSetting hideNumbers = add(new BooleanSetting("Hide Damage Numbers",
             "Remove the floating damage numbers from the world once they're counted (only on your screen)", false));
     private final BooleanSetting useServerColor = addUseServerColor();
+    { addUpdateFlash(); }
     private final ActionSetting resetAction = add(new ActionSetting("Reset", "End the current fight", this::resetStats));
 
     private final DpsTracker tracker = new DpsTracker();
@@ -161,7 +162,7 @@ public final class DpsMeterHud extends LinesHudModule {
     public record Row(String label, String value, int argb) {}
 
     /** Stat names {@link #allStatRows} uses as keys, in HUD order. */
-    public static final String DPS = "DPS", MAX_HIT = "Max Hit", LAST_HIT = "Last Hit", TOTAL = "Total", HITS = "Hits";
+    public static final String DPS = "DPS", PEAK = "Peak DPS", MAX_HIT = "Max Hit", LAST_HIT = "Last Hit", TOTAL = "Total", HITS = "Hits";
 
     /**
      * Every stat of the current fight by name ({@link #DPS} to {@link #HITS}), whatever this meter's own Show toggles
@@ -173,6 +174,7 @@ public final class DpsMeterHud extends LinesHudModule {
         boolean running = tracker.active(now, timeoutMs());
         java.util.Map<String, Row> out = new java.util.LinkedHashMap<>();
         out.put(DPS, new Row(DPS, fmt(running ? tracker.dps(now, Math.round(dpsWindow.get() * 1000)) : 0), 0));
+        out.put(PEAK, hitRow(PEAK, peak));
         out.put(MAX_HIT, hitRow(MAX_HIT, tracker.max()));
         out.put(LAST_HIT, hitRow(LAST_HIT, tracker.last()));
         out.put(TOTAL, new Row(TOTAL, fmt(tracker.total()), 0));
@@ -196,7 +198,7 @@ public final class DpsMeterHud extends LinesHudModule {
         String dps = fmt(running ? tracker.dps(now, Math.round(dpsWindow.get() * 1000)) : 0);
         List<Line> rows = new ArrayList<>();
         if (showDps.get()) rows.add(new Line("DPS", dps));
-        if (showPeak.get()) rows.add(new Line("Peak DPS", fmt(peak)));
+        if (showPeak.get()) rows.add(hit("Peak DPS", peak));
         if (showMax.get()) rows.add(hit("Max Hit", tracker.max()));
         if (showLast.get()) rows.add(hit("Last Hit", tracker.last()));
         if (showTotal.get()) rows.add(new Line("Total", fmt(tracker.total())));
@@ -216,7 +218,7 @@ public final class DpsMeterHud extends LinesHudModule {
     private List<Line> placeholder() {
         List<Line> rows = new ArrayList<>();
         if (showDps.get()) rows.add(new Line("DPS", "331"));
-        if (showPeak.get()) rows.add(new Line("Peak DPS", "512"));
+        if (showPeak.get()) rows.add(hit("Peak DPS", 512));
         if (showMax.get()) rows.add(hit("Max Hit", 1240));
         if (showLast.get()) rows.add(hit("Last Hit", 215));
         if (showTotal.get()) rows.add(new Line("Total", "5,180"));
