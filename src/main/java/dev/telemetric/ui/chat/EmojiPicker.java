@@ -11,6 +11,7 @@ import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.render.Icons;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -37,13 +38,15 @@ import java.util.Set;
  */
 final class EmojiPicker {
 
-    private static final int COLS = 8, CELL = 20, PAD = 6, RAIL = 22, SEARCH_H = 16, HEADER_H = 14, FOOTER_H = 26,
-            SECTION_GAP = 4, SCROLLBAR = 3;
+    // Sizes follow docs/ui-guidelines.md: 2/4/6/8 spacing, emoji ≈ ⅔ of its cell, one radius family.
+    private static final int COLS = 9, CELL = 16, PAD = 6, RAIL = 20, RAIL_ITEM = 16, RAIL_ICON = 10, RAIL_STEP = 18, SEARCH_H = 14,
+            HEADER_H = 12, FOOTER_H = 20, SECTION_GAP = 4, SCROLLBAR = 4, CLEAR_W = 12;
     private static final int W = RAIL + PAD + COLS * CELL + PAD + SCROLLBAR;
-    private static final int MAX_H = 236, RADIUS = 6;
+    private static final int MAX_H = 200, RADIUS = 4, INNER_RADIUS = 3, SHADOW = 6;
     /** The icon in the chat input (12 px high, like the input bar). */
     private static final int BTN = 12, TAB_BAR_OFFSET = 32, LINE_H = 9; // one chat line up: sits on the bottom chat line
-    private static final float GLYPH_SCALE = 1.75f;
+    /** Grid / footer / rail emoji scales (snapped to whole screen pixels when drawn). */
+    private static final float GLYPH_SCALE = 1.25f, PREVIEW_SCALE = 1.25f, RAIL_SCALE = 1f;
     private static final int MAX_QUERY = 32, GLFW_MOD_CONTROL = 0x0002;
     /** Emojis are coloured textures: drawn untinted, this isn't a UI colour. */
     private static final int GLYPH_TINT = 0xFFFFFFFF;
@@ -67,7 +70,7 @@ final class EmojiPicker {
     private EmojiPicker() {}
 
     /** One block of the grid: header + rows of emojis, {@code top} in content pixels. */
-    private record Section(String key, String title, List<Emoji> emojis, boolean collapsible, int top, int height) {
+    private record Section(String key, String title, String icon, List<Emoji> emojis, boolean collapsible, int top, int height) {
         int gridTop() { return top + HEADER_H; }
     }
 
@@ -154,29 +157,29 @@ final class EmojiPicker {
     // ------------------------------------------------------------------ layout
 
     private static List<Section> layout() {
-        EmojiTable table = TelosData.EMOJIS.get();
+        EmojiTable table = TelosData.allEmojis();
         List<Section> out = new ArrayList<>();
         int y = 0;
         if (!query.isEmpty()) {
-            y = add(out, SEARCH, "Search Results", search(table), false, y);
+            y = add(out, SEARCH, "Search Results", "", search(table), false, y);
         } else {
             List<Emoji> favs = new ArrayList<>();
             for (String code : favorites) {
                 Emoji e = table.byCode(code);
                 if (e != null) favs.add(e);
             }
-            y = add(out, FAV, "Favorites", favs, true, y);
-            for (EmojiTable.Category c : table.categories()) y = add(out, c.name(), c.name(), c.emojis(), true, y);
+            y = add(out, FAV, "Favorites", "", favs, true, y);
+            for (EmojiTable.Category c : table.categories()) y = add(out, c.name(), c.name(), c.icon(), c.emojis(), true, y);
         }
         contentH = y;
         return out;
     }
 
-    private static int add(List<Section> out, String key, String title, List<Emoji> emojis, boolean collapsible, int y) {
+    private static int add(List<Section> out, String key, String title, String icon, List<Emoji> emojis, boolean collapsible, int y) {
         int rows = Math.max(1, (emojis.size() + COLS - 1) / COLS);
         double ex = collapsible ? expand(key).get() : 1;
         int h = (int) Math.round(rows * CELL * ex);
-        out.add(new Section(key, title, emojis, collapsible, y, h));
+        out.add(new Section(key, title, icon, emojis, collapsible, y, h));
         return y + HEADER_H + h + SECTION_GAP;
     }
 
@@ -239,7 +242,7 @@ final class EmojiPicker {
     /** Index into {@code secs} of the rail icon under the mouse, or -1. */
     private static int railAt(List<Section> secs, double mx, double my) {
         if (!query.isEmpty() || !in(mx, my, px(), bodyY(), RAIL, bodyH())) return -1;
-        int i = (int) Math.floor((my - bodyY() - 2) / (RAIL - 2));
+        int i = (int) Math.floor((my - bodyY() - 2) / RAIL_STEP);
         return i >= 0 && i < secs.size() ? i : -1;
     }
 
@@ -287,17 +290,23 @@ final class EmojiPicker {
         BTN_HOVER.animateTo(inButton(mx, my) || open ? 1 : 0);
         double t = BTN_HOVER.get();
         int x = bx(), y = by();
-        R.pushAlpha(0.55 + 0.45 * t);
-        glyph(iconGlyph(), x + BTN / 2f, y + BTN / 2f, (float) (1 + 0.15 * t));
+        R.pushAlpha(0.55 + 0.45 * t); // one hover cue: it brightens, no growing
+        glyph(iconGlyph(), x + BTN / 2f, y + BTN / 2f, 1f);
         R.popAlpha();
     }
 
-    /** An emoji centred on (cx, cy). */
+    /** An emoji centred on (cx, cy), its scale snapped so the texels stay square. */
     private static void glyph(String g, float cx, float cy, float scale) {
+        scale = Render2D.nearestPixelScale(scale);
         int w = R.textWidth(g);
         R.pushTransform(cx - w * scale / 2f, cy - 4f * scale, scale);
         R.text(g, 0, 0, GLYPH_TINT, Render2D.TextLook.NONE);
         R.popTransform();
+    }
+
+    /** Text y that centres the pixel font in a row of height {@code h}. */
+    private static int textY(int y, int h) {
+        return y + (h - 8) / 2;
     }
 
     private static void drawPicker(Theme p, int mx, int my, double t) {
@@ -305,17 +314,17 @@ final class EmojiPicker {
         if (scrollTarget > maxScroll()) scrollTo(maxScroll());
         boolean live = open && t > 0.98; // no hover effects while it fades
         int x = px(), y = py(), h = ph();
-        int slide = (int) Math.round((1 - t) * 8);
+        int slide = (int) Math.round((1 - t) * 4);
         R.pushAlpha(t);
         R.pushTransform(0, slide, 1);
         try {
-            R.shadow(x, y, W, h, RADIUS, p.shadow(), 8);
+            R.shadow(x, y, W, h, RADIUS, p.shadow(), SHADOW);
             R.roundedRect(x, y, W, h, RADIUS, p.border());
             R.roundedRect(x + 1, y + 1, W - 2, h - 2, RADIUS - 1, p.panel());
 
             drawSearch(p, mx, my, x + PAD, y + PAD, W - PAD * 2);
             drawRail(p, secs, live ? mx : -1, my, x, bodyY());
-            Emoji hovered = drawGrid(p, secs, live ? mx : -1, my);
+            Emoji hovered = drawGrid(p, secs, live ? mx : -1, my, live && inPanel(mx, my));
             if (hovered == null && !query.isEmpty() && !secs.isEmpty() && !secs.getFirst().emojis().isEmpty()) {
                 hovered = secs.getFirst().emojis().getFirst(); // what Enter would pick
             }
@@ -327,55 +336,60 @@ final class EmojiPicker {
     }
 
     private static void drawSearch(Theme p, int mx, int my, int x, int y, int w) {
-        R.roundedRect(x, y, w, SEARCH_H, 3, p.control());
-        int ty = y + (SEARCH_H - 8) / 2;
+        R.roundedRect(x, y, w, SEARCH_H, INNER_RADIUS, p.control());
+        int ty = textY(y, SEARCH_H);
+        int iconColor = query.isEmpty() ? p.textMuted() : p.accent();
+        Icons.magnifier(R, x + 7, y + SEARCH_H / 2, iconColor, p.control());
+        int tx = x + 15;
         if (query.isEmpty()) {
-            R.text("Find the perfect emoji", x + 5, ty, p.textMuted());
-        } else {
-            String shown = query;
-            while (shown.length() > 1 && R.textWidth(shown) > w - 22) shown = shown.substring(1);
-            R.text(shown, x + 5, ty, p.text());
-            boolean caret = (System.currentTimeMillis() / Durations.CARET_BLINK) % 2 == 0;
-            if (caret) R.rect(x + 5 + R.textWidth(shown) + 1, ty - 1, 1, 10, p.accent());
-            boolean hov = in(mx, my, x + w - 13, y, 13, SEARCH_H);
-            R.text("✕", x + w - 10, ty, hov ? p.text() : p.textMuted());
+            R.text("Search emoji", tx, ty, ColorUtil.fade(p.textMuted(), 0.8));
+            return;
         }
+        String shown = query;
+        while (shown.length() > 1 && R.textWidth(shown) > w - 15 - CLEAR_W - 2) shown = shown.substring(1);
+        R.text(shown, tx, ty, p.text());
+        boolean caret = (System.currentTimeMillis() / Durations.CARET_BLINK) % 2 == 0;
+        if (caret) R.rect(tx + R.textWidth(shown) + 1, ty - 1, 1, 10, p.accent());
+        boolean hov = in(mx, my, x + w - CLEAR_W, y, CLEAR_W, SEARCH_H);
+        Icons.close(R, x + w - CLEAR_W / 2, y + SEARCH_H / 2, hov ? p.text() : p.textMuted());
     }
 
     private static void drawRail(Theme p, List<Section> secs, int mx, int my, int x, int top) {
         int bh = bodyH();
-        R.rect(x + 1, top, RAIL - 1, bh, ColorUtil.fade(p.header(), 0.5));
+        R.rect(x + RAIL, top, 1, bh, ColorUtil.fade(p.border(), 0.6)); // hairline instead of a filled strip
         if (!query.isEmpty()) return;
         int current = currentSection(secs);
         int hovered = railAt(secs, mx, my);
         R.pushClip(x + 1, top, RAIL - 1, bh);
+        int ix = x + (RAIL - RAIL_ITEM) / 2 + 1;
         for (int i = 0; i < secs.size(); i++) {
-            int iy = top + 2 + i * (RAIL - 2);
-            int ix = x + 2;
-            int size = RAIL - 4;
+            int iy = top + 2 + i * RAIL_STEP;
+            boolean cur = i == current, hov = i == hovered;
             Animation a = HOVER.computeIfAbsent("rail/" + secs.get(i).key(), k -> new Animation(Durations.HOVER, Easing.OUT_CUBIC, 0));
-            a.animateTo(i == hovered || i == current ? 1 : 0);
+            a.animateTo(cur || hov ? 1 : 0);
             if (a.get() > 0.01) {
-                int bg = i == current ? p.surfaceActive() : p.surfaceHover();
-                R.roundedRect(ix, iy, size, size, 4, ColorUtil.fade(bg, a.get()));
+                R.roundedRect(ix, iy, RAIL_ITEM, RAIL_ITEM, INNER_RADIUS, ColorUtil.fade(cur ? p.surfaceActive() : p.surfaceHover(), a.get()));
             }
-            if (i == current) R.rect(x + 1, iy + 3, 2, size - 6, p.accent());
+            if (cur) R.rect(x + 1, iy + 4, 2, RAIL_ITEM - 8, p.accent());
             Section s = secs.get(i);
-            float cx = ix + size / 2f, cy = iy + size / 2f;
+            int cx = ix + RAIL_ITEM / 2, cy = iy + RAIL_ITEM / 2;
             if (s.key().equals(FAV)) {
-                int c = i == current || i == hovered ? p.accent() : p.textMuted();
-                R.text("★", Math.round(cx) - R.textWidth("★") / 2, Math.round(cy) - 4, c);
+                Icons.star(R, cx, cy, cur, cur || hov ? p.accent() : p.textMuted());
+            } else if (!s.icon().isEmpty()) {
+                R.pushAlpha(0.55 + 0.45 * a.get());
+                R.texture(s.icon(), cx - RAIL_ICON / 2, cy - RAIL_ICON / 2, RAIL_ICON, RAIL_ICON, RAIL_ICON, RAIL_ICON);
+                R.popAlpha();
             } else if (!s.emojis().isEmpty()) {
-                R.pushAlpha(0.6 + 0.4 * a.get());
-                glyph(s.emojis().getFirst().glyph(), cx, cy, 1.25f);
+                R.pushAlpha(0.55 + 0.45 * a.get());
+                glyph(s.emojis().getFirst().glyph(), cx, cy, RAIL_SCALE);
                 R.popAlpha();
             }
         }
         R.popClip();
     }
 
-    private static Emoji drawGrid(Theme p, List<Section> secs, int mx, int my) {
-        int bx = bodyX(), by = bodyY(), bw = W - RAIL, bh = bodyH(), gx = gridX();
+    private static Emoji drawGrid(Theme p, List<Section> secs, int mx, int my, boolean overPanel) {
+        int bx = bodyX(), by = bodyY(), bw = W - RAIL, bh = bodyH(), gx = gridX(), gw = COLS * CELL;
         int scroll = (int) Math.round(SCROLL.get());
         Emoji hovered = emojiAt(secs, mx, my);
         Section hoveredSec = hovered == null ? null : sectionOf(secs, hovered, my);
@@ -384,18 +398,23 @@ final class EmojiPicker {
         for (Section s : secs) {
             int top = by + s.top() - scroll;
             if (top > by + bh || top + HEADER_H + s.height() < by) continue;
-            // header: chevron, name, count
+            // header: chevron, Title Case name (muted), count (quieter still)
             boolean hh = s == hoveredHeader;
-            String chevron = s.collapsible() ? (isExpanded(s.key()) ? "▾ " : "▸ ") : "";
-            String name = (s.key().equals(FAV) ? "★ " : "") + s.title().toUpperCase(Locale.ROOT);
-            R.text(chevron + name, gx, top + 3, hh ? p.text() : p.textMuted());
-            R.textRight(String.valueOf(s.emojis().size()), gx + COLS * CELL - 2, top + 3, ColorUtil.fade(p.textMuted(), 0.7));
+            int titleColor = hh ? p.text() : p.textMuted();
+            int ty = textY(top, HEADER_H);
+            int tx = gx;
+            if (s.collapsible()) {
+                Icons.chevron(R, gx + 3, top + HEADER_H / 2, expand(s.key()).get(), titleColor);
+                tx += 9;
+            }
+            R.text(s.title(), tx, ty, titleColor);
+            R.textRight(String.valueOf(s.emojis().size()), gx + gw - 1, ty, ColorUtil.fade(p.textMuted(), 0.55));
             if (s.height() <= 0) continue;
             int gridTop = top + HEADER_H;
-            R.pushClip(gx - 1, gridTop, COLS * CELL + 2, s.height());
+            R.pushClip(gx, gridTop, gw, s.height());
             if (s.emojis().isEmpty()) {
-                String hint = s.key().equals(FAV) ? "Right-click an emoji to add it here" : "No emoji found";
-                R.text(hint, gx + 2, gridTop + (CELL - 8) / 2, ColorUtil.fade(p.textMuted(), 0.8));
+                String hint = s.key().equals(FAV) ? "Right-click to add" : "No matches";
+                R.text(hint, gx + 2, textY(gridTop, CELL), ColorUtil.fade(p.textMuted(), 0.7));
             }
             for (int i = 0; i < s.emojis().size(); i++) {
                 int cx = gx + (i % COLS) * CELL, cy = gridTop + (i / COLS) * CELL;
@@ -405,33 +424,36 @@ final class EmojiPicker {
                 Animation a = HOVER.computeIfAbsent(s.key() + "/" + e.code(), k -> new Animation(Durations.HOVER, Easing.OUT_CUBIC, 0));
                 a.animateTo(hov ? 1 : 0);
                 double ht = a.get();
-                if (ht > 0.01) R.roundedRect(cx + 1, cy + 1, CELL - 2, CELL - 2, 4, ColorUtil.fade(p.surfaceHover(), ht));
-                glyph(e.glyph(), cx + CELL / 2f, cy + CELL / 2f, GLYPH_SCALE * (float) (1 + 0.12 * ht));
+                if (ht > 0.01) R.roundedRect(cx, cy, CELL, CELL, INNER_RADIUS, ColorUtil.fade(p.surfaceHover(), ht));
+                glyph(e.glyph(), cx + CELL / 2f, cy + CELL / 2f, GLYPH_SCALE);
             }
             R.popClip();
         }
         R.popClip();
-        // scrollbar
+        // scrollbar: a thin thumb in its own gutter, quieter unless the mouse is over the picker
         int max = maxScroll();
         if (max > 0) {
-            int th = Math.max(14, bh * bh / Math.max(1, contentH));
+            int th = Math.max(12, bh * bh / Math.max(1, contentH));
             int ty = by + (int) Math.round((bh - th) * Math.clamp(SCROLL.get() / max, 0, 1));
-            R.roundedRect(px() + W - SCROLLBAR - 2, ty, 2, th, 1, ColorUtil.fade(p.textMuted(), 0.45));
+            R.roundedRect(px() + W - SCROLLBAR - 1, ty, 2, th, 1, ColorUtil.fade(p.textMuted(), overPanel ? 0.5 : 0.25));
         }
         return hovered;
     }
 
+    /** One line: the hovered emoji and its code, a star if it's a favourite; otherwise a short hint. */
     private static void drawFooter(Theme p, Emoji e, int x, int y) {
-        R.rect(x + 1, y, W - 2, 1, p.border());
+        R.rect(x + 1, y, W - 2, 1, ColorUtil.fade(p.border(), 0.6));
+        int ty = textY(y, FOOTER_H) + 1;
         if (e == null) {
-            R.text("Click to type an emoji", x + PAD, y + 5, p.textMuted());
-            R.text("Right-click: favorite · Shift: keep open", x + PAD, y + 15, ColorUtil.fade(p.textMuted(), 0.7));
+            R.text("Right-click to favorite", x + PAD, ty, ColorUtil.fade(p.textMuted(), 0.7));
             return;
         }
-        glyph(e.glyph(), x + PAD + 9, y + FOOTER_H / 2f + 1, 2f);
-        R.text(e.code(), x + PAD + 24, y + 5, p.text());
-        String hint = favorites.contains(e.code()) ? "★ Favorite · Right-click to remove" : "Right-click to favorite";
-        R.text(hint, x + PAD + 24, y + 15, ColorUtil.fade(p.textMuted(), 0.8));
+        int cy = y + FOOTER_H / 2 + 1;
+        glyph(e.glyph(), x + PAD + 6, cy, PREVIEW_SCALE);
+        int tx = x + PAD + 16, starX = x + W - PAD - 4;
+        R.text(R.trim(e.code(), starX - 8 - tx), tx, ty, p.text());
+        boolean fav = favorites.contains(e.code());
+        Icons.star(R, starX, cy, fav, fav ? p.accent() : ColorUtil.fade(p.textMuted(), 0.6));
     }
 
     // ------------------------------------------------------------------ input
@@ -448,7 +470,7 @@ final class EmojiPicker {
             return false; // the click still reaches the chat
         }
         int sx = px() + PAD, sw = W - PAD * 2;
-        if (!query.isEmpty() && in(mx, my, sx + sw - 13, py() + PAD, 13, SEARCH_H)) {
+        if (!query.isEmpty() && in(mx, my, sx + sw - CLEAR_W, py() + PAD, CLEAR_W, SEARCH_H)) {
             setQuery("");
             return true;
         }
@@ -490,7 +512,7 @@ final class EmojiPicker {
 
     static boolean mouseScrolled(double mx, double my, double scrollY) {
         if (!open || !inPanel(mx, my)) return false;
-        scrollTo(scrollTarget - scrollY * CELL * 1.5);
+        scrollTo(scrollTarget - scrollY * CELL * 2);
         return true;
     }
 

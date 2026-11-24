@@ -19,14 +19,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
-/** Chat HUD hooks for {@code game/ChatHudAdapter}: links on new lines, the tab filter, censoring, and a longer history. */
+/** Chat HUD hooks for {@code game/ChatHudAdapter}: mod emojis and links on new lines, the tab filter, censoring, and a longer history. */
 @Mixin(ChatComponent.class)
 public abstract class ChatComponentMixin {
 
     @ModifyVariable(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private Component telemetric$decorate(Component message) {
-        return ModUserBadgeAdapter.decorateChat(ChatHudAdapter.decorate(message));
+        return ModUserBadgeAdapter.decorateChat(ChatHudAdapter.decorate(ChatHudAdapter.modEmojis(message)));
     }
 
     /** Lines from other tabs stay in the history (allMessages) but aren't shown. */

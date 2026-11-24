@@ -1,0 +1,31 @@
+{
+  "providers": [
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_smiling.png", "ascent": 7, "height": 9, "chars": ["\uf400\uf401\uf402\uf403\uf404\uf405\uf406\uf407\uf408\uf409\uf40a\uf40b\uf40c"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_affection.png", "ascent": 7, "height": 9, "chars": ["\uf40d\uf40e\uf40f\uf410\uf411\uf412"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_tongue.png", "ascent": 7, "height": 9, "chars": ["\uf413\uf414\uf415\uf416\uf417\uf418"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_hand.png", "ascent": 7, "height": 9, "chars": ["\uf419\uf41a\uf41b\uf41c\uf41d\uf41e\uf41f"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_neutral_skeptical.png", "ascent": 7, "height": 9, "chars": ["\uf420\uf421\uf422\uf423\uf424\uf425\uf426\uf427\uf428\uf429\uf42a"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_sleepy.png", "ascent": 7, "height": 9, "chars": ["\uf42b\uf42c\uf42d\uf42e\uf42f\uf430"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_unwell.png", "ascent": 7, "height": 9, "chars": ["\uf431\uf432\uf433\uf434\uf435\uf436\uf437"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_hat.png", "ascent": 7, "height": 9, "chars": ["\uf438"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_glasses.png", "ascent": 7, "height": 9, "chars": ["\uf439\uf43a\uf43b"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_concerned.png", "ascent": 7, "height": 9, "chars": ["\uf43c\uf43d\uf43e\uf43f\uf440\uf441\uf442\uf443\uf444\uf445\uf446\uf447\uf448\uf449\uf44a\uf44b\uf44c\uf44d"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_negative.png", "ascent": 7, "height": 9, "chars": ["\uf44e\uf44f\uf450\uf451"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/face_costume.png", "ascent": 7, "height": 9, "chars": ["\uf452\uf453\uf454\uf455"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/cat_face.png", "ascent": 7, "height": 9, "chars": ["\uf456\uf457\uf458\uf459\uf45a\uf45b\uf45c\uf45d\uf45e"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/monkey_face.png", "ascent": 7, "height": 9, "chars": ["\uf45f\uf460\uf461"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/heart.png", "ascent": 7, "height": 9, "chars": ["\uf462\uf463\uf464\uf465\uf466\uf467\uf468\uf469"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/emotion.png", "ascent": 7, "height": 9, "chars": ["\uf46a\uf46b\uf46c\uf46d\uf46e"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/hand_fingers_open.png", "ascent": 7, "height": 9, "chars": ["\uf46f"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/hand_fingers_partial.png", "ascent": 7, "height": 9, "chars": ["\uf470\uf471\uf472\uf473\uf474\uf475"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/hand_single_finger.png", "ascent": 7, "height": 9, "chars": ["\uf476\uf477\uf478\uf479\uf47a\uf47b"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/hand_fingers_closed.png", "ascent": 7, "height": 9, "chars": ["\uf47c\uf47d\uf47e\uf47f\uf480\uf481"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/hands.png", "ascent": 7, "height": 9, "chars": ["\uf482\uf483\uf484\uf485\uf486\uf487\uf488"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/body_parts.png", "ascent": 7, "height": 9, "chars": ["\uf48c\uf48d\uf48e\uf48f"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/plant_flower.png", "ascent": 7, "height": 9, "chars": ["\uf490"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/award_medal.png", "ascent": 7, "height": 9, "chars": ["\uf491\uf492\uf493\uf494"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/heart_on_fire_mending_heart.png", "ascent": 7, "height": 9, "chars": ["\uf497\uf498"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/sky_weather.png", "ascent": 7, "height": 9, "chars": ["\uf4c5"]},
+    {"type": "bitmap", "file": "telemetric:emoji/melinoe/troll.png", "ascent": 7, "height": 9, "chars": ["\uf499\uf49a\uf49b\uf49c\uf49d\uf49e\uf49f\uf4a0\uf4a1\uf4a2\uf4a3\uf4a4\uf4a5\uf4a6\uf4a7\uf4a8\uf4a9\uf4aa\uf4ab\uf4ac\uf4ad\uf4ae\uf4af\uf4b0\uf4b1\uf4b2\uf4b3\uf4b4\uf4b5\uf4b6\uf4b7\uf4b8\uf4b9\uf4ba\uf4bb\uf4bc\uf4bd\uf4be\uf4bf\uf4c0"]}
+  ]
+}

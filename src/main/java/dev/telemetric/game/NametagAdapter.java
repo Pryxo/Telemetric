@@ -117,6 +117,13 @@ public final class NametagAdapter {
     /** Status Title's own Hide HP (same effect as Player Currency's; either one removes the line). */
     private static volatile boolean titleHideHp;
 
+    /** Nametag → Hide Own Name: drop the server's own lines (rank, name …) from your own tag, keep HP + extras. */
+    private static volatile boolean hideOwnName;
+
+    public static void setHideOwnName(boolean hide) {
+        hideOwnName = hide;
+    }
+
     /** Status Title → Hide HP: whether the "HP:" line is removed from every Telos name tag. */
     public static void setTitleHideHp(boolean hide) {
         titleHideHp = hide;
@@ -177,10 +184,15 @@ public final class NametagAdapter {
      * identity and only re-split the lines when needed.
      */
     public record Extras(Component title, TitlePosition titlePosition, Component currency,
-                         TitlePosition currencyPosition, boolean hideHp) {
+                         TitlePosition currencyPosition, boolean hideHp, boolean hideName) {
+        public Extras(Component title, TitlePosition titlePosition, Component currency,
+                      TitlePosition currencyPosition, boolean hideHp) {
+            this(title, titlePosition, currency, currencyPosition, hideHp, false);
+        }
+
         boolean same(Extras o) {
             return o != null && title == o.title && currency == o.currency && titlePosition == o.titlePosition
-                    && currencyPosition == o.currencyPosition && hideHp == o.hideHp;
+                    && currencyPosition == o.currencyPosition && hideHp == o.hideHp && hideName == o.hideName;
         }
     }
 
@@ -197,11 +209,12 @@ public final class NametagAdapter {
         Component title = titleFor(display, owner);
         Component currency = currencyFor(display, owner);
         boolean noHp = hideHp || titleHideHp;
-        if (title == null && currency == null && !noHp) {
+        boolean noName = hideOwnName && owner != null && owner == Minecraft.getInstance().player;
+        if (title == null && currency == null && !noHp && !noName) {
             EXTRAS_CACHE.remove(display);
             return null;
         }
-        Extras next = new Extras(title, titlePosition, currency, currencyPosition, noHp);
+        Extras next = new Extras(title, titlePosition, currency, currencyPosition, noHp, noName);
         Extras prev = EXTRAS_CACHE.get(display);
         if (next.same(prev)) return prev;
         EXTRAS_CACHE.put(display, next);
@@ -271,7 +284,7 @@ public final class NametagAdapter {
         java.util.List<PreviewLine> rows = new java.util.ArrayList<>(top);
         for (int i = 0; i <= lines.size(); i++) {
             if (i == at) rows.addAll(middle);
-            if (i < lines.size() && !(dropHp && i == hp)) rows.add(new PreviewLine(lines.get(i), LineKind.TAG));
+            if (i < lines.size() && !(dropHp && i == hp) && !(extras.hideName() && i != hp)) rows.add(new PreviewLine(lines.get(i), LineKind.TAG));
         }
         rows.addAll(bottom);
         return rows;
@@ -284,6 +297,13 @@ public final class NametagAdapter {
     public static java.util.List<PreviewLine> previewLines(TitleLine title, TitlePosition titlePosition,
                                                            CurrencyLine currency, TitlePosition currencyPosition,
                                                            boolean hideHpLine) {
+        return previewLines(title, titlePosition, currency, currencyPosition, hideHpLine, false);
+    }
+
+    /** {@link #previewLines} with Hide Own Name applied (only the HP line of the server's text is kept). */
+    public static java.util.List<PreviewLine> previewLines(TitleLine title, TitlePosition titlePosition,
+                                                           CurrencyLine currency, TitlePosition currencyPosition,
+                                                           boolean hideHpLine, boolean hideName) {
         Component base = ownTagText();
         if (base == null) {
             var player = Minecraft.getInstance().player;
@@ -295,7 +315,7 @@ public final class NametagAdapter {
         Extras extras = new Extras(title == null ? null : titleComponent(title),
                 titlePosition == null ? TitlePosition.TOP : titlePosition,
                 currency == null ? null : build(currency),
-                currencyPosition == null ? TitlePosition.MIDDLE : currencyPosition, hideHpLine);
+                currencyPosition == null ? TitlePosition.MIDDLE : currencyPosition, hideHpLine, hideName);
         return rows(base, extras);
     }
 

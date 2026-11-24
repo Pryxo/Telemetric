@@ -234,6 +234,22 @@ public final class TelosData {
     /** {@code emojis.json}: Telos chat emojis by wiki category (chat Emoji Picker). */
     public static final SharedFile<EmojiTable> EMOJIS = SharedData.file(DIR + "emojis.json", EmojiTable::parse, EmojiTable.EMPTY);
 
+    /**
+     * {@code modEmojis.json}: client-side mod emojis (Melinoe), same format as {@link #EMOJIS} plus a category
+     * {@code icon}. Their codes stay text on the server; {@code ChatHudAdapter#modEmojis} draws them in chat.
+     */
+    public static final SharedFile<EmojiTable> MOD_EMOJIS = SharedData.file(DIR + "modEmojis.json", EmojiTable::parse, EmojiTable.EMPTY);
+
+    private static volatile EmojiTable[] allEmojis = {null, null, EmojiTable.EMPTY};
+
+    /** Telos emojis followed by the mod emojis (Emoji Picker). */
+    public static EmojiTable allEmojis() {
+        EmojiTable server = EMOJIS.get(), mod = MOD_EMOJIS.get();
+        EmojiTable[] c = allEmojis;
+        if (c[0] != server || c[1] != mod) allEmojis = c = new EmojiTable[]{server, mod, server.plus(mod)};
+        return c[2];
+    }
+
     /** {@code chat.json}: chat tab categories (Chat). */
     public static final SharedFile<ChatRules> CHAT = SharedData.file(DIR + "chat.json", ChatRules::parse, ChatRules.EMPTY);
 

@@ -48,6 +48,11 @@ public final class PlayerPreview implements SettingsPreview {
 
         default void release(View view) {}
 
+        /** The wheel turned over the preview: return true to use it (e.g. resize what's under the mouse) instead of zooming. */
+        default boolean scroll(View view, double mouseX, double mouseY, double amount) {
+            return false;
+        }
+
         /** Extra blocks of room the view keeps above the head for this layer. */
         default double topRoom() {
             return 0;
@@ -679,6 +684,7 @@ public final class PlayerPreview implements SettingsPreview {
             if (itemAt(mouseX, mouseY) == Item.RADIUS && opt.world) stepRadius(opt, amount > 0 ? 1 : -1);
             return true;
         }
+        for (int i = layers.size() - 1; i >= 0; i--) if (layers.get(i).scroll(view, mouseX, mouseY, amount)) return true;
         double from = toZoom, to = Math.clamp(toZoom * Math.pow(1.15, amount), MIN_ZOOM, MAX_ZOOM);
         if (to == from) return true;
         // keep the point under the mouse where it is

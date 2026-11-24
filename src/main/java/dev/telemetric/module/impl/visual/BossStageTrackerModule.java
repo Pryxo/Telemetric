@@ -1,5 +1,6 @@
 package dev.telemetric.module.impl.visual;
 
+import com.google.gson.JsonObject;
 import dev.telemetric.Telemetric;
 import dev.telemetric.game.BossStageAdapter;
 import dev.telemetric.game.BossStageAdapter.Kind;
@@ -38,8 +39,9 @@ import java.util.Map;
  * drawn in the world with a badge font ({@link WorldLabelAdapter}).
  * <p>
  * The label is a stack of lines — Stage Label, Health and one line per DPS stat (DPS, Peak DPS, Max Hit, Last Hit, Total,
- * Hits) — whose order the player drags in the ClickGUI (movable settings, like Stats Info). Each line has its own style section (font, bold,
- * underline, shadow / outline, colour, size). DPS only shows on the nearest boss. The Settings window shows a 3D
+ * Hits) — whose order the player drags in the ClickGUI (movable settings, like Stats Info). Each line (every DPS stat too) has its own style section
+ * (font, bold, underline, shadow / outline, colour, size, opacity; Text style: a HUD-like background panel). DPS only
+ * shows on the nearest boss. Scroll over a line in the preview to resize it. The Settings window shows a 3D
  * preview of the label with sample values; drag a line there to set the Height Offset, click the badge to try the
  * other stages.
  */
@@ -53,10 +55,14 @@ public final class BossStageTrackerModule extends Module {
         final ModeSetting style;
         final BooleanSetting compact; // stage line only, else null
         final BooleanSetting bold, underline, shadow, outline;
-        final NumberSetting size;
+        final NumberSetting size, opacity;
+        // Text style only: the HUD elements' background panel behind the line
+        final BooleanSetting background, accentBar, bgThemeColors;
+        final NumberSetting bgOpacity, bgPadding;
+        final ColorSetting bgColor, accentColor;
 
-        LineStyle(GroupSetting g, String what, String styleKey, String compactKey, String boldKey, String underlineKey,
-                  String shadowKey, String outlineKey, String sizeKey, double defaultSize) {
+        LineStyle(GroupSetting g, String what, String prefix, String styleKey, String compactKey, String boldKey,
+                  String underlineKey, String shadowKey, String outlineKey, String sizeKey, double defaultSize) {
             style = add(g.child(new ModeSetting(styleKey, what + ": Pill / Ribbon = badge font, Text = plain Minecraft text",
                     "Pill", STYLES).withLabel("Style")));
             compact = compactKey == null ? null : add(g.child(new BooleanSetting(compactKey,
@@ -70,12 +76,72 @@ public final class BossStageTrackerModule extends Module {
                     .visibleWhen(() -> !outline().get()).withLabel("Shadow")));
             outline = add(g.child(new BooleanSetting(outlineKey, what + ": black outline around the text (instead of the shadow)",
                     false).withLabel("Outline")));
-            size = add(g.child(new NumberSetting(sizeKey, what + ": height in blocks", defaultSize, 0.06, 0.6, 0.02)
-                    .withLabel("Size")));
+            size = add(g.child(new NumberSetting(sizeKey, what + ": height in blocks (or scroll over the line in the preview)",
+                    defaultSize, 0.04, 1.0, 0.01).withLabel("Size")));
+            opacity = add(g.child(new NumberSetting(prefix + " Opacity", what + ": opacity of the text", 100, 10, 100, 1)
+                    .withSuffix("%").withLabel("Opacity")));
+            background = add(g.child(new BooleanSetting(prefix + " Background",
+                    what + " (Text style): a panel behind the text, like the HUD elements' background", false)
+                    .visibleWhen(this::plain).withLabel("Background")));
+            bgOpacity = add(g.child(new NumberSetting(prefix + " Bg Opacity", what + ": opacity of the background",
+                    70, 0, 100, 1).withSuffix("%").visibleWhen(this::hasBg).withLabel("Bg Opacity")));
+            bgPadding = add(g.child(new NumberSetting(prefix + " Bg Padding", what + ": room around the text, in text pixels",
+                    3, 0, 8, 1).withSuffix("px").visibleWhen(this::hasBg).withLabel("Bg Padding")));
+            accentBar = add(g.child(new BooleanSetting(prefix + " Accent Bar", what + ": thin accent edge on the left of the background",
+                    false).visibleWhen(this::hasBg).withLabel("Accent Bar")));
+            bgThemeColors = add(g.child(new BooleanSetting(prefix + " Bg Theme Colors",
+                    "On: background and accent follow the Theme (like the HUD); off: your own colours", true)
+                    .visibleWhen(this::hasBg).withLabel("Theme Colors")));
+            bgColor = add(g.child(new ColorSetting(prefix + " Bg Color", what + ": background colour", 0xFF101014, false)
+                    .visibleWhen(() -> hasBg() && !bgThemeColors.get()).withLabel("Bg Color")));
+            accentColor = add(g.child(new ColorSetting(prefix + " Accent Color", what + ": accent bar colour", 0xFFFFFFFF, false)
+                    .visibleWhen(() -> hasBg() && accentBar.get() && !bgThemeColors.get()).withLabel("Accent Color")));
         }
 
         private BooleanSetting outline() {
             return outline;
+        }
+
+        boolean plain() {
+            return style.is("Text");
+        }
+
+        boolean hasBg() {
+            return plain() && background.get();
+        }
+
+        /** {@code argb} with this line's text opacity applied. */
+        int faded(int argb) {
+            double a = ((argb >>> 24) == 0 ? 1 : (argb >>> 24) / 255.0) * opacity.get() / 100.0;
+            return ColorUtil.fade(argb | 0xFF000000, Math.max(0.1, a));
+        }
+
+        /** The background ARGB (0 = none), the same colours and opacity rule as the HUD elements' panel. */
+        int bgArgb() {
+            if (!hasBg() || bgOpacity.get() <= 0) return 0;
+            int c = bgThemeColors.get() ? Telemetric.get().theme().palette().panel() : bgColor.get();
+            return ColorUtil.fade(c | 0xFF000000, bgOpacity.get() / 100.0 * opacity.get() / 100.0);
+        }
+
+        int accentArgb() {
+            if (!hasBg() || !accentBar.get()) return 0;
+            int c = bgThemeColors.get() ? Telemetric.get().theme().palette().accent() : accentColor.get();
+            return ColorUtil.fade(c | 0xFF000000, opacity.get() / 100.0);
+        }
+
+        /** Background padding in text pixels (0 without a background). */
+        int pad() {
+            return hasBg() ? bgPadding.get().intValue() : 0;
+        }
+
+        /** Takes over every look setting of {@code o} (an old config's shared DPS look → each DPS stat). */
+        void copyFrom(LineStyle o) {
+            style.set(o.style.get());
+            bold.set(o.bold.get());
+            underline.set(o.underline.get());
+            shadow.set(o.shadow.get());
+            outline.set(o.outline.get());
+            size.set(o.size.get());
         }
 
         BadgeText.Style font() {
@@ -115,8 +181,10 @@ public final class BossStageTrackerModule extends Module {
             48, 8, 128, 4).withSuffix(" blocks"));
 
     // ---- one section per line
-    private final GroupSetting stageGroup = add(new GroupSetting("Stage Label Style", "Look of the stage badge"));
-    private final LineStyle stageStyle = new LineStyle(stageGroup, "Stage badge", "Label Style", "Compact", "Bold",
+    // (each section shows while its line is on)
+    private final GroupSetting stageGroup = add(new GroupSetting("Stage Label Style", "Look of the stage badge")
+            .visibleWhen(stageLine::get));
+    private final LineStyle stageStyle = new LineStyle(stageGroup, "Stage badge", "Stage", "Label Style", "Compact", "Bold",
             "Underline", "Stage Shadow", "Stage Outline", "Label Size", 0.2);
     private final ColorSetting immuneColor = add(stageGroup.child(new ColorSetting("Immune Color",
             "Badge colour while immune", 0xFF1757A7, false)));
@@ -125,20 +193,32 @@ public final class BossStageTrackerModule extends Module {
     private final ColorSetting damageableColor = add(stageGroup.child(new ColorSetting("Vulnerable Color",
             "Badge colour while the boss can be damaged", 0xFF5AD123, false)));
 
-    private final GroupSetting healthGroup = add(new GroupSetting("Health Line Style", "Look of the Health line"));
-    private final LineStyle healthStyle = new LineStyle(healthGroup, "Health line", "Health Style", null, "Health Bold",
+    private final GroupSetting healthGroup = add(new GroupSetting("Health Line Style", "Look of the Health line")
+            .visibleWhen(healthLine::get));
+    private final LineStyle healthStyle = new LineStyle(healthGroup, "Health line", "Health", "Health Style", null, "Health Bold",
             "Health Underline", "Health Shadow", "Health Outline", "Health Size", 0.16);
     private final ColorSetting healthColor = add(healthGroup.child(new ColorSetting("Health Color",
             "Colour of the Health line", 0xFFE5484D, false).withLabel("Color")));
 
-    private final GroupSetting dpsGroup = add(new GroupSetting("DPS Line Style", "Look of the DPS lines"));
-    private final LineStyle dpsStyle = new LineStyle(dpsGroup, "DPS lines", "DPS Style", null, "DPS Bold",
-            "DPS Underline", "DPS Shadow", "DPS Outline", "DPS Size", 0.16);
-    private final ColorSetting dpsColor = add(dpsGroup.child(new ColorSetting("DPS Color",
-            "Colour of the DPS lines", 0xFFF5A524, false).withLabel("Color")));
-    private final BooleanSetting dpsDamageColors = add(dpsGroup.child(new BooleanSetting("DPS Damage Colors",
-            "Peak DPS / Max / Last Hit use their damage colour (when the DPS Meter's Damage Colors is on) instead of the colour above",
-            true).withLabel("Damage Colors")));
+    /** One DPS stat line's own section: look, colour and whether it uses its damage colour. */
+    private record DpsLook(LineStyle style, ColorSetting color, BooleanSetting damageColors) {}
+
+    /** DPS stat line → its own style section ("DPS Line Style", "Peak DPS Line Style", …). */
+    private final Map<BooleanSetting, DpsLook> dpsLooks = new HashMap<>();
+    {
+        for (BooleanSetting line : dpsLines) {
+            String s = line.getName();
+            GroupSetting g = add(new GroupSetting(s + " Line Style", "Look of the " + s + " line").visibleWhen(line::get));
+            LineStyle look = new LineStyle(g, s + " line", s, s + " Style", null, s + " Bold", s + " Underline",
+                    s + " Shadow", s + " Outline", s + " Size", 0.16);
+            ColorSetting color = add(g.child(new ColorSetting(s + " Color", "Colour of the " + s + " line", 0xFFF5A524,
+                    false).withLabel("Color")));
+            BooleanSetting damage = add(g.child(new BooleanSetting(s + " Damage Colors",
+                    "Use the stat's damage colour (when the DPS Meter's Damage Colors is on; Peak DPS / Max / Last Hit) instead of the colour above",
+                    true).withLabel("Damage Colors")));
+            dpsLooks.put(line, new DpsLook(look, color, damage));
+        }
+    }
 
     private final GroupSetting positionGroup = add(new GroupSetting("Position", "Spacing and height of the label"));
     private final NumberSetting spacing = add(positionGroup.child(new NumberSetting("Line Spacing",
@@ -253,27 +333,59 @@ public final class BossStageTrackerModule extends Module {
             } else if (line instanceof BooleanSetting b && b.get() && dpsLines.contains(b)) {
                 DpsMeterHud.Row r = dps.get(b.getName());
                 if (r == null) continue;
-                int argb = dpsDamageColors.get() && r.argb() != 0 ? r.argb() : dpsColor.get();
-                rows.add(new Row(r.label() + " " + r.value(), dpsStyle, argb, b));
+                DpsLook look = dpsLooks.get(b);
+                int argb = look.damageColors().get() && r.argb() != 0 ? r.argb() : look.color().get();
+                rows.add(new Row(r.label() + " " + r.value(), look.style(), argb, b));
             }
         }
         rows.replaceAll(row -> flashed(key, row));
         return rows;
     }
 
-    /** Stacks the rows bottom-up: the last row stands at {@code y}, each row above it one line (+ spacing) higher. */
+    /**
+     * Stacks the rows bottom-up: the last row stands at {@code y}, each row above it one line (+ spacing) higher. A
+     * row with a background takes its padding as extra room, so the panels don't overlap the neighbour lines.
+     */
     private List<WorldLabelAdapter.Label> stack(List<Row> rows, double x, double y, double z, boolean walls) {
         List<WorldLabelAdapter.Label> out = new ArrayList<>(rows.size());
         for (int r = rows.size() - 1; r >= 0; r--) {
             Row row = rows.get(r);
             LineStyle l = row.look();
             boolean plain = l.font() == BadgeText.Style.PLAIN;
-            out.add(new WorldLabelAdapter.Label(x, y, z, row.text(), l.font(), l.size.get(), row.argb(), walls,
+            double size = l.size.get(), padBlocks = l.pad() * size / 8.0;
+            y += padBlocks;
+            out.add(new WorldLabelAdapter.Label(x, y, z, row.text(), l.font(), size, l.faded(row.argb()), walls,
                     l.shadow.get(), plain && l.bold.get(), plain && l.underline.get())
-                    .look(l.shadow.get(), l.outline.get()));
-            y += l.size.get() * (1 + spacing.get());
+                    .look(l.shadow.get(), l.outline.get())
+                    .withBackground(l.bgArgb(), l.accentArgb(), l.pad()));
+            y += size * (1 + spacing.get()) + padBlocks;
         }
         return out;
+    }
+
+    /** The style section of a label line (its movable setting), or null. */
+    private LineStyle styleOf(Setting<?> head) {
+        if (head == stageLine) return stageStyle;
+        if (head == healthLine) return healthStyle;
+        DpsLook d = head instanceof BooleanSetting b ? dpsLooks.get(b) : null;
+        return d == null ? null : d.style();
+    }
+
+    /** Old configs had one look for all DPS lines ("DPS …" keys): the other stats start from it. */
+    @Override
+    public void fromJson(JsonObject json) {
+        super.fromJson(json);
+        if (!json.has("settings") || !json.get("settings").isJsonObject()) return;
+        JsonObject values = json.getAsJsonObject("settings");
+        DpsLook first = dpsLooks.get(dpsLine);
+        if (!values.has(DpsMeterHud.DPS + " Style")) return;
+        for (BooleanSetting line : dpsLines) {
+            if (line == dpsLine || values.has(line.getName() + " Style")) continue;
+            DpsLook d = dpsLooks.get(line);
+            d.style().copyFrom(first.style());
+            d.color().set(first.color().get());
+            d.damageColors().set(first.damageColors().get());
+        }
     }
 
     /** The Health line in the chosen format, or null when the boss's health isn't known. */
@@ -404,6 +516,7 @@ public final class BossStageTrackerModule extends Module {
         @Override
         public String hint() {
             String move = shownHeads().size() > 1 ? "Drag a line: reorder · Shift-drag: height" : "Drag: height";
+            move += " · Scroll a line: size";
             return stageLine.get() ? move + " · Click badge: stage" : move;
         }
 
@@ -440,18 +553,25 @@ public final class BossStageTrackerModule extends Module {
                 double[] a = v.project(0, l.y(), 0);
                 int lw = r.worldLabelWidth(l);
                 double left = a[0] - lw * k / 2, top = a[1] - 8 * k;
-                rects.add(new double[] {left, top, left + lw * k, a[1]});
+                int pad = l.hasBackground() ? l.bgPad() : 0;
+                rects.add(new double[] {left - pad * k, top - pad * k, left + (lw + pad) * k, a[1] + pad * k});
                 Setting<?> head = i < heads.size() ? heads.get(i) : null;
                 boolean lit = held ? (!reordering || head == heldHead) : head == hotHead;
                 if (lit) {
-                    r.rect((int) Math.floor(left) - 1, (int) Math.floor(top) - 1, (int) Math.ceil(lw * k) + 2,
-                            (int) Math.ceil(8 * k) + 2, ColorUtil.fade(p.accent(), held ? 0.25 : 0.14));
+                    r.rect((int) Math.floor(left - pad * k) - 1, (int) Math.floor(top - pad * k) - 1,
+                            (int) Math.ceil((lw + 2 * pad) * k) + 2, (int) Math.ceil((8 + 2 * pad) * k) + 2,
+                            ColorUtil.fade(p.accent(), held ? 0.25 : 0.14));
                 }
                 r.pushTransform((float) left, (float) top, (float) k);
                 try {
+                    if (l.hasBackground()) {
+                        // the same panel the world draws (stepped 2 px corners, accent bar on the left)
+                        r.roundedRect(-pad, -pad, lw + 2 * pad, 8 + 2 * pad, 2, l.bg());
+                        if ((l.accent() >>> 24) != 0 && 8 + 2 * pad > 4) r.rect(-pad, -pad + 2, 1, 8 + 2 * pad - 4, l.accent());
+                    }
                     if (l.outline()) {
                         WorldLabelAdapter.Label black = new WorldLabelAdapter.Label(0, 0, 0, l.text(), l.style(),
-                                l.height(), 0xFF000000, true, false, l.bold(), l.underline());
+                                l.height(), l.argb() & 0xFF000000, true, false, l.bold(), l.underline());
                         for (int dx = -1; dx <= 1; dx++) {
                             for (int dy = -1; dy <= 1; dy++) if (dx != 0 || dy != 0) r.worldLabel(black, dx, dy);
                         }
@@ -465,7 +585,9 @@ public final class BossStageTrackerModule extends Module {
                 boolean reorder = shownHeads().size() > 1;
                 String what = reorder ? "Drag up / down: reorder the lines. Shift-drag: Height Offset ("
                         + offset.format() + ")" : "Drag up / down: Height Offset (" + offset.format() + ")";
-                ctx.requestTooltip(this, what + (hot == stageIndex ? ". Click: next stage" : ""));
+                LineStyle look = hotHead == null ? null : styleOf(hotHead);
+                String size = look == null ? "" : ". Scroll: size (" + look.size.format() + ", Shift = bigger steps)";
+                ctx.requestTooltip(this, what + size + (hot == stageIndex ? ". Click: next stage" : ""));
             } else if (stemHot) {
                 ctx.requestTooltip(this, "Drag up / down: Height Offset (" + offset.format() + ")");
             }
@@ -535,6 +657,18 @@ public final class BossStageTrackerModule extends Module {
             held = false;
             reordering = false;
             heldHead = null;
+        }
+
+        /** Scroll over a line: resize that line (Shift: in bigger steps). Elsewhere the preview zooms. */
+        @Override
+        public boolean scroll(PlayerPreview.View v, double mouseX, double mouseY, double amount) {
+            if (held) return false;
+            int i = lineAt(mouseX, mouseY);
+            LineStyle look = i >= 0 && i < heads.size() ? styleOf(heads.get(i)) : null;
+            if (look == null || amount == 0) return false;
+            double step = InputUtil.isShiftDown() ? 0.05 : 0.01;
+            look.size.set(Math.clamp(look.size.get() + Math.signum(amount) * step, look.size.getMin(), look.size.getMax()));
+            return true;
         }
     }
 }

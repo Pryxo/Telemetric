@@ -107,7 +107,7 @@ public final class NametagLayer implements PlayerPreview.Layer {
     private List<PreviewLine> linesWith(LineKind kind, TitlePosition at) {
         NametagModule nt = nametag();
         return NametagAdapter.previewLines(title, kind == LineKind.TITLE ? at : nt.titlePosition(), cur,
-                kind == LineKind.CURRENCY ? at : nt.currencyPosition(), nt.hidesHp());
+                kind == LineKind.CURRENCY ? at : nt.currencyPosition(), nt.hidesHp(), nt.hidesOwnName());
     }
 
     private static int indexOf(List<PreviewLine> in, LineKind kind) {

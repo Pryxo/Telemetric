@@ -59,6 +59,7 @@ public final class ItemRangeModule extends Module {
     private final BooleanSetting fill;
     private final BooleanSetting aimLine;
     private final NumberSetting width;
+    private final NumberSetting aimWidth;
     private final BooleanSetting throughWalls;
     private final GroupToggleSetting highlight;
     private final ColorSetting targetColor;
@@ -91,7 +92,10 @@ public final class ItemRangeModule extends Module {
                 .visibleWhen(() -> shape.get() != Shape.LINE));
         this.aimLine = add(new BooleanSetting("Aim Line", "Also draw a line from you to the edge of the range", false)
                 .visibleWhen(() -> shape.get() != Shape.LINE));
-        this.width = add(new NumberSetting("Line Width", "Thickness in pixels", 2, 1, 6, 0.5).withSuffix("px"));
+        this.width = add(new NumberSetting("Line Width", "Thickness of the arc / circle edge in pixels", 2, 1, 20, 0.5)
+                .withSuffix("px").visibleWhen(() -> shape.get() != Shape.LINE));
+        this.aimWidth = add(new NumberSetting("Aim Line Width", "Thickness of the aim line in pixels", 2, 1, 20, 0.5)
+                .withSuffix("px").visibleWhen(() -> shape.get() == Shape.LINE || aimLine.get()));
         this.throughWalls = add(new BooleanSetting("Through Walls", "Keep the range visible behind blocks", false));
         this.highlight = add(new GroupToggleSetting("Target Highlight",
                 "Change colour while a hittable mob is inside the range (not invisible or static hitboxes)", false));
@@ -139,7 +143,8 @@ public final class ItemRangeModule extends Module {
 
         if (area.drawRange()) {
             if (s == Shape.LINE || aimLine.get()) {
-                fadingLine(sink, pose.x(), y, pose.z(), cx + fx * area.range(), cz + fz * area.range(), argb, w, walls);
+                fadingLine(sink, pose.x(), y, pose.z(), cx + fx * area.range(), cz + fz * area.range(), argb,
+                        aimWidth.getFloat(), walls);
             }
             if (s == Shape.CIRCLE) ring(sink, cx, y, cz, area.range(), 0, Math.PI, 0, CIRCLE_SEGMENTS, argb, w, walls);
             if (s == Shape.ARC) ring(sink, cx, y, cz, area.range(), yaw, half, ARC_FADE, ARC_SEGMENTS, argb, w, walls);

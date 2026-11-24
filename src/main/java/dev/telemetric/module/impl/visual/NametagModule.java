@@ -59,6 +59,8 @@ public final class NametagModule extends Module {
 
     private final BooleanSetting hideOwn = add(new BooleanSetting("Hide Own",
             "Hide your own name tag in third person", false));
+    private final BooleanSetting hideOwnName = add(new BooleanSetting("Hide Own Name",
+            "Remove the server's name/rank line from your own name tag only (HP and the extra lines stay)", false));
     private final BooleanSetting hideHp = add(new BooleanSetting("Hide HP",
             "Remove the HP line from every Telos name tag (the extra lines keep their positions)", false));
 
@@ -126,7 +128,7 @@ public final class NametagModule extends Module {
     public NametagModule() {
         super("Nametag", "Everything in Telos name tags: Status Title, Player Currency, Hide Own / Hide HP",
                 Category.PLAYER);
-        syncOn(this::sync, hideOwn, hideHp, status, topWave, statusTheme, statusPosition, currency, currencyPosition);
+        syncOn(this::sync, hideOwn, hideOwnName, hideHp, status, topWave, statusTheme, statusPosition, currency, currencyPosition);
         sync();
         BalanceLookup.register();
         NametagAdapter.setTitleSource(this::statusLine);
@@ -146,6 +148,7 @@ public final class NametagModule extends Module {
         NametagAdapter.setTitlePosition(titlePosition());
         boolean noHp = isEnabled() && hideHp.get();
         NametagAdapter.setTitleHideHp(noHp);
+        NametagAdapter.setHideOwnName(isEnabled() && hideOwnName.get());
         NametagAdapter.setCurrencyLayout(currencyPosition(), noHp);
         boolean own = isEnabled() && hideOwn.get();
         NametagAdapter.setHideRule(!own && hideRules.isEmpty() ? null : tag -> hides(tag, own));
@@ -173,6 +176,10 @@ public final class NametagModule extends Module {
     }
 
     /** Whether Hide HP is on (the setting alone; the Settings preview shows it even with the module off). */
+    public boolean hidesOwnName() {
+        return hideOwnName.get();
+    }
+
     public boolean hidesHp() {
         return hideHp.get();
     }

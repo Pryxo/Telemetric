@@ -42,6 +42,15 @@ public final class Icons {
         r.icon("rotate-ccw", cx + 0.5, cy + 0.5, SIZE, color);
     }
 
+    /** A small magnifying glass (ring + handle to the bottom right); {@code hole} is the colour behind it. */
+    public static void magnifier(Render2D r, int cx, int cy, int color, int hole) {
+        r.circle(cx - 1, cy - 1, 3.5, color);
+        r.circle(cx - 1, cy - 1, 2.2, hole);
+        r.rect(cx + 1, cy + 1, 1, 1, color);
+        r.rect(cx + 2, cy + 2, 1, 1, color);
+        r.rect(cx + 3, cy + 3, 1, 1, color);
+    }
+
     /** A "‹" back arrow centred on (cx, cy). */
     public static void back(Render2D r, int cx, int cy, int color) {
         r.icon("chevron-left", cx + 0.5, cy + 0.5, SIZE, color);

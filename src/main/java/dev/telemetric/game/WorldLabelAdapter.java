@@ -33,15 +33,16 @@ public final class WorldLabelAdapter {
     /**
      * One label, centred on (x, z) with its bottom edge at y. {@code height} is the glyph height in blocks (badges are
      * 8 px tall, so 1 px = height / 8 blocks). {@code text} is plain text. For badge styles, empty text draws a small
-     * blank badge.
+     * blank badge. {@code bg} (ARGB, 0 = none) is a rounded panel behind the text, {@code bgPad} label px around it,
+     * with an {@code accent} bar (ARGB, 0 = none) on its left edge — the HUD elements' background in the world.
      */
     public record Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                         boolean throughWalls, boolean shadow, boolean bold, boolean underline,
-                        double sideOffset, float align, boolean outline, String icon) {
+                        double sideOffset, float align, boolean outline, String icon, int bg, int accent, int bgPad) {
 
         public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                      boolean throughWalls, boolean shadow, boolean bold, boolean underline) {
-            this(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, 0, 0.5f, false, null);
+            this(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, 0, 0.5f, false, null, 0, 0, 0);
         }
 
         public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
@@ -55,13 +56,24 @@ public final class WorldLabelAdapter {
          */
         public Label aligned(double sideOffset, float align) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline, icon);
+                    align, outline, icon, bg, accent, bgPad);
         }
 
         /** Shadow off or on, or a black outline instead (the outline wins). */
         public Label look(boolean shadow, boolean outline) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow && !outline, bold, underline,
-                    sideOffset, align, outline, icon);
+                    sideOffset, align, outline, icon, bg, accent, bgPad);
+        }
+
+        /** A rounded background panel (ARGB {@code bg}, 0 = none), {@code pad} label px around the text, with an accent bar (0 = none). */
+        public Label withBackground(int bg, int accent, int pad) {
+            return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
+                    align, outline, icon, bg, accent, Math.max(0, pad));
+        }
+
+        /** True when a background panel is drawn. */
+        public boolean hasBackground() {
+            return (bg >>> 24) != 0;
         }
 
         /**
@@ -71,7 +83,7 @@ public final class WorldLabelAdapter {
          */
         public Label withIcon(String model) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline, model);
+                    align, outline, model, bg, accent, bgPad);
         }
     }
 
@@ -135,6 +147,7 @@ public final class WorldLabelAdapter {
                 if (l.sideOffset() != 0) pose.translate(l.sideOffset(), 0, 0);
                 pose.scale(unit, -unit, unit);
                 float tx = -font.width(text) * l.align();
+                if (l.hasBackground()) drawBackground(l, tx, font.width(text), pose, buffers);
                 if (l.outline() && l.throughWalls()) {
                     // drawInBatch8xOutline is always depth-tested, so we build the outline from 8 see-through copies instead.
                     int black = argb & 0xFF000000;
@@ -161,6 +174,37 @@ public final class WorldLabelAdapter {
             }
         }
         if (drew) buffers.endBatch();
+    }
+
+    /**
+     * The background panel in the label's pixel space (text spans -8..0), with stepped 2 px corners like the HUD's
+     * rounded panels. It sits just behind the text (z -0.01, where vanilla draws its text backgrounds); it's drawn
+     * before the text, so see-through labels paint the text over it.
+     */
+    private static void drawBackground(Label l, float tx, int width, PoseStack pose, MultiBufferSource buffers) {
+        int pad = l.bgPad();
+        float x0 = tx - pad, x1 = tx + width + pad, y0 = -GLYPH_PX - pad, y1 = pad;
+        VertexConsumer vc = buffers.getBuffer(l.throughWalls() ? RenderTypes.textBackgroundSeeThrough() : RenderTypes.textBackground());
+        Matrix4f m = pose.last().pose();
+        int bg = l.bg();
+        float r = Math.min(2, Math.min(x1 - x0, y1 - y0) / 2);
+        if (r >= 2) {
+            quad(vc, m, x0 + 2, y0, x1 - 2, y0 + 1, -0.01f, bg);
+            quad(vc, m, x0 + 1, y0 + 1, x1 - 1, y0 + 2, -0.01f, bg);
+            quad(vc, m, x0, y0 + 2, x1, y1 - 2, -0.01f, bg);
+            quad(vc, m, x0 + 1, y1 - 2, x1 - 1, y1 - 1, -0.01f, bg);
+            quad(vc, m, x0 + 2, y1 - 1, x1 - 2, y1, -0.01f, bg);
+        } else {
+            quad(vc, m, x0, y0, x1, y1, -0.01f, bg);
+        }
+        if ((l.accent() >>> 24) != 0 && y1 - y0 > 4) quad(vc, m, x0, y0 + 2, x0 + 1, y1 - 2, -0.005f, l.accent());
+    }
+
+    private static void quad(VertexConsumer vc, Matrix4f m, float x0, float y0, float x1, float y1, float z, int argb) {
+        vc.addVertex(m, x0, y0, z).setColor(argb).setLight(FULL_BRIGHT);
+        vc.addVertex(m, x0, y1, z).setColor(argb).setLight(FULL_BRIGHT);
+        vc.addVertex(m, x1, y1, z).setColor(argb).setLight(FULL_BRIGHT);
+        vc.addVertex(m, x1, y0, z).setColor(argb).setLight(FULL_BRIGHT);
     }
 
     /** The icon quad in the label's pixel space (y grows downward, text spans -8..0), centred over the text. */

@@ -5,6 +5,8 @@ import com.google.common.cache.CacheBuilder;
 import dev.telemetric.Telemetric;
 import dev.telemetric.chat.ChatLink;
 import dev.telemetric.chat.ChatView;
+import dev.telemetric.data.EmojiTable;
+import dev.telemetric.data.TelosData;
 import dev.telemetric.mixin.ChatComponentAccessor;
 import dev.telemetric.mixin.ChatScreenAccessor;
 import net.minecraft.client.Minecraft;
@@ -28,6 +30,7 @@ import net.minecraft.util.Mth;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -76,6 +79,58 @@ public final class ChatHudAdapter {
     private static volatile int history = VANILLA_HISTORY;
 
     private ChatHudAdapter() {}
+
+    // ------------------------------------------------------------------ mod emojis
+
+    private static volatile EmojiTable emojiSource;
+    private static volatile Map<String, String> emojiGlyphs = Map.of();
+
+    /**
+     * Turns client-side mod emoji codes ({@code :smile:}, from {@code modEmojis.json}) in a received line into their
+     * glyphs, like Melinoe does, so Melinoe users' emojis show for us too. The glyph keeps the run's click/hover, turns
+     * white (the bitmap has its own colours) and shows its code on hover. Codes split across styled runs stay text.
+     */
+    public static Component modEmojis(Component message) {
+        if (message == null || !ServerGate.onTelos()) return message;
+        Map<String, String> glyphs = emojiGlyphs();
+        if (glyphs.isEmpty() || message.getString().indexOf(':') < 0) return message;
+        MutableComponent out = Component.empty();
+        boolean[] changed = {false};
+        message.visit((style, text) -> {
+            int from = 0, i = text.indexOf(':');
+            while (i >= 0) {
+                int end = text.indexOf(':', i + 1);
+                if (end < 0) break;
+                String glyph = end - i <= 32 ? glyphs.get(text.substring(i, end + 1)) : null;
+                if (glyph == null) {
+                    i = end; // the closing colon may open the next code
+                    continue;
+                }
+                if (i > from) out.append(Component.literal(text.substring(from, i)).withStyle(style));
+                String code = text.substring(i, end + 1);
+                out.append(Component.literal(glyph).withStyle(style.withColor(TextColor.fromRgb(0xFFFFFF))
+                        .withBold(false).withItalic(false)
+                        .withHoverEvent(new HoverEvent.ShowText(Component.literal(code)))));
+                changed[0] = true;
+                from = end + 1;
+                i = text.indexOf(':', from);
+            }
+            if (from < text.length()) out.append(Component.literal(text.substring(from)).withStyle(style));
+            return Optional.empty();
+        }, Style.EMPTY);
+        return changed[0] ? out : message;
+    }
+
+    private static Map<String, String> emojiGlyphs() {
+        EmojiTable table = TelosData.MOD_EMOJIS.get();
+        if (table != emojiSource) {
+            Map<String, String> m = new HashMap<>();
+            for (EmojiTable.Category c : table.categories()) for (EmojiTable.Emoji e : c.emojis()) m.putIfAbsent(e.code(), e.glyph());
+            emojiGlyphs = Map.copyOf(m);
+            emojiSource = table;
+        }
+        return emojiGlyphs;
+    }
 
     // ------------------------------------------------------------------ links
 

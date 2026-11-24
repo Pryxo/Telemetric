@@ -8,6 +8,7 @@ import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.render.Icons;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
@@ -67,7 +68,7 @@ public class SearchBar extends UIComponent {
         if (lineW > 0) r.gradientH(x + (width - lineW) / 2, y + height - 1, lineW, 1, p.accent(), p.accentAlt());
 
         int iconColor = ColorUtil.lerp(p.textMuted(), p.accent(), Math.max(f, query.isEmpty() ? 0 : 1));
-        magnifier(r, x + 9, y + height / 2, iconColor, p.panel());
+        Icons.magnifier(r, x + 9, y + height / 2, iconColor, p.panel());
 
         int tx = x + 18, ty = y + Layout.textY(height);
         int innerW = width - 18 - 14;
@@ -87,14 +88,6 @@ public class SearchBar extends UIComponent {
         if (caretOn) r.rect(tx + (query.isEmpty() ? 0 : 1), ty - 1, 1, 9, p.accent());
     }
 
-    /** A small magnifying glass: a ring plus a short handle towards the bottom right. */
-    private static void magnifier(Render2D r, int cx, int cy, int color, int hole) {
-        r.circle(cx - 1, cy - 1, 3.5, color);
-        r.circle(cx - 1, cy - 1, 2.2, hole);
-        r.rect(cx + 1, cy + 1, 1, 1, color);
-        r.rect(cx + 2, cy + 2, 1, 1, color);
-        r.rect(cx + 3, cy + 3, 1, 1, color);
-    }
 
     private boolean overClear(double mouseX, double mouseY) {
         return !query.isEmpty() && mouseX >= x + width - 13 && mouseX < x + width && mouseY >= y && mouseY < y + height;
