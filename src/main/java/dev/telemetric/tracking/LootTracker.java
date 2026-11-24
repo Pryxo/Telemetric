@@ -8,11 +8,13 @@ import dev.telemetric.data.LootTable.BossLoot;
 import dev.telemetric.data.LootTable.Drop;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.data.TelosData.Bag;
+import dev.telemetric.game.DamageNumberAdapter;
 import dev.telemetric.dungeon.Point;
 import dev.telemetric.game.DropAdapter;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.PlayerAdapter;
 import dev.telemetric.game.ServerInfoAdapter;
+import dev.telemetric.module.ModuleManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -101,6 +103,11 @@ public final class LootTracker {
     static final long MOB_RESENT_MS = 5_000;
     private static final double MOB_SAME_SQ = 3 * 3, MOB_TELEPORT_SQ = 32 * 32;
     private static final int MOB_SCAN_TICKS = 4;
+    /**
+     * A damage number this close (horizontally, and {@link #MOB_HIT_DY} vertically) to a followed plate means you hit
+     * that mob. Wide, since the plate is a few ticks old and big mobs get their numbers spread around them.
+     */
+    private static final double MOB_HIT_SQ = 5 * 5, MOB_HIT_DY = 6;
 
     private static final LootTracker INSTANCE = new LootTracker();
 
@@ -110,8 +117,11 @@ public final class LootTracker {
     private long lastKillAt;
     private boolean started;
 
-    /** A named-mob plate being followed: which mob (name key), and where it was last seen. */
-    private record MobPlate(String mob, Point pos) {}
+    /**
+     * A named-mob plate being followed: which mob (name key), where it was last seen, and whether a damage number
+     * showed up next to it (you hit it). Only hit mobs give pity.
+     */
+    private record MobPlate(String mob, Point pos, boolean hit) {}
 
     /** A counted mob kill, kept for {@link #MOB_RESENT_MS} so it can be taken back if the plate comes back. */
     private record MobKill(Point pos, long at, List<Drop> drops) {}
@@ -168,6 +178,7 @@ public final class LootTracker {
 
     /** Client tick (on Telos): every few ticks it follows the nameplates of this dungeon's named mobs. */
     public void tick() {
+        markHits();
         if (++mobTicks % MOB_SCAN_TICKS != 0) return;
         PityScopes.get().tick(TrackingStore.of(PlayerAdapter.accountId()));
         String place = DungeonAdapter.isInDungeon() ? DungeonAdapter.dungeonName() : null;
@@ -190,7 +201,9 @@ public final class LootTracker {
         for (String mob : drops.keySet()) {
             for (DungeonAdapter.NamePlate plate : DungeonAdapter.namePlates(mob)) {
                 present.add(plate.id());
-                if (mobPlates.put(plate.id(), new MobPlate(mob, plate.pos())) == null) undoResent(plate.pos());
+                MobPlate old = mobPlates.get(plate.id());
+                boolean hit = old != null ? old.hit() : undoResent(plate.pos());
+                mobPlates.put(plate.id(), new MobPlate(mob, plate.pos(), hit));
             }
         }
         for (Iterator<Map.Entry<Integer, MobPlate>> it = mobPlates.entrySet().iterator(); it.hasNext(); ) {
@@ -202,6 +215,10 @@ public final class LootTracker {
             if (!DungeonAdapter.isLoaded(p.x(), p.z()) || dx * dx + dz * dz > MOB_KILL_RANGE * MOB_KILL_RANGE) continue;
             List<Drop> own = drops.get(e.getValue().mob());
             if (own == null || own.isEmpty()) continue;
+            if (!e.getValue().hit()) {
+                Telemetric.debug("Pity: named mob at {} died without a damage number near it (not yours, no pity)", p);
+                continue;
+            }
             TrackingStore store = store();
             for (Drop d : own) if (counts(d)) store.addPity(d.key());
             mobKills.add(new MobKill(p, now, own));
@@ -211,8 +228,35 @@ public final class LootTracker {
         }
     }
 
-    /** A new plate right where a mob was just counted as killed is the same mob, re-sent, so take the kill back. */
-    private void undoResent(Point pos) {
+    /**
+     * Marks the followed plates that got a damage number next to them this tick. Runs every tick (the damage numbers
+     * come as one shared batch per tick, {@link DamageNumberAdapter#thisTick}).
+     */
+    private void markHits() {
+        if (mobPlates.isEmpty()) return;
+        for (DamageNumberAdapter.DamageNumber n : DamageNumberAdapter.thisTick(ModuleManager.tickCount())) {
+            Map.Entry<Integer, MobPlate> nearest = null;
+            double best = MOB_HIT_SQ;
+            for (Map.Entry<Integer, MobPlate> e : mobPlates.entrySet()) {
+                Point p = e.getValue().pos();
+                double dx = p.x() - n.x(), dz = p.z() - n.z(), d = dx * dx + dz * dz;
+                if (d > best || Math.abs(p.y() - n.y()) > MOB_HIT_DY) continue;
+                best = d;
+                nearest = e;
+            }
+            if (nearest == null || nearest.getValue().hit()) continue;
+            MobPlate m = nearest.getValue();
+            nearest.setValue(new MobPlate(m.mob(), m.pos(), true));
+            Telemetric.debug("Pity: named mob '{}' at {} hit ({})", m.mob(), m.pos(), n.text());
+        }
+    }
+
+    /**
+     * A new plate right where a mob was just counted as killed is the same mob, re-sent, so take the kill back.
+     *
+     * @return true if a kill was taken back (that mob was hit, so the new plate counts as hit too)
+     */
+    private boolean undoResent(Point pos) {
         for (Iterator<MobKill> it = mobKills.iterator(); it.hasNext(); ) {
             MobKill k = it.next();
             if (k.pos().distanceSq(pos.x(), pos.y(), pos.z()) > MOB_SAME_SQ) continue;
@@ -220,8 +264,9 @@ public final class LootTracker {
             TrackingStore store = store();
             for (Drop d : k.drops()) store.removePity(d.key());
             Telemetric.debug("Pity: named mob at {} is still alive (kill undone)", pos);
-            return;
+            return true;
         }
+        return false;
     }
 
     // ------------------------------------------------------------------ kills

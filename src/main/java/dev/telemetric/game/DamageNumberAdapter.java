@@ -57,8 +57,10 @@ public final class DamageNumberAdapter {
      * @param color ARGB of the first digit (0 means uncoloured, and Telos glyph numbers are uncoloured)
      * @param set   glyph set the digits were drawn with ({@code default}, {@code miniboss}, {@code boss},
      *              {@code misc}), or {@code plain} for ordinary text
+     * @param x     world position of the number (it shows up next to the mob that was hit)
      */
-    public record DamageNumber(int entityId, double amount, int color, String text, String set, double distance) {}
+    public record DamageNumber(int entityId, double amount, int color, String text, String set, double distance,
+                               double x, double y, double z) {}
 
     private record Glyph(char ch, String set) {}
 
@@ -77,7 +79,22 @@ public final class DamageNumberAdapter {
     /** "1,234,567.8" (comma thousands) or "1234.5" / "15,9" (comma decimal), with an optional k/m/b suffix. */
     private static final Pattern NUMBER = Pattern.compile("^(-?)(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:[.,]\\d+)?)([kKmMbB]?)$");
 
+    private static long polledTick = Long.MIN_VALUE;
+    private static List<DamageNumber> batch = List.of();
+
     private DamageNumberAdapter() {}
+
+    /**
+     * The glyph damage numbers that showed up this tick, polled once per {@code tick} and shared by every caller
+     * ({@link #poll} reports each number only once, so two callers polling it would steal hits from each other).
+     */
+    public static List<DamageNumber> thisTick(long tick) {
+        if (tick != polledTick) {
+            polledTick = tick;
+            batch = poll(false);
+        }
+        return batch;
+    }
 
     /** Forgets every seen entity. The next poll primes again, so nothing that already exists gets counted. */
     public static void reset() {
@@ -122,7 +139,7 @@ public final class DamageNumberAdapter {
             boolean accepted = parsed != null && (plainNumbers || !parsed.set.equals("plain"));
             if (!accepted) continue;
             out.add(new DamageNumber(id, parsed.amount, parsed.color, parsed.raw, parsed.set,
-                    Math.sqrt(entity.distanceToSqr(player))));
+                    Math.sqrt(entity.distanceToSqr(player)), entity.getX(), entity.getY(), entity.getZ()));
         }
         SEEN.retainAll(PRESENT);
         primed = true;

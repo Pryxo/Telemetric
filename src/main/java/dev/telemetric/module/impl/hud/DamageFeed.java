@@ -7,25 +7,16 @@ import dev.telemetric.module.ModuleManager;
 import java.util.List;
 
 /**
- * Shares one {@link DamageNumberAdapter#poll} per client tick between the DPS Meter and the DPS Log. The adapter only
- * reports each number once, so two modules polling it would steal hits from each other. Plain-text numbers (Telos
- * countdowns) never count.
+ * The DPS Meter's and DPS Log's view of {@link DamageNumberAdapter#thisTick}: one shared poll per client tick (the
+ * pity tracker reads the same batch). Plain-text numbers (Telos countdowns) never count.
  */
 final class DamageFeed {
-
-    private static long polledTick = -1;
-    private static List<DamageNumber> batch = List.of();
 
     private DamageFeed() {}
 
     /** The damage numbers that showed up this tick (the same list for every caller in one tick). */
     static List<DamageNumber> thisTick() {
-        long tick = ModuleManager.tickCount();
-        if (tick != polledTick) {
-            polledTick = tick;
-            batch = DamageNumberAdapter.poll(false);
-        }
-        return batch;
+        return DamageNumberAdapter.thisTick(ModuleManager.tickCount());
     }
 
 }
