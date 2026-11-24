@@ -11,8 +11,10 @@ import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.render.Fx;
 import dev.telemetric.ui.render.Icons;
 import dev.telemetric.ui.render.Render2D;
+import dev.telemetric.ui.render.Ripple;
 import dev.telemetric.ui.render.WarningColors;
 import dev.telemetric.ui.theme.Theme;
 
@@ -40,6 +42,10 @@ public class ModuleComponent extends UIComponent {
     /** Alpha factor for the background of the open menu (the world shows through a little). */
     private static final double SETTINGS_BG_OPACITY = 0.9;
     private static final int GEAR_W = 12;
+    /** Strength of the Hover Highlight wash at its left edge. */
+    private static final double HOVER_WASH = 0.2;
+
+    private final Ripple ripple = new Ripple();
 
     private final Module module;
     private final GuiLayout layout;
@@ -207,6 +213,19 @@ public class ModuleComponent extends UIComponent {
         bg = ColorUtil.lerp(bg, p.surfaceHover(), h * 0.7);
         r.rect(x, y, width, Layout.MODULE_HEIGHT, bg);
 
+        // Hover Highlight: an accent wash sliding in from the left, plus a faint bar on disabled rows
+        int accentHere = Fx.flow(ctx.themes(), p, x, y);
+        if (ctx.ui().hoverHighlight.get() && h > 0.01) {
+            int washW = (int) Math.round(width * (0.3 + 0.5 * h));
+            r.gradientH(x, y, washW, Layout.MODULE_HEIGHT, ColorUtil.fade(accentHere, HOVER_WASH * h),
+                    ColorUtil.withAlpha(accentHere, 0));
+            if (e < 0.99) {
+                int hb = (int) Math.round((Layout.MODULE_HEIGHT - 6) * h);
+                SettingList.neonLine(r, x, y + (Layout.MODULE_HEIGHT - hb) / 2, 1, hb, accentHere, 0.45 * h * (1 - e));
+            }
+        }
+        ripple.render(r, x, y, width, Layout.MODULE_HEIGHT, module.isEnabled() ? accentHere : p.text());
+
         // the enabled accent bar grows from the centre, and while the menu opens it stretches down to join its line
         int barY = 0, barH = 0;
         boolean open = ex > 0.001 && hasQuick();
@@ -214,7 +233,8 @@ public class ModuleComponent extends UIComponent {
             barH = (int) Math.round((Layout.MODULE_HEIGHT - 4) * e);
             barY = y + (Layout.MODULE_HEIGHT - barH) / 2;
             if (open) barH = (int) Math.round(barH + (y + Layout.MODULE_HEIGHT - barY - barH) * ex);
-            SettingList.neonLine(r, x, barY, 2, barH, p.accent(), e);
+            Fx.glow(r, ctx.themes(), x, barY, 2, barH, 0, accentHere, e);
+            SettingList.neonLine(r, x, barY, 2, barH, accentHere, e);
         }
 
         // name (slides right a touch on hover)
@@ -262,7 +282,7 @@ public class ModuleComponent extends UIComponent {
             r.pushClip(x, areaY, width, areaH);
             // translucent: the panel leaves this area unpainted, so the world shows through a little
             r.rect(x, areaY, width, areaH, ColorUtil.fade(p.settingsBg(), SETTINGS_BG_OPACITY));
-            SettingList.neonLine(r, x, areaY, 2, Math.max(0, areaH - 1), p.accent(), 0.55 + e * 0.45);
+            SettingList.neonLine(r, x, areaY, 2, Math.max(0, areaH - 1), accentHere, 0.55 + e * 0.45);
             boolean mouseInArea = ctx.hasCapture() || (mouseY >= areaY && mouseY < areaY + areaH);
             int my = mouseInArea ? mouseY : Integer.MIN_VALUE / 2;
             quick.render(r, x + Layout.SETTINGS_INDENT, areaY + Layout.SETTINGS_PAD_Y, width - Layout.SETTINGS_INDENT,
@@ -273,7 +293,7 @@ public class ModuleComponent extends UIComponent {
         // light pulse down the bar, and on through the menu line while it's open (drawn last, so it's on top)
         if (barH > 0) {
             int end = open ? y + getHeight() - 1 : barY + barH;
-            sweep(r, x, barY, 2, end - barY, p.accent(), e);
+            sweep(r, x, barY, 2, end - barY, accentHere, e);
         }
     }
 
@@ -311,6 +331,7 @@ public class ModuleComponent extends UIComponent {
                 return true;
             }
             if (button == MouseButton.LEFT) {
+                if (ctx.ui().clickRipple.get()) ripple.start(mouseX, mouseY);
                 if (module.isToggleable()) module.toggleByUser();
                 else if (ctx.hasSettingsWindow()) openWindow();
                 else if (hasQuick()) expanded = !expanded;

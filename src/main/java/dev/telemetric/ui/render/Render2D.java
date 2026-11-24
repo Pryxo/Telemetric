@@ -233,7 +233,12 @@ public final class Render2D {
 
     /** A filled, anti-aliased circle centred on (cx, cy). */
     public void circle(double cx, double cy, double radius, int color) {
-        int top = (int) Math.floor(cy - radius), bottom = (int) Math.ceil(cy + radius);
+        circle(cx, cy, radius, color, Integer.MIN_VALUE, Integer.MAX_VALUE);
+    }
+
+    /** A filled circle, but only its pixel rows from {@code minY} (inclusive) to {@code maxY} (exclusive), e.g. a ripple inside a row. */
+    public void circle(double cx, double cy, double radius, int color, int minY, int maxY) {
+        int top = Math.max(minY, (int) Math.floor(cy - radius)), bottom = Math.min(maxY, (int) Math.ceil(cy + radius));
         beginBatch();
         for (int py = top; py < bottom; py++) {
             double dy = (py + 0.5) - cy;
@@ -253,6 +258,65 @@ public final class Render2D {
     /** A pill (fully rounded ends), for switch tracks and progress bars. */
     public void pill(int x, int y, int w, int h, int color) {
         roundedRect(x, y, w, h, h / 2, color);
+    }
+
+    /**
+     * A rounded rect filled with a horizontal multi-stop gradient: {@code colorAt} gives the colour at any x, sampled
+     * every {@code step} units (each step is one linear gradient quad). Corners are anti-aliased like
+     * {@link #roundedRect}.
+     */
+    public void fillH(int x, int y, int w, int h, int radius, int corners, java.util.function.IntUnaryOperator colorAt, int step) {
+        if (w <= 0 || h <= 0) return;
+        int rad = corners == 0 ? 0 : Math.min(radius, Math.min(w, h) / 2);
+        boolean top = (corners & CORNERS_TOP) != 0, bottom = (corners & CORNERS_BOTTOM) != 0;
+        int topRows = top && rad > 0 ? rad : 0, bottomRows = bottom && rad > 0 ? rad : 0;
+        int st = Math.max(1, step);
+        beginBatch();
+        stripH(x, x + w, y + topRows, h - topRows - bottomRows, colorAt, st);
+        for (int i = 0; i < rad; i++) {
+            double inset = cornerInset(rad, i);
+            if (top) gradientRow(x, y + i, w, inset, (corners & CORNER_TL) != 0, (corners & CORNER_TR) != 0, colorAt, st);
+            if (bottom) gradientRow(x, y + h - 1 - i, w, inset, (corners & CORNER_BL) != 0, (corners & CORNER_BR) != 0, colorAt, st);
+        }
+        endBatch();
+    }
+
+    private void stripH(int x0, int x1, int y, int h, java.util.function.IntUnaryOperator colorAt, int step) {
+        if (h <= 0 || x1 <= x0) return;
+        for (int sx = x0; sx < x1; sx += step) {
+            int ex = Math.min(x1, sx + step);
+            int l = c(colorAt.applyAsInt(sx)), rr = c(colorAt.applyAsInt(ex));
+            if (ColorUtil.alpha(l) == 0 && ColorUtil.alpha(rr) == 0) continue;
+            quad(sx, y, ex, y + h, l, l, rr, rr);
+        }
+    }
+
+    private void gradientRow(int x, int y, int w, double inset, boolean left, boolean right,
+                             java.util.function.IntUnaryOperator colorAt, int step) {
+        int full = (int) Math.ceil(inset);
+        double coverage = full - inset;
+        int l = left ? full : 0, rr = right ? full : 0;
+        stripH(x + l, x + w - rr, y, 1, colorAt, step);
+        if (coverage > 0.02 && full > 0) {
+            if (left) rect(x + full - 1, y, 1, 1, ColorUtil.fade(colorAt.applyAsInt(x + full - 1), coverage));
+            if (right) rect(x + w - full, y, 1, 1, ColorUtil.fade(colorAt.applyAsInt(x + w - full), coverage));
+        }
+    }
+
+    /**
+     * A soft glow of {@code color} all around a rounded rect ({@code size} units wide), e.g. behind an enabled switch.
+     * Unlike {@link #shadow} it isn't offset downwards. {@code color}'s alpha is the strength next to the edge.
+     */
+    public void glow(int x, int y, int w, int h, int radius, int color, int size) {
+        int baseAlpha = ColorUtil.alpha(color);
+        if (size <= 0 || baseAlpha < 3) return;
+        beginBatch();
+        for (int i = size; i >= 1; i--) {
+            double t = 1.0 - (double) (i - 1) / size;
+            int a = (int) Math.round(baseAlpha * t * t / size * 1.8);
+            if (a > 0) roundedRect(x - i, y - i, w + i * 2, h + i * 2, radius + i, ColorUtil.withAlpha(color, a));
+        }
+        endBatch();
     }
 
     /** A soft drop shadow made of stacked, expanding, translucent rounded rects. */

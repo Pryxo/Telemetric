@@ -70,6 +70,12 @@ public record Theme(
                 control, border, text, textMuted, textDisabled, newAccent, newAccentAlt, shadow);
     }
 
+    /** A copy with a different enabled-row colour. */
+    public Theme withSurfaceActive(int newSurfaceActive) {
+        return new Theme(backdrop, panel, header, headerEnd, surface, surfaceHover, newSurfaceActive, settingsBg,
+                control, border, text, textMuted, textDisabled, accent, accentAlt, shadow);
+    }
+
     /** A copy with the alpha of the panel-like surfaces multiplied by {@code opacity} (0..1). */
     public Theme withSurfaceOpacity(double opacity) {
         return new Theme(backdrop,

@@ -43,6 +43,14 @@ public final class Durations {
     /** One full turn of a Settings window 3D preview with Auto Rotate on. Looping, so not capped. */
     public static final int PREVIEW_SPIN_LOOP = 24000;
 
+    /** One pass of the flowing accent gradient (Theme → Flowing Gradient) across one {@code Fx.FLOW_SPAN}. Looping, so not capped. */
+    public static final int FLOW_LOOP = 3200;
+    /** Time a background particle (Interface → Particles) needs to drift one screen height. Looping, so not capped. */
+    public static final int PARTICLE_DRIFT_LOOP = 26000;
+    /** A click ripple spreading over a row and fading out. */
+    public static final int RIPPLE = 450;
+    /** A bouncy switch knob (Interface → Bouncy Toggles): longer than MICRO so the overshoot is visible. */
+    public static final int BOUNCE = 260;
     /** The delay before a tooltip starts to appear. Not a transition but a dwell time. */
     public static final int TOOLTIP_DELAY = 400;
     /** Stagger between panels during the open sequence. */

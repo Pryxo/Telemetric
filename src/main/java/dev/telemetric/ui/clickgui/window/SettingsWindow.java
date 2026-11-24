@@ -20,8 +20,10 @@ import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.render.Fx;
 import dev.telemetric.ui.render.Icons;
 import dev.telemetric.ui.render.Render2D;
+import dev.telemetric.ui.theme.HeaderStyle;
 import dev.telemetric.ui.theme.Theme;
 
 import java.util.ArrayDeque;
@@ -68,6 +70,8 @@ public final class SettingsWindow extends UIComponent {
     private final GuiLayout.WindowState state;
     private final GuiLayout layout;
 
+    /** Theme -> Glow strength around the open window (full while it's being dragged). */
+    private static final double WINDOW_GLOW = 0.3;
     private Module module;
     private final Deque<Module> history = new ArrayDeque<>();
     private final List<Section> sections = new ArrayList<>();
@@ -464,7 +468,7 @@ public final class SettingsWindow extends UIComponent {
         double a = appear.get();
         float s = (float) (0.96 + 0.04 * a);
         float cx = x + width / 2f, cy = y + height / 2f;
-        Theme previous = ctx.overridePalette(ctx.themes().fixedPalette(module.getCategory()));
+        Theme previous = ctx.overridePalette(ctx.themes().paletteFor(module.getCategory()));
         r.pushAlpha(a);
         r.pushTransform(cx * (1 - s), cy * (1 - s), s);
         try {
@@ -486,6 +490,7 @@ public final class SettingsWindow extends UIComponent {
         int radius = ctx.radius();
 
         if (ctx.themes().shadows()) r.shadow(x, y, width, height, radius, p.shadow(), Layout.SHADOW_SIZE + 2);
+        Fx.glow(r, ctx.themes(), x, y, width, height, radius, p.accent(), drag == Drag.MOVE ? 1 : WINDOW_GLOW);
         r.roundedRect(x, y, width, height, radius, p.panel());
 
         renderTitle(r, p, radius, mouseX, mouseY);
@@ -551,8 +556,8 @@ public final class SettingsWindow extends UIComponent {
         boolean overTitle = mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + TITLE_H;
         int header = ColorUtil.lerp(p.header(), ColorUtil.shade(p.header(), 0.06), overTitle || drag == Drag.MOVE ? 1 : 0);
         r.roundedRect(x, y, width, TITLE_H, radius, header, Render2D.CORNERS_TOP);
-        if (ctx.themes().headerGradient()) {
-            r.gradientH(x, y + TITLE_H - 1, width, 1, ColorUtil.fade(p.accent(), 0.85), ColorUtil.fade(p.accentAlt(), 0.85));
+        if (ctx.themes().headerGradient() || ctx.themes().headerStyle() == HeaderStyle.FILLED) {
+            Fx.accentFill(r, ctx.themes(), p, x, y + TITLE_H - 1, width, 1, 0, 0, 0.85);
         }
         int ty = y + Layout.textY(TITLE_H);
         int cy = y + TITLE_H / 2;
@@ -571,7 +576,9 @@ public final class SettingsWindow extends UIComponent {
             enabledAnim.animateTo(module.isEnabled() ? 1 : 0);
             double t = enabledAnim.get();
             int sx = switchX(), sy = cy - 4;
-            r.pill(sx, sy, 16, 8, ColorUtil.lerp(p.control(), p.accent(), t));
+            int accent = Fx.flow(ctx.themes(), p, sx, sy);
+            Fx.glow(r, ctx.themes(), sx, sy, 16, 8, 4, accent, t);
+            r.pill(sx, sy, 16, 8, ColorUtil.lerp(p.control(), accent, t));
             double knob = 3;
             r.circle(sx + 1 + knob + (16 - 2 - knob * 2) * t, sy + 4.0, knob, ColorUtil.lerp(p.textMuted(), 0xFFFFFFFF, t));
             if (drag == Drag.NONE && mouseX >= sx - 2 && mouseX < sx + 18 && mouseY >= y && mouseY < y + TITLE_H) {

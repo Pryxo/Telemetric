@@ -47,6 +47,23 @@ public final class Icons {
         r.icon("chevron-left", cx + 0.5, cy + 0.5, SIZE, color);
     }
 
+    /**
+     * The panel-header icon of a built-in category ({@code textures/gui/icons/cat-*.png}, drawn in the Lucide style),
+     * or {@code null} for categories without one (add-ons).
+     */
+    public static String categoryIcon(String categoryName) {
+        return switch (categoryName) {
+            case "Combat" -> "cat-combat";
+            case "Player" -> "cat-player";
+            case "World" -> "cat-world";
+            case "UI + Tracking" -> "cat-tracking";
+            case "Stats" -> "cat-stats";
+            case "Social" -> "cat-social";
+            case "Misc" -> "cat-misc";
+            default -> null;
+        };
+    }
+
     /** Round diagonal dots of a resize corner; ({@code right}, {@code bottom}) is the corner pixel. */
     public static void resizeGrip(Render2D r, int right, int bottom, int color) {
         for (int row = 0; row < 3; row++) {

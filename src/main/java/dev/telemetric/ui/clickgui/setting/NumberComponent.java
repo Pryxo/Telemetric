@@ -9,6 +9,7 @@ import dev.telemetric.ui.clickgui.Layout;
 import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.render.Fx;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
@@ -75,12 +76,17 @@ public class NumberComponent extends SettingComponent<NumberSetting> {
         int trackY = y + HEIGHT - 7;
         r.pill(trackX, trackY, trackW, TRACK_H, p.control());
         int filled = (int) Math.round(trackW * fill.get());
-        if (filled > 0) r.pill(trackX, trackY, filled, TRACK_H, p.accent());
+        if (filled > 0) {
+            Fx.accentFill(r, ctx.themes(), p, trackX, trackY, filled, TRACK_H, TRACK_H / 2, Render2D.CORNERS_ALL, 1);
+        }
 
         boolean hot = dragging || (isActive() && isHovered(mouseX, mouseY));
         knob.animateTo(hot ? 1 : 0);
         double radius = 3 + knob.get();
-        r.circle(trackX + filled, trackY + TRACK_H / 2.0, radius, ColorUtil.lerp(p.text(), 0xFFFFFFFF, knob.get() * 0.5));
+        int kx = trackX + filled, ky = trackY + TRACK_H / 2;
+        int kr = (int) Math.ceil(radius);
+        Fx.glow(r, ctx.themes(), kx - kr, ky - kr, kr * 2, kr * 2, kr, Fx.flow(ctx.themes(), p, kx, ky), 0.35 + 0.65 * knob.get());
+        r.circle(kx, trackY + TRACK_H / 2.0, radius, ColorUtil.lerp(p.text(), 0xFFFFFFFF, knob.get() * 0.5));
     }
 
     @Override

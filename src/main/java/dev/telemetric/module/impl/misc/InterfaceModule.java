@@ -5,9 +5,11 @@ import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.EnumSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.animation.Durations;
+import dev.telemetric.ui.animation.OpenStyle;
 import dev.telemetric.ui.notification.Toasts;
 
 /** UI-only: behaviour, size and motion of the ClickGUI. */
@@ -34,6 +36,30 @@ public final class InterfaceModule extends Module {
             .withSuffix("x")
             .visibleWhen(animations::get)
             .onChange(Durations::setSpeed));
+
+    public final EnumSetting<OpenStyle> openStyle = add(new EnumSetting<>(
+            "Open Style", "How the panels appear when the GUI opens (one after another)", OpenStyle.SLIDE_UP)
+            .visibleWhen(animations::get));
+
+    public final BooleanSetting clickRipple = add(new BooleanSetting(
+            "Click Ripple", "A ripple spreads from where you click a module or setting row", true)
+            .visibleWhen(animations::get));
+
+    public final BooleanSetting bouncyToggles = add(new BooleanSetting(
+            "Bouncy Toggles", "Switch knobs overshoot a little and settle", true)
+            .visibleWhen(animations::get));
+
+    public final BooleanSetting hoverHighlight = add(new BooleanSetting(
+            "Hover Highlight", "Hovered rows get an accent glow sliding in from the left", true));
+
+    public final GroupToggleSetting particles = add(new GroupToggleSetting(
+            "Particles", "Slow floating accent-coloured particles behind the panels (right-click to edit)", true));
+
+    public final NumberSetting particleAmount = add(particles.child(new NumberSetting(
+            "Amount", "How many particles float behind the panels", 45, 10, 150, 1)));
+
+    public final NumberSetting particleSize = add(particles.child(new NumberSetting(
+            "Size", "Size of the particles", 1.0, 0.5, 2.5, 0.05).withSuffix("x")));
 
     public final NumberSetting backgroundDim = add(new NumberSetting(
             "Background Dim", "How much the world behind the GUI is darkened", 55, 0, 100, 1).withSuffix("%"));

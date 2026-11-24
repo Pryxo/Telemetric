@@ -19,7 +19,9 @@ import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
+import dev.telemetric.ui.theme.BackdropStyle;
 import dev.telemetric.ui.theme.Theme;
+import dev.telemetric.ui.theme.ThemeManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -56,6 +58,12 @@ public class ClickGuiScreen extends Screen {
     /** Whether the mouse button held right now was pressed on the Settings window. */
     private boolean pressOnWindow;
 
+    /** How strongly Backdrop → Accent Tint / Vignette colours the dim. */
+    private static final double BACKDROP_TINT = 0.35;
+    /** Darkness of the Vignette edges at 100 % Background Dim. */
+    private static final double VIGNETTE = 0.55;
+
+    private final Particles particles = new Particles();
     private final Animation open = new Animation(Durations.SCREEN, Easing.OUT_CUBIC, 0);
     private final Animation close = new Animation(Durations.MODAL, Easing.IN_CUBIC, 1);
     private boolean closing;
@@ -197,12 +205,38 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        // our own backdrop instead of vanilla's blur: a tinted dim that fades with the open/close animation
-        Theme p = Telemetric.get().theme().palette();
-        double dim = ui().backgroundDim.get() / 100.0;
-        int top = ColorUtil.fade(p.backdrop(), dim * screenAlpha());
-        int bottom = ColorUtil.fade(ColorUtil.shade(p.backdrop(), -0.4), dim * screenAlpha());
-        graphics.fillGradient(0, 0, this.width, this.height, top, bottom);
+        // our own backdrop: a dim that fades with the open/close animation, optionally tinted with the accents and
+        // on top of vanilla's blur (Theme → Backdrop / Blur World)
+        ThemeManager themes = Telemetric.get().theme();
+        Theme p = themes.palette();
+        if (themes.blurWorld() && !closing) extractBlurredBackground(graphics);
+        double dim = ui().backgroundDim.get() / 100.0 * screenAlpha();
+        int top = p.backdrop(), bottom = ColorUtil.shade(p.backdrop(), -0.4);
+        if (themes.backdrop() != BackdropStyle.PLAIN) {
+            int a = ColorUtil.alpha(p.backdrop());
+            top = ColorUtil.lerp(top, ColorUtil.withAlpha(ColorUtil.shade(p.accent(), -0.55), a), BACKDROP_TINT);
+            bottom = ColorUtil.lerp(bottom, ColorUtil.withAlpha(ColorUtil.shade(p.accentAlt(), -0.7), a), BACKDROP_TINT * 0.6);
+        }
+        graphics.fillGradient(0, 0, this.width, this.height, ColorUtil.fade(top, dim), ColorUtil.fade(bottom, dim));
+    }
+
+    /** Darker screen edges (Backdrop → Vignette) and the floating particles, under the panels. */
+    private void renderAmbience(int sw, int sh) {
+        ThemeManager themes = Telemetric.get().theme();
+        Theme p = themes.palette();
+        if (themes.backdrop() == BackdropStyle.VIGNETTE) {
+            double dim = ui().backgroundDim.get() / 100.0;
+            int edge = ColorUtil.fade(ColorUtil.withAlpha(ColorUtil.shade(p.backdrop(), -0.6), 0xFF), VIGNETTE * dim);
+            int clear = ColorUtil.withAlpha(edge, 0);
+            int bandX = (int) (sw * 0.22), bandY = (int) (sh * 0.28);
+            r.gradientH(0, 0, bandX, sh, edge, clear);
+            r.gradientH(sw - bandX, 0, bandX, sh, clear, edge);
+            r.gradientV(0, 0, sw, bandY, edge, clear);
+            r.gradientV(0, sh - bandY, sw, bandY, clear, edge);
+        }
+        if (ui().particles.get()) {
+            particles.render(r, p, sw, sh, ui().particleAmount.getInt(), ui().particleSize.get());
+        }
     }
 
     @Override
@@ -219,6 +253,9 @@ public class ClickGuiScreen extends Screen {
         r.begin(graphics, Telemetric.get().theme().textShadow());
         r.pushScale(scale);
         r.pushAlpha(screenAlpha());
+
+        r.nextLayer();
+        renderAmbience(sw, sh);
 
         ctx.clearTooltipRequest();
         // the panels and the search bar don't react to a mouse over the Settings window (unless they hold a drag)

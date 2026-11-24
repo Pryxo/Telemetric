@@ -54,6 +54,9 @@ public enum ThemePreset implements EnumSetting.Nameable {
     SYNTHWAVE("Synthwave", dark(0xFF140B22, 0xFFE64A98, 0xFF33D4E6)),
     SAKURA("Sakura", dark(0xFF170E15, 0xFFF472B6, 0xFFFBCFE8)),
     ROSE("Rose", dark(0xFF160B10, 0xFFF43F5E, 0xFFFDA4AF)),
+    GALAXY("Galaxy", dark(0xFF0D0B1E, 0xFF7C3AED, 0xFF22D3EE)),
+    NEON_TOKYO("Neon Tokyo", dark(0xFF0C0A16, 0xFFFF2E88, 0xFF00E5FF)),
+    BUBBLEGUM("Bubblegum", dark(0xFF1A0F1A, 0xFFFF5FA2, 0xFFA78BFA)),
 
     // ---- red / orange / yellow ----
     CRIMSON("Crimson", dark(0xFF140A0C, 0xFFDC2626, 0xFFF87171)),
@@ -64,12 +67,14 @@ public enum ThemePreset implements EnumSetting.Nameable {
     GOLD("Gold", dark(0xFF121008, 0xFFEAB308, 0xFFFEF08A)),
     COPPER("Copper", dark(0xFF130E0B, 0xFFC2703D, 0xFFF0B27A)),
     CYBER("Cyber", dark(0xFF0E0E0A, 0xFFFCEE0A, 0xFF00F0FF)),
+    INFERNO("Inferno", dark(0xFF140806, 0xFFFF4D1A, 0xFFFFC233)),
 
     // ---- green ----
     EMERALD("Emerald", dark(0xFF08130E, 0xFF10B981, 0xFF6EE7B7)),
     FOREST("Forest", dark(0xFF0E140C, 0xFF65A30D, 0xFFBEF264)),
     MINT("Mint", dark(0xFF0C1513, 0xFF34D399, 0xFFA7F3D0)),
     MATRIX("Matrix", dark(0xFF050A05, 0xFF22C55E, 0xFF86EFAC)),
+    TOXIC("Toxic", dark(0xFF0A1008, 0xFFA3E635, 0xFF22D3EE)),
 
     // ---- blue / cyan ----
     OCEAN("Ocean", dark(0xFF0B1220, 0xFF3B82F6, 0xFF22D3EE)),
@@ -78,6 +83,8 @@ public enum ThemePreset implements EnumSetting.Nameable {
     ARCTIC("Arctic", dark(0xFF0E1419, 0xFF7DD3FC, 0xFFE0F2FE)),
     POLAR("Polar", dark(0xFF262B35, 0xFF88C0D0, 0xFF81A1C1)),
     SAPPHIRE("Sapphire", dark(0xFF0A0D1C, 0xFF4F46E5, 0xFF818CF8)),
+    AURORA("Aurora", dark(0xFF07121A, 0xFF2DD4BF, 0xFFA855F7)),
+    HOLO("Holo", dark(0xFF0D1220, 0xFF67E8F9, 0xFFF0ABFC)),
 
     // ---- neutral ----
     SLATE("Slate", dark(0xFF111318, 0xFF94A3B8, 0xFFCBD5E1)),
@@ -87,7 +94,8 @@ public enum ThemePreset implements EnumSetting.Nameable {
     // ---- light ----
     PAPER("Paper", light(0xFFF4F4F7, 0xFF7C3AED, 0xFFC084FC)),
     LATTE("Latte", light(0xFFF4EFE9, 0xFFD97706, 0xFFEA580C)),
-    SKY("Sky", light(0xFFF0F5FA, 0xFF2563EB, 0xFF06B6D4));
+    SKY("Sky", light(0xFFF0F5FA, 0xFF2563EB, 0xFF06B6D4)),
+    BLOSSOM("Blossom", light(0xFFFBF2F6, 0xFFDB2777, 0xFF9333EA));
 
     private final String displayName;
     private final Theme theme;

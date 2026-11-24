@@ -13,8 +13,10 @@ package dev.telemetric.ui.animation;
  */
 public final class Animation {
 
-    private final int baseDuration;
-    private final Easing easing;
+    private int baseDuration;
+    private Easing easing;
+    /** The easing of the running transition (a {@link #retime} only applies to the next one). */
+    private Easing active;
 
     private double from;
     private double to;
@@ -29,6 +31,7 @@ public final class Animation {
     public Animation(int baseDurationMs, Easing easing, double initial) {
         this.baseDuration = baseDurationMs;
         this.easing = easing;
+        this.active = easing;
         this.from = initial;
         this.to = initial;
         this.startNanos = System.nanoTime();
@@ -47,6 +50,17 @@ public final class Animation {
         startNanos = System.nanoTime();
         delayNanos = Durations.isEnabled() ? delayMs * 1_000_000L : 0;
         duration = Durations.scaled(baseDuration);
+        active = easing;
+        return this;
+    }
+
+    /**
+     * Changes the duration and easing used by the next {@link #animateTo} (a running transition keeps its own), e.g.
+     * when a setting picks a bouncier curve.
+     */
+    public Animation retime(int baseDurationMs, Easing easing) {
+        this.baseDuration = baseDurationMs;
+        this.easing = easing;
         return this;
     }
 
@@ -62,7 +76,7 @@ public final class Animation {
     public double get() {
         double progress = progress();
         if (progress >= 1) return to;
-        return from + (to - from) * easing.apply(progress);
+        return from + (to - from) * active.apply(progress);
     }
 
     public float getF() {

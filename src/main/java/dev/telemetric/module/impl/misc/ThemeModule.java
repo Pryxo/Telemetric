@@ -9,15 +9,23 @@ import dev.telemetric.setting.impl.EnumSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.notification.Toasts;
+import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.theme.BackdropStyle;
+import dev.telemetric.ui.theme.HeaderStyle;
 import dev.telemetric.ui.theme.Theme;
 import dev.telemetric.ui.theme.ThemePreset;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** UI-only: the colours and look of the ClickGUI. {@link dev.telemetric.ui.theme.ThemeManager} reads it. */
 public final class ThemeModule extends Module {
 
     private static final Theme DEFAULTS = ThemePreset.MIDNIGHT.theme();
+
+    /** Category name → its colour under Category Colors (built-in categories only). */
+    private final Map<String, ColorSetting> categoryColorsByName = new LinkedHashMap<>();
 
     public final EnumSetting<ThemePreset> preset = add(new EnumSetting<>(
             "Preset", "Base colour palette of the interface", ThemePreset.MIDNIGHT).searchable());
@@ -76,9 +84,44 @@ public final class ThemeModule extends Module {
     public final ColorSetting hudValueColor = add(customHudColors.child(new ColorSetting(
             "HUD Value", "Values of HUD rows (\"12\" in \"Kills: 12\")", DEFAULTS.text(), false)));
 
+    // ---- per-category accents ----
+    public final GroupToggleSetting categoryColors = add(new GroupToggleSetting(
+            "Category Colors", "Give every panel (and the Settings windows of its modules) its own accent colour "
+            + "(right-click to edit)", false));
+
+    public final ColorSetting combatColor = categoryColor(Category.COMBAT, 0xFFEF4444);
+    public final ColorSetting playerColor = categoryColor(Category.PLAYER, 0xFF22C55E);
+    public final ColorSetting worldColor = categoryColor(Category.WORLD, 0xFF0EA5E9);
+    public final ColorSetting trackingColor = categoryColor(Category.INVENTORY, 0xFFF59E0B);
+    public final ColorSetting statsColor = categoryColor(Category.STATS, 0xFFA855F7);
+    public final ColorSetting socialColor = categoryColor(Category.SOCIAL, 0xFFEC4899);
+    public final ColorSetting miscColor = categoryColor(Category.MISC, 0xFF14B8A6);
+
     // ---- look ----
+    public final EnumSetting<HeaderStyle> headerStyle = add(new EnumSetting<>(
+            "Header Style", "Line: dark header with an accent line. Accent Fill: header filled with the accent gradient",
+            HeaderStyle.LINE));
+
     public final BooleanSetting headerGradient = add(new BooleanSetting(
-            "Header Gradient", "Draw an accent gradient line under panel headers", true));
+            "Header Gradient", "Draw an accent gradient line under panel headers", true)
+            .visibleWhen(() -> headerStyle.get() == HeaderStyle.LINE));
+
+    public final BooleanSetting categoryIcons = add(new BooleanSetting(
+            "Category Icons", "Small icon in front of every panel title", true));
+
+    public final BooleanSetting flowingGradient = add(new BooleanSetting(
+            "Flowing Gradient", "The accent gradient slowly flows along header lines, enabled bars and slider fills", true));
+
+    public final NumberSetting glow = add(new NumberSetting(
+            "Glow", "Soft accent glow around enabled bars, switches, slider knobs and dragged panels", 45, 0, 100, 1)
+            .withSuffix("%"));
+
+    public final EnumSetting<BackdropStyle> backdrop = add(new EnumSetting<>(
+            "Backdrop", "The dim behind the GUI: Plain, tinted with the accent, or tinted with darker edges",
+            BackdropStyle.VIGNETTE));
+
+    public final BooleanSetting blurWorld = add(new BooleanSetting(
+            "Blur World", "Blur the world behind the GUI (uses the vanilla Menu Background Blurriness option)", false));
 
     public final NumberSetting panelOpacity = add(new NumberSetting(
             "Panel Opacity", "Opacity of panels and rows", 96, 40, 100, 1).withSuffix("%"));
@@ -120,6 +163,24 @@ public final class ThemeModule extends Module {
 
     private ColorSetting color(String name, String description, int defaultArgb, boolean alpha) {
         return add(customColors.child(new ColorSetting(name, description, defaultArgb, alpha)));
+    }
+
+    private ColorSetting categoryColor(Category category, int defaultArgb) {
+        ColorSetting setting = add(categoryColors.child(new ColorSetting(
+                category.getName(), "Accent of the " + category.getName() + " panel", defaultArgb, false)));
+        categoryColorsByName.put(category.getName(), setting);
+        return setting;
+    }
+
+    /**
+     * The accent of {@code category} under Category Colors. Categories without their own setting (add-ons) get the
+     * theme accent turned around the colour wheel by their position, so they still differ.
+     */
+    public int categoryAccent(Category category, int themeAccent) {
+        ColorSetting setting = categoryColorsByName.get(category.getName());
+        if (setting != null) return setting.get();
+        int index = Category.values().indexOf(category);
+        return ColorUtil.hueShift(themeAccent, 0.38f * (index + 1));
     }
 
     private List<ColorSetting> paletteColors() {

@@ -8,6 +8,7 @@ import dev.telemetric.ui.clickgui.Layout;
 import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.render.Fx;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
@@ -30,17 +31,21 @@ public class BooleanComponent extends SettingComponent<BooleanSetting> {
 
     @Override
     protected void renderContent(Render2D r, int mouseX, int mouseY, float delta, Theme p) {
+        // Bouncy Toggles: the knob overshoots and settles (t briefly goes past 0..1, the colours clamp)
+        boolean bouncy = ctx.ui().bouncyToggles.get();
+        state.retime(bouncy ? Durations.BOUNCE : Durations.MICRO, bouncy ? Easing.OUT_BACK : Easing.OUT_CUBIC);
         state.animateTo(setting.get() ? 1 : 0);
         double t = state.get();
-
+        double c = Math.clamp(t, 0, 1);
         r.text(r.trim(setting.getLabel(), width - TRACK_W - Layout.PAD * 3 - labelReserve()), left(), labelY(), textColor(p));
-
         int tx = right() - TRACK_W;
         int ty = y + (Layout.SETTING_HEIGHT - TRACK_H) / 2;
-        r.pill(tx, ty, TRACK_W, TRACK_H, ColorUtil.lerp(p.control(), p.accent(), t));
+        int accent = Fx.flow(ctx.themes(), p, tx, ty);
+        Fx.glow(r, ctx.themes(), tx, ty, TRACK_W, TRACK_H, TRACK_H / 2, accent, c);
+        r.pill(tx, ty, TRACK_W, TRACK_H, ColorUtil.lerp(p.control(), accent, c));
         double knobR = TRACK_H / 2.0 - 1;
         double knobX = tx + 1 + knobR + (TRACK_W - 2 - knobR * 2) * t;
-        r.circle(knobX, ty + TRACK_H / 2.0, knobR, ColorUtil.lerp(p.textMuted(), 0xFFFFFFFF, t));
+        r.circle(knobX, ty + TRACK_H / 2.0, knobR, ColorUtil.lerp(p.textMuted(), 0xFFFFFFFF, c));
     }
 
     /** Extra space kept free to the left of the switch (subclasses draw icons there). */

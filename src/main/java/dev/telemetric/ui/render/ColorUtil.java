@@ -76,6 +76,17 @@ public final class ColorUtil {
         return new float[]{h, s, max};
     }
 
+    /** Perceived brightness 0..1 (Rec. 601 weights), e.g. to pick dark or light text on a coloured fill. */
+    public static double luminance(int argb) {
+        return (red(argb) * 0.299 + green(argb) * 0.587 + blue(argb) * 0.114) / 255.0;
+    }
+
+    /** A copy with the hue turned by {@code turn} (0..1 is one full turn), keeping saturation, value and alpha. */
+    public static int hueShift(int argb, float turn) {
+        float[] hsv = toHsv(argb);
+        return hsv(hsv[0] + turn, hsv[1], hsv[2], alpha(argb));
+    }
+
     private static int clamp255(int v) {
         return v < 0 ? 0 : Math.min(255, v);
     }

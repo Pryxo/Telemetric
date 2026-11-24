@@ -7,8 +7,11 @@ import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.UIComponent;
+import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.render.Fx;
 import dev.telemetric.ui.render.Render2D;
+import dev.telemetric.ui.render.Ripple;
 import dev.telemetric.ui.theme.Theme;
 
 import java.util.function.BooleanSupplier;
@@ -30,6 +33,9 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
     protected final Animation visibility;
     protected final Animation hover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private BooleanSupplier searchVisibility;
+    private final Ripple ripple = new Ripple();
+    /** Strength of the Hover Highlight wash at its left edge. */
+    private static final double HOVER_WASH = 0.12;
 
     protected SettingComponent(GuiContext ctx, S setting) {
         super(ctx);
@@ -87,7 +93,15 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
         boolean rowHovered = isActive() && mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + rowHeight();
         hover.animateTo(rowHovered ? 1 : 0);
         double h = hover.get();
-        if (h > 0.01) r.rect(x, y, width, rowHeight(), ColorUtil.fade(p.surfaceHover(), h * 0.6));
+        if (h > 0.01) {
+            r.rect(x, y, width, rowHeight(), ColorUtil.fade(p.surfaceHover(), h * 0.6));
+            if (ctx.ui().hoverHighlight.get()) {
+                int accent = Fx.flow(ctx.themes(), p, x, y);
+                r.gradientH(x, y, (int) Math.round(width * (0.25 + 0.45 * h)), rowHeight(),
+                        ColorUtil.fade(accent, HOVER_WASH * h), ColorUtil.withAlpha(accent, 0));
+            }
+        }
+        ripple.render(r, x, y, width, rowHeight(), Fx.flow(ctx.themes(), p, x, y));
         if (rowHovered) ctx.requestTooltip(setting, setting.getLabel(), setting.getDescription());
 
         r.pushAlpha(visibility.get());
@@ -98,7 +112,11 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
     @Override
     public final boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!isActive() || !isHovered(mouseX, mouseY)) return false;
-        return onClick(mouseX, mouseY, button);
+        boolean handled = onClick(mouseX, mouseY, button);
+        if (handled && button == MouseButton.LEFT && ctx.ui().clickRipple.get() && mouseY < y + rowHeight()) {
+            ripple.start(mouseX, mouseY);
+        }
+        return handled;
     }
 
     @Override

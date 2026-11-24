@@ -6,12 +6,15 @@ import dev.telemetric.module.Module;
 import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
+import dev.telemetric.ui.animation.OpenStyle;
 import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
+import dev.telemetric.ui.render.Fx;
 import dev.telemetric.ui.render.Icons;
 import dev.telemetric.ui.render.Render2D;
+import dev.telemetric.ui.theme.HeaderStyle;
 import dev.telemetric.ui.theme.Theme;
 
 import java.util.ArrayList;
@@ -39,6 +42,14 @@ public class Panel extends UIComponent {
     private final Animation headerHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private final Animation scroll = new Animation(Durations.STANDARD, Easing.OUT_CUBIC);
     private final Animation scrollbar = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
+    private final Animation dragGlow = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
+
+    /** Open Style -> Zoom starts at this scale. */
+    private static final double ZOOM_FROM = 0.86;
+    /** Room the category icon takes in front of the title. */
+    private static final int ICON_W = 10;
+    /** Alpha of the light wash over an Accent Fill header while hovered. */
+    private static final int HEADER_HOVER_LIGHT = 0x30;
 
     private double scrollTarget;
     private int maxScroll;
@@ -92,6 +103,7 @@ public class Panel extends UIComponent {
 
     /** Starts the open animation after {@code delayMs} (staggered per panel). */
     public void playAppear(int delayMs) {
+        appear.retime(Durations.SCREEN, ctx.ui().openStyle.get().easing());
         appear.snapTo(0).animateTo(1, delayMs);
     }
 
@@ -113,8 +125,8 @@ public class Panel extends UIComponent {
     public void render(Render2D r, int mouseX, int mouseY, float delta, int screenW, int screenH) {
         double fade = searchFade.get();
         if (fade <= 0.001) return;
-        Theme fixed = ctx.themes().fixedPalette(category);
-        Theme previous = ctx.overridePalette(fixed); // null means follow the theme
+        Theme own = ctx.themes().paletteFor(category);
+        Theme previous = ctx.overridePalette(own); // null means follow the theme
         r.pushAlpha(fade);
         try {
             renderPanel(r, mouseX, mouseY, delta, screenW, screenH);
@@ -136,10 +148,19 @@ public class Panel extends UIComponent {
         state.x = Math.clamp(state.x, -width + 24, Math.max(0, screenW - 24));
         state.y = Math.clamp(state.y, 0, Math.max(0, screenH - Layout.HEADER_HEIGHT));
 
+        // open animation (Interface -> Open Style); Drop In's easing overshoots, so a goes a little past 1
         double a = appear.get();
-        int slide = (int) Math.round((1 - a) * 12);
-        x = state.x;
-        y = state.y + slide;
+        OpenStyle style = ctx.ui().openStyle.get();
+        int offX = 0, offY = 0;
+        switch (style) {
+            case SLIDE_UP -> offY = (int) Math.round((1 - a) * 12);
+            case DROP_IN -> offY = (int) Math.round(-(1 - a) * 28);
+            case SLIDE_RIGHT -> offX = (int) Math.round(-(1 - a) * 24);
+            default -> { }
+        }
+        double alpha = Math.clamp(a, 0, 1);
+        x = state.x + offX;
+        y = state.y + offY;
 
         // ---- measure
         expand.animateTo(state.collapsed ? 0 : 1);
@@ -158,43 +179,74 @@ public class Panel extends UIComponent {
         int footer = (int) Math.round(Layout.PANEL_FOOTER * ex);
         height = Layout.HEADER_HEIGHT + bodyH + footer;
 
-        r.pushAlpha(a);
+        r.pushAlpha(alpha);
+        boolean zoom = style == OpenStyle.ZOOM && a < 0.999;
+        if (zoom) {
+            float s = (float) (ZOOM_FROM + (1 - ZOOM_FROM) * a);
+            float cx = x + width / 2f, cy = y + height / 2f;
+            r.pushTransform(cx * (1 - s), cy * (1 - s), s);
+        }
 
-        // ---- frame
+        // ---- frame (a dragged panel lifts off with an accent glow)
+        dragGlow.animateTo(dragging ? 1 : 0);
         if (ctx.themes().shadows()) r.shadow(x, y, width, height, radius, p.shadow(), Layout.SHADOW_SIZE);
+        Fx.glow(r, ctx.themes(), x, y, width, height, radius, p.accent(), dragGlow.get());
         drawFrame(r, radius, p.panel());
 
         boolean overHeader = isOverHeader(mouseX, mouseY);
         headerHover.animateTo(overHeader || dragging ? 1 : 0);
-        int headerColor = ColorUtil.lerp(p.header(), ColorUtil.shade(p.header(), 0.06), headerHover.get());
-        r.roundedRect(x, y, width, Layout.HEADER_HEIGHT, radius, headerColor,
-                ex < 0.02 ? Render2D.CORNERS_ALL : Render2D.CORNERS_TOP);
-
-        // accent line under the header, which grows with the expand animation
-        if (ctx.themes().headerGradient() && ex > 0.01) {
-            int lineW = (int) Math.round(width * ex);
-            r.gradientH(x + (width - lineW) / 2, y + Layout.HEADER_HEIGHT - 1, lineW, 1,
-                    ColorUtil.fade(p.accent(), 0.85), ColorUtil.fade(p.accentAlt(), 0.85));
+        int headerCorners = ex < 0.02 ? Render2D.CORNERS_ALL : Render2D.CORNERS_TOP;
+        boolean filled = ctx.themes().headerStyle() == HeaderStyle.FILLED;
+        int titleColor = p.text(), countColor = p.textDisabled(), chevronColor = p.textMuted();
+        // dark text on a bright accent fill reads better without the (black) text shadow
+        Render2D.TextLook look = ctx.themes().textShadow() ? Render2D.TextLook.SHADOW : Render2D.TextLook.NONE;
+        if (filled) {
+            // the accent gradient fills the header, a touch brighter on hover
+            Fx.accentFill(r, ctx.themes(), p, x, y, width, Layout.HEADER_HEIGHT, radius, headerCorners, 1);
+            if (headerHover.get() > 0.01) {
+                r.roundedRect(x, y, width, Layout.HEADER_HEIGHT, radius,
+                        ColorUtil.fade(ColorUtil.withAlpha(p.text(), HEADER_HOVER_LIGHT), headerHover.get()), headerCorners);
+            }
+            int mid = Fx.flow(ctx.themes(), p, x + width / 2, y);
+            titleColor = Fx.onFill(p, mid);
+            countColor = ColorUtil.fade(titleColor, 0.6);
+            chevronColor = ColorUtil.fade(titleColor, 0.8);
+            if (ColorUtil.luminance(titleColor) < 0.5) look = Render2D.TextLook.NONE;
+        } else {
+            int headerColor = ColorUtil.lerp(p.header(), ColorUtil.shade(p.header(), 0.06), headerHover.get());
+            r.roundedRect(x, y, width, Layout.HEADER_HEIGHT, radius, headerColor, headerCorners);
+            // accent line under the header, which grows with the expand animation
+            if (ctx.themes().headerGradient() && ex > 0.01) {
+                int lineW = (int) Math.round(width * ex);
+                Fx.accentFill(r, ctx.themes(), p, x + (width - lineW) / 2, y + Layout.HEADER_HEIGHT - 1, lineW, 1,
+                        0, 0, 0.85);
+            }
         }
 
-        // title, count and chevron
+        // icon, title, count and chevron
         int ty = y + Layout.textY(Layout.HEADER_HEIGHT);
+        String icon = ctx.themes().categoryIcons() ? Icons.categoryIcon(category.getName()) : null;
+        int titleX = x + Layout.PAD + (icon != null ? ICON_W : 0);
+        if (icon != null) {
+            int iconColor = filled ? titleColor : Fx.flow(ctx.themes(), p, x + Layout.PAD, y);
+            r.icon(icon, x + Layout.PAD + 3.5, y + Layout.HEADER_HEIGHT / 2.0, Icons.SIZE, iconColor);
+        }
         String count = String.valueOf(shown.size());
         String title = category.getName();
-        int titleRoom = width - Layout.PAD - 10 - r.textWidth(count) - 4 - Layout.PAD;
+        int titleRoom = x + width - Layout.PAD - 10 - r.textWidth(count) - 4 - titleX;
         int titleW = r.textWidth(title);
         if (titleW > titleRoom && titleRoom > 0) {
             // long names ("Inventory") shrink to fit narrow panels instead of running into the count
             float s = Math.max(0.6f, (float) titleRoom / titleW);
             int fontH = 8;
-            r.pushTransform(x + Layout.PAD, ty + fontH * (1 - s) / 2f, s);
-            r.text(title, 0, 0, p.text());
+            r.pushTransform(titleX, ty + fontH * (1 - s) / 2f, s);
+            r.text(title, 0, 0, titleColor, look);
             r.popTransform();
         } else {
-            r.text(title, x + Layout.PAD, ty, p.text());
+            r.text(title, titleX, ty, titleColor, look);
         }
-        r.textRight(count, x + width - Layout.PAD - 10, ty, p.textDisabled());
-        Icons.chevron(r, x + width - Layout.PAD - 3, y + Layout.HEADER_HEIGHT / 2, ex, p.textMuted());
+        r.text(count, x + width - Layout.PAD - 10 - r.textWidth(count), ty, countColor, look);
+        Icons.chevron(r, x + width - Layout.PAD - 3, y + Layout.HEADER_HEIGHT / 2, ex, chevronColor);
 
         // ---- body
         if (bodyH > 0) {
@@ -217,10 +269,12 @@ public class Panel extends UIComponent {
                 int trackH = bodyH - 4;
                 int thumbH = Math.max(10, (int) (trackH * (visibleBody / (double) content)));
                 int thumbY = bodyY + 2 + (int) Math.round((trackH - thumbH) * (scroll.get() / maxScroll));
-                r.pill(x + width - 3, thumbY, 2, thumbH, ColorUtil.fade(p.accent(), scrollbar.get()));
+                r.pill(x + width - 3, thumbY, 2, thumbH,
+                        ColorUtil.fade(Fx.flow(ctx.themes(), p, x + width, thumbY), scrollbar.get()));
             }
         }
 
+        if (zoom) r.popTransform();
         r.popAlpha();
     }
 
