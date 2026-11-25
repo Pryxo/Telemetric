@@ -14,18 +14,16 @@ import java.util.function.LongPredicate;
  * @param mapVersion the {@link DungeonMap#version()} it was computed from
  * @param reachable  standable cells the player can reach (union over every position stood at); read-only
  * @param holes      deep drops next to dungeon floor, best boss-drop candidate first
- * @param rooms      room grid over the dungeon floor (minimap data)
- * @param level      the dungeon level, which is the start room's feet Y (return portal, {@link RoomLayout#level}).
- *                   Every "main level" check and the room drawing use it. MIN_VALUE if unknown and too little is
- *                   scanned
+ * @param level      the dungeon level, which is the start's feet Y (return portal, {@link DungeonLevel#of}).
+ *                   Every "main level" check uses it. MIN_VALUE if unknown and too little is scanned
  * @param bossY      lowest landing of the boss drop (the boss level), MIN_VALUE if no boss drop is known
  * @param bossDrop   the boss drop, or null. With a boss anchor this is only a drop that really falls into the boss
  *                   level, never the best-scoring room fall as a guess. Without one, it's the best main-level candidate.
  */
-public record DungeonAnalysis(long mapVersion, LongSet reachable, List<Hole> holes, RoomLayout rooms,
+public record DungeonAnalysis(long mapVersion, LongSet reachable, List<Hole> holes,
                               int level, int bossY, Hole bossDrop) {
 
-    public static final DungeonAnalysis EMPTY = new DungeonAnalysis(-1, LongSets.EMPTY_SET, List.of(), RoomLayout.EMPTY,
+    public static final DungeonAnalysis EMPTY = new DungeonAnalysis(-1, LongSets.EMPTY_SET, List.of(),
             Integer.MIN_VALUE, Integer.MIN_VALUE, null);
 
     /** The most cells one flood may add. Even a huge dungeon is only about 100k cells. */
@@ -40,7 +38,7 @@ public record DungeonAnalysis(long mapVersion, LongSet reachable, List<Hole> hol
      *                   boss drop is the drop that falls into it (see {@link BossArena#floodFromAnchor})
      */
     public static DungeonAnalysis compute(DungeonMap map, int minDropDepth, long start, LongOpenHashSet reached,
-                                          RoomLayout.Hint hint, Point bossAnchor) {
+                                          DungeonHint hint, Point bossAnchor) {
         long version = map.version();
         // Never flood from the top of the roof (flying or spectating above the dungeon). It would turn the whole roof
         // into "reachable floor" and make every room look connected.
@@ -52,20 +50,19 @@ public record DungeonAnalysis(long mapVersion, LongSet reachable, List<Hole> hol
         LongPredicate floor = anyFloor;
 
         // The boss level is the air around the boss anchor (or under the drop on the main level without one), see
-        // BossArena. Its ledges are standable and have a ceiling, so they'd count as floor and cause fake rooms,
-        // links and ledge "holes".
-        // Everything uses one dungeon level: the start room's feet Y (every dungeon starts at its return portal).
+        // BossArena. Its ledges are standable and have a ceiling, so they'd count as floor and cause fake ledge
+        // "holes".
+        // Everything uses one dungeon level: the start's feet Y (every dungeon starts at its return portal).
         // The median floor height is only a fallback when there's no start point, because on uneven ground it ends
         // up on the hill tops (Illarius' Hideout: 104 vs rooms at 100), which swallowed rooms into the boss air (0.18.10).
-        int level = RoomLayout.level(hint, RoomLayout.topFloors(map, floor, hint.spawnY()));
+        int level = DungeonLevel.of(map, floor, hint);
         // Only drops you can walk to. An unreachable floor under a ceiling (the crawl space on top of a boss dome, a
-        // sealed ledge) still counts as floor for rooms, but a "hole" there is a fall you can never take.
+        // sealed ledge) still counts as floor, but a "hole" there is a fall you can never take.
         List<Hole> holes = reachableOnly(DropDetector.detect(map, minDropDepth, floor), snapshot);
         // Dungeon rule: no boss level (the goal is the clear mobs). So no boss air and no boss drop; a deep fall here is
         // just scenery (in Illarius' Hideout, hill tops 10 above the ground got picked as the "boss drop").
         if (!hint.rules().bossLevel()) {
-            return new DungeonAnalysis(version, snapshot, holes, RoomLayout.detect(map, floor, snapshot, hint), level,
-                    Integer.MIN_VALUE, null);
+            return new DungeonAnalysis(version, snapshot, holes, level, Integer.MIN_VALUE, null);
         }
         boolean anchored = bossAnchor != null;
         // the boss air stops 2 below the dungeon level
@@ -85,7 +82,6 @@ public record DungeonAnalysis(long mapVersion, LongSet reachable, List<Hole> hol
             LongOpenHashSet bossAir = arena;
             holes = reachableOnly(DropDetector.detect(map, minDropDepth, main,
                     cell -> BossArena.contains(bossAir, cell)), snapshot);
-            floor = main;
         }
         // With an anchor, only a drop that really falls into the boss level counts (null until its rim is scanned).
         // Only falls that land below the detected dungeon level qualify; dropping off a raised platform or a hill
@@ -95,8 +91,7 @@ public record DungeonAnalysis(long mapVersion, LongSet reachable, List<Hole> hol
         holes = bossFirst(holes, boss);
         // anchored, but nothing falls into the arena yet: no boss drop (a random room fall is worse than none)
         Hole bossDrop = boss != null ? boss : anchored || candidates.isEmpty() ? null : candidates.getFirst();
-        return new DungeonAnalysis(version, snapshot, holes, RoomLayout.detect(map, floor, snapshot, hint).withDropRoom(bossDrop), level,
-                bossY, bossDrop);
+        return new DungeonAnalysis(version, snapshot, holes, level, bossY, bossDrop);
     }
 
     /**

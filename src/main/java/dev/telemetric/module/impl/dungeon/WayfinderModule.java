@@ -7,7 +7,6 @@ import dev.telemetric.dungeon.Hole;
 import dev.telemetric.dungeon.PathFinder;
 import dev.telemetric.dungeon.PathGeometry;
 import dev.telemetric.dungeon.Point;
-import dev.telemetric.dungeon.RoomLayout;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.WorldRenderAdapter;
 import dev.telemetric.module.Category;
@@ -53,7 +52,7 @@ public final class WayfinderModule extends Module {
     }
 
     public enum Style implements EnumSetting.Nameable {
-        CLEAN("Clean"), SHARP("Sharp"), ROOM_CONNECTION("Room Connection");
+        CLEAN("Clean"), SHARP("Sharp");
 
         private final String label;
 
@@ -73,22 +72,20 @@ public final class WayfinderModule extends Module {
     private static final long REPLAN_MAP_MS = 1200;
     private static final long REPLAN_PERIODIC_MS = 3000;
     private static final double OFF_ROUTE_SQ = 4.0 * 4.0;
-    private static final int ROOM_DEBUG_COLOR = 0xB0FFFFFF;
-    private static final int LINK_DEBUG_COLOR = 0xFF55FFFF;
     private static final int PAD_DEBUG_COLOR = 0xFF55FF55;
     private static final int PAD_BAD_DEBUG_COLOR = 0xFFFF5555;
-    private static final int ROOM_DEBUG_RANGE = 128;
-    /** Feet within this many blocks of the boss drop room's floor count as "in the room". */
+    private static final int PAD_DEBUG_RANGE = 128;
+    /** Feet within this many blocks of the boss drop's rim count as "at the drop's level". */
     private static final int ROOM_LEVEL_MARGIN = 4;
-    /** Without a room grid, the blocks around the drop that count as its room. */
-    private static final int NO_ROOM_PAD = 8;
+    /** How far around the drop (blocks) counts as "at the drop", if no wall is in between. */
+    private static final int DROP_AREA = 10;
     /** How far a hole has to drop to count as the boss drop (this used to be the "Drop Depth" slider). */
     private static final int DROP_DEPTH = 10;
 
     private final EnumSetting<Target> target = add(new EnumSetting<>("Target",
             "Auto: nearest treasure room, then the boss drop once no treasure is left", Target.AUTO));
     private final EnumSetting<Style> style = add(new EnumSetting<>("Style",
-            "Clean: rounded corners · Sharp: straight legs with hard corners · Room Connection: straight lines from room centre to room centre", Style.CLEAN));
+            "Clean: rounded corners · Sharp: straight legs with hard corners", Style.CLEAN));
     private final BooleanSetting showLine = add(new BooleanSetting("Show Line",
             "Draw the guiding route line (the target marker always shows)", true));
     private final NumberSetting lineWidth = add(new NumberSetting("Line Width",
@@ -103,9 +100,7 @@ public final class WayfinderModule extends Module {
             "Dungeons where the Wayfinder stays off", this::blacklistOptions));
     private final ActionSetting blacklistCurrent = add(new ActionSetting("Blacklist Current",
             "Add or remove the dungeon you are in", this::toggleCurrentDungeon));
-    private final GroupSetting debug = add(new GroupSetting("Debug", "Debug views of the room / jump pad detection"));
-    private final BooleanSetting showRooms = add(debug.child(new BooleanSetting("Show Rooms",
-            "Debug: outline the detected room grid and connections (minimap preview)", false)));
+    private final GroupSetting debug = add(new GroupSetting("Debug", "Debug view of the jump pad detection"));
     private final BooleanSetting showPads = add(debug.child(new BooleanSetting("Show Jump Pads",
             "Debug: mark every detected jump pad (green box = used for routing, red = no floor found under it)",
             false)));
@@ -234,11 +229,10 @@ public final class WayfinderModule extends Module {
     }
 
     /**
-     * True once you've entered the boss drop's room: you're inside the room segment that holds the drop, at about its
-     * level (feet within {@link #ROOM_LEVEL_MARGIN} of the room floor or rim), or inside the drop's shaft under the
-     * rim. Without a room grid, a box of {@link #NO_ROOM_PAD} blocks around the drop counts as the room. There's
-     * deliberately no "below the main level" test, because before, a low Y anywhere (falling while chunks load, a
-     * sunken room) latched it.
+     * True once you've reached the boss drop: within {@link #DROP_AREA} blocks of it at about its rim level (feet within
+     * {@link #ROOM_LEVEL_MARGIN}) with no wall between you and the drop, or inside the drop's shaft under the rim.
+     * There's deliberately no "below the main level" test, because before, a low Y anywhere (falling while chunks load,
+     * a sunken room) latched it.
      */
     private static boolean inBossSegment(DungeonTracker tracker, Hole hole, Point player) {
         double x = player.x(), y = player.y(), z = player.z();
@@ -246,14 +240,26 @@ public final class WayfinderModule extends Module {
         boolean inShaft = bx >= hole.minX() - 1 && bx <= hole.maxX() + 1 && bz >= hole.minZ() - 1
                 && bz <= hole.maxZ() + 1 && y < hole.y() - 1 && y > hole.y() - hole.depth() - 4;
         if (inShaft) return true;
-        RoomLayout.Room room = tracker.analysis().rooms().roomAt((int) Math.floor(hole.centerX()),
-                (int) Math.floor(hole.centerZ()));
-        boolean inside = room != null && room.contains(hole.minX(), hole.minZ())
-                ? room.contains(bx, bz)
-                : bx >= hole.minX() - NO_ROOM_PAD && bx <= hole.maxX() + NO_ROOM_PAD
-                  && bz >= hole.minZ() - NO_ROOM_PAD && bz <= hole.maxZ() + NO_ROOM_PAD;
-        int levelY = room != null ? room.floorY() : hole.y();
-        return inside && Math.abs(y - levelY) <= ROOM_LEVEL_MARGIN;
+        boolean near = bx >= hole.minX() - DROP_AREA && bx <= hole.maxX() + DROP_AREA
+                && bz >= hole.minZ() - DROP_AREA && bz <= hole.maxZ() + DROP_AREA;
+        if (!near || Math.abs(y - hole.y()) > ROOM_LEVEL_MARGIN) return false;
+        return openLine(tracker.map(), x, Math.floor(y + 0.01) + 1, z, hole.centerX(), hole.centerZ());
+    }
+
+    /**
+     * True if nothing blocks a straight walk at head height ({@code headY}) from (x, z) to the drop centre: the line is
+     * sampled every half block and every sampled cell must be open (unknown counts as open). Walls between rooms block it.
+     */
+    private static boolean openLine(DungeonMap map, double x, double headY, double z, double tx, double tz) {
+        double dx = tx - x, dz = tz - z;
+        int steps = Math.max(1, (int) Math.ceil(Math.hypot(dx, dz) * 2));
+        int hy = (int) headY;
+        for (int i = 1; i < steps; i++) {
+            double t = (double) i / steps;
+            int cx = (int) Math.floor(x + dx * t), cz = (int) Math.floor(z + dz * t);
+            if (map.isKnown(cx, cz) && !map.isOpen(cx, hy, cz)) return false;
+        }
+        return true;
     }
 
     /** True if it's the same boss drop, allowing a few blocks of drift between re-analyses. */
@@ -395,6 +401,19 @@ public final class WayfinderModule extends Module {
      * True while the Wayfinder has something to guide you to this run (a treasure, or the boss drop before you reached
      * it). The Dungeon Map stays shown then, wherever you stand.
      */
+    /** The route line as drawn in the world (Clean or Sharp style), or empty when there's none. For the minimap. */
+    public List<Point> routePoints() {
+        Route r = route;
+        if (r == null || !isEnabled()) return List.of();
+        return style.get() == Style.SHARP ? r.sharp() : r.clean();
+    }
+
+    /** Colour of the current route (boss or treasure colour). */
+    public int routeColor() {
+        Route r = route;
+        return r != null && r.boss() ? bossColor.get() : treasureColor.get();
+    }
+
     public boolean isTracking() {
         return isEnabled() && tracking;
     }
@@ -479,7 +498,6 @@ public final class WayfinderModule extends Module {
     private void draw(WorldRenderAdapter.LineSink sink) {
         if (!isEnabled() || !DungeonAdapter.isInDungeon()) return;
         DungeonTracker tracker = DungeonTracker.get();
-        if (showRooms.get()) drawRooms(sink, tracker);
         if (showPads.get()) drawPads(sink, tracker);
         Route r = route;
         Point player = DungeonAdapter.playerPos();
@@ -487,7 +505,6 @@ public final class WayfinderModule extends Module {
         List<Point> pts = switch (style.get()) {
             case CLEAN -> r.clean();
             case SHARP -> r.sharp();
-            case ROOM_CONNECTION -> roomConnection(r, tracker.analysis().rooms());
         };
         if (pts.isEmpty()) return;
         int color = r.boss() ? bossColor.get() : treasureColor.get();
@@ -508,37 +525,6 @@ public final class WayfinderModule extends Module {
         // blocks. The target marker still shows where to go.
         if (r.boss()) drawDrop(sink, r.hole(), r.target(), color, w, tw);
         else drawTreasure(sink, r.target(), color, w, tw);
-    }
-
-    /**
-     * Room Connection style: the rooms the route passes through, in order, joined centre to centre (like the Show
-     * Rooms links), then the last room's centre to the target. Falls back to the sharp route when no room grid has
-     * been detected.
-     */
-    private static List<Point> roomConnection(Route r, RoomLayout layout) {
-        List<Point> sharp = r.sharp();
-        if (layout.rooms().isEmpty() || sharp.isEmpty()) return sharp;
-        List<Point> out = new java.util.ArrayList<>();
-        RoomLayout.Room last = null;
-        for (int i = 0; i < sharp.size(); i++) {
-            Point a = sharp.get(i);
-            Point b = i + 1 < sharp.size() ? sharp.get(i + 1) : a;
-            // sample each leg so rooms crossed between corners don't get skipped
-            double len = Math.hypot(b.x() - a.x(), b.z() - a.z());
-            int steps = Math.max(1, (int) Math.ceil(len / 2.0));
-            for (int s = 0; s < steps; s++) {
-                double t = (double) s / steps;
-                RoomLayout.Room room = layout.roomAt((int) Math.floor(a.x() + (b.x() - a.x()) * t),
-                        (int) Math.floor(a.z() + (b.z() - a.z()) * t));
-                if (room != null && room != last) {
-                    out.add(new Point(room.centerX(), room.floorY() + 0.3, room.centerZ()));
-                    last = room;
-                }
-            }
-        }
-        if (out.isEmpty()) return sharp;
-        out.add(r.complete() ? r.target() : sharp.get(sharp.size() - 1));
-        return out;
     }
 
     private static void drawTreasure(WorldRenderAdapter.LineSink sink, Point t, int color, float w, boolean tw) {
@@ -571,48 +557,6 @@ public final class WayfinderModule extends Module {
         sink.line(x, y + 0.6, z + 0.5, x, y, z, color, w, tw);
     }
 
-    private void drawRooms(WorldRenderAdapter.LineSink sink, DungeonTracker tracker) {
-        RoomLayout layout = tracker.analysis().rooms();
-        Point p = DungeonAdapter.playerPos();
-        if (layout.rooms().isEmpty() || p == null) return;
-        Hole boss = tracker.analysis().bossDrop();
-        List<Point> treasures = tracker.treasures();
-        // visual only: draw every room and link at one height, the dungeon level, so the grid reads flat
-        int level = tracker.analysis().level();
-        double flatY = level != Integer.MIN_VALUE ? level : layout.rooms().values().iterator().next().floorY();
-        RoomLayout.Room bossRoom = bossRoom(layout, boss);
-        for (RoomLayout.Room room : layout.rooms().values()) {
-            if (Math.abs(room.centerX() - p.x()) > ROOM_DEBUG_RANGE || Math.abs(room.centerZ() - p.z()) > ROOM_DEBUG_RANGE) continue;
-            int color = ROOM_DEBUG_COLOR;
-            if (room == bossRoom) {
-                color = bossColor.get();
-            } else {
-                for (Point t : treasures) {
-                    if (layout.roomAt((int) Math.floor(t.x()), (int) Math.floor(t.z())) == room) {
-                        color = treasureColor.get();
-                        break;
-                    }
-                }
-            }
-            rect(sink, room.minX() + 0.2, room.minZ() + 0.2, room.maxX() + 0.8, room.maxZ() + 0.8,
-                    flatY + 0.1, color, 1.5f, true);
-        }
-        for (long[] link : layout.links()) {
-            RoomLayout.Room a = layout.rooms().get(link[0]), b = layout.rooms().get(link[1]);
-            if (a == null || b == null) continue;
-            double ax = a.centerX(), az = a.centerZ();
-            double bx = b.centerX(), bz = b.centerZ();
-            if (Math.abs(ax - p.x()) > ROOM_DEBUG_RANGE || Math.abs(az - p.z()) > ROOM_DEBUG_RANGE) continue;
-            sink.line(ax, flatY + 0.3, az, bx, flatY + 0.3, bz, LINK_DEBUG_COLOR, 1.5f, true);
-        }
-    }
-
-    /** The room that holds the boss drop (free-form layouts get one added over the drop, {@code RoomLayout#withDropRoom}). */
-    private static RoomLayout.Room bossRoom(RoomLayout layout, Hole boss) {
-        if (boss == null) return null;
-        return layout.roomAt((int) Math.floor(boss.centerX()), (int) Math.floor(boss.centerZ()));
-    }
-
     /**
      * Debug: every jump pad seen. Usable pads (a floor found 0..3 below the particle source) get a box on that floor,
      * unresolved ones a red box at the particle source. A vertical tick joins the floor and the source.
@@ -623,7 +567,7 @@ public final class WayfinderModule extends Module {
         DungeonMap map = tracker.map();
         for (long src : map.padSources()) {
             int x = Cell.x(src), y = Cell.y(src), z = Cell.z(src);
-            if (Math.abs(x - p.x()) > ROOM_DEBUG_RANGE || Math.abs(z - p.z()) > ROOM_DEBUG_RANGE) continue;
+            if (Math.abs(x - p.x()) > PAD_DEBUG_RANGE || Math.abs(z - p.z()) > PAD_DEBUG_RANGE) continue;
             int stand = map.standNear(x, y, z, 0, 3);
             if (stand == Integer.MIN_VALUE) {
                 rect(sink, x + 0.05, z + 0.05, x + 0.95, z + 0.95, y + 0.5, PAD_BAD_DEBUG_COLOR, 2f, true);

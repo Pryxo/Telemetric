@@ -5,13 +5,13 @@ import dev.telemetric.chat.ChatBus;
 import dev.telemetric.dungeon.rules.ChatCounter;
 import dev.telemetric.dungeon.rules.ChatPuzzles;
 import dev.telemetric.dungeon.PuzzleBoard;
-import dev.telemetric.config.PieceSizeTable;
 import dev.telemetric.dungeon.Cell;
 import dev.telemetric.dungeon.DungeonAnalysis;
 import dev.telemetric.dungeon.DungeonMap;
 import dev.telemetric.dungeon.PathFinder;
 import dev.telemetric.dungeon.Point;
-import dev.telemetric.dungeon.RoomLayout;
+import dev.telemetric.dungeon.DungeonHint;
+import dev.telemetric.map.VoxelStore;
 import dev.telemetric.dungeon.rules.DungeonRules;
 import dev.telemetric.dungeon.rules.DungeonRulebook;
 import dev.telemetric.game.BossBarAdapter;
@@ -32,8 +32,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * Shared dungeon state for every dungeon feature (the Wayfinder now, the minimap later): the walk map, glowing
- * treasures, and the analysis derived from them (holes, room grid).
+ * Shared dungeon state for every dungeon feature (Wayfinder, Dungeon Map, Dungeon Info): the walk map, the block
+ * copies the minimap is drawn from, glowing treasures, and the analysis derived from them (reachable floor, holes).
  * <p>
  * It only runs while at least one feature has {@link #acquire() acquired} it and the player is in
  * {@code telos:dungeon/<n>}. Scanning runs on the client thread under a time budget, while analysis and path finding
@@ -79,19 +79,18 @@ public final class DungeonTracker {
     private Point bossAnchor;
     private Point analysisBossAnchor;
     private volatile int generation;
-    /** The last piece size (× 1000 + measured size) logged for this dungeon, so we log once per change and not per analysis. */
-    private volatile int loggedPieceSize;
-    /** Size table entry and spawn position for the room grid, set when entering the dungeon. */
-    private volatile RoomLayout.Hint hint = RoomLayout.Hint.NONE;
+    /** Spawn position and rules, set when entering the dungeon. */
+    private volatile DungeonHint hint = DungeonHint.NONE;
+    /** Block copies for the minimap ({@code map/}); filled only while a map user has {@link #acquireBlocks() asked}. */
+    private final VoxelStore voxels = new VoxelStore();
+    private int blockUsers;
     /** This dungeon's rules ({@link DungeonRulebook}). DEFAULT outside dungeons. */
     private DungeonRules rules = DungeonRules.DEFAULT;
     /** Where the dungeon starts (its return portal, or else where the player entered). Null outside a dungeon. */
     private volatile Point spawn;
     /** Whether {@link #spawn} is the return portal ({@link DungeonAdapter#returnPortalPos}). */
     private boolean portalFound;
-    /** The piece size from the size table for this dungeon (0 if unknown). */
-    private int tableSize;
-    /** The room hint changed (the start room moved onto the portal), so analyse again even if the map didn't change. */
+    /** The hint changed (the start moved onto the portal), so analyse again even if the map didn't change. */
     private volatile boolean hintChanged;
     /** This dungeon's goal ("clear") mob name, normalised ({@link DungeonRules#goalMob()}). Null for none. */
     private String goalMob;
@@ -122,9 +121,6 @@ public final class DungeonTracker {
     /** If the player gets this close (squared) to an away mob's spot and there's no plate there, it was killed while away. */
     private static final double GOAL_CONFIRM_RANGE_SQ = 12 * 12;
 
-    /** A run only teaches the size table if its final layout had at least this many rooms. */
-    private static final int MIN_ROOMS_TO_LEARN = 3;
-
     private DungeonTracker() {}
 
     public static DungeonTracker get() {
@@ -139,6 +135,32 @@ public final class DungeonTracker {
         users = Math.max(0, users - 1);
         if (users == 0) reset();
     }
+
+    /**
+     * Asks for block copies of the scanned chunks ({@link #voxels()}), which the minimap is drawn from. Costs extra
+     * scan time, so only the map asks. Balance with {@link #releaseBlocks()}; also needs {@link #acquire()}.
+     */
+    public void acquireBlocks() {
+        if (blockUsers++ == 0) DungeonAdapter.enqueueAround(RESCAN_ALL_RADIUS); // copy what was scanned before
+    }
+
+    public void releaseBlocks() {
+        blockUsers = Math.max(0, blockUsers - 1);
+        if (blockUsers == 0) voxels.clear();
+    }
+
+    /** Block copies of the scanned dungeon chunks (empty unless {@link #acquireBlocks()} was called). */
+    public VoxelStore voxels() {
+        return voxels;
+    }
+
+    /** Drops the block copies and copies the loaded chunks again (after a resource reload made their look ids stale). */
+    public void recopyBlocks() {
+        voxels.clear();
+        if (blockUsers > 0) DungeonAdapter.enqueueAround(RESCAN_ALL_RADIUS);
+    }
+
+    private static final int RESCAN_ALL_RADIUS = 12;
 
     /** The entrypoint calls this every client tick (on Telos). Cheap when idle. */
     public void tick() {
@@ -164,7 +186,6 @@ public final class DungeonTracker {
             dungeonName = DungeonAdapter.dungeonName();
             lastHudLocation = dungeonName; // hopping straight to the next dungeon waits for a new name again
             if (dungeonName != null) seenDungeons.add(dungeonName);
-            tableSize = dungeonName == null ? 0 : PieceSizeTable.get().size(dungeonName);
             rules = DungeonRulebook.rulesFor(dungeonName);
             goalMob = rules.goalMob() == null ? null : DungeonAdapter.normalizeName(rules.goalMob());
             startCounter(rules.chatCounter());
@@ -174,8 +195,8 @@ public final class DungeonTracker {
             Point portal = DungeonAdapter.returnPortalPos();
             portalFound = portal != null;
             setSpawn(portal != null ? portal : DungeonAdapter.playerPos());
-            Telemetric.debug("Dungeon entered: dimension={} name={} table size={} spawn={} (portal {}) rules=[{}]",
-                    DungeonAdapter.dimensionId(), dungeonName, tableSize, spawn, portalFound, rules);
+            Telemetric.debug("Dungeon entered: dimension={} name={} spawn={} (portal {}) rules=[{}]",
+                    DungeonAdapter.dimensionId(), dungeonName, spawn, portalFound, rules);
         }
         // the portal wasn't loaded yet on entry, so keep looking and then move the start room onto it
         if (!portalFound && ticks % TREASURE_INTERVAL_TICKS == 0) {
@@ -196,7 +217,7 @@ public final class DungeonTracker {
             return;
         }
         if (ticks % RESCAN_INTERVAL_TICKS == 0) DungeonAdapter.enqueueAround(1);
-        DungeonAdapter.scanPending(map, SCAN_BUDGET_NANOS);
+        DungeonAdapter.scanPending(map, blockUsers > 0 ? voxels : null, SCAN_BUDGET_NANOS);
         // jump pads (yellow dust fountains), which routes and room links may ride
         for (long pad : DungeonAdapter.drainJumpPads()) {
             if (map.addPad(Cell.x(pad), Cell.y(pad), Cell.z(pad))) {
@@ -223,11 +244,11 @@ public final class DungeonTracker {
         scheduleAnalysis();
     }
 
-    /** Sets the start point and the room grid hint anchored on it (null if unknown). */
+    /** Sets the start point and the hint built on it (null if unknown). */
     private void setSpawn(Point spawn) {
         this.spawn = spawn;
-        hint = spawn == null ? new RoomLayout.Hint(tableSize, false, 0, 0, Integer.MIN_VALUE, rules)
-                : new RoomLayout.Hint(tableSize, true, (int) Math.floor(spawn.x()), (int) Math.floor(spawn.z()),
+        hint = spawn == null ? new DungeonHint(false, 0, 0, Integer.MIN_VALUE, rules)
+                : new DungeonHint(true, (int) Math.floor(spawn.x()), (int) Math.floor(spawn.z()),
                 (int) Math.floor(spawn.y() + 0.01), rules);
         hintChanged = true;
     }
@@ -247,7 +268,7 @@ public final class DungeonTracker {
         int depth = minDropDepth;
         int gen = generation;
         LongOpenHashSet union = reached;
-        RoomLayout.Hint roomHint = hint;
+        DungeonHint roomHint = hint;
         Point bossAt = bossAnchor;
         analysisDropDepth = depth;
         analysisBossAnchor = bossAt;
@@ -257,21 +278,6 @@ public final class DungeonTracker {
                 DungeonAnalysis result = DungeonAnalysis.compute(map, depth, start, union, roomHint, bossAt);
                 if (gen != generation) return; // dropped if the dungeon changed in the meantime
                 analysis = result;
-                int size = result.rooms().pieceSize(), measured = result.rooms().measuredSize();
-                if (result.rooms().freeform()) {
-                    int count = result.rooms().rooms().size();
-                    if (-count - 1 != loggedPieceSize) { // negative keys hold the free-form room count
-                        loggedPieceSize = -count - 1;
-                        Telemetric.debug("Dungeon rooms: free-form rooms={} links={}", count,
-                                result.rooms().links().size());
-                    }
-                }
-                int logKey = size * 1000 + measured;
-                if (size > 0 && logKey != loggedPieceSize) {
-                    loggedPieceSize = logKey;
-                    Telemetric.debug("Dungeon rooms: piece size={} (measured {}) rooms={}", size, measured,
-                            result.rooms().rooms().size());
-                }
             } catch (RuntimeException e) {
                 Telemetric.LOGGER.error("Dungeon analysis failed", e);
             }
@@ -352,18 +358,12 @@ public final class DungeonTracker {
     }
 
     private void reset() {
-        // teach the size table what this run measured (only from a real layout, not a half-scanned start)
-        RoomLayout rooms = analysis.rooms();
-        if (dungeonName != null && rooms.rooms().size() >= MIN_ROOMS_TO_LEARN) {
-            PieceSizeTable.get().recordRun(dungeonName, rooms.measuredSize());
-        }
         generation++;
-        loggedPieceSize = 0;
-        hint = RoomLayout.Hint.NONE;
+        hint = DungeonHint.NONE;
+        voxels.clear();
         rules = DungeonRules.DEFAULT;
         spawn = null;
         portalFound = false;
-        tableSize = 0;
         hintChanged = false;
         inDungeon = false;
         levelToken = null;

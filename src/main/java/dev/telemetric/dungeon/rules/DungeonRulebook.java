@@ -18,10 +18,6 @@ public final class DungeonRulebook {
     private static final Map<String, DungeonRules> RULES = new LinkedHashMap<>();
 
     static {
-        // halls and corridors of any length, plus outdoor ground and arcades around the keep (not rooms)
-        rule("Dwarven Frostkeep", DungeonRules.DEFAULT
-                .withRoomShape(DungeonRules.RoomShape.FREEFORM)
-                .withIndoorRoomsOnly(true));
         // clear mobs: two "Keeper of Dusk" (checked in game, 2026-11-14). No boss drop (user, 2026-11-14)
         rule("Midnight Stronghold", DungeonRules.DEFAULT.withGoalMob("Keeper of Dusk").withBossLevel(false));
         // clear mobs: "Dyerftum Overlord" (nameplate read in game, 2026-11-14). No boss drop, just the spawn and 2 clear mobs

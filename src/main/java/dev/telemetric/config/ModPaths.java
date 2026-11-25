@@ -15,7 +15,7 @@ import java.util.List;
  * config/telemetric/
  *   README.txt         what lives where
  *   settings/          meta.json, layout.json, profiles/  (your module settings + GUI layout)
- *   saved/             things the mod records for you: stash.json, tracking/, dungeon-sizes.json
+ *   saved/             things the mod records for you: stash.json, tracking/
  *   custom/            your own files: bags/ (custom bag pictures)
  *   data/overrides/    hand-placed copies of shared data tables (win over everything)
  *   data/cache/        downloaded shared data tables (safe to delete)
@@ -35,7 +35,6 @@ public final class ModPaths {
     public static final Path SAVED = ROOT.resolve("saved");
     public static final Path STASH = SAVED.resolve("stash.json");
     public static final Path TRACKING = SAVED.resolve("tracking");
-    public static final Path DUNGEON_SIZES = SAVED.resolve("dungeon-sizes.json");
 
     public static final Path CUSTOM = ROOT.resolve("custom");
     public static final Path BAGS = CUSTOM.resolve("bags");
@@ -44,6 +43,8 @@ public final class ModPaths {
     public static final Path DATA = ROOT.resolve("data");
     public static final Path DATA_OVERRIDES = DATA.resolve("overrides");
     public static final Path DATA_CACHE = DATA.resolve("cache");
+    /** Downloaded world map tiles (shared data repo {@code Maps/}). */
+    public static final Path MAPS = ROOT.resolve("maps");
 
     private static final String README = """
             Telemetric config folder
@@ -55,12 +56,12 @@ public final class ModPaths {
             saved/             Things the mod records for you.
               stash.json       Stash Overlay contents.
               tracking/        Pity counters, lifetime loot (one file per account).
-              dungeon-sizes.json  Learned dungeon room sizes (Wayfinder / map).
             custom/            Your own files.
               bags/            Custom bag pictures.
             data/
               overrides/       Put a shared data table here to override it locally.
               cache/           Downloaded shared data tables (safe to delete).
+            maps/              Downloaded world map tiles (safe to delete).
             """;
 
     private ModPaths() {}
@@ -77,7 +78,6 @@ public final class ModPaths {
             move(ROOT.resolve("profiles"), PROFILES);
             move(ROOT.resolve("stash.json"), STASH);
             move(ROOT.resolve("tracking"), TRACKING);
-            move(ROOT.resolve("dungeon-sizes.json"), DUNGEON_SIZES);
             move(ROOT.resolve("bags"), BAGS);
             move(ROOT.resolve("sounds"), SOUNDS);
             move(ROOT.resolve("data-cache"), DATA_CACHE);

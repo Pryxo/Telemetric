@@ -331,14 +331,19 @@ public final class TelosData {
         }
     }
 
-    /** {@code locations.json}: biome id to location name, plus all dungeon names (game/TelosLocations). */
+    /**
+     * {@code locations.json}: biome id to location name, all dungeon names (game/TelosLocations), and {@code liveMap}:
+     * places inside a shipped world map's dimension that the shipped tiles don't show (the Shadowlands under the realm),
+     * so the world map records the chunks around you there instead.
+     */
     public static final SharedFile<Locations> LOCATIONS = SharedData.file(DIR + "locations.json", Locations::parse, Locations.EMPTY);
 
-    public record Locations(Map<String, String> biomes, List<String> dungeons) {
-        static final Locations EMPTY = new Locations(Map.of(), List.of());
+    public record Locations(Map<String, String> biomes, List<String> dungeons, List<String> liveMap) {
+        static final Locations EMPTY = new Locations(Map.of(), List.of(), List.of());
 
         static Locations parse(JsonObject root) {
-            return new Locations(Map.copyOf(JsonFields.stringMap(root, "biomes")), List.copyOf(JsonFields.strings(root, "dungeons")));
+            return new Locations(Map.copyOf(JsonFields.stringMap(root, "biomes")), List.copyOf(JsonFields.strings(root, "dungeons")),
+                    List.copyOf(JsonFields.strings(root, "liveMap")));
         }
     }
 
@@ -386,6 +391,38 @@ public final class TelosData {
             String r = region.trim().toLowerCase(Locale.ROOT);
             for (Region g : regions) if (r.startsWith(g.prefix())) return g;
             return null;
+        }
+    }
+
+    /** {@code minibosses.json}: realm minibosses for the world map (name, spots, drops). See docs/data.md. */
+    public static final SharedFile<Minibosses> MINIBOSSES = SharedData.file(DIR + "minibosses.json", Minibosses::parse, Minibosses.EMPTY);
+
+    public record Minibosses(List<Miniboss> all) {
+        static final Minibosses EMPTY = new Minibosses(List.of());
+
+        /** @param dimension dimension id prefix the spots are in ("telos:realm"), {@code drops} as "Name (5%)" lines */
+        public record Miniboss(String name, String dimension, List<BossTable.Spot> positions, List<String> drops) {}
+
+        static Minibosses parse(JsonObject root) {
+            List<Miniboss> out = new ArrayList<>();
+            for (JsonObject m : JsonFields.objects(root, "minibosses")) {
+                String name = JsonFields.str(m, "name");
+                if (name.isEmpty()) continue;
+                List<BossTable.Spot> spots = new ArrayList<>();
+                for (JsonObject p : JsonFields.objects(m, "positions")) {
+                    spots.add(new BossTable.Spot(name, JsonFields.integer(p, "x", 0), JsonFields.integer(p, "y", 0),
+                            JsonFields.integer(p, "z", 0)));
+                }
+                List<String> drops = new ArrayList<>();
+                for (JsonObject d : JsonFields.objects(m, "drops")) {
+                    String dn = JsonFields.str(d, "name");
+                    if (dn.isEmpty()) continue;
+                    drops.add(d.has("chance") ? dn + " (" + d.get("chance").getAsString() + "%)" : dn);
+                }
+                String dim = JsonFields.str(m, "dimension");
+                out.add(new Miniboss(name, dim.isEmpty() ? "telos:realm" : dim, List.copyOf(spots), List.copyOf(drops)));
+            }
+            return new Minibosses(List.copyOf(out));
         }
     }
 

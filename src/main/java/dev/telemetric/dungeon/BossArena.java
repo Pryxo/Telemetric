@@ -9,9 +9,8 @@ import java.util.List;
  * The boss level: the open space you land in when you take the boss drop.
  * <p>
  * Telos boss arenas sit under (or next to) the dungeon pieces. Their ledges are standable, have a ceiling over them,
- * and are often less than {@code RoomLayout}'s boss cutoff below the main floor (Corvus Crypt: ledges at y 85–92,
- * room level 100). So they'd count as dungeon floor and give us fake low rooms, false room links, and "holes" at the
- * ledge edges that score higher than the real drop.
+ * and are often only a few blocks below the main floor (Corvus Crypt: ledges at y 85–92, dungeon level 100). So
+ * they'd count as dungeon floor and give us "holes" at the ledge edges that score higher than the real drop.
  * <p>
  * So when we have a boss anchor (the boss-bar mob's feet, or the boss's nameplate when the boss itself is
  * invisible), we flood the open air starting from the floor under the anchor. The flood is capped 2 blocks under the
@@ -119,7 +118,7 @@ public final class BossArena {
      * Fallback flood when there's no boss anchor: open-air cells under {@code drop}, seeded where its columns land at
      * least {@code minDepth} down. Empty if it lands nowhere.
      *
-     * @param level    dungeon level ({@link RoomLayout#level})
+     * @param level    dungeon level ({@link DungeonLevel#of})
      * @param minDepth minimum drop depth (shallower landings aren't the arena)
      */
     public static LongOpenHashSet flood(DungeonMap map, Hole drop, int level, int minDepth) {

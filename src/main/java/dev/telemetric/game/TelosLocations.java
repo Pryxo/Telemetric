@@ -32,6 +32,18 @@ public final class TelosLocations {
         return TelosData.LOCATIONS.get().dungeons();
     }
 
+    /**
+     * True if the shipped world map tiles don't show this place ({@code locations.json} → {@code liveMap}, e.g. the
+     * Shadowlands under the realm surface), so the map is recorded live there.
+     */
+    public static boolean isLiveMap(String location) {
+        if (location == null) return false;
+        for (String name : TelosData.LOCATIONS.get().liveMap()) {
+            if (name.equalsIgnoreCase(location)) return true;
+        }
+        return false;
+    }
+
     /** The location for a biome id, or null if the biome is unknown or shared by several places. */
     public static String forBiome(String biomeId) {
         return biomeId == null ? null : byBiome().get(biomeId);

@@ -206,8 +206,11 @@ public final class DungeonAdapter {
         PENDING.add(((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL));
     }
 
-    /** Scans queued chunks into the map until the time budget runs out. Returns how many chunks were scanned. */
-    public static int scanPending(DungeonMap map, long budgetNanos) {
+    /**
+     * Scans queued chunks into the map (and copies their blocks into {@code voxels} for the minimap, if not null) until
+     * the time budget runs out. Returns how many chunks were scanned.
+     */
+    public static int scanPending(DungeonMap map, dev.telemetric.map.VoxelStore voxels, long budgetNanos) {
         ClientLevel level = level();
         if (level == null || PENDING.isEmpty()) return 0;
         long deadline = System.nanoTime() + budgetNanos;
@@ -220,6 +223,7 @@ public final class DungeonAdapter {
             LevelChunk chunk = level.getChunkSource().getChunk(cx, cz, ChunkStatus.FULL, false);
             if (chunk == null) continue;
             map.put(scan(chunk, cx, cz));
+            if (voxels != null) MapAdapter.capture(voxels, cx, cz);
             done++;
         }
         return done;
@@ -349,7 +353,7 @@ public final class DungeonAdapter {
      * @param skin skin texture id ({@code "namespace:path"}, 64×64; face at 8,8 and hat layer at 40,8)
      * @param yaw  body yaw in degrees (0 is south / +Z)
      */
-    public record PlayerMarker(String skin, double x, double z, float yaw, boolean self) {}
+    public record PlayerMarker(String skin, double x, double y, double z, float yaw, boolean self) {}
 
     /** Every player in the current level (the local player included, flagged {@code self}). */
     public static List<PlayerMarker> players() {
@@ -360,7 +364,7 @@ public final class DungeonAdapter {
         for (net.minecraft.client.player.AbstractClientPlayer p : level.players()) {
             if (p.isRemoved() || p.isSpectator()) continue;
             String skin = p.getSkin().body().texturePath().toString();
-            out.add(new PlayerMarker(skin, p.getX(), p.getZ(), p.getYRot(), p == self));
+            out.add(new PlayerMarker(skin, p.getX(), p.getY(), p.getZ(), p.getYRot(), p == self));
         }
         return out;
     }
@@ -428,6 +432,27 @@ public final class DungeonAdapter {
             if (!letters.isEmpty()) out.add(new NearPlate(letters, d2));
         }
         out.sort(java.util.Comparator.comparingDouble(NearPlate::distanceSq));
+        return out;
+    }
+
+    /** A nameplate whose letters are one of the names asked for, and where it is. */
+    public record KnownPlate(String letters, Point pos) {}
+
+    /** Nameplates within {@code range} blocks whose decoded letters ({@link #plateLetters}) are in {@code names}. */
+    public static List<KnownPlate> namePlatesIn(java.util.Set<String> names, double range) {
+        ClientLevel level = level();
+        List<KnownPlate> out = new ArrayList<>();
+        var player = Minecraft.getInstance().player;
+        if (level == null || player == null || names.isEmpty()) return out;
+        double r2 = range * range;
+        for (Entity e : level.entitiesForRendering()) {
+            if (e.isRemoved() || !(e instanceof net.minecraft.world.entity.Display.TextDisplay td)) continue;
+            if (e.distanceToSqr(player) > r2) continue;
+            net.minecraft.network.chat.Component text = ((dev.telemetric.mixin.TextDisplayAccessor) td).telemetric$getText();
+            if (text == null) continue;
+            String letters = plateLetters(text.getString());
+            if (names.contains(letters)) out.add(new KnownPlate(letters, new Point(e.getX(), e.getY(), e.getZ())));
+        }
         return out;
     }
 
