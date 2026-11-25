@@ -27,6 +27,7 @@
 		"HotbarSlotMixin",
 		"HumanoidMobRendererMixin",
 		"ItemModelResolverMixin",
+		"KeyboardInputMixin",
 		"LightmapMixin",
 		"LivingEntityAccessor",
 		"LivingEntityRendererMixin",

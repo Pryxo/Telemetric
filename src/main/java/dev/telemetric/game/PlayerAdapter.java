@@ -155,6 +155,12 @@ public final class PlayerAdapter {
         return p == null ? null : new Health(p.getHealth(), p.getMaxHealth());
     }
 
+    /** Ticks left on the hurt animation (> 0 right after a hit), or 0 outside a world. */
+    public static int hurtTime() {
+        LocalPlayer p = player();
+        return p == null ? 0 : p.hurtTime;
+    }
+
     /**
      * Changes (by identity) whenever the player is put into another world: realm, hub, dungeon. Compare it between
      * ticks to notice a world change. Null outside a world.
