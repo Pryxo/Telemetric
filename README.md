@@ -28,8 +28,6 @@ This project was heavily inspired by [Melinoe](https://modrinth.com/mod/melinoe)
 I took significant inspiration from its concepts and implementation.
 Full credit goes to the original author(s) of Melinoe for the ideas and work that inspired this project.
 
-The angled map look (dungeon minimap) is inspired by [Diorama](https://github.com/SunkenInTime/diorama) (MIT) — our own implementation of the same idea.
-
 Special thanks to [rasmusaj2](<https://discord.com/users/236810605024116737>) for providing the API used by this project.
 
 ## Installation

@@ -83,7 +83,6 @@ public final class Telemetric implements ClientModInitializer {
         Keybinds.register();
         HudOverlay.register();
         WorldRenderAdapter.register();
-        dev.telemetric.worldmap.MapWaypoints.register();
         dev.telemetric.game.ScenePreviewAdapter.register();
         DungeonAdapter.register();
         ChatAdapter.register();
@@ -122,7 +121,6 @@ public final class Telemetric implements ClientModInitializer {
         wasOnTelos = onTelos;
         if (!onTelos) {
             Keybinds.consumeOpenGui(); // throw away presses made off Telos
-            Keybinds.consumeWorldMap();
             if (client.screen instanceof ClickGuiScreen || client.screen instanceof HudEditorScreen
                     || client.screen instanceof dev.telemetric.ui.confirm.ConfirmScreen) {
                 client.setScreen(null);
@@ -132,9 +130,6 @@ public final class Telemetric implements ClientModInitializer {
         if (Keybinds.consumeOpenGui() && client.screen == null) {
             client.setScreen(new ClickGuiScreen());
         }
-        if (Keybinds.consumeWorldMap()) dev.telemetric.ui.map.WorldMapScreen.openMap();
-        dev.telemetric.worldmap.WorldMapSource.get().tick();
-        dev.telemetric.worldmap.MapWaypoints.tick();
         dev.telemetric.game.ScreenOpener.tick(client); // /tm, /tm edithud
         moduleKeyHandler.tick();
         DungeonTracker.get().tick();

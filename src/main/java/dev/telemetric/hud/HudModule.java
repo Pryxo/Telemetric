@@ -73,7 +73,7 @@ public abstract class HudModule extends Module {
         this(name, description, Category.STATS, defaultX, defaultY, enabledByDefault);
     }
 
-    /** A HUD element listed in another panel (e.g. the Dungeon minimap). It's still drawn and edited like every HUD element. */
+    /** A HUD element listed in another panel (e.g. Dungeon Info). It's still drawn and edited like every HUD element. */
     protected HudModule(String name, String description, Category category, double defaultX, double defaultY,
                         boolean enabledByDefault) {
         this(name, description, category, defaultX, defaultY, enabledByDefault, 1.0);
@@ -203,7 +203,7 @@ public abstract class HudModule extends Module {
         return this;
     }
 
-    /** True for elements that draw their own background panel ({@link LinesHudModule}, DPS Log, Dungeon Map). */
+    /** True for elements that draw their own background panel ({@link LinesHudModule}, DPS Log). */
     protected boolean drawsOwnFrame() {
         return false;
     }

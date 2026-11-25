@@ -42,7 +42,7 @@ public final class DungeonRulebook {
                         .run(".+", ChatPattern.ITALIC)
                         .build(),
                 java.util.regex.Pattern.compile("\\((?<n>\\d+)/\\d+\\)"))));
-        // 3 puzzle rooms, 2 of which spawn the boss; no Wayfinder or Dungeon Map (user, 2026-11-14). The messages (read live
+        // 3 puzzle rooms, 2 of which spawn the boss; no Wayfinder (user, 2026-11-14). The messages (read live
         // 2026-11-14) only differ by colour, with no bold or italic, so each is one plain run
         rule("Dreadwood Thicket", DungeonRules.DEFAULT.withChatPuzzles(new ChatPuzzles(
                 "Completed Room", 3,
@@ -73,7 +73,7 @@ public final class DungeonRulebook {
         if (dungeon == null) return DungeonRules.DEFAULT;
         String key = normalize(dungeon);
         DungeonRules r = RULES.getOrDefault(key, DungeonRules.DEFAULT);
-        // no Wayfinder or Dungeon Map for the dungeons in dungeons.json → unmapped (location names, matched normalised)
+        // no Wayfinder for the dungeons in dungeons.json → unmapped (location names, matched normalised)
         for (String u : TelosData.DUNGEON_TABLE.get().unmapped()) if (normalize(u).equals(key)) return r.withMapped(false);
         return r;
     }

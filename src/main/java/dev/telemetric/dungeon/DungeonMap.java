@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Walkability map of the current dungeon, with one immutable {@link ChunkCells} per scanned chunk.
  * <p>
  * Safe for one writer (the client thread, scanning) and any number of readers (the path/analysis worker), since
- * entries are immutable and swapped atomically. Chunks stay after they unload, so routes and the (future) minimap
+ * entries are immutable and swapped atomically. Chunks stay after they unload, so routes
  * cover everything you've explored. The map is cleared when the dungeon changes.
  */
 public final class DungeonMap {

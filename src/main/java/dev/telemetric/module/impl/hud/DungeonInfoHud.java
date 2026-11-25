@@ -20,7 +20,7 @@ import java.util.List;
  * players in the dungeon, and puzzle rooms ({@code DungeonRules#chatPuzzles}: a completed count plus one row per room
  * with the player attempting it).
  * Hidden outside dungeons ({@code telos:dungeon/<n>}, {@code telos:neo_eden/<n>}). It acquires {@link DungeonTracker}
- * itself, so it works without the Wayfinder or Dungeon Map.
+ * itself, so it works without the Wayfinder.
  */
 public final class DungeonInfoHud extends LinesHudModule {
 

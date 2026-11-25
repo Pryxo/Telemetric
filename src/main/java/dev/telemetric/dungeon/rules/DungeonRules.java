@@ -8,8 +8,8 @@ package dev.telemetric.dungeon.rules;
  * Pure Java (no Minecraft imports). It travels to the worker thread inside {@code DungeonHint}.
  *
  * @param goalMob          name of the dungeon's "clear" mobs (Dungeon Goal), or null. Dungeon Info counts them as
- *                         killed/total and the Dungeon Map marks them ({@code DungeonTracker#goals()})
- * @param mapped           false turns off the block scan and analysis, so the Wayfinder and Dungeon Map stay
+ *                         killed/total ({@code DungeonTracker#goals()})
+ * @param mapped           false turns off the block scan and analysis, so the Wayfinder stays
  *                         off here (Dungeon Info still works)
  * @param bossLevel        false means the dungeon has no boss drop or boss level (the goal is its clear mobs). Then
  *                         there's no boss anchor, boss air or boss drop, so no drop marker on the map and no boss-drop

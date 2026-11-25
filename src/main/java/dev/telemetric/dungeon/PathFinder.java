@@ -103,7 +103,7 @@ public final class PathFinder {
             if ((expanded & 1023) == 0 && cancelled.getAsBoolean()) return null;
 
             int n = neighbours(map, current.cell, neighbour, cost);
-            // the deep drops that Reachability (minimap) counts as reachable: same move set, just expensive
+            // the deep drops that Reachability counts as reachable: same move set, just expensive
             int deep = Reachability.longFalls(map, current.cell, longFall);
             for (int i = 0; i < deep; i++) {
                 int fall = Cell.y(current.cell) - Cell.y(longFall[i]);

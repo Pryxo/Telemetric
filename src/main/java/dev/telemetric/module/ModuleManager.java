@@ -13,7 +13,6 @@ import dev.telemetric.module.impl.combat.LowHealthWarningHud;
 import dev.telemetric.module.impl.combat.HeldCooldownHud;
 import dev.telemetric.module.impl.combat.ItemRangeModule;
 import dev.telemetric.module.impl.combat.ReadyAlertsHud;
-import dev.telemetric.module.impl.dungeon.DungeonMapHud;
 import dev.telemetric.module.impl.dungeon.WayfinderModule;
 import dev.telemetric.module.impl.hud.DpsLogHud;
 import dev.telemetric.module.impl.hud.DpsMeterHud;
@@ -119,7 +118,6 @@ public final class ModuleManager {
 
         // Dungeons & Bosses (Wayfinder and map only active in telos:dungeon/<n>)
         register(new WayfinderModule());
-        register(new DungeonMapHud()); // HUD element that's listed in the Dungeon panel
 
         // Social (chat, call-outs, Discord)
         register(new ChatModule());

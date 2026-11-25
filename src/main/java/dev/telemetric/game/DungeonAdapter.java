@@ -207,10 +207,9 @@ public final class DungeonAdapter {
     }
 
     /**
-     * Scans queued chunks into the map (and copies their blocks into {@code voxels} for the minimap, if not null) until
-     * the time budget runs out. Returns how many chunks were scanned.
+     * Scans queued chunks into the map until the time budget runs out. Returns how many chunks were scanned.
      */
-    public static int scanPending(DungeonMap map, dev.telemetric.map.VoxelStore voxels, long budgetNanos) {
+    public static int scanPending(DungeonMap map, long budgetNanos) {
         ClientLevel level = level();
         if (level == null || PENDING.isEmpty()) return 0;
         long deadline = System.nanoTime() + budgetNanos;
@@ -223,7 +222,6 @@ public final class DungeonAdapter {
             LevelChunk chunk = level.getChunkSource().getChunk(cx, cz, ChunkStatus.FULL, false);
             if (chunk == null) continue;
             map.put(scan(chunk, cx, cz));
-            if (voxels != null) MapAdapter.capture(voxels, cx, cz);
             done++;
         }
         return done;
@@ -348,7 +346,7 @@ public final class DungeonAdapter {
     }
 
     /**
-     * A player for the dungeon minimap.
+     * A player in the level (Dungeon Info player count).
      *
      * @param skin skin texture id ({@code "namespace:path"}, 64×64; face at 8,8 and hat layer at 40,8)
      * @param yaw  body yaw in degrees (0 is south / +Z)

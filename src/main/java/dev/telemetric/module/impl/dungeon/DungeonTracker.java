@@ -11,7 +11,6 @@ import dev.telemetric.dungeon.DungeonMap;
 import dev.telemetric.dungeon.PathFinder;
 import dev.telemetric.dungeon.Point;
 import dev.telemetric.dungeon.DungeonHint;
-import dev.telemetric.map.VoxelStore;
 import dev.telemetric.dungeon.rules.DungeonRules;
 import dev.telemetric.dungeon.rules.DungeonRulebook;
 import dev.telemetric.game.BossBarAdapter;
@@ -32,8 +31,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * Shared dungeon state for every dungeon feature (Wayfinder, Dungeon Map, Dungeon Info): the walk map, the block
- * copies the minimap is drawn from, glowing treasures, and the analysis derived from them (reachable floor, holes).
+ * Shared dungeon state for every dungeon feature (Wayfinder, Dungeon Info): the walk map, glowing treasures, and the
+ * analysis derived from them (reachable floor, holes).
  * <p>
  * It only runs while at least one feature has {@link #acquire() acquired} it and the player is in
  * {@code telos:dungeon/<n>}. Scanning runs on the client thread under a time budget, while analysis and path finding
@@ -81,9 +80,6 @@ public final class DungeonTracker {
     private volatile int generation;
     /** Spawn position and rules, set when entering the dungeon. */
     private volatile DungeonHint hint = DungeonHint.NONE;
-    /** Block copies for the minimap ({@code map/}); filled only while a map user has {@link #acquireBlocks() asked}. */
-    private final VoxelStore voxels = new VoxelStore();
-    private int blockUsers;
     /** This dungeon's rules ({@link DungeonRulebook}). DEFAULT outside dungeons. */
     private DungeonRules rules = DungeonRules.DEFAULT;
     /** Where the dungeon starts (its return portal, or else where the player entered). Null outside a dungeon. */
@@ -135,32 +131,6 @@ public final class DungeonTracker {
         users = Math.max(0, users - 1);
         if (users == 0) reset();
     }
-
-    /**
-     * Asks for block copies of the scanned chunks ({@link #voxels()}), which the minimap is drawn from. Costs extra
-     * scan time, so only the map asks. Balance with {@link #releaseBlocks()}; also needs {@link #acquire()}.
-     */
-    public void acquireBlocks() {
-        if (blockUsers++ == 0) DungeonAdapter.enqueueAround(RESCAN_ALL_RADIUS); // copy what was scanned before
-    }
-
-    public void releaseBlocks() {
-        blockUsers = Math.max(0, blockUsers - 1);
-        if (blockUsers == 0) voxels.clear();
-    }
-
-    /** Block copies of the scanned dungeon chunks (empty unless {@link #acquireBlocks()} was called). */
-    public VoxelStore voxels() {
-        return voxels;
-    }
-
-    /** Drops the block copies and copies the loaded chunks again (after a resource reload made their look ids stale). */
-    public void recopyBlocks() {
-        voxels.clear();
-        if (blockUsers > 0) DungeonAdapter.enqueueAround(RESCAN_ALL_RADIUS);
-    }
-
-    private static final int RESCAN_ALL_RADIUS = 12;
 
     /** The entrypoint calls this every client tick (on Telos). Cheap when idle. */
     public void tick() {
@@ -217,7 +187,7 @@ public final class DungeonTracker {
             return;
         }
         if (ticks % RESCAN_INTERVAL_TICKS == 0) DungeonAdapter.enqueueAround(1);
-        DungeonAdapter.scanPending(map, blockUsers > 0 ? voxels : null, SCAN_BUDGET_NANOS);
+        DungeonAdapter.scanPending(map, SCAN_BUDGET_NANOS);
         // jump pads (yellow dust fountains), which routes and room links may ride
         for (long pad : DungeonAdapter.drainJumpPads()) {
             if (map.addPad(Cell.x(pad), Cell.y(pad), Cell.z(pad))) {
@@ -360,7 +330,6 @@ public final class DungeonTracker {
     private void reset() {
         generation++;
         hint = DungeonHint.NONE;
-        voxels.clear();
         rules = DungeonRules.DEFAULT;
         spawn = null;
         portalFound = false;
@@ -418,7 +387,7 @@ public final class DungeonTracker {
         return dungeonName;
     }
 
-    /** False in dungeons whose rules turn off the Wayfinder and Dungeon Map ({@link DungeonRules#mapped()}). */
+    /** False in dungeons whose rules turn off the Wayfinder ({@link DungeonRules#mapped()}). */
     public boolean isMapped() {
         return rules.mapped();
     }

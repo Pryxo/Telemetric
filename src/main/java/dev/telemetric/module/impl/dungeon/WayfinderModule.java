@@ -397,23 +397,6 @@ public final class WayfinderModule extends Module {
         return sb.toString();
     }
 
-    /**
-     * True while the Wayfinder has something to guide you to this run (a treasure, or the boss drop before you reached
-     * it). The Dungeon Map stays shown then, wherever you stand.
-     */
-    /** The route line as drawn in the world (Clean or Sharp style), or empty when there's none. For the minimap. */
-    public List<Point> routePoints() {
-        Route r = route;
-        if (r == null || !isEnabled()) return List.of();
-        return style.get() == Style.SHARP ? r.sharp() : r.clean();
-    }
-
-    /** Colour of the current route (boss or treasure colour). */
-    public int routeColor() {
-        Route r = route;
-        return r != null && r.boss() ? bossColor.get() : treasureColor.get();
-    }
-
     public boolean isTracking() {
         return isEnabled() && tracking;
     }

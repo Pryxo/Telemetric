@@ -43,8 +43,6 @@ public final class ModPaths {
     public static final Path DATA = ROOT.resolve("data");
     public static final Path DATA_OVERRIDES = DATA.resolve("overrides");
     public static final Path DATA_CACHE = DATA.resolve("cache");
-    /** Downloaded world map tiles (shared data repo {@code Maps/}). */
-    public static final Path MAPS = ROOT.resolve("maps");
 
     private static final String README = """
             Telemetric config folder
@@ -61,7 +59,6 @@ public final class ModPaths {
             data/
               overrides/       Put a shared data table here to override it locally.
               cache/           Downloaded shared data tables (safe to delete).
-            maps/              Downloaded world map tiles (safe to delete).
             """;
 
     private ModPaths() {}

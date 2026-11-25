@@ -47,10 +47,6 @@ public final class Durations {
     public static final int FLOW_LOOP = 3200;
     /** Time a background particle (Interface → Particles) needs to drift one screen height. Looping, so not capped. */
     public static final int PARTICLE_DRIFT_LOOP = 26000;
-    /** Map fog (clouds over unknown map areas): one full drift cycle of the fog noise. Looping, so not capped. */
-    public static final int MAP_FOG_DRIFT_LOOP = 1_200_000;
-    /** Map fog: how often the drifting fog image is rendered again (real time, not an animation length). */
-    public static final int MAP_FOG_REFRESH = 50;
     /** A click ripple spreading over a row and fading out. */
     public static final int RIPPLE = 450;
     /** A bouncy switch knob (Interface → Bouncy Toggles): longer than MICRO so the overshoot is visible. */

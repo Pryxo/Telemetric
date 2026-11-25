@@ -250,7 +250,6 @@ public final class ConfigManager {
         int version = json.has("version") ? json.get("version").getAsInt() : 1;
         // if (version < 2) { ...; version = 2; }
         renameModule(json, "Nametags", "Status Title");
-        renameModule(json, "Dungeon Map", "Minimap");
         if (json.has("modules") && json.get("modules").isJsonObject()) mergeNametag(json.getAsJsonObject("modules"));
         json.addProperty("version", Math.max(version, FORMAT_VERSION));
         return json;
