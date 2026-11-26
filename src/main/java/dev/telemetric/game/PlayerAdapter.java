@@ -1,7 +1,6 @@
 package dev.telemetric.game;
 
 import dev.telemetric.dungeon.Point;
-import dev.telemetric.mixin.LivingEntityAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -25,17 +24,7 @@ public final class PlayerAdapter {
         return player() != null;
     }
 
-    /** True while the vanilla jump key (Options → Controls) is held and no screen is open. */
-    public static boolean isJumpKeyHeld() {
-        Minecraft mc = Minecraft.getInstance();
-        return mc.screen == null && mc.options.keyJump.isDown();
-    }
 
-    /** Remaining ticks of the vanilla jump cooldown (0 means you can jump). */
-    public static int jumpCooldown() {
-        LocalPlayer p = player();
-        return p == null ? 0 : ((LivingEntityAccessor) p).telemetric$getNoJumpDelay();
-    }
 
     /** Registered id of the biome the player stands in ("minecraft:warped_forest"), or null outside a world. */
     public static String biomeId() {
@@ -77,14 +66,6 @@ public final class PlayerAdapter {
         return sb.isEmpty() ? id : sb.toString();
     }
 
-    /**
-     * Clears the vanilla jump cooldown. Vanilla only jumps from the ground when it's 0, so with it cleared, a held jump
-     * key fires on the very next tick after landing.
-     */
-    public static void clearJumpCooldown() {
-        LocalPlayer p = player();
-        if (p != null) ((LivingEntityAccessor) p).telemetric$setNoJumpDelay(0);
-    }
 
     /** True while the vanilla attack key (left click by default) is held and no screen is open. */
     public static boolean isAttackKeyHeld() {

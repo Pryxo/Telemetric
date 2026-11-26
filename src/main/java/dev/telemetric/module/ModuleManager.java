@@ -8,7 +8,6 @@ import dev.telemetric.Telemetric;
 import dev.telemetric.module.impl.combat.ArmorCooldownsHud;
 import dev.telemetric.module.impl.combat.AssassinStacksHud;
 import dev.telemetric.module.impl.combat.AutoClickerModule;
-import dev.telemetric.module.impl.combat.SneakAbilityModule;
 import dev.telemetric.module.impl.combat.LowHealthWarningHud;
 import dev.telemetric.module.impl.combat.HeldCooldownHud;
 import dev.telemetric.module.impl.combat.ItemRangeModule;
@@ -27,7 +26,6 @@ import dev.telemetric.module.impl.misc.ShareSettingsModule;
 import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.module.impl.misc.InterfaceModule;
 import dev.telemetric.module.impl.misc.ThemeModule;
-import dev.telemetric.module.impl.player.AutoJumpModule;
 import dev.telemetric.module.impl.player.AutoSprintModule;
 import dev.telemetric.module.impl.player.KeybindsModule;
 import dev.telemetric.module.impl.social.CalloutsModule;
@@ -76,7 +74,6 @@ public final class ModuleManager {
         register(new ShareSettingsModule());
 
         // Movement & Controls
-        register(new AutoJumpModule());
         register(new AutoSprintModule());
         register(new KeybindsModule());
 
@@ -91,7 +88,6 @@ public final class ModuleManager {
         register(new AssassinStacksHud());
         register(new LowHealthWarningHud());
         register(new AutoClickerModule());
-        register(new SneakAbilityModule());
 
         // Character / World & Rendering / Inventory & Loot / Dungeons & Bosses (former Visual modules)
         register(new StashOverlayModule());
