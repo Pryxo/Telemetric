@@ -14,9 +14,9 @@ import java.util.ArrayDeque;
  * Combat → Sneak Ability: one key for Telos abilities that need "sneak N times in quick succession" (e.g. Shadow Silk
  * leggings, 3 sneaks). Each sneak is shift on + shift off, sent through {@link SneakAdapter} in one of three ways:
  * <ul>
- *   <li><b>Packet Burst</b>: every shift toggle as its own input packet in the same moment (fastest, no crouch).</li>
- *   <li><b>Packet Ticks</b>: one shift toggle per client tick (2 × Sneaks ticks, no crouch).</li>
- *   <li><b>Sneak Key</b>: the vanilla sneak key is held / released for one tick each (you really crouch).</li>
+ *   <li>Packet Burst: every shift toggle as its own input packet in the same moment (fastest, no crouch).</li>
+ *   <li>Packet Ticks: one shift toggle per client tick (2 × Sneaks ticks, no crouch).</li>
+ *   <li>Sneak Key: the vanilla sneak key is held / released for one tick each (you really crouch).</li>
  * </ul>
  * Every sequence ends on the shift state it started with, so vanilla's own input stays in sync.
  */
@@ -71,7 +71,6 @@ public final class SneakAbilityModule extends Module {
         }
     }
 
-    /** Applies the next queued state, at most once per client tick. */
     private void step() {
         long tick = ModuleManager.tickCount();
         if (tick == lastStepTick) return;

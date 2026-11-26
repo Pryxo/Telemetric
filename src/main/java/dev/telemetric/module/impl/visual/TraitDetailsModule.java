@@ -13,9 +13,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Visual → Trait Details: under each unique trait in an item's lore ({@code <tier glyph> <name>}) it adds the trait's
- * description with the numbers for that tier, from the wiki's trait table ({@code tables/traits.json}). It has no data
- * of its own, so new traits show up when the table updates.
+ * Adds the trait's description with the numbers for its tier under each unique trait in an item's lore
+ * ({@code <tier glyph> <name>}), from {@code tables/traits.json}. No data of its own, so new traits show up when the
+ * table updates.
  */
 public class TraitDetailsModule extends Module {
 

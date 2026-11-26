@@ -26,21 +26,15 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * MC ADAPTER: client and server facts for HUD elements. FPS, your own ping, and the stats Telos Realms publishes in
- * the Tab list.
+ * Client and server facts for HUD elements: FPS, your ping, and the stats Telos publishes in the Tab list.
  * <p>
- * Telos fills the Tab list with fake entries whose display names read {@code "➜ Label: value (extra)"}.
- * Parsing rules ({@link #parseEntry}):
- * <ul>
- *   <li>invisible spacing characters (BMP private use, Yi block) are dropped,</li>
- *   <li>{@link ChatFormatting#DARK_GRAY} segments are dropped (the {@code (42.1%)} extras), and so is any trailing
- *       {@code (...)} as a fallback,</li>
- *   <li>the first pack glyph before the colon (custom font or supplementary-plane char) becomes the icon, and
- *       other glyphs and leading symbols (arrows, dots) before the label are stripped,</li>
- *   <li>the value keeps every styled piece (colour + font) as {@link TextRun}s, so values with several colours
- *       render exactly like they do in the Tab list,</li>
- *   <li>entries without a {@code ':'} (section titles, real players) are ignored.</li>
- * </ul>
+ * Telos fills the Tab list with fake entries whose display names read {@code "➜ Label: value (extra)"}. Parsing
+ * ({@link #parseEntry}): invisible spacing characters (BMP private use, Yi block) are dropped; DARK_GRAY segments are
+ * dropped (the {@code (42.1%)} extras), and so is a trailing {@code (...)}; the first pack glyph before the colon becomes
+ * the icon, and other leading glyphs and symbols before the label are stripped; the value keeps each styled piece (colour
+ * and font) as a {@link TextRun}, so multi-colour values render like they do in the Tab list; entries without a colon
+ * (section titles, real players) are ignored.
+ * <p>
  * The snapshot is rebuilt at most every {@link #REFRESH_MS} ms. Each label's raw segments get logged once.
  */
 public final class ServerInfoAdapter {
@@ -69,8 +63,6 @@ public final class ServerInfoAdapter {
     public static int fps() {
         return Minecraft.getInstance().getFps();
     }
-
-    // ---------------------------------------------------------------- TPS
 
     /** The server sends the world time once every 20 ticks, so the gap between two time packets is 1 s at 20 TPS. */
     private static final int TPS_SAMPLES = 5;
@@ -133,8 +125,6 @@ public final class ServerInfoAdapter {
     public static Optional<TabStat> tabStat(String label) {
         return Optional.ofNullable(tabStats().get(label.toLowerCase(Locale.ROOT)));
     }
-
-    // ---------------------------------------------------------------- Tab list extras ("(17.3%)" next to a stat)
 
     /** Text to show next to one Tab-list stat (e.g. its real %), or null for none. */
     public interface TabExtraSource {
@@ -282,7 +272,7 @@ public final class ServerInfoAdapter {
         }
         if (colon <= 0) return null;
 
-        // ---- label (plus the icon glyph in front of it)
+        // label, plus the icon glyph in front of it
         HudIcon.Glyph icon = null;
         StringBuilder label = new StringBuilder();
         int labelColor = NO_COLOR;
@@ -300,7 +290,7 @@ public final class ServerInfoAdapter {
         }
         String labelText = label.toString().replaceAll("\\s+", " ").trim();
 
-        // ---- value: every styled cell after the colon (whitespace collapsed, a trailing "(...)" dropped)
+        // value: every styled cell after the colon (whitespace collapsed, trailing "(...)" dropped)
         List<Cell> value = new ArrayList<>();
         for (int i = colon + 1; i < cells.size(); i++) {
             Cell c = cells.get(i);

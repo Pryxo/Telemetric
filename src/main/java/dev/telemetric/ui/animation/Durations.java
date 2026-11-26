@@ -3,8 +3,7 @@ package dev.telemetric.ui.animation;
 /**
  * Motion timing tokens (milliseconds). Always use these instead of literal numbers.
  * <p>
- * They're based on measurements of production UIs: the median is about 250 ms, most transitions are within 150–300 ms,
- * and nothing goes above 500 ms without a strong reason. See docs/animation.md.
+ * Typical UI timings: median around 250 ms, most transitions within 150–300 ms, nothing above 500 ms without a reason.
  */
 public final class Durations {
 

@@ -22,7 +22,6 @@ public final class HudColor {
         this.custom = custom;
     }
 
-    /** The colour to draw with. */
     public int get() {
         return custom.getAsBoolean() ? setting.get() : themeColor.getAsInt();
     }

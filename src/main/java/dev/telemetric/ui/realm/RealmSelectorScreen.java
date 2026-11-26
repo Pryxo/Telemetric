@@ -29,14 +29,14 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * MC ADAPTER (UI) for Player → Keybinds → Realm Selector. There's one button per online realm of a region, with its
+ * Screen for Player → Keybinds → Realm Selector. There's one button per online realm of a region, with its
  * player count ("Astra (8)"). Region tabs sit on top with your region selected, hubs and missions get their own row, and
  * there's a "Previous" button (the realm before this one, only if it's live). Clicking runs {@code /joinq <name>}.
  * Only the servers the live HeadStatus list ({@link HeadStatusApi}) returns are shown, plus a Missions button in every
  * live region. {@code realms.json} only provides the tab order, display names and the hub split. Theme colours, an
  * open fade of {@link Durations#SCREEN}, and a button hover of {@link Durations#HOVER}.
  * <p>
- * With <b>Region Switch</b> on, your region's tab shows your live ping above it, and double-clicking another
+ * With Region Switch on, your region's tab shows your live ping above it, and double-clicking another
  * region's tab picks that region in {@code /locations} (the server transfers you) without reloading the resource pack
  * ({@link RegionSwitchAdapter}).
  */

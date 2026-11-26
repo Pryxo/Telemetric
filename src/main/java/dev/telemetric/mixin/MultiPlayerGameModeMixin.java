@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * MC ADAPTER (mixin): sees every container click the client sends (the player's and ours), so the stash overlay can
+ * Sees every container click the client sends (the player's and ours), so the stash overlay can
  * follow the page arrows ({@link StashAdapter#onSlotClick}).
  */
 @Mixin(MultiPlayerGameMode.class)

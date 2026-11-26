@@ -7,14 +7,14 @@ import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.world.entity.player.Input;
 
 /**
- * MC ADAPTER for Combat → Sneak Ability. Since 1.21.6 the server learns about sneaking only from
- * {@code ServerboundPlayerInputPacket} (the {@code shift} flag of {@link Input}); there is no separate sneak command.
- * Vanilla sends that packet at most once per tick and only when the input changed ({@code LocalPlayer#lastSentInput}).
+ * Combat → Sneak Ability. Since 1.21.6 the server learns about sneaking only from {@code ServerboundPlayerInputPacket}
+ * (the {@code shift} flag of {@link Input}). Vanilla sends that packet at most once per tick, and only when the input
+ * changed ({@code LocalPlayer#lastSentInput}).
  * <ul>
- *   <li>{@link #sendShift} sends one extra input packet that copies the last sent input with another shift flag.
- *       {@code lastSentInput} is left alone, so a sequence that ends on the starting flag leaves vanilla in sync.</li>
- *   <li>{@link #forceShiftKey} makes the vanilla sneak key read as held / released ({@code KeyboardInputMixin}),
- *       so the player really crouches for those ticks.</li>
+ *   <li>{@link #sendShift} sends one extra input packet with the last sent input and another shift flag.
+ *       {@code lastSentInput} is left alone, so a sequence that ends on the starting flag keeps vanilla in sync.</li>
+ *   <li>{@link #forceShiftKey} makes the vanilla sneak key read as held or released ({@code KeyboardInputMixin}), so
+ *       the player really crouches for those ticks.</li>
  * </ul>
  * Everything is a no-op off Telos.
  */

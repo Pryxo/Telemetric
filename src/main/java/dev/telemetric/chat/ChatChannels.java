@@ -9,7 +9,7 @@ import java.util.Locale;
  * switch, wait for the server to confirm, send, then switch back. Chat tabs use it (the Guild tab means guild mode),
  * and so do the Toggle Guild / Group keys and {@code /ac /gc /grc}. Telos rate-limits chat, so sends are spaced by
  * {@link #SEND_GAP_MS}. A switch the server never confirms is dropped after {@link #TIMEOUT_MS}.
- * Pure Java; the commands go out through {@link Server}, and the Chat module ticks it.
+ * The commands go out through {@link Server}, and the Chat module ticks it.
  */
 public final class ChatChannels {
 

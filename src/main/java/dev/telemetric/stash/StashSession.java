@@ -36,7 +36,7 @@ public final class StashSession {
     private static final long SETTLE_MS = 120;
     /**
      * After a page click, the server has to be quiet for this long after its last container packet before the page
-     * counts as loaded. Measured live (Telos, 2026-11-14), the whole answer arrives about 25-30 ms after the click.
+     * counts as loaded. Measured on Telos, the whole answer arrives about 25-30 ms after the click.
      */
     private static final long PAGE_QUIET_MS = 50;
     /** Bounds of the Page Delay slider (ms between two page clicks). */
@@ -113,7 +113,6 @@ public final class StashSession {
         return instance;
     }
 
-    // ------------------------------------------------------------------ queries (overlay)
 
     public boolean isOpen() { return open; }
 
@@ -140,7 +139,6 @@ public final class StashSession {
 
     public StashBook book(StashMode m) { return store.book(StashAdapter.playerKey(), m); }
 
-    // ------------------------------------------------------------------ hooks from StashAdapter
 
     /** Any container packet (contents or one slot) for {@code id}. */
     public void onContainerPacket(int id) {
@@ -202,7 +200,6 @@ public final class StashSession {
         dirty = false;
     }
 
-    // ------------------------------------------------------------------ lifecycle
 
     /** Called every client tick while the module is on. */
     public void tick(boolean syncOnOpen, boolean autoScan, long pageDelayMs) {
@@ -416,7 +413,6 @@ public final class StashSession {
         pendingClick = null;
     }
 
-    // ------------------------------------------------------------------ commands (overlay)
 
     /** Walks to {@code target} (starting at 1) with the fewest arrow clicks. */
     public void goTo(int target) {

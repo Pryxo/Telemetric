@@ -5,7 +5,7 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import java.util.Arrays;
 import java.util.function.LongPredicate;
 
-/** The dungeon level: the one height every "main level" check uses (boss drop, boss air). Pure Java. */
+/** The dungeon level: the one height every "main level" check uses (boss drop, boss air). */
 public final class DungeonLevel {
 
     private DungeonLevel() {}

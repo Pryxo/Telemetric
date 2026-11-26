@@ -30,16 +30,16 @@ import java.util.function.Function;
  * You declare a table once with {@link #file(String, Function, Object)} and read it with {@link SharedFile#get()}.
  * At start it loads instantly, without the network, from the first of these that exists:
  * <ol>
- *   <li>{@code config/telemetric/data/overrides/<path>}, a <b>local override</b> the player edits by hand. It's never
+ *   <li>{@code config/telemetric/data/overrides/<path>}, a local override the player edits by hand. It's never
  *       downloaded over or replaced;</li>
  *   <li>{@code config/telemetric/data/cache/<path>}, the copy downloaded last time;</li>
  *   <li>the copy bundled in the jar ({@code assets/telemetric/data/<path>}, packed from {@code data/} at build).</li>
  * </ol>
- * If there's no override, the repo is then asked <b>once per game start</b> (in the background) whether the file
+ * If there's no override, the repo is then asked once per game start (in the background) whether the file
  * changed. The cached copy's ETag goes along ({@code If-None-Match}), so an unchanged file answers
  * {@code 304 Not Modified} with no body. A changed file replaces the cache and the live value, and the
  * {@link SharedFile#onChange} listeners run on the download thread. Parsers must build immutable values. A file that
- * fails to parse is ignored and the previous value stays. Pure Java, no Minecraft imports.
+ * fails to parse is ignored and the previous value stays.
  */
 public final class SharedData {
 
@@ -57,7 +57,7 @@ public final class SharedData {
 
     private SharedData() {}
 
-    /** Deletes downloads from the old {@code Extractor/} layout. Tables have lived in {@code tables/} since 0.34.0. */
+    /** Deletes downloads from the old {@code Extractor/} layout. */
     private static void deleteOldCache(Path dir) {
         if (!Files.isDirectory(dir)) return;
         try (var walk = Files.walk(dir)) {

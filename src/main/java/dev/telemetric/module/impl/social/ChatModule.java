@@ -30,7 +30,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Social → Chat: chat tabs sorted by {@code chat.json}, censored guild and group lines, right-click copy, a longer
+ * Chat tabs sorted by {@code chat.json}, censored guild and group lines, right-click copy, a longer
  * history and chat-mode keys. The tab bar lives in {@code ui/chat/ChatScreenHooks}, and lines are filtered through
  * {@link ChatView} on {@code game/ChatHudAdapter}, so switching tabs never loses lines. For the server chat mode and
  * {@code /ac /gc /grc}, see {@link #channels()}.
@@ -100,7 +100,6 @@ public class ChatModule extends Module implements ChatView {
         syncOn(this::sync, tabsGroup, shownTabs, allChatTab, history, censorGuild, censorGroupChat);
     }
 
-    // ------------------------------------------------------------------ state
 
     private void sync() {
         boolean on = isEnabled();
@@ -132,9 +131,7 @@ public class ChatModule extends Module implements ChatView {
         return isEnabled() && tabsGroup.get() && tabs.shown().size() > 1;
     }
 
-    // ------------------------------------------------------------------ emoji picker
 
-    /** True if the chat box shows the emoji icon. */
     public boolean showsEmojiButton() {
         return isEnabled() && emojiButton.get();
     }
@@ -157,7 +154,6 @@ public class ChatModule extends Module implements ChatView {
         emojiCollapsed.set(String.join("|", new ArrayList<>(sections)));
     }
 
-    // ------------------------------------------------------------------ tabs
 
     /** Opens a tab (click or Alt+arrow). Switches the chat mode for Guild / Group / Chat, and back to default when leaving them. */
     public void openTab(String tab) {
@@ -203,7 +199,6 @@ public class ChatModule extends Module implements ChatView {
         return false;
     }
 
-    // ------------------------------------------------------------------ ChatView
 
     @Override
     public String category(String plain) {
@@ -234,7 +229,6 @@ public class ChatModule extends Module implements ChatView {
         if (showsTabBar() && plain.codePoints().anyMatch(Character::isLetterOrDigit)) tabs.countNew(category, hidden); // spacer lines don't count
     }
 
-    // ------------------------------------------------------------------ copy
 
     /** Right-click on a chat line copies its text (pack glyphs removed). Returns true if something was copied. */
     public boolean copyLine(String plain) {

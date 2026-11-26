@@ -33,20 +33,20 @@ import java.util.regex.Pattern;
  * Pity and loot counting. It's always on while you're on Telos. The Pity Counter, Lifetime Stats and the drop
  * messages only <i>show</i> what gets counted here, so nothing is missed while they're off.
  * <ul>
- *   <li><b>Boss kill</b>: the kill leaderboard, a multi-line server message ({@code Defeated <boss> in <time>} in
- *       dungeons, just {@code Defeated <boss>} at realm bosses; read live 2026-11-16). Every pity drop of that boss
+ *   <li>Boss kill: the kill leaderboard, a multi-line server message ({@code Defeated <boss> in <time>} in
+ *       dungeons, just {@code Defeated <boss>} at realm bosses). Every pity drop of that boss
  *       ({@link LootTable#forDefeat}, current dungeon first) gets +1, shiny variants too. {@link #STAT_KILLS} gets +1,
  *       and {@link #STAT_RUNS} +1 when it's the dungeon's final boss or a realm boss.</li>
- *   <li><b>Bonus chest</b> ({@code Bonus chest has been unlocked}): one more roll of the last killed boss, so +1.</li>
- *   <li><b>Drop</b>: your glowing loot after a bag opens ({@link DropAdapter}), or the server's
- *       {@code [realm-3] ͱ <you> got <item>[telos:<model>] from <place>} line (read live 2026-11-16; the model id picks
+ *   <li>Bonus chest ({@code Bonus chest has been unlocked}): one more roll of the last killed boss, so +1.</li>
+ *   <li>Drop: your glowing loot after a bag opens ({@link DropAdapter}), or the server's
+ *       {@code [realm-3] ͱ <you> got <item>[telos:<model>] from <place>} line (the model id picks
  *       the drop, {@code -shiny} included). That drop's pity goes back to 0 and {@link Listener#onDrop} fires once.</li>
- *   <li><b>Mob kill</b>: a dungeon mob with drops of its own (Boss.json {@code mob}, e.g. Dyerftum Overlord → Wild
+ *   <li>Mob kill: a dungeon mob with drops of its own (Boss.json {@code mob}, e.g. Dyerftum Overlord → Wild
  *       Wisps in Illarius' Hideout). If its nameplate (a text display in the Telos plate font) vanishes within
  *       {@value #MOB_KILL_RANGE} blocks of you while the chunk is still loaded, it was killed near you and its drops get
  *       +1 ({@link Listener#onMobKill}). If a plate shows up again right there within {@value #MOB_RESENT_MS} ms, it was
  *       only re-sent and the kill is taken back.</li>
- *   <li><b>Bag</b>: a loot bag's totem pop gives {@code bag:<group>} +1 ({@code tables/rarities.json} bags).</li>
+ *   <li>Bag: a loot bag's totem pop gives {@code bag:<group>} +1 ({@code tables/rarities.json} bags).</li>
  * </ul>
  * The counters live in {@link TrackingStore} (per account). The chat layouts haven't been read live yet ({@code anyRuns}).
  */
@@ -80,8 +80,8 @@ public final class LootTracker {
     private static final String SELF_ARROW = "⬅";
 
     /**
-     * {@code Skull Cavern𕴫 Bonus chest has been unlocked!}, sent when you open the boss's bonus chest with a key (read
-     * live in 0.37.15). Only a place name (letters and spaces, no {@code :}) and glyphs come before it.
+     * {@code Skull Cavern𕴫 Bonus chest has been unlocked!}, sent when you open the boss's bonus chest with a key. Only a
+     * place name (letters and spaces, no {@code :}) and glyphs come before it.
      */
     static final ChatPattern BONUS_CHEST = ChatPattern.builder("Bonus chest unlocked",
             "(?:[A-Za-z' ]{1,40})?[^A-Za-z0-9:\\n]*Bonus chest has been unlocked[^\\n]*").anyRuns().build();
@@ -174,7 +174,6 @@ public final class LootTracker {
         return drop == null ? 0 : store().pity(drop.key());
     }
 
-    // ------------------------------------------------------------------ named-mob kills
 
     /** Client tick (on Telos): every few ticks it follows the nameplates of this dungeon's named mobs. */
     public void tick() {
@@ -269,7 +268,6 @@ public final class LootTracker {
         return false;
     }
 
-    // ------------------------------------------------------------------ kills
 
     private void onLeaderboard(String text) {
         String[] lines = text.split("\n");
@@ -334,7 +332,6 @@ public final class LootTracker {
         }).orElse(0);
     }
 
-    // ------------------------------------------------------------------ drops
 
     /** The drop a {@link #DROP_LINE} match is about, if it's yours and in the loot table. Otherwise null. */
     public Drop ownDrop(MatchResult m) {
@@ -388,7 +385,6 @@ public final class LootTracker {
         for (Listener l : listeners) l.onDrop(drop, at, from);
     }
 
-    // ------------------------------------------------------------------ bags
 
     private void onBag(String totem) {
         Bag bag = TelosData.BAGS.get().byTotem().get(totem);

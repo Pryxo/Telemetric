@@ -84,12 +84,9 @@ public class ModuleComponent extends UIComponent {
         this.expand.snapTo(this.expanded ? 1 : 0);
     }
 
-    /** Whether the user opened the right-click menu. */
     public boolean isExpanded() {
         return expanded;
     }
-
-    // ------------------------------------------------------------------ right-click menu (bind + pins)
 
     private void rebuildQuick() {
         if (pinsVersion == layout.pinsVersion() && quick != null) return;
@@ -135,13 +132,9 @@ public class ModuleComponent extends UIComponent {
         return quick != null && !quick.isEmpty();
     }
 
-    // ------------------------------------------------------------------ search
-
     /**
      * Applies the ClickGUI search. A module whose name matches, or that has a setting whose label matches, stays
      * listed; matching settings tint the gear (the Settings window highlights them).
-     *
-     * @return whether this module stays listed
      */
     public boolean applySearch(String query) {
         String q = query.trim().toLowerCase(Locale.ROOT);
@@ -311,8 +304,6 @@ public class ModuleComponent extends UIComponent {
         r.gradientV(lx, center, w, len, bright, clear);
         r.popClip();
     }
-
-    // ------------------------------------------------------------------ input
 
     private boolean menuInteractive() {
         return expanded && expand.get() > 0.95;

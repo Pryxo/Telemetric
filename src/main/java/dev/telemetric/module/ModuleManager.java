@@ -68,7 +68,6 @@ public final class ModuleManager {
 
     /** The one place where modules are listed. Add new modules here. */
     public void registerAll() {
-        // ---- Misc (UI-only settings) ----
         register(new ThemeModule());
         register(new InterfaceModule());
         register(new HudSettingsModule());
@@ -76,7 +75,6 @@ public final class ModuleManager {
         register(new ConfigModule());
         register(new ShareSettingsModule());
 
-        // ---- Features. Each module names its own category (panel); panels sort their modules by name. ----
         // Movement & Controls
         register(new AutoJumpModule());
         register(new AutoSprintModule());

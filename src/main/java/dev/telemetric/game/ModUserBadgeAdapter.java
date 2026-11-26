@@ -17,10 +17,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * MC ADAPTER: the Telemetric badge (glyph {@code U+E000} of font {@code telemetric:mod_user}) for players online with
- * the mod ({@link ModUsers}). Chat: inserted right before the sender's name ("[Rank] ⎈ Name: …"). Tab list: drawn at
- * the right edge of the entry instead of the ping icon. Telos tab entries are fake profiles whose display name ends
- * with the player's name, so the name is read from the display text when the profile has none.
+ * The Telemetric badge (glyph {@code U+E000} of font {@code telemetric:mod_user}) for players online with the mod
+ * ({@link ModUsers}). In chat it goes right before the sender's name. In the tab list it replaces the ping icon at the
+ * right edge. Telos tab entries are fake profiles whose display name ends with the player's name, so the name is read
+ * from the display text when the profile has none.
  */
 public final class ModUserBadgeAdapter {
 
@@ -78,7 +78,7 @@ public final class ModUserBadgeAdapter {
         if (!ModUsers.isUser(profileName) && !ModUsers.isUser(displayName(info))) return false;
         var font = Minecraft.getInstance().font;
         int bx = x + width - BADGE_W;
-        // High GUI scale: vanilla clamps the column to the screen, so long names run past the cell edge — keep the
+        // High GUI scale: vanilla clamps the column to the screen, so long names run past the cell edge. Keep the
         // badge after the name instead of on top of it (name starts after the 8 px head + 1 px gap).
         Component name = info.getTabListDisplayName();
         if (name == null && profileName != null) name = Component.literal(profileName);

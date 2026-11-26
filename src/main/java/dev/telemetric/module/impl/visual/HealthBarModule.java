@@ -28,10 +28,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Your health as a bar. There are three render modes: <b>3D World</b> (camera-facing quads above your head, third
- * person), <b>HUD Projection</b> (a flat HUD bar drawn where your head shows up on screen, with an optional fixed spot
- * in first person) and <b>HUD Element</b> (movable in the HUD editor). The bar slides to the new value, flashes on
- * damage, and blends from the high colour to the mid and low colours below the thresholds.
+ * Your health as a bar, in one of three modes: 3D World (quads above your head), HUD Projection (flat bar at your
+ * head's screen position) or HUD Element (movable in the HUD editor). It slides, flashes on damage and blends colours
+ * below the thresholds.
  */
 public final class HealthBarModule extends HudModule {
 
@@ -131,7 +130,6 @@ public final class HealthBarModule extends HudModule {
         HudOverlay.addScreenDrawer(this::drawProjected);
     }
 
-    // ================================================================== state
 
     private boolean world3D() {
         return mode.is(WORLD);
@@ -213,7 +211,6 @@ public final class HealthBarModule extends HudModule {
         };
     }
 
-    // ================================================================== flat bar (HUD Element + HUD Projection)
 
     private int textW(Render2D r, String t) {
         return (int) Math.ceil(r.textWidth(t) * textScale.get());
@@ -276,7 +273,6 @@ public final class HealthBarModule extends HudModule {
         }
     }
 
-    // ================================================================== HUD Element
 
     @Override
     public boolean isShown() {
@@ -300,7 +296,6 @@ public final class HealthBarModule extends HudModule {
         if (f >= 0) drawFlat(r, f, text(preview));
     }
 
-    // ================================================================== HUD Projection
 
     /** Bottom-centre of the bar at your head's screen position (or fixed below the crosshair in first person). */
     private void drawProjected(Render2D r, int sw, int sh) {
@@ -332,7 +327,6 @@ public final class HealthBarModule extends HudModule {
         }
     }
 
-    // ================================================================== 3D World
 
     private boolean worldShown() {
         return isEnabled() && world3D() && ViewAdapter.isThirdPerson();
@@ -361,9 +355,8 @@ public final class HealthBarModule extends HudModule {
     }
 
     /**
-     * Bottom-centre of the bar this frame (world). With Y ≥ 0 it's Y blocks above your head. With Y < 0 it's |Y| blocks
-     * from your feet on an arc toward the camera: straight below when looking level, and behind or in front of you
-     * when looking down or up. The bar is centred on that point ({@code barHeight} in blocks, 0 for HUD Projection).
+     * Bottom-centre of the bar this frame (world). Y >= 0 is Y blocks above your head; Y < 0 is |Y| blocks from your feet
+     * on an arc toward the camera. The bar is centred on that point ({@code barHeight} in blocks, 0 for HUD Projection).
      */
     private Point anchor(float partialTick, double barHeight) {
         double y = worldOffset.get();
@@ -382,7 +375,6 @@ public final class HealthBarModule extends HudModule {
                 p.z() - Math.cos(yaw) * horizontal + offsetZ.get());
     }
 
-    // ================================================================== Settings window preview
 
     @Override
     public SettingsPreview createPreview() {

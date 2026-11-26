@@ -39,7 +39,6 @@ public final class ItemRangeModule extends Module {
         @Override public String displayName() { return label; }
     }
 
-    /** Where and how big one range is. */
     private record Area(double range, double offset, TelosItemRules.Marker marker, boolean drawRange) {}
 
     private static final int CIRCLE_SEGMENTS = 72, ARC_SEGMENTS = 40, LINE_STEPS = 10;
@@ -239,7 +238,6 @@ public final class ItemRangeModule extends Module {
         }
     }
 
-    /** A square of half-size {@code h}, turned with the player. */
     private static void square(LineSink sink, double cx, double y, double cz, double h, double yaw, int argb, float w,
                                boolean walls) {
         double cos = Math.cos(yaw), sin = Math.sin(yaw);

@@ -1,7 +1,7 @@
 package dev.telemetric.chat;
 
 /**
- * The look of the mod's own chat lines (pure Java): the gold-to-black gradient, the {@code Telemetric ›} prefix in
+ * The look of the mod's own chat lines: the gold-to-black gradient, the {@code Telemetric ›} prefix in
  * front of every command reply, grey body text and the gold chat tag. {@code game/ChatAdapter#post} shows the result.
  */
 public final class ChatStyle {
@@ -9,7 +9,6 @@ public final class ChatStyle {
     /** Gold → black gradient stops (0xRRGGBB). The last stop stays a little above black so it's readable in chat. */
     public static final int[] GOLD_TO_BLACK = {0xFFE58A, 0xFFB300, 0xC77A00, 0x7A4700, 0x3A2200};
 
-    /** Body text. */
     public static final int TEXT = ChatText.GRAY;
     /** Values inside a sentence (names, numbers, commands): white, not a colour. */
     public static final int VALUE = ChatText.WHITE;

@@ -79,7 +79,7 @@ public abstract class LinesHudModule extends HudModule {
 
     /**
      * Telos Realms' Tab-list palette (General / Character Info): yellow labels and green values. This is server data,
-     * not a theme colour, read off the live Tab list (2026-11-14).
+     * not a theme colour, read off the live Tab list.
      */
     public static final int SERVER_LABEL = 0xFFDFE560, SERVER_VALUE = 0xFF55FF55;
 
@@ -155,7 +155,7 @@ public abstract class LinesHudModule extends HudModule {
 
     /**
      * Adds "Flash on Update": a row's value briefly flashes in the flash colour (white by default) when it changes,
-     * fading back to its normal colour — like hearts flashing when you take damage.
+     * then fades back, like hearts flashing when you take damage.
      */
     protected final void addUpdateFlash() {
         flashOnUpdate = addHudSetting(new BooleanSetting("Flash on Update",

@@ -49,8 +49,6 @@ public final class HeadStatusApi {
 
     private HeadStatusApi() {}
 
-    // ---------------------------------------------------------------- realms
-
     /**
      * One live server from {@code /realms}.
      *
@@ -118,8 +116,6 @@ public final class HeadStatusApi {
         }
         return List.copyOf(out);
     }
-
-    // ---------------------------------------------------------------- head statuses
 
     /**
      * A player's current head status from {@code /status/{uuid}}.
@@ -318,8 +314,6 @@ public final class HeadStatusApi {
         }
         return t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
     }
-
-    // ---------------------------------------------------------------- session / auth
 
     private record Challenge(String serverId, String name) {}
 

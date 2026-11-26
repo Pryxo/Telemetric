@@ -1,7 +1,7 @@
 package dev.telemetric.ui.render;
 
 /**
- * Fixed warning colours (yellow/amber), deliberately <b>not</b> from the theme so warnings look the same everywhere:
+ * Fixed warning colours (yellow/amber), deliberately not from the theme so warnings look the same everywhere:
  * the confirmation dialog, the module-row warning icon and its tooltip.
  */
 public final class WarningColors {

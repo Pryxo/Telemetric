@@ -7,8 +7,7 @@ import java.time.Duration;
 
 /**
  * The shared data repo (<a href="https://github.com/Pryxo/Telemetric-Data">Pryxo/Telemetric-Data</a>, the git
- * submodule {@code data/}). Holds the base URL and the one HTTP client every download uses. Pure Java, no Minecraft
- * imports.
+ * submodule {@code data/}). Holds the base URL and the one HTTP client every download uses.
  */
 public final class DataRepo {
 

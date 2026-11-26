@@ -45,8 +45,6 @@ public final class StashSearch {
         };
     }
 
-    // ------------------------------------------------------------------ rarity
-
     /**
      * The rarity comes from the tooltip style path ({@code untiered/bloodshot}, tiered loot is {@code tiered/8}).
      * {@code ^tier N} / {@code ^tN} / {@code ^N} match the "N Tier Points" lore line (Tier N items give N points,
@@ -70,8 +68,6 @@ public final class StashSearch {
         else if (s.startsWith("t")) s = s.substring(1);
         return !s.isEmpty() && s.chars().allMatch(Character::isDigit) ? s : null;
     }
-
-    // ------------------------------------------------------------------ item type
 
     /** The Telos type path, e.g. {@code weapon/sceptre/ut-onyx}, {@code misc/dungeon_epic} (a key), {@code pet/...}. */
     private static boolean typeMatches(ItemSearchAdapter.Info info, String q) {

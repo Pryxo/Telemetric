@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 /**
  * Chat tabs: sorts every chat line into one category ({@code tables/chat.json}) and tracks which tab is open.
  * This is display only. A line's category never triggers anything, so lines a player typed can land in any tab.
- * "All" ({@link #ALL}, always first) shows everything. Pure Java; the chat HUD asks {@link #visible} for each line.
+ * "All" ({@link #ALL}, always first) shows everything. The chat HUD asks {@link #visible} for each line.
  */
 public final class ChatTabs {
 

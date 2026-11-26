@@ -24,12 +24,10 @@ public final class Cell {
         return (int) (cell << 26 >> 38);
     }
 
-    /** Key of a 16×16 chunk column. */
     public static long chunkKey(int chunkX, int chunkZ) {
         return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 
-    /** Key of a single block column (x, z). */
     public static long columnKey(int x, int z) {
         return ((long) x << 32) | (z & 0xFFFFFFFFL);
     }

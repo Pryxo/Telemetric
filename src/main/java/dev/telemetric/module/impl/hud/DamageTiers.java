@@ -39,7 +39,6 @@ final class DamageTiers {
         return t;
     }
 
-    /** Lower bound of a tier (0 for tier 0). */
     static int min(int tier) {
         return tier <= 0 ? 0 : MIN[tier - 1];
     }

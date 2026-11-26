@@ -36,7 +36,6 @@ public final class PerformanceHud extends LinesHudModule {
         parts.add(new Part(this, tps, "20", PerformanceHud::tpsValue, 0.14));
     }
 
-    /** The separate per-stat elements. Register them after this module. */
     public List<Part> parts() {
         return parts;
     }
@@ -58,7 +57,6 @@ public final class PerformanceHud extends LinesHudModule {
     @Override
     protected List<Line> lines(boolean preview) {
         List<Line> out = new ArrayList<>();
-        // rows follow the user's drag order in the ClickGUI
         for (Setting<?> s : getSettingOrder()) {
             if (s == fps) add(out, fps, preview, "144", () -> String.valueOf(ServerInfoAdapter.fps()));
             else if (s == ping) add(out, ping, preview, "20ms", PerformanceHud::pingValue);

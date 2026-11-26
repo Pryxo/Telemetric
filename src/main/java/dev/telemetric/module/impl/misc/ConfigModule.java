@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * UI-only: profile management (save, load, create, delete). All of its settings are session state and are
- * <b>not</b> written into the profiles themselves.
+ * not written into the profiles themselves.
  */
 public final class ConfigModule extends Module {
 
@@ -72,7 +72,6 @@ public final class ConfigModule extends Module {
         profile.set(config.getActiveProfile());
     }
 
-    // ------------------------------------------------------------------ actions
 
     private void saveSelected() {
         String name = profile.get();

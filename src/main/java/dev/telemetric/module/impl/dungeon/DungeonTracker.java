@@ -132,7 +132,6 @@ public final class DungeonTracker {
         if (users == 0) reset();
     }
 
-    /** The entrypoint calls this every client tick (on Telos). Cheap when idle. */
     public void tick() {
         if (users == 0) return;
         if (!DungeonAdapter.isInDungeon()) {
@@ -377,7 +376,6 @@ public final class DungeonTracker {
         return List.copyOf(out);
     }
 
-    // ------------------------------------------------------------------ access
 
     public boolean isInDungeon() {
         return inDungeon;

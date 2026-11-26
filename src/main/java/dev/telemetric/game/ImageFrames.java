@@ -20,10 +20,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * MC ADAPTER: decodes an image file from the user (PNG, JPG, animated GIF) into {@link NativeImage} frames, scaled
- * down to at most {@link #MAX_SIZE} px. GIF frames are composited the way a browser does it (frame offsets and
- * disposal methods). It's slow for big GIFs, so call it off the render thread. The caller owns and closes the
- * returned images.
+ * Decodes a user image (PNG, JPG, animated GIF) into {@link NativeImage} frames, scaled down to at most
+ * {@link #MAX_SIZE} px. GIF frames are composited the way a browser does it (frame offsets and disposal methods).
+ * Slow for big GIFs, so call it off the render thread. The caller owns and closes the returned images.
  */
 public final class ImageFrames {
 
@@ -91,8 +90,6 @@ public final class ImageFrames {
             }
         }
     }
-
-    // ------------------------------------------------------------------ helpers
 
     private static int[] logicalSize(ImageReader reader) throws IOException {
         IIOMetadata stream = reader.getStreamMetadata();

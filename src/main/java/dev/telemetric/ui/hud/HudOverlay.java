@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * MC ADAPTER: draws the enabled HUD elements in-game through Fabric's {@link HudElementRegistry}, on a layer just below
+ * Draws the enabled HUD elements in-game through Fabric's {@link HudElementRegistry}, on a layer just below
  * the chat so the chat stays readable on top.
  * <p>
  * It's skipped off Telos Realms ({@link ServerGate}), while F1 hides the GUI, during the black fade when Hide HUD

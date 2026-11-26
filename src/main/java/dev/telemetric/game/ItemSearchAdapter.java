@@ -18,11 +18,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * MC ADAPTER: reads the facts the stash search can match on for an item. That's the plain name, tooltip text, Telos
- * rarity (last segment of {@code minecraft:tooltip_style}, e.g. {@code telos:untiered/bloodshot}), Telos item type
- * ({@code custom_data.PublicBukkitValues."realm:item_type"}, e.g. {@code telos:skin/cherub_staff}), the vanilla item
- * id and tags, and the "N Tier Points" lore number (tiered items, style {@code telos:tiered/8}). Results are cached per
- * stack (ItemStack uses identity equality).
+ * The facts the stash search can match an item on: plain name, tooltip text, Telos rarity (last segment of
+ * {@code minecraft:tooltip_style}), Telos item type ({@code custom_data.PublicBukkitValues."realm:item_type"}), the
+ * vanilla item id and tags, and the "N Tier Points" lore number. Cached per stack (ItemStack uses identity equality).
  */
 public final class ItemSearchAdapter {
 

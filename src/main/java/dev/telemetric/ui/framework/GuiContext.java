@@ -25,8 +25,6 @@ public final class GuiContext {
         this.themes = themes;
     }
 
-    // ------------------------------------------------------------------ theme
-
     private Theme paletteOverride;
 
     public Theme palette() {
@@ -55,8 +53,6 @@ public final class GuiContext {
         return Telemetric.get().modules().get(InterfaceModule.class);
     }
 
-    // ------------------------------------------------------------------ settings window
-
     /** Opens / reports the module Settings window. Set by the screen that hosts the window. */
     public interface SettingsWindowHost {
         void openSettings(Module module);
@@ -84,8 +80,6 @@ public final class GuiContext {
         return settingsHost == null ? null : settingsHost.settingsModule();
     }
 
-    // ------------------------------------------------------------------ focus
-
     /** Gives keyboard focus to {@code component} (the previous focus gets notified). */
     public void focus(UIComponent component) {
         if (focused == component) return;
@@ -110,8 +104,6 @@ public final class GuiContext {
         return focused == component;
     }
 
-    // ------------------------------------------------------------------ mouse capture
-
     /**
      * Captures the mouse for a drag (slider, colour picker). While it's captured, parents pass the real mouse
      * coordinates even outside clip areas, so the drag keeps tracking.
@@ -127,8 +119,6 @@ public final class GuiContext {
     public boolean hasCapture() {
         return captured != null;
     }
-
-    // ------------------------------------------------------------------ tooltip
 
     /** Requests a tooltip this frame. {@code owner} identifies the hovered thing (for dwell timing). */
     public void requestTooltip(Object owner, String text) {

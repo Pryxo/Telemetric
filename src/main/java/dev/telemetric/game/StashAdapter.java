@@ -43,20 +43,16 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * MC ADAPTER: the Telos stash screen.
- * <ul>
- *   <li>Detection: a 6-row chest whose slot 53 has a {@code telos:icon/stash/...} item model. The title is a single
- *       resource-pack glyph and shows no page number.</li>
- *   <li>Mode: slot 53 is {@code view_seasonal} while normal pages are shown (lore "Currently viewing normal pages"),
- *       and the other way round in seasonal mode.</li>
- *   <li>Clicks are sent with {@code MultiPlayerGameMode#handleContainerInput}. The mixin on that method reports every
- *       click (ours and the player's) to {@link StashSession#onSlotClick}.</li>
- *   <li>Items are saved as JSON with {@link ItemStack#OPTIONAL_CODEC} through {@link RegistryOps}.</li>
- *   <li>The overlay replaces the stash. {@code StashScreenMixin}/{@code StashBackgroundMixin} skip the container's own
- *       drawing, the overlay is drawn after the screen ({@code ScreenEvents.afterExtract}), and it takes every click,
- *       release, drag, scroll and slot key while it's showing.</li>
- *   <li>Telos asks you to confirm a normal/seasonal switch in a pop-up, and {@link #confirmPopup} answers it.</li>
- * </ul>
+ * The Telos stash screen. Detection: a 6-row chest whose slot 53 has a {@code telos:icon/stash/...} item model (the
+ * title is a single resource-pack glyph and shows no page number). Mode: slot 53 is {@code view_seasonal} while normal
+ * pages are shown (lore "Currently viewing normal pages"), and the other way round in seasonal mode.
+ * <p>
+ * Clicks are sent with {@code MultiPlayerGameMode#handleContainerInput}; that mixin reports every click (ours and the
+ * player's) to {@link StashSession#onSlotClick}. Items are saved as JSON with {@link ItemStack#OPTIONAL_CODEC} through
+ * {@link RegistryOps}. The overlay replaces the stash: {@code StashScreenMixin} and {@code StashBackgroundMixin} skip the
+ * container's own drawing, the overlay is drawn after the screen ({@code ScreenEvents.afterExtract}), and it takes every
+ * click, release, drag, scroll and slot key while it's showing. A normal/seasonal switch asks for a confirm in a pop-up,
+ * which {@link #confirmPopup} answers.
  */
 public final class StashAdapter {
 
@@ -138,8 +134,6 @@ public final class StashAdapter {
         return false;
     }
 
-    // ------------------------------------------------------------------ mixin hooks
-
     public static void onContainerPacket(int containerId) {
         if (enabled()) StashSession.get().onContainerPacket(containerId);
     }
@@ -147,8 +141,6 @@ public final class StashAdapter {
     public static void onSlotClick(int containerId, int slot) {
         if (enabled()) StashSession.get().onSlotClick(containerId, slot);
     }
-
-    // ------------------------------------------------------------------ screen state
 
     private static boolean enabled() {
         try {
@@ -208,7 +200,7 @@ public final class StashAdapter {
         return null;
     }
 
-    /** True if the stash page on screen has no items in slots 0–44 (Telos only converts empty pages). */
+    /** True if the stash page on screen has no items in slots 0-44 (Telos only converts empty pages). */
     public static boolean isPageEmpty() {
         if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> acs)) return false;
         for (int i = 0; i < StashPage.SLOTS; i++) if (!acs.getMenu().getSlot(i).getItem().isEmpty()) return false;
@@ -277,8 +269,6 @@ public final class StashAdapter {
         return stack.isEmpty() ? null : new GameItem(stack);
     }
 
-    // ------------------------------------------------------------------ mode-switch confirm pop-up
-
     private static final String[] YES = {"ok", "okay", "confirm", "yes", "accept", "continue", "proceed", "switch", "view"};
     private static final String[] NO = {"cancel", "deny", "decline", "back", "close", "return", "convert", "learn"};
     private static Screen loggedPopup;
@@ -287,8 +277,7 @@ public final class StashAdapter {
      * Answers the pop-up Telos shows after the normal/seasonal toggle. Seen live (2026-11-14): a
      * {@code SimpleDialogScreen} titled "Stash" with a seasonal-mode WARNING text and one "Ok" button, plus vanilla's
      * "This is a custom screen. Learn more." info button, which mustn't be pressed. It presses the matching dialog
-     * button and never clicks into a container screen. Up to 0.17.6 a container here was taken for a chest-menu pop-up,
-     * but it was actually the stash itself mid-click, so it picked up stash items and hid the real pop-up.
+     * button and never clicks into a container screen (which can be the stash itself, mid-click).
      * Only called right after a mode-switch click while the stash isn't the screen.
      * It logs what it saw once per pop-up so the rule can be tightened.
      * @return true if something was clicked
@@ -371,8 +360,6 @@ public final class StashAdapter {
         HolderLookup.Provider registries = mc.level != null ? mc.level.registryAccess() : null;
         return registries == null ? null : RegistryOps.create(JsonOps.INSTANCE, registries);
     }
-
-    // ------------------------------------------------------------------ drawing
 
     /**
      * A mode switch is in progress and no stash is on screen (Telos closed it, or its pop-up was answered). Show the

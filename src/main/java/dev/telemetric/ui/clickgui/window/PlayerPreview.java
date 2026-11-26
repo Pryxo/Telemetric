@@ -27,7 +27,7 @@ import java.util.List;
  * health bar, a hitbox, a world label) and may be dragged to move what they show. {@link #withoutModel} gives the same
  * view with no player, for overlays that stand on their own (e.g. the Boss Stage Tracker's label).
  * <p>
- * The <b>view menu</b> (top left, shared by every preview, saved in {@link GuiLayout.PreviewOptions}): World (the
+ * The view menu (top left, shared by every preview, saved in {@link GuiLayout.PreviewOptions}): World (the
  * blocks around you, {@link WorldPreviewAdapter}), World Radius (Auto = as far as the box shows), Floor Grid, Axes,
  * Auto Rotate and Grow With Window. Without Grow With Window the view keeps at most {@link #MAX_PX_PER_BLOCK}, so a
  * bigger window shows more around you instead of a bigger player.
@@ -64,7 +64,7 @@ public final class PlayerPreview implements SettingsPreview {
         }
 
         /**
-         * 3D shapes for the preview scene, in <b>world</b> coordinates (e.g. hitbox lines). They are depth-tested
+         * 3D shapes for the preview scene, in world coordinates (e.g. hitbox lines). They are depth-tested
          * against the blocks and models, unlike {@link #render}'s 2D overlay. {@code radius} = blocks around you that
          * are shown; {@code entities} = other entities are drawn too.
          */
@@ -229,7 +229,7 @@ public final class PlayerPreview implements SettingsPreview {
             }
         }
 
-        // ---- ease the camera toward its targets (time-based)
+        // ease the camera toward its targets
         long now = System.nanoTime();
         double dt = lastNanos == 0 ? 1000 : Math.clamp((now - lastNanos) / 1e6, 0, 100);
         lastNanos = now;
@@ -243,7 +243,6 @@ public final class PlayerPreview implements SettingsPreview {
         panX += (toPanX - panX) * a;
         panY += (toPanY - panY) * a;
 
-        // ---- projection
         double modelH = model ? EntityPreviewAdapter.playerHeight() : fixedHeight;
         double top = 0.35;
         for (Layer l : layers) top = Math.max(top, l.topRoom());
@@ -325,8 +324,6 @@ public final class PlayerPreview implements SettingsPreview {
         if (over && !overMenu && grabbed == null && !orbiting && !panning) ctx.requestTooltip(this, "Right-click to reset the view");
     }
 
-    // ================================================================== world
-
     /** The radius to show: the fixed one, or (Auto) enough blocks to reach the box's sides at the target zoom. */
     private int worldRadius(GuiLayout.PreviewOptions opt, int w, int h) {
         if (opt.radius > 0) return opt.radius;
@@ -388,8 +385,6 @@ public final class PlayerPreview implements SettingsPreview {
         }
         r.blockFaces(xy, uv, argb, n);
     }
-
-    // ================================================================== view menu (top left)
 
     private int btnX() { return boxX + 4; }
     private int btnY() { return boxY + 4; }
@@ -530,8 +525,6 @@ public final class PlayerPreview implements SettingsPreview {
         return false;
     }
 
-    // ================================================================== drawing helpers
-
     /** Keeps the feet inside the box, so the subject can't be lost off-screen. */
     private void clampPan(int w, int h) {
         double s = Math.max(1e-6, baseScale * toZoom);
@@ -644,8 +637,6 @@ public final class PlayerPreview implements SettingsPreview {
             r.rect((int) Math.round(x0 + dx * t) - off, (int) Math.round(y0 + dy * t) - off, thickness, thickness, color);
         }
     }
-
-    // ================================================================== input
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {

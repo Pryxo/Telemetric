@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 /**
- * MC ADAPTER (mixin accessor): the tooltip queued with {@code setTooltipForNextFrame}. Vanilla draws it in
+ * The tooltip queued with {@code setTooltipForNextFrame}. Vanilla draws it in
  * {@code extractDeferredElements}, which has already run by the time {@code ScreenEvents.afterExtract} fires, so
  * {@link dev.telemetric.ui.render.Render2D#flushTooltip()} draws it itself. Also the GUI render state, so the 3D
  * preview can add its own picture-in-picture state ({@code ScenePreviewAdapter}).

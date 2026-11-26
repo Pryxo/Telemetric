@@ -43,18 +43,17 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * MC ADAPTER: the Settings window's 3D preview as <b>one real 3D scene</b> — the blocks around you, your player, the
- * nearby entities and the preview's shapes (e.g. hitbox lines) all drawn into one picture-in-picture texture with a
- * shared depth buffer, so walls hide the models and lines behind them, models hide each other, and a hitbox's back
- * edges disappear behind the player. Same mechanism vanilla uses for the inventory player
- * ({@code GuiEntityRenderer}): a {@link PictureInPictureRenderState} collected while the GUI is extracted and a
- * {@link PictureInPictureRenderer} (registered through Fabric's {@link PictureInPictureRendererRegistry}) that renders
- * it into its own texture before the GUI is drawn.
+ * The Settings window's 3D preview as one real 3D scene: the blocks around you, your player, nearby entities and the
+ * preview's shapes (e.g. hitbox lines), all drawn into one picture-in-picture texture with a shared depth buffer. So
+ * walls hide models and lines behind them, and models hide each other. Same mechanism vanilla uses for the inventory
+ * player ({@code GuiEntityRenderer}): a {@link PictureInPictureRenderState} collected during GUI extraction, and a
+ * {@link PictureInPictureRenderer} (registered through {@link PictureInPictureRendererRegistry}) that renders it into its
+ * own texture before the GUI is drawn.
  * <p>
- * Coordinates: blocks relative to your feet, world axes, under {@code R = Rz(π)·Rx(pitch)·Ry(yaw)} like
- * {@link EntityPreviewAdapter}, so 2D overlays placed with {@code PlayerPreview.View#project} line up. Blocks above
- * your feet are drawn last, translucent and without depth, so they never hide you. The orthographic PiP projection only
- * spans ±1000 depth units, so the scene's depth is squashed to fit (doesn't change the picture, only the depth range).
+ * Coordinates are blocks relative to your feet, world axes, under {@code R = Rz(π)·Rx(pitch)·Ry(yaw)} like
+ * {@link EntityPreviewAdapter}, so 2D overlays placed with {@code PlayerPreview.View#project} line up. Blocks above your
+ * feet are drawn last, translucent and without depth, so they never hide you. The orthographic PiP projection only spans
+ * ±1000 depth units, so the scene's depth is squashed to fit (this changes the depth range, not the picture).
  */
 public final class ScenePreviewAdapter {
 
@@ -187,8 +186,6 @@ public final class ScenePreviewAdapter {
         if (e instanceof Display) return true; // item / block displays (Telos mob models)
         return e instanceof LivingEntity && !e.isInvisible();
     }
-
-    // ------------------------------------------------------------------ renderer
 
     private static final class SceneRenderer extends PictureInPictureRenderer<SceneState> {
 

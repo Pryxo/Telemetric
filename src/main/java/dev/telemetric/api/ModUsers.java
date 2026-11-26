@@ -121,9 +121,8 @@ public final class ModUsers {
     }
 
     /**
-     * Notes a failed lookup and asks again later on its own. Before, a failure (429, timeout) was only retried on the
-     * next {@code players} push, which comes only when someone joins or leaves, so that player had no badge for a long
-     * time even though the server listed them.
+     * Notes a failed lookup and schedules a retry. Waiting for the next {@code players} push isn't enough, since that
+     * only comes when someone joins or leaves.
      */
     private static void failed(String uuid, long retryMs) {
         FAILED.put(uuid, System.currentTimeMillis());

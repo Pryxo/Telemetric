@@ -15,14 +15,11 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * MC ADAPTER: loot bag events for the drop and pity trackers (plain strings out, no Minecraft types).
- * <ul>
- *   <li><b>Bag pop</b>: Telos shows a dropped loot bag as a totem pop of {@code telos:<totem>}
- *       ({@code GameRendererMixin} → {@link #onTotemPop}). It's read before Custom Bags swaps the model.</li>
- *   <li><b>Bag opened</b>: the sound {@code noise:player.bags.open*} ({@code SoundEngineMixin} → {@link #onSound}).
- *       For the next {@link #SCAN_TICKS} ticks, every <b>glowing</b> dropped item within {@link #SCAN_RADIUS} blocks
- *       is reported once by its item model (Telos makes your own loot glow).</li>
- * </ul>
+ * Loot bag events for the drop and pity trackers, as plain strings.
+ * <p>
+ * A dropped bag shows as a totem pop of {@code telos:<totem>}, read in {@code GameRendererMixin} before Custom Bags
+ * swaps the model. The bag-open sound ({@code noise:player.bags.open*}) starts a scan over the next {@link #SCAN_TICKS}
+ * ticks that reports each glowing dropped item within {@link #SCAN_RADIUS} blocks once (Telos makes your own loot glow).
  */
 public final class DropAdapter {
 

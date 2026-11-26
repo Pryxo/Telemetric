@@ -5,8 +5,7 @@ import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * MC ADAPTER: the only place that queries raw key state and key names.
- * Key codes are {@link InputConstants} key codes. Don't hard-code backend numbers anywhere else.
+ * Raw key state and key names. Key codes are {@link InputConstants} key codes.
  */
 public final class InputUtil {
 

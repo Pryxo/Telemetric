@@ -14,8 +14,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * MC ADAPTER: Player → Keybinds → Realm Selector region switch. It runs {@code /locations} and clicks the region's
- * item in that menu (slots 0-3 = NA, 5-8 = EU, 9-12 = SG); the server does the transfer.
+ * Player → Keybinds → Realm Selector region switch. Runs {@code /locations} and clicks the region's item in that menu
+ * (slots 0-3 = NA, 5-8 = EU, 9-12 = SG). The server does the transfer.
  */
 public final class RegionSwitchAdapter {
 

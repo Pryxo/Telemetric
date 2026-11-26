@@ -6,7 +6,7 @@ import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 
-/** MC ADAPTER: plays UI sounds by id (vanilla {@code "entity.player.levelup"} or a resource pack's {@code "ns:path"}). */
+/** Plays UI sounds by id: vanilla {@code "entity.player.levelup"} or a resource pack's {@code "ns:path"}. */
 public final class SoundAdapter {
 
     private SoundAdapter() {}

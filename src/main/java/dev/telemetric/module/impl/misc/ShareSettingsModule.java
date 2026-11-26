@@ -27,8 +27,8 @@ import java.util.zip.Inflater;
 /**
  * UI-only: shares the settings of chosen modules as a single copy-paste code.
  * <p>
- * <b>Generate</b> packs the ticked modules' state ({@code Module#toJson}, without the personal keybind) into
- * {@code TLM1.<base64url(deflate(json))>} and copies it. <b>Apply</b> reads a pasted code and overwrites only the
+ * Generate packs the ticked modules' state ({@code Module#toJson}, without the personal keybind) into
+ * {@code TLM1.<base64url(deflate(json))>} and copies it. Apply reads a pasted code and overwrites only the
  * modules that are in the code, and within them only the settings in the code. Every other module stays as it is.
  * Like any change, it gets saved with the active profile (auto-save) or on the next manual save.
  */
@@ -77,7 +77,6 @@ public final class ShareSettingsModule extends Module {
         return moduleNames;
     }
 
-    // ------------------------------------------------------------------ generate
 
     private void generateCode() {
         List<Module> list = new ArrayList<>();
@@ -107,7 +106,6 @@ public final class ShareSettingsModule extends Module {
         return true;
     }
 
-    // ------------------------------------------------------------------ apply
 
     private void applyCode() {
         if (applyCode(code.get(), null)) code.set("");

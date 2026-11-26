@@ -2,10 +2,10 @@ package dev.telemetric.dungeon.rules;
 
 /**
  * Per-dungeon mechanics that the analysis switches on by dungeon name ({@link DungeonRulebook}). Every flag is a
- * <b>reusable mechanic</b> implemented once in {@code dungeon/}. A new dungeon that shares a mechanic just turns the
+ * reusable mechanic implemented once in {@code dungeon/}. A new dungeon that shares a mechanic just turns the
  * flag on in the rulebook, with no new code.
  * <p>
- * Pure Java (no Minecraft imports). It travels to the worker thread inside {@code DungeonHint}.
+ * It travels to the worker thread inside {@code DungeonHint}.
  *
  * @param goalMob          name of the dungeon's "clear" mobs (Dungeon Goal), or null. Dungeon Info counts them as
  *                         killed/total ({@code DungeonTracker#goals()})

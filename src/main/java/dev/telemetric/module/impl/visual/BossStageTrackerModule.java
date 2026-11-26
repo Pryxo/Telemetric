@@ -34,16 +34,9 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * A floating badge on the ground under each boss that says whether it can be damaged right now (Immune / Shielded /
- * Vulnerable). The stage is read from the boss's status text display ({@link BossStageAdapter}), and the badge is
- * drawn in the world with a badge font ({@link WorldLabelAdapter}).
- * <p>
- * The label is a stack of lines — Stage Label, Health and one line per DPS stat (DPS, Peak DPS, Max Hit, Last Hit, Total,
- * Hits) — whose order the player drags in the ClickGUI (movable settings, like Stats Info). Each line (every DPS stat too) has its own style section
- * (font, bold, underline, shadow / outline, colour, size, opacity; Text style: a HUD-like background panel). DPS only
- * shows on the nearest boss. Scroll over a line in the preview to resize it. The Settings window shows a 3D
- * preview of the label with sample values; drag a line there to set the Height Offset, click the badge to try the
- * other stages.
+ * Floating badge under each boss showing its stage (Immune / Shielded / Vulnerable), plus optional Health and DPS lines.
+ * The stage comes from {@link BossStageAdapter}, the label is drawn by {@link WorldLabelAdapter}. DPS only shows on the
+ * nearest boss.
  */
 public final class BossStageTrackerModule extends Module {
 
@@ -134,7 +127,7 @@ public final class BossStageTrackerModule extends Module {
             return hasBg() ? bgPadding.get().intValue() : 0;
         }
 
-        /** Takes over every look setting of {@code o} (an old config's shared DPS look → each DPS stat). */
+        /** Copies every look setting from {@code o}. */
         void copyFrom(LineStyle o) {
             style.set(o.style.get());
             bold.set(o.bold.get());
@@ -153,7 +146,6 @@ public final class BossStageTrackerModule extends Module {
         }
     }
 
-    // ---- General: the label lines (top to bottom in the user's drag order) and when to track
     private final BooleanSetting stageLine = add(new BooleanSetting("Stage Label",
             "The Immune / Shielded / Vulnerable badge (drag to reorder the label lines)", true).movable());
     private final GroupToggleSetting healthLine = add(new GroupToggleSetting("Health",
@@ -180,8 +172,7 @@ public final class BossStageTrackerModule extends Module {
     private final NumberSetting range = add(new NumberSetting("Range", "Track bosses up to this far away",
             48, 8, 128, 4).withSuffix(" blocks"));
 
-    // ---- one section per line
-    // (each section shows while its line is on)
+    // each section shows only while its line is on
     private final GroupSetting stageGroup = add(new GroupSetting("Stage Label Style", "Look of the stage badge")
             .visibleWhen(stageLine::get));
     private final LineStyle stageStyle = new LineStyle(stageGroup, "Stage badge", "Stage", "Label Style", "Compact", "Bold",
@@ -226,7 +217,6 @@ public final class BossStageTrackerModule extends Module {
     private final NumberSetting offset = add(positionGroup.child(new NumberSetting("Height Offset",
             "Blocks above the ground under the boss (negative = into the floor)", 0.05, -1.0, 3.0, 0.05)));
 
-    // ---- Update Flash: a line flashes and fades back when its text changes, toggled per (enabled) line
     private final GroupSetting flashGroup = add(new GroupSetting("Update Flash",
             "Lines flash briefly when their text changes (like hearts when you take damage)"));
     private final ColorSetting flashColor = add(flashGroup.child(new ColorSetting("Flash Color",
@@ -342,10 +332,7 @@ public final class BossStageTrackerModule extends Module {
         return rows;
     }
 
-    /**
-     * Stacks the rows bottom-up: the last row stands at {@code y}, each row above it one line (+ spacing) higher. A
-     * row with a background takes its padding as extra room, so the panels don't overlap the neighbour lines.
-     */
+    /** Stacks the rows bottom-up from {@code y}. A row's background padding takes extra room so panels don't overlap. */
     private List<WorldLabelAdapter.Label> stack(List<Row> rows, double x, double y, double z, boolean walls) {
         List<WorldLabelAdapter.Label> out = new ArrayList<>(rows.size());
         for (int r = rows.size() - 1; r >= 0; r--) {
@@ -371,7 +358,7 @@ public final class BossStageTrackerModule extends Module {
         return d == null ? null : d.style();
     }
 
-    /** Old configs had one look for all DPS lines ("DPS …" keys): the other stats start from it. */
+    /** Copies the old shared "DPS …" look into the per-stat lines. */
     @Override
     public void fromJson(JsonObject json) {
         super.fromJson(json);
@@ -426,7 +413,6 @@ public final class BossStageTrackerModule extends Module {
         };
     }
 
-    // ================================================================== Settings window preview
 
     @Override
     public SettingsPreview createPreview() {
@@ -435,10 +421,8 @@ public final class BossStageTrackerModule extends Module {
     }
 
     /**
-     * The label as it would stand under a boss, with sample values (no boss is drawn, only its ground spot). Drag a
-     * line up / down to reorder the lines (each DPS stat on its own); Shift-drag a line, or drag the stem / ground
-     * ring, to set the Height Offset (with one line shown, dragging it always does); click the stage badge to see the
-     * next stage.
+     * The label as it would stand under a boss, with sample values. Drag a line to reorder; Shift-drag a line, or drag
+     * the stem / ground ring, to set the Height Offset (a lone line always does). Click the badge to cycle stages.
      */
     private final class PreviewLabel implements PlayerPreview.Layer {
         private static final double MAX_HP = 13_100_000, HP = 8_420_000;

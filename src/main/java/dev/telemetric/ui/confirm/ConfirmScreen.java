@@ -10,7 +10,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * MC ADAPTER: hosts {@link Confirm#current()} when no ClickGUI is open (e.g. a module turned on by its keybind).
+ * Hosts {@link Confirm#current()} when no ClickGUI is open (e.g. a module turned on by its keybind).
  * Goes back to the screen that was open before (usually none) once the dialog has closed.
  */
 public final class ConfirmScreen extends Screen {

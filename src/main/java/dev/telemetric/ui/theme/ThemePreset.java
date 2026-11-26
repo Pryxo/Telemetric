@@ -10,7 +10,7 @@ import dev.telemetric.ui.render.ColorUtil;
  */
 public enum ThemePreset implements EnumSetting.Nameable {
 
-    // ---- purple (tuned by hand) ----
+    // purple (tuned by hand)
     MIDNIGHT("Midnight", new Theme(
             0xA0050408,
             0xFF0F0D14, 0xFF1A1426, 0xFF130F1C,
@@ -47,7 +47,7 @@ public enum ThemePreset implements EnumSetting.Nameable {
             0xFF9D7BFF, 0xFFF0ABFC,
             0x80000000)),
 
-    // ---- purple / pink ----
+    // purple / pink
     LAVENDER("Lavender", dark(0xFF15121C, 0xFFB794F6, 0xFFE9D5FF)),
     VAMPIRE("Vampire", dark(0xFF1C1D27, 0xFFBD93F9, 0xFFFF79C6)),
     PASTEL("Pastel", dark(0xFF1B1B29, 0xFFCBA6F7, 0xFFF5C2E7)),
@@ -58,7 +58,7 @@ public enum ThemePreset implements EnumSetting.Nameable {
     NEON_TOKYO("Neon Tokyo", dark(0xFF0C0A16, 0xFFFF2E88, 0xFF00E5FF)),
     BUBBLEGUM("Bubblegum", dark(0xFF1A0F1A, 0xFFFF5FA2, 0xFFA78BFA)),
 
-    // ---- red / orange / yellow ----
+    // red / orange / yellow
     CRIMSON("Crimson", dark(0xFF140A0C, 0xFFDC2626, 0xFFF87171)),
     BLOOD_MOON("Blood Moon", dark(0xFF110606, 0xFFB91C1C, 0xFFF97316)),
     SUNSET("Sunset", dark(0xFF150D0B, 0xFFF97316, 0xFFEC4899)),
@@ -69,14 +69,14 @@ public enum ThemePreset implements EnumSetting.Nameable {
     CYBER("Cyber", dark(0xFF0E0E0A, 0xFFFCEE0A, 0xFF00F0FF)),
     INFERNO("Inferno", dark(0xFF140806, 0xFFFF4D1A, 0xFFFFC233)),
 
-    // ---- green ----
+    // green
     EMERALD("Emerald", dark(0xFF08130E, 0xFF10B981, 0xFF6EE7B7)),
     FOREST("Forest", dark(0xFF0E140C, 0xFF65A30D, 0xFFBEF264)),
     MINT("Mint", dark(0xFF0C1513, 0xFF34D399, 0xFFA7F3D0)),
     MATRIX("Matrix", dark(0xFF050A05, 0xFF22C55E, 0xFF86EFAC)),
     TOXIC("Toxic", dark(0xFF0A1008, 0xFFA3E635, 0xFF22D3EE)),
 
-    // ---- blue / cyan ----
+    // blue / cyan
     OCEAN("Ocean", dark(0xFF0B1220, 0xFF3B82F6, 0xFF22D3EE)),
     DEEP_SEA("Deep Sea", dark(0xFF06101A, 0xFF0EA5E9, 0xFF2DD4BF)),
     AQUA("Aqua", dark(0xFF071416, 0xFF06B6D4, 0xFF5EEAD4)),
@@ -86,12 +86,12 @@ public enum ThemePreset implements EnumSetting.Nameable {
     AURORA("Aurora", dark(0xFF07121A, 0xFF2DD4BF, 0xFFA855F7)),
     HOLO("Holo", dark(0xFF0D1220, 0xFF67E8F9, 0xFFF0ABFC)),
 
-    // ---- neutral ----
+    // neutral
     SLATE("Slate", dark(0xFF111318, 0xFF94A3B8, 0xFFCBD5E1)),
     GRAPHITE("Graphite", dark(0xFF0E0E0E, 0xFFE5E5E5, 0xFFA3A3A3)),
     COFFEE("Coffee", dark(0xFF16110E, 0xFFC8A27A, 0xFFE7C9A9)),
 
-    // ---- light ----
+    // light
     PAPER("Paper", light(0xFFF4F4F7, 0xFF7C3AED, 0xFFC084FC)),
     LATTE("Latte", light(0xFFF4EFE9, 0xFFD97706, 0xFFEA580C)),
     SKY("Sky", light(0xFFF0F5FA, 0xFF2563EB, 0xFF06B6D4)),
@@ -113,8 +113,6 @@ public enum ThemePreset implements EnumSetting.Nameable {
     public String displayName() {
         return displayName;
     }
-
-    // ------------------------------------------------------------------ derived palettes
 
     /** A dark palette from a panel colour: surfaces step up in brightness and pick up a hint of the accent. */
     private static Theme dark(int base, int accent, int accentAlt) {

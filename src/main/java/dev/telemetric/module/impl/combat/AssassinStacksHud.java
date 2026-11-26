@@ -15,7 +15,7 @@ import java.util.Locale;
  * Assassin Stacks: your current stack count as a HUD row, read from the stack particles around you
  * ({@link AssassinStackCounter}). Only shown while your class (Tab list) is Assassin, and hidden at 0 stacks.
  * <p>
- * With <b>HP Drain Detection</b> on, every stack above {@value #DRAIN_FREE_STACKS} drains {@value #HP_PER_STACK} HP
+ * With HP Drain Detection on, every stack above {@value #DRAIN_FREE_STACKS} drains {@value #HP_PER_STACK} HP
  * as a health drop without a hit (hurtTime 0), so such a drop gives the exact count:
  * {@code 16 + drop / 0.05}. The particle count is used until the first drain drop arrives, and again once no
  * drain drop came for {@value #DRAIN_TIMEOUT_MS} ms (back at ≤ 16 stacks).

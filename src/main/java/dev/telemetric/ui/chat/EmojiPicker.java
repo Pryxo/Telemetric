@@ -25,11 +25,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Chat <b>Emoji Picker</b> (Social → Chat → Emoji Button), a Discord-style window over the chat box.
+ * Chat Emoji Picker (Social → Chat → Emoji Button), a Discord-style window over the chat box.
  * <ul>
  *   <li>The emoji icon sits at right of the chat box at its bottom; the window opens to the right; click it to open / close the window.</li>
  *   <li>Search bar on top (typing goes there while the window is open; Enter picks the first hit, Esc closes).</li>
- *   <li>Sections: <b>Favorites</b> first, then the wiki categories from {@code emojis.json}. Click a section header
+ *   <li>Sections: Favorites first, then the wiki categories from {@code emojis.json}. Click a section header
  *       to collapse / expand it; the left rail jumps to a section.</li>
  *   <li>Left-click an emoji: types its code into the chat box (Shift keeps the window open). Right-click: favorite /
  *       unfavorite. Favorites and collapsed sections are saved in the Chat module.</li>
@@ -38,7 +38,7 @@ import java.util.Set;
  */
 final class EmojiPicker {
 
-    // Sizes follow docs/ui-guidelines.md: 2/4/6/8 spacing, emoji ≈ ⅔ of its cell, one radius family.
+    // 2/4/6/8 spacing, emoji ≈ ⅔ of its cell
     private static final int COLS = 9, CELL = 16, PAD = 6, RAIL = 20, RAIL_ITEM = 16, RAIL_ICON = 10, RAIL_STEP = 18, SEARCH_H = 14,
             HEADER_H = 12, FOOTER_H = 20, SECTION_GAP = 4, SCROLLBAR = 4, CLEAR_W = 12;
     private static final int W = RAIL + PAD + COLS * CELL + PAD + SCROLLBAR;
@@ -73,8 +73,6 @@ final class EmojiPicker {
     private record Section(String key, String title, String icon, List<Emoji> emojis, boolean collapsible, int top, int height) {
         int gridTop() { return top + HEADER_H; }
     }
-
-    // ------------------------------------------------------------------ state
 
     static boolean isOpen() {
         return open;
@@ -122,8 +120,6 @@ final class EmojiPicker {
         return expand(key).getTarget() > 0.5;
     }
 
-    // ------------------------------------------------------------------ geometry
-
     /** Right of the icon (beside the chat box, not over it); pushed left only if the screen is too narrow. */
     private static int px() { return Math.max(2, Math.min(bx() + BTN + 4, screenW - 2 - W)); }
     private static int ph() { return Math.max(80, Math.min(MAX_H, by() + BTN - 6)); }
@@ -153,8 +149,6 @@ final class EmojiPicker {
         scrollTarget = Math.clamp(target, 0, maxScroll());
         SCROLL.animateTo(scrollTarget);
     }
-
-    // ------------------------------------------------------------------ layout
 
     private static List<Section> layout() {
         EmojiTable table = TelosData.allEmojis();
@@ -262,8 +256,6 @@ final class EmojiPicker {
         Emoji e = TelosData.EMOJIS.get().byCode(ICON_CODE);
         return e != null ? e.glyph() : ICON_FALLBACK;
     }
-
-    // ------------------------------------------------------------------ render
 
     static void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, ChatModule chat, int width, int height) {
         screenW = width;
@@ -455,8 +447,6 @@ final class EmojiPicker {
         boolean fav = favorites.contains(e.code());
         Icons.star(R, starX, cy, fav, fav ? p.accent() : ColorUtil.fade(p.textMuted(), 0.6));
     }
-
-    // ------------------------------------------------------------------ input
 
     static boolean mouseClicked(ChatModule chat, double mx, double my, int button) {
         if (!chat.showsEmojiButton() || screenW == 0) return false;

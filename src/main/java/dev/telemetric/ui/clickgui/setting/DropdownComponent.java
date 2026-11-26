@@ -94,14 +94,12 @@ public abstract class DropdownComponent<S extends Setting<?>> extends SettingCom
         open.animateTo(expanded ? 1 : 0);
         List<String> labels = optionLabels();
 
-        // header
         String value = headerValue(r);
         int valueW = r.textWidth(value);
         r.text(r.trim(setting.getLabel(), width - valueW - Layout.PAD * 3 - 6), left(), labelY(), textColor(p));
         r.textRight(value, right() - 7, labelY(), ColorUtil.lerp(p.textMuted(), p.accent(), open.get()));
         Icons.chevron(r, right() - 4, y + Layout.SETTING_HEIGHT / 2, open.get(), p.textMuted());
 
-        // options
         double o = open.get();
         if (o <= 0.001) return;
         while (optionHover.size() < labels.size()) optionHover.add(new Animation(Durations.HOVER, Easing.OUT_CUBIC));

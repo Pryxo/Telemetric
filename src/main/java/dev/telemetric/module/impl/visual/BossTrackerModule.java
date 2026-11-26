@@ -32,10 +32,9 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Boss Tracker: the realm's bosses as a HUD list and as waypoints in the world. Each boss shows as alive, being fought
- * (and who called it), portal open (seconds left) or defeated, plus Raphael's n/m. The state comes from
- * {@link RealmBossTracker} (the {@code /bosses} menu and server lines), and the bosses, spots, lines and timers from
- * {@code tables/Boss.json}. Only in the realm, and inside a zone (Shadowlands, Radiant Isles) only that zone's bosses.
+ * The realm's bosses as a HUD list and as world waypoints. State (alive, fought, portal open, defeated) comes from
+ * {@link RealmBossTracker}; spots, lines and timers from {@code tables/Boss.json}. Realm only, and inside a zone
+ * (Shadowlands, Radiant Isles) only that zone's bosses.
  */
 public final class BossTrackerModule extends LinesHudModule {
 
@@ -121,7 +120,6 @@ public final class BossTrackerModule extends LinesHudModule {
         realm = false;
     }
 
-    // ------------------------------------------------------------------ what is shown
 
     private static boolean inRealm() {
         String dim = DungeonAdapter.dimensionId();
@@ -155,7 +153,6 @@ public final class BossTrackerModule extends LinesHudModule {
         return Math.sqrt(me.distanceSq(s.x() + 0.5, s.y() + 0.5, s.z() + 0.5));
     }
 
-    // ------------------------------------------------------------------ HUD list
 
     @Override
     protected List<Line> lines(boolean preview) {
@@ -282,7 +279,6 @@ public final class BossTrackerModule extends LinesHudModule {
                         new HudIcon.Item("telos:material/boss/defender")));
     }
 
-    // ------------------------------------------------------------------ waypoints
 
     /** Hidden-by-default bosses: still tracked, only drawn when their toggle is on. */
     private boolean shown(Boss b) {
@@ -374,7 +370,6 @@ public final class BossTrackerModule extends LinesHudModule {
         }
     }
 
-    // ------------------------------------------------------------------ quick teleport
 
     private void quickTeleport() {
         if (!waypoints.get()) return;

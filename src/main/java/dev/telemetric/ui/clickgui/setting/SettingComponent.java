@@ -131,8 +131,6 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
         return setting;
     }
 
-    // ------------------------------------------------------------------ open state (remembered in GuiLayout)
-
     /** True for controls that open in place (dropdowns, colour pickers). */
     public boolean isExpandable() {
         return false;
@@ -144,8 +142,6 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
 
     /** Opens or closes the control. {@code instant} skips the animation (used when restoring the layout). */
     public void setExpanded(boolean expanded, boolean instant) {}
-
-    // ------------------------------------------------------------------ helpers for subclasses
 
     protected int textColor(Theme p) {
         return ColorUtil.lerp(p.textMuted(), p.text(), 0.4 + hover.get() * 0.6);

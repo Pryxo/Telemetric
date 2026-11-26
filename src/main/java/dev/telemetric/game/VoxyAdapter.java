@@ -137,7 +137,7 @@ public final class VoxyAdapter {
     }
 
     /**
-     * {@code <base>/<readable name>} for {@code id}. A store from before 0.20.6 (with a hashed name) gets renamed once,
+     * {@code <base>/<readable name>} for {@code id}. A store that still has the hashed name gets renamed once,
      * so existing LODs are kept.
      */
     private static Path migrateLegacyFolder(Path base, Object id) throws ReflectiveOperationException {

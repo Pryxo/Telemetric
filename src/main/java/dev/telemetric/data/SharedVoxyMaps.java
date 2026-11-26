@@ -31,7 +31,7 @@ import java.util.zip.ZipInputStream;
  *  "sha256": "&lt;hex of the zip&gt;", "size": 12345}}}</pre>
  * The zip holds the contents of one Voxy world folder ({@code storage/…}). It gets unpacked into that folder, which
  * then gets a {@value #MARKER} file with the map version. A folder is only replaced if it's missing or has an older
- * marker, so a player's own folder (no marker) is never touched. Pure Java, no Minecraft imports.
+ * marker, so a player's own folder (no marker) is never touched.
  */
 public final class SharedVoxyMaps {
 

@@ -19,13 +19,9 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * MC ADAPTER: reads server menus as plain text for features (the Boss Tracker's {@code /bosses} list).
- * <ul>
- *   <li>Every container menu the player closes on Telos goes to the {@link #onMenuClosed} listeners (item name and
- *       lore of the menu's own slots, without the player inventory).</li>
- *   <li>{@link #runCommandAndRead} runs a command that opens a menu, reads it once its items have arrived and closes
- *       it again, but only if the caller recognises it ({@code isOurs}). Any other menu stays open.</li>
- * </ul>
+ * Reads server menus as plain text, for the Boss Tracker's {@code /bosses} list. Every container menu the player closes
+ * on Telos goes to the {@link #onMenuClosed} listeners. {@link #runCommandAndRead} runs a command that opens a menu,
+ * reads it and closes it again, but only if {@code isOurs} recognises it. Other menus stay open.
  */
 public final class BossMenuAdapter {
 
@@ -69,9 +65,9 @@ public final class BossMenuAdapter {
     }
 
     /**
-     * Runs {@code cmd} (no slash) once no screen is open, waits for the menu it opens, reads it and closes it.
-     * {@code isOurs} looks at the items and decides whether it's the expected menu. If it isn't, or nothing opens
-     * within 10 s, nothing gets closed and {@code done} isn't called. A new request replaces a pending one.
+     * Runs {@code cmd} (no slash) once no screen is open, reads the menu it opens and closes it. If {@code isOurs}
+     * rejects the items, or nothing opens within 10 s, the menu is left alone and {@code done} isn't called.
+     * A new request replaces a pending one.
      */
     public static void runCommandAndRead(String cmd, Predicate<List<MenuItem>> ours, Consumer<List<MenuItem>> done) {
         command = cmd;

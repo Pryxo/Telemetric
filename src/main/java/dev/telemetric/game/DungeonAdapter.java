@@ -35,13 +35,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MC ADAPTER: everything the dungeon features read from the game. That's which dimension we're in, chunk scanning
- * into {@link ChunkCells}, and glowing "treasure" entities.
+ * Everything the dungeon features read from the game: the dimension we're in, chunk scanning into {@link ChunkCells},
+ * and glowing treasure entities.
  * <p>
- * <b>Scanning cost.</b> Chunks get queued when they load, and the area around the player is re-queued now and then
- * for doors and gates that open. {@link #scanPending} works through the queue under a time budget on the client
- * thread. For each chunk only non-empty sections are read, each block state is classified once (identity cache),
- * and the result is a few shorts per block column.
+ * Scanning cost: chunks are queued when they load, and the area around the player is re-queued now and then for doors
+ * and gates that open. {@link #scanPending} works through the queue under a time budget on the client thread. Only
+ * non-empty sections are read, each block state is classified once (identity cache), and the result is a few shorts
+ * per block column.
  */
 public final class DungeonAdapter {
 
@@ -71,8 +71,6 @@ public final class DungeonAdapter {
             if (active) enqueue(chunk.getPos().x(), chunk.getPos().z());
         });
     }
-
-    // ------------------------------------------------------------------ location
 
     private static ClientLevel level() {
         return Minecraft.getInstance().level;
@@ -169,8 +167,6 @@ public final class DungeonAdapter {
         }
         return best == null ? null : new Point(best.getX(), best.getY(), best.getZ());
     }
-
-    // ------------------------------------------------------------------ scanning
 
     /** Starts or stops listening for chunk loads. Starting queues every chunk that's already loaded around the player. */
     public static void setActive(boolean on) {
@@ -304,8 +300,6 @@ public final class DungeonAdapter {
     }
 
 
-    // ------------------------------------------------------------------ jump pads
-
     /**
      * Called by {@code ClientPacketListenerMixin} for every server particle packet (client thread).
      * Telos jump pads are invisible, and only a fountain of {@code minecraft:dust} marks them. The colour differs per
@@ -393,7 +387,7 @@ public final class DungeonAdapter {
      * Nameplates (text displays) whose text spells {@code name}, normalised like {@link #normalizeName}. Telos draws mob
      * names in image glyphs from the server pack's {@code telos:font/text.json}, with one set per mob tier and its own
      * code points: {@code default} (normal mobs, a = U+15FD6, with gaps; e.g. "Cursed Bowsman", Omnipotent's Citadel),
-     * {@code miniboss} (A–Z = U+16004–U+1601D; e.g. "Keeper of Dusk"), {@code boss} and {@code misc}. They're decoded
+     * {@code miniboss} (A to Z = U+16004 to U+1601D; e.g. "Keeper of Dusk"), {@code boss} and {@code misc}. They are decoded
      * from the pack's font file ({@link DamageNumberAdapter#textFontLetter}), and plain Latin letters are read too.
      */
     public static List<NamePlate> namePlates(String name) {
@@ -469,7 +463,7 @@ public final class DungeonAdapter {
 
     /**
      * Turns nameplate text into lower-case letters and digits (Telos plate fonts decoded, everything else dropped).
-     * The miniboss A–Z range is built in as a fallback for when the server pack font couldn't be read.
+     * The miniboss A to Z range is built in as a fallback when the server pack font couldn't be read.
      */
     static String plateLetters(String s) {
         StringBuilder b = new StringBuilder(s.length());

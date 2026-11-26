@@ -35,7 +35,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * MC ADAPTER: the ClickGUI screen. It converts Minecraft's input records into framework primitives (in ClickGUI units,
+ * The ClickGUI screen. It converts Minecraft's input records into framework primitives (in ClickGUI units,
  * i.e. divided by the UI scale) and drives the open/close sequence:
  * <ul>
  *   <li>on open, the backdrop fades in over {@link Durations#SCREEN} and the panels slide and fade in, staggered;</li>
@@ -119,8 +119,6 @@ public class ClickGuiScreen extends Screen {
         panels.sort(Comparator.comparingInt(p -> saved.indexOf(p.getId())));
     }
 
-    // ================================================================== helpers
-
     private float appliedScale;
     private int heldButtons; // bitmask of the mouse buttons currently held down inside this screen
 
@@ -200,8 +198,6 @@ public class ClickGuiScreen extends Screen {
     private void bringToFront(Panel panel) {
         if (panels.remove(panel)) panels.add(panel);
     }
-
-    // ================================================================== rendering
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
@@ -304,8 +300,6 @@ public class ClickGuiScreen extends Screen {
         r.gradientH(x, 18, total, 1, p.accent(), ColorUtil.withAlpha(p.accentAlt(), 0));
     }
 
-    // ================================================================== lifecycle
-
     @Override
     public void tick() {
         super.tick();
@@ -328,7 +322,7 @@ public class ClickGuiScreen extends Screen {
     }
 
     private void finishClose() {
-        persist(); // no-op if removed() already persisted — still leave the screen, or it stays open invisibly
+        persist(); // no-op if removed() already persisted; still leave the screen or it stays open invisibly
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen == this) mc.setScreen(null);
     }
@@ -350,8 +344,6 @@ public class ClickGuiScreen extends Screen {
         Telemetric.get().config().getLayout().setZOrder(panels.stream().map(Panel::getId).toList());
         Telemetric.get().config().onGuiClosed();
     }
-
-    // ================================================================== input (MC records to primitives)
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {

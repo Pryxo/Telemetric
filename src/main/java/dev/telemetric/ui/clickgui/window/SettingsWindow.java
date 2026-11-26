@@ -142,8 +142,6 @@ public final class SettingsWindow extends UIComponent {
         this.state = layout.window();
     }
 
-    // ================================================================== open / close
-
     public Module getModule() {
         return closing ? null : module;
     }
@@ -259,8 +257,6 @@ public final class SettingsWindow extends UIComponent {
         }
     }
 
-    // ================================================================== sections
-
     /** A top-level group becomes its own section, unless it's a reorderable row (those stay in General). */
     private static boolean isSectionHead(Setting<?> s) {
         return s.isGroup() && s.getGroup() == null && !s.isMovable() && s.getAttachedTo() == null;
@@ -329,8 +325,6 @@ public final class SettingsWindow extends UIComponent {
         contentFade.snapTo(0).animateTo(1);
     }
 
-    // ================================================================== search
-
     /** The ClickGUI search: matching rows get tinted and their sections a dot in the sidebar. */
     public void setSearch(String q) {
         String next = q == null ? "" : q;
@@ -366,8 +360,6 @@ public final class SettingsWindow extends UIComponent {
             if (c.getSetting() == group && c.isExpandable() && !c.isExpanded()) c.setExpanded(true, false);
         }
     }
-
-    // ================================================================== geometry
 
     private int sidebarWidth(Render2D r) {
         if (!hasSidebar()) return 0;
@@ -439,8 +431,6 @@ public final class SettingsWindow extends UIComponent {
         if (module == null || closing) return false;
         return mx >= x - EDGE && mx < x + width + EDGE && my >= y && my < y + height + EDGE;
     }
-
-    // ================================================================== rendering
 
     public void render(Render2D r, int mouseX, int mouseY, float delta, int screenW, int screenH) {
         if (module == null) return;
@@ -538,7 +528,6 @@ public final class SettingsWindow extends UIComponent {
         }
     }
 
-    // ---- title bar
 
     private int closeX() {
         return x + width - BUTTON - 2;
@@ -626,7 +615,6 @@ public final class SettingsWindow extends UIComponent {
         if (used + r.textWidth(category) <= room) r.text(category, tx + used, ty, p.textDisabled());
     }
 
-    // ---- sidebar
 
     private void renderSidebar(Render2D r, Theme p, int radius, int bodyY, int bodyH, int mouseX, int mouseY) {
         int bg = ColorUtil.lerp(p.panel(), p.backdrop(), 0.25);
@@ -665,7 +653,6 @@ public final class SettingsWindow extends UIComponent {
         r.popClip();
     }
 
-    // ---- settings column
 
     private void renderSettings(Render2D r, Theme p, int cx, int bodyY, int cw, int bodyH, int mouseX, int mouseY, float delta) {
         Section s = selected;
@@ -743,8 +730,6 @@ public final class SettingsWindow extends UIComponent {
             r.popAlpha();
         }
     }
-
-    // ================================================================== input
 
     private boolean overList(double mx, double my) {
         return mx >= listX && mx < listX + listW && my >= listY && my < listY + listH;

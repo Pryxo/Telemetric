@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A <b>server system message</b> as received (pure Java). Only {@code game/ChatAdapter} builds these, and only from
+ * A server system message as received. Only {@code game/ChatAdapter} builds these, and only from
  * system chat packets, so player chat (signed or disguised) never becomes a {@code ChatMessage}.
  *
  * @param text     plain text (all segments joined)

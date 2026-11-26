@@ -21,12 +21,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Armor HUD with ability cooldowns. It shows every worn piece, a cooldown bar under the pieces that have an ability,
- * and pieces you swapped off while their cooldown is still running (next to the piece that replaced them). With
- * <b>Inventory Pieces</b> on, armor with an ability that sits in the inventory gets its own row (above / below) or
- * column (left / right), so you can see when a spare piece is ready to switch to. With <b>Align to Slot</b> each spare
- * piece sits next to the worn piece of its slot (more spares of one slot stack further out). Each slot can pop a Ready
- * Alert ({@code {slot} Ready!}) and play a sound. The data comes from {@link CooldownTracker}.
+ * Armor HUD with ability cooldowns: worn pieces with a bar under those that have an ability, plus swapped-off pieces
+ * whose cooldown is still running. Inventory Pieces adds spare armor with an ability in extra rows or columns; Align
+ * to Slot puts each spare next to the worn piece of its slot. Data comes from {@link CooldownTracker}.
  */
 public final class ArmorCooldownsHud extends HudModule {
 
@@ -44,7 +41,6 @@ public final class ArmorCooldownsHud extends HudModule {
         @Override public String displayName() { return label; }
     }
 
-    /** Where the inventory row goes in Horizontal orientation. */
     public enum RowSide implements EnumSetting.Nameable {
         ABOVE("Above"), BELOW("Below");
         private final String label;
@@ -52,7 +48,6 @@ public final class ArmorCooldownsHud extends HudModule {
         @Override public String displayName() { return label; }
     }
 
-    /** Where the inventory column goes in Vertical orientation. */
     public enum ColumnSide implements EnumSetting.Nameable {
         LEFT("Left"), RIGHT("Right");
         private final String label;

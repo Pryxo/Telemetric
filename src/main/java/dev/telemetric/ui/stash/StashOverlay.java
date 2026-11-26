@@ -14,7 +14,7 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 
 /**
- * The stash overlay. It <b>replaces</b> the Telos stash screen with a header (title, page status, Scan, Normal |
+ * The stash overlay. It replaces the Telos stash screen with a header (title, page status, Scan, Normal |
  * Seasonal toggle), a grid of page cards (each one a 9x5 stash page with real item icons, the open page outlined in
  * the accent colour) and the player's inventory centred below.
  * <ul>
@@ -107,8 +107,6 @@ public final class StashOverlay {
     private static StashOverlayModule module() {
         return Telemetric.get().modules().get(StashOverlayModule.class);
     }
-
-    // ================================================================== render
 
     public static void render(Render2D r, int mouseX, int mouseY, int screenW, int screenH) {
         StashOverlayModule m = module();
@@ -442,8 +440,6 @@ public final class StashOverlay {
         scrollRow = clamp(scrollRow, 0, totalRows - visRows);
     }
 
-    // ================================================================== layout helpers
-
     private static int cardX(int col) {
         return PAD + col * (CARD_W + GAP);
     }
@@ -483,8 +479,6 @@ public final class StashOverlay {
         }
         return null;
     }
-
-    // ================================================================== input
 
     /** The overlay takes every click while it's replacing the stash. */
     public static boolean mouseClicked(double mouseX, double mouseY, int button, boolean shift) {
@@ -626,8 +620,6 @@ public final class StashOverlay {
         return true;
     }
 
-    // ================================================================== rename
-
     public static boolean isRenaming() {
         return renamePage > 0;
     }
@@ -659,8 +651,6 @@ public final class StashOverlay {
             }
         }
     }
-
-    // ================================================================== search
 
     public static boolean isSearchFocused() {
         return searchFocused && renamePage <= 0;
@@ -703,8 +693,6 @@ public final class StashOverlay {
         shiftDrag = false;
         dragVisited.clear();
     }
-
-    // ================================================================== util
 
     private static boolean hit(int nx, int ny, int x, int y, int w, int h) {
         return nx >= x && ny >= y && nx < x + w && ny < y + h;

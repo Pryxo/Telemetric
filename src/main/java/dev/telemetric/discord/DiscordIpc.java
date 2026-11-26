@@ -172,8 +172,6 @@ public final class DiscordIpc {
         return e != null && e.isJsonPrimitive() ? e.getAsString() : null;
     }
 
-    // ------------------------------------------------------------------ transport
-
     /** Windows named pipe or Unix domain socket. */
     private interface Pipe extends Closeable {
         void write(ByteBuffer data) throws IOException;

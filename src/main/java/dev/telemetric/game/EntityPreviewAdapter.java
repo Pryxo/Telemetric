@@ -13,16 +13,14 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 /**
- * Draws your own player model into a GUI box (the 3D preview of the Settings window), turned by a yaw / pitch the
- * preview controls. Same path as the inventory screen's player ({@code InventoryScreen
- * #extractEntityInInventoryFollowsMouse}): a fresh render state from the entity renderer, drawn through
- * {@link GuiGraphicsExtractor#entity} (a picture-in-picture render to a texture). This is the flat fallback; normally
- * the preview draws one depth-tested scene ({@link ScenePreviewAdapter}).
+ * Draws your own player model into a GUI box (the 3D preview in the Settings window), turned by the preview's yaw and
+ * pitch. Same path as the inventory screen's player: a PiP render to a texture via {@link GuiGraphicsExtractor#entity}.
+ * This is the flat fallback; normally the preview draws one depth-tested scene ({@link ScenePreviewAdapter}).
  * <p>
- * The PiP state ignores the GUI pose, so the box and the scale are mapped through the current pose here. In the
- * box, a point {@code p} of the entity (blocks, feet at the origin, world axes) lands at
- * {@code centre + scale · ((shiftX, lift) + R·p)} with {@code R = Rz(π)·Rx(pitch)·Ry(yaw)} and GUI y pointing down; the
- * preview uses the same formula to place its 2D overlays (see {@code PlayerPreview}).
+ * The PiP state ignores the GUI pose, so the box and scale are mapped through the current pose here. A point {@code p}
+ * of the entity (blocks, feet at the origin) lands at {@code centre + scale · ((shiftX, lift) + R·p)} with
+ * {@code R = Rz(π)·Rx(pitch)·Ry(yaw)} and GUI y pointing down. The preview uses the same formula for its 2D overlays
+ * (see {@code PlayerPreview}).
  * <p>
  * Our render mixins (Player Size, Hide Armor) run on this render state too, so the model shows them live.
  */

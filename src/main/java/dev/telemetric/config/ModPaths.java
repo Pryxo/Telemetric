@@ -21,7 +21,6 @@ import java.util.List;
  *   data/cache/        downloaded shared data tables (safe to delete)
  * </pre>
  * {@link #migrate()} moves files over from the old flat layout once, on the first start with this version.
- * See docs/config.md.
  */
 public final class ModPaths {
 

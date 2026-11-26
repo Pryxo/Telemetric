@@ -23,13 +23,12 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * MC ADAPTER: turns <b>server system messages</b> into {@link ChatMessage}s for {@link ChatBus}, hides the ones a
- * feature asked to hide ({@link ChatBus#hide}) and shows client-side lines ({@link #post}).
+ * Turns server system messages into {@link ChatMessage}s for {@link ChatBus}, hides the ones a feature asked to hide
+ * ({@link ChatBus#hide}) and shows client-side lines ({@link #post}).
  * <p>
- * We only use {@code ClientReceiveMessageEvents.GAME} (plus {@code GAME_CANCELED}, so a chat-hiding mod can't blind
- * us), because Fabric fires it for {@code ClientboundSystemChatPacket} only. Player chat comes in as
- * {@code ClientboundPlayerChatPacket} or disguised chat ({@code CHAT} event), and we never listen to that. Off Telos
- * nothing gets dispatched.
+ * Only {@code ClientReceiveMessageEvents.GAME} is used, plus {@code GAME_CANCELED} so a chat-hiding mod can't blind us.
+ * Fabric fires GAME only for {@code ClientboundSystemChatPacket}; player chat is never listened to. Off Telos nothing
+ * is dispatched.
  */
 public final class ChatAdapter {
 
@@ -47,7 +46,7 @@ public final class ChatAdapter {
         if (message.segments().isEmpty()) return true;
         ChatBus.Visibility visibility = ChatBus.visibility(message);
         if (visibility == ChatBus.Visibility.SHOW) return true;
-        // All Chat still keeps hidden lines. Replaced ones are gone, and their Telemetric line shows instead.
+        // All Chat keeps hidden lines. Replaced lines are dropped and their Telemetric line shows instead.
         if (!overlay && visibility == ChatBus.Visibility.HIDE) ChatHudAdapter.onHidden(component);
         return false;
     }
@@ -71,7 +70,7 @@ public final class ChatAdapter {
         return ChatMessage.of(runs, overlay);
     }
 
-    /** Null for the default font, otherwise the resource id ({@code "?"} for fonts that aren't resources, such as sprites). */
+    /** Resource id of the font, null for the default font, "?" for fonts that aren't resources (sprites). */
     private static String fontId(Style style) {
         FontDescription font = style.getFont();
         if (font == null || FontDescription.DEFAULT.equals(font)) return null;
@@ -79,9 +78,7 @@ public final class ChatAdapter {
         return "?";
     }
 
-    // ------------------------------------------------------------------ client lines
-
-    /** Shows a client-side line in the chat (it's never sent to the server). Safe to call from any thread. */
+    /** Shows a client-side line in chat. Never sent to the server; safe from any thread. */
     public static void post(ChatText text) {
         if (text == null || text.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
@@ -96,14 +93,14 @@ public final class ChatAdapter {
         });
     }
 
-    /** Width (in unscaled chat pixels) that chat lines wrap at right now. */
+    /** Wrap width in unscaled chat pixels, at the current chat scale and width. */
     private static int chatWidth(Minecraft mc) {
         double scale = Math.max(0.01, mc.options.chatScale().get());
         return (int) Math.floor(net.minecraft.client.gui.components.ChatComponent.getWidth(
                 mc.options.chatWidth().get()) / scale);
     }
 
-    /** {@code ━━━ ✦ ━━━} as strikethrough spaces filling the chat width, dark at the ends and bright in the middle. */
+    /** Line of strikethrough spaces filling the chat width, with a bright middle and dark ends. */
     private static Component divider(Minecraft mc, int[] stops) {
         Style strike = Style.EMPTY.withStrikethrough(true);
         int space = Math.max(1, mc.font.width(Component.literal(" ").withStyle(strike)));
@@ -111,13 +108,13 @@ public final class ChatAdapter {
         int free = chatWidth(mc) - mc.font.width(mid) - space; // one space of slack so it never wraps
         int side = Math.max(3, free / 2 / space);
         MutableComponent out = Component.empty();
-        for (int i = 0; i < side; i++) { // left: ends → middle
+        for (int i = 0; i < side; i++) {
             double t = side <= 1 ? 1 : (double) i / (side - 1);
             out.append(Component.literal(" ").withStyle(strike.withColor(TextColor.fromRgb(
                     dev.telemetric.chat.ChatStyle.colorAt(stops, 1 - t)))));
         }
         out.append(mid);
-        for (int i = 0; i < side; i++) { // right: middle → ends
+        for (int i = 0; i < side; i++) {
             double t = side <= 1 ? 1 : (double) i / (side - 1);
             out.append(Component.literal(" ").withStyle(strike.withColor(TextColor.fromRgb(
                     dev.telemetric.chat.ChatStyle.colorAt(stops, t)))));
@@ -125,7 +122,7 @@ public final class ChatAdapter {
         return out;
     }
 
-    /** {@code line} with leading spaces so it sits in the middle of the chat box (same width and scale chat wraps at). */
+    /** Pads {@code line} with leading spaces to centre it, using the width chat wraps at. */
     private static Component centered(Minecraft mc, Component line) {
         int free = chatWidth(mc) - mc.font.width(line);
         int space = Math.max(1, mc.font.width(" "));
@@ -135,7 +132,7 @@ public final class ChatAdapter {
 
     static Component toComponent(ChatText text) {
         MutableComponent out = Component.empty();
-        int shinyChars = 0; // shiny characters so far, so the cycle carries on along the line
+        int shinyChars = 0; // shiny chars so far: the colour cycle carries on along the line
         for (ChatText.Span s : text.spans()) {
             Style style = Style.EMPTY;
             boolean shiny = (s.styles() & ChatText.SHINY) != 0 && s.sprite() == null;

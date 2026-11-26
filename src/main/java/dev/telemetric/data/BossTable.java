@@ -13,7 +13,7 @@ import java.util.regex.PatternSyntaxException;
 
 /**
  * {@code tables/Boss.json}: every boss, both realm bosses (zone, spawn spots, Boss Tracker data and icon) and dungeon
- * bosses ({@code dungeon}), with their drops and boss bar hashes. Pure Java.
+ * bosses ({@code dungeon}), with their drops and boss bar hashes.
  *
  * @param loot the drops from the same file ({@link TelosData#LOOT})
  * @param bars the boss bar hashes from the same file ({@link TelosData#BOSS_BARS})

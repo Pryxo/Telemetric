@@ -268,7 +268,6 @@ public class TabStatsHud extends LinesHudModule {
         return out;
     }
 
-    // ------------------------------------------------------------------ Telos Realms Tab-list sections
     // (anonymous subclasses, because ModuleManager keys modules by class)
 
     public static TabStatsHud generalInfo() {

@@ -5,7 +5,7 @@ import java.util.List;
 
 /**
  * State of a dungeon's puzzle rooms this run ({@code DungeonRules#chatPuzzles}). Rooms fill the slots in the order
- * chat first names them, and a slot without a name shows "???". Pure Java. Writes happen on the client thread only;
+ * chat first names them, and a slot without a name shows "???". Writes happen on the client thread only;
  * reads get a snapshot.
  */
 public final class PuzzleBoard {

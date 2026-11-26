@@ -14,14 +14,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A modal warning box (see {@link Confirm}). It deliberately does <b>not</b> use the theme palette: a warning always
- * looks the same — dark amber box, yellow border, warning triangle top-left — so it stands out from every theme.
- * Left-click the buttons; Esc or a click outside the box cancels. Buttons only react once the box has faded in, so a
- * double click on the thing that opened it can't confirm by accident.
+ * A modal warning box (see {@link Confirm}). It ignores the theme palette on purpose so a warning looks the same in
+ * every theme: dark amber box, yellow border, warning triangle top-left. Esc or a click outside cancels. Buttons only
+ * react once the box has faded in, so a double click on whatever opened it can't confirm by accident.
  */
 public final class ConfirmDialog {
 
-    // fixed warning colours (intentionally independent of ThemeManager, see class doc)
+    // fixed on purpose, not from ThemeManager
     private static final int BACKDROP = 0xA0000000;
     private static final int BOX = WarningColors.BOX;
     private static final int YELLOW = WarningColors.YELLOW;
@@ -54,8 +53,6 @@ public final class ConfirmDialog {
     public boolean isClosing() { return closing; }
 
     public boolean isFinished() { return closing && (!open.isRunning() || open.get() <= 0.001); }
-
-    // ------------------------------------------------------------------ rendering
 
     /** Draws the dim + box centred in a {@code sw × sh} area (call after {@code r.nextLayer()}). */
     public void render(Render2D r, int mx, int my, int sw, int sh) {
@@ -132,8 +129,6 @@ public final class ConfirmDialog {
         }
         return out;
     }
-
-    // ------------------------------------------------------------------ input (always consumed: modal)
 
     private boolean interactive() {
         return !closing && open.get() > 0.9;

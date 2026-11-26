@@ -50,17 +50,16 @@ public record DungeonAnalysis(long mapVersion, LongSet reachable, List<Hole> hol
         LongPredicate floor = anyFloor;
 
         // The boss level is the air around the boss anchor (or under the drop on the main level without one), see
-        // BossArena. Its ledges are standable and have a ceiling, so they'd count as floor and cause fake ledge
-        // "holes".
-        // Everything uses one dungeon level: the start's feet Y (every dungeon starts at its return portal).
-        // The median floor height is only a fallback when there's no start point, because on uneven ground it ends
-        // up on the hill tops (Illarius' Hideout: 104 vs rooms at 100), which swallowed rooms into the boss air (0.18.10).
+        // BossArena. Its ledges are standable and have a ceiling, so they'd count as floor and cause fake ledge holes.
+        // One dungeon level everywhere: the start's feet Y (every dungeon starts at its return portal). The median floor
+        // height is only a fallback without a start point. On uneven ground it ends up on the hill tops (Illarius' Hideout:
+        // 104 vs rooms at 100), which swallowed rooms into the boss air.
         int level = DungeonLevel.of(map, floor, hint);
         // Only drops you can walk to. An unreachable floor under a ceiling (the crawl space on top of a boss dome, a
         // sealed ledge) still counts as floor, but a "hole" there is a fall you can never take.
         List<Hole> holes = reachableOnly(DropDetector.detect(map, minDropDepth, floor), snapshot);
-        // Dungeon rule: no boss level (the goal is the clear mobs). So no boss air and no boss drop; a deep fall here is
-        // just scenery (in Illarius' Hideout, hill tops 10 above the ground got picked as the "boss drop").
+        // Rules without a boss level (the goal is the clear mobs) get no boss air and no boss drop, a deep fall is just
+        // scenery there (Illarius' Hideout picked hill tops 10 above the ground as the "boss drop").
         if (!hint.rules().bossLevel()) {
             return new DungeonAnalysis(version, snapshot, holes, level, Integer.MIN_VALUE, null);
         }

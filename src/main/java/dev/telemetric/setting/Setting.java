@@ -45,8 +45,6 @@ public abstract class Setting<T> {
         this.value = defaultValue;
     }
 
-    // ------------------------------------------------------------------ value
-
     public T get() {
         return value;
     }
@@ -71,8 +69,6 @@ public abstract class Setting<T> {
     protected T sanitize(T candidate) {
         return candidate == null ? defaultValue : candidate;
     }
-
-    // ------------------------------------------------------------------ meta
 
     /** Unique key inside the module (config files, GUI memory). See {@link #getLabel()} for the shown text. */
     public String getName() {
@@ -153,8 +149,6 @@ public abstract class Setting<T> {
         return persistent;
     }
 
-    // ------------------------------------------------------------------ fluent configuration
-
     @SuppressWarnings("unchecked")
     public <S extends Setting<T>> S visibleWhen(BooleanSupplier rule) {
         this.visibility = Objects.requireNonNull(rule);
@@ -213,8 +207,6 @@ public abstract class Setting<T> {
     public Setting<?> getAttachedTo() {
         return attachedTo;
     }
-
-    // ------------------------------------------------------------------ serialisation
 
     public abstract JsonElement toJson();
 

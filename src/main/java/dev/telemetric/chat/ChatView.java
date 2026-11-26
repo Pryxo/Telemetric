@@ -2,8 +2,7 @@ package dev.telemetric.chat;
 
 /**
  * How the chat HUD shows lines (chat tabs, censoring). The Chat module sets it on {@code game/ChatHudAdapter}.
- * It gets every line's plain text, player chat included, so it may only decide how things are <b>displayed</b>.
- * Pure Java.
+ * It gets every line's plain text, player chat included, so it may only decide how things are displayed.
  */
 public interface ChatView {
 

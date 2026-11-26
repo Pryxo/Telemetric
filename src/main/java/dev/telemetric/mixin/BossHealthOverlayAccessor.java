@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * MC ADAPTER (mixin): exposes {@code BossHealthOverlay#events} (the boss bars on screen, by bar id).
+ * Exposes {@code BossHealthOverlay#events} (the boss bars on screen, by bar id).
  * Only used through {@link dev.telemetric.game.BossBarAdapter}.
  */
 @Mixin(BossHealthOverlay.class)

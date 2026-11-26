@@ -99,7 +99,6 @@ public final class Animation {
         return to;
     }
 
-    /** True when it has settled at {@code value}. */
     public boolean isAt(double value) {
         return to == value && !isRunning();
     }

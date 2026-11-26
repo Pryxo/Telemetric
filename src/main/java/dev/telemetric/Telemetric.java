@@ -158,8 +158,6 @@ public final class Telemetric implements ClientModInitializer {
         }
     }
 
-    // ------------------------------------------------------------------ access
-
     public static Telemetric get() {
         if (instance == null) throw new IllegalStateException("Telemetric not initialised yet");
         return instance;

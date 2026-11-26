@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 
 /**
  * {@code tables/traits.json}: the unique traits of untiered items, with their description template and the value of
- * every placeholder per tier. Feeds Trait Details. Pure Java.
+ * every placeholder per tier. Feeds Trait Details.
  *
  * @param byKey trait {@link Names#key} to trait
  * @param tiers tier letters, lowest first ({@code D C B A S})

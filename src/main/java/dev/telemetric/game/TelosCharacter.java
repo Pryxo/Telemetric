@@ -5,7 +5,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Your current character, from the Tab list "Class" value (mode glyph + {@code Lvl 70 Knight}). This is pure parsing;
+ * Your current character, from the Tab list "Class" value (mode glyph + {@code Lvl 70 Knight}). Pure parsing;
  * {@link #current()} reads the Tab list through {@link ServerInfoAdapter}.
  *
  * @param level     character level, -1 if it isn't shown
@@ -20,8 +20,8 @@ public record TelosCharacter(int level, String className, String mode) {
     /**
      * Mode glyphs in the Class value ({@code telos:misc} → {@code telos:icon/ruleset/...}, checked in the server pack on
      * 2026-11-17). Each ruleset has a plain and a {@code glowing/} icon: normal U+0370 / U+18056, hardcore (ironman)
-     * U+0371 / U+18055, seasonal U+0372 / U+18057, and {@code group_type/<colour>} (16 colours) U+15DFC–U+15E0D /
-     * U+18058–U+18069.
+     * U+0371 / U+18055, seasonal U+0372 / U+18057, and {@code group_type/<colour>} (16 colours) U+15DFC to U+15E0D /
+     * U+18058 to U+18069.
      */
     private static final int NORMAL = 0x370, HARDCORE = 0x371, SEASONAL = 0x372,
             HARDCORE_GLOW = 0x18055, NORMAL_GLOW = 0x18056, SEASONAL_GLOW = 0x18057,

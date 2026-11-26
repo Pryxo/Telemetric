@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
 
-/** MC ADAPTER: vanilla key mappings (they show up in Options → Controls → "Telemetric"). */
+/** Vanilla key mappings (they show up in Options → Controls → "Telemetric"). */
 public final class Keybinds {
 
     public static final KeyMapping.Category CATEGORY =

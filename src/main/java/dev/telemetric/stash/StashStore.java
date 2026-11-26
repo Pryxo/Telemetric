@@ -64,7 +64,6 @@ public final class StashStore {
         }
     }
 
-    // ------------------------------------------------------------------ json
 
     private static JsonObject bookToJson(StashBook book) {
         JsonObject b = new JsonObject();

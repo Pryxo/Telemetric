@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * MC ADAPTER for Item Rarity: a soft, rarity-coloured shape behind items in inventory slots and the hotbar. The rarity
- * is the last part of the item's tooltip style ({@code telos:untiered/bloodshot}), and its colour comes from
- * {@code data/tables/rarities.json}. {@code ContainerSlotMixin} and {@code HotbarSlotMixin} call it before drawing the item.
+ * Rarity-coloured shape behind items in inventory slots and the hotbar. The rarity is the last part of the item's
+ * tooltip style ({@code telos:untiered/bloodshot}); its colour comes from {@code data/tables/rarities.json}.
+ * {@code ContainerSlotMixin} and {@code HotbarSlotMixin} call this before drawing the item.
  */
 public final class ItemRarityAdapter {
 

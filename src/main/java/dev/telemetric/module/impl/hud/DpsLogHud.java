@@ -117,7 +117,6 @@ public final class DpsLogHud extends HudModule {
         entries.removeIf(e -> e.leaving() && progress(now, e.leftAt, Durations.STANDARD) >= 1);
     }
 
-    // ------------------------------------------------------------------ animation helpers
 
     /** 0..1 progress of a {@code baseMs} transition that started at {@code start} (always 1 with animations off). */
     private static double progress(long now, long start, int baseMs) {
@@ -151,7 +150,6 @@ public final class DpsLogHud extends HudModule {
         return true;
     }
 
-    // ------------------------------------------------------------------ HudModule
 
     @Override
     public boolean hasData() {
@@ -247,7 +245,6 @@ public final class DpsLogHud extends HudModule {
             }
         }
 
-        // colour stripe
         int lead = lead();
         int rowW = lead + vw + aw;
         float x = alignRight ? w - PAD_X - rowW : centered ? (w - rowW) / 2f : PAD_X;

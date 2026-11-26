@@ -3,12 +3,12 @@ package dev.telemetric.game;
 import java.util.Locale;
 
 /**
- * The server you're on, from the Tab list "Server" value {@code [<region>, <realm>]} ({@code [<name>]} on servers
- * without a region). It's the one parser for every feature that needs the region or realm (Dungeon ID, Callouts,
- * Realm Selector, Discord RPC). Pure parsing; {@link #current()} reads the Tab list through {@link ServerInfoAdapter}.
+ * The server you're on, parsed from the Tab list "Server" value {@code [<region>, <realm>]} ({@code [<name>]} on servers
+ * without a region). The one parser for everything that needs the region or realm (Dungeon ID, Callouts, Realm
+ * Selector, Discord RPC). Pure parsing; {@link #current()} reads the Tab list through {@link ServerInfoAdapter}.
  *
  * @param region the region part ("" if the value has none)
- * @param realm  realm / hub / dungeon server name, in the form {@code /joinq} takes
+ * @param realm  realm, hub or dungeon server name, in the form {@code /joinq} takes
  */
 public record TelosServer(String region, String realm) {
 

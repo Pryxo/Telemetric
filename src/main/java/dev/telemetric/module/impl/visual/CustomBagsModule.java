@@ -14,9 +14,8 @@ import dev.telemetric.ui.notification.Toasts;
 import java.util.List;
 
 /**
- * Your own picture (PNG / JPG / animated GIF) and drop sound (OGG / WAV) for each loot bag. Pick the bag, and
- * "Set Picture…" / "Set Sound…" open a file picker. The files get copied to {@code config/telemetric/custom/bags/}.
- * The bag types come from the bags in {@code data/tables/rarities.json}.
+ * Own picture (PNG / JPG / GIF) and drop sound (OGG / WAV) per loot bag, chosen with a file picker and copied to
+ * {@code config/telemetric/custom/bags/}. Bag types come from {@code data/tables/rarities.json}.
  */
 public final class CustomBagsModule extends Module {
 

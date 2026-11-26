@@ -36,26 +36,17 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
 /**
- * Player → <b>Nametag</b>: every edit of the Telos player name tags (the "[Rank] Name / HP: …" text displays above
- * players) in one module, with one 3D preview where every extra line can be dragged.
- * <ul>
- *   <li><b>General</b>: Hide Own (your tag in third person) and Hide HP (the "HP:" line of every tag).</li>
- *   <li><b>Status Title</b> (group toggle): each player's HeadStatus status ({@link HeadStatusCache}) as an extra line
- *   ("#1 <icon> Miraj - 1,234 kills"), coloured and animated by leaderboard position.</li>
- *   <li><b>Player Currency</b> (group toggle): fame and fragments from {@code /balance <user>}, sent in the background
- *   by {@link BalanceLookup} (rate-limited, cached, replies kept out of the chat),
- *   {@code "❖1,632,163.3 | 0 <icon> 93 <icon> 39 <icon> 69 <icon>"}. Fame Auto follows each player's mode glyph
- *   ({@code TelosCharacter.modeFromGlyph}): normal → normal, seasonal → seasonal, ironman / group / unknown → none.</li>
- * </ul>
- * Other modules plug in rules through {@link #addHideRule} (e.g. Hide Players); those apply whenever their own module
- * wants them to, even with this module off. Game access goes through {@link NametagAdapter}.
+ * Edits to the Telos player name tags ("[Rank] Name / HP: ..." text displays), with one 3D preview where the extra
+ * lines can be dragged. Covers Hide Own / Hide HP, the HeadStatus Status Title ({@link HeadStatusCache}, coloured by
+ * leaderboard position) and Player Currency (fame and fragments from {@code /balance <user>}, looked up in the
+ * background by {@link BalanceLookup}; Fame Auto follows the player's mode glyph).
+ * Other modules add rules through {@link #addHideRule}; those apply even with this module off.
  */
 public final class NametagModule extends Module {
 
     /** Fragment names in /balance reply order. */
     private static final String[] FRAGMENTS = {"Irradiated", "Gilded", "Royal", "Bloodshot"};
 
-    // ------------------------------------------------------------------ General
 
     private final BooleanSetting hideOwn = add(new BooleanSetting("Hide Own",
             "Hide your own name tag in third person", false));
@@ -64,7 +55,6 @@ public final class NametagModule extends Module {
     private final BooleanSetting hideHp = add(new BooleanSetting("Hide HP",
             "Remove the HP line from every Telos name tag (the extra lines keep their positions)", false));
 
-    // ------------------------------------------------------------------ Status Title
 
     private final GroupToggleSetting status = add(new GroupToggleSetting("Status Title",
             "Show each player's head status (e.g. Luna Kills) as an extra line in their name tag", true));
@@ -83,7 +73,6 @@ public final class NametagModule extends Module {
             false)));
     private final StatusColorsHud colorsHud = new StatusColorsHud(showColors);
 
-    // ------------------------------------------------------------------ Player Currency
 
     private final GroupToggleSetting currency = add(new GroupToggleSetting("Player Currency",
             "Show each player's fame and fragments (via /balance) as an extra line in their name tag", false));
@@ -140,7 +129,6 @@ public final class NametagModule extends Module {
         return colorsHud;
     }
 
-    // ------------------------------------------------------------------ sync / tick
 
     private void sync() {
         AnimatedTextAdapter.setWave(topWave.get());
@@ -168,7 +156,6 @@ public final class NametagModule extends Module {
         return isEnabled() && currency.get();
     }
 
-    // ------------------------------------------------------------------ hide rules
 
     /** Whether your own name tag is hidden in game (Hide Own). */
     public boolean hidesOwnTag() {
@@ -196,7 +183,6 @@ public final class NametagModule extends Module {
         return false;
     }
 
-    // ------------------------------------------------------------------ Status Title
 
     /**
      * Test hook: (owner UUID dashed, is it you) gives a status to show instead of the real one, or null for the real
@@ -226,7 +212,6 @@ public final class NametagModule extends Module {
      * Builds "#1 <icon> Miraj - 1,234 Kills": the position (if the API sends one), and the icon, {@code "Name"} and
      * category unit of the API's leaderboard ID in {@code statusIcons.json}, coloured by position
      * ({@link StatusRankColors}). An ID missing from the table is shown as the raw ID. The API's own text is not used.
-     * This is the one place that decides the status text.
      */
     static TitleLine statusLine(HeadStatusApi.HeadStatus status) {
         // asked every frame for every visible tag: cached per status (a record) until the table changes
@@ -254,7 +239,6 @@ public final class NametagModule extends Module {
         return new TitleLine(rank, table.of(id), text, StatusRankColors.forPosition(status.position()));
     }
 
-    // ------------------------------------------------------------------ Player Currency
 
     private CurrencyLine currencyFor(String ownerName, boolean self, String mode) {
         if (!currencyOn() || (self && hideOwnCurrency.get())) return null;
@@ -286,7 +270,6 @@ public final class NametagModule extends Module {
                 separatorColor.get(), fragmentColor.get(), fragmentIconColor.get());
     }
 
-    // ------------------------------------------------------------------ Settings window preview
 
     /** One preview for the whole tag: the status and currency lines can both be dragged up / down. */
     @Override

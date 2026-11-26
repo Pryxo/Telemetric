@@ -24,13 +24,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MC ADAPTER: the only class that draws. It wraps {@link GuiGraphicsExtractor} (26.1's renamed {@code GuiGraphics}) and
+ * The only class that draws. It wraps {@link GuiGraphicsExtractor} (26.1's renamed {@code GuiGraphics}) and
  * adds rounded shapes, anti-aliased corners, gradients, soft shadows and a global alpha stack (used to fade whole
  * subtrees in and out).
  * <p>
  * All coordinates are GUI units. Colours are ARGB, and the alpha matters: 0xRRGGBB is invisible.
  * <p>
- * <b>Layering:</b> in 26.1 the GUI is collected into strata, and inside one stratum text is drawn after all fills.
+ * Layering: in 26.1 the GUI is collected into strata, and inside one stratum text is drawn after all fills.
  * Call {@link #nextLayer()} before drawing anything that has to cover earlier text (overlapping panels, tooltips,
  * toasts).
  */
@@ -45,8 +45,6 @@ public final class Render2D {
     private final Deque<Float> alphaStack = new ArrayDeque<>();
     private boolean textShadow;
     private final Map<String, Identifier> textures = new HashMap<>();
-
-    // ================================================================== frame
 
     public void begin(GuiGraphicsExtractor graphics, boolean textShadow) {
         this.g = graphics;
@@ -73,8 +71,6 @@ public final class Render2D {
         this.g = null;
         drawPass++;
     }
-
-    // ================================================================== state
 
     /** Multiplies the alpha of everything drawn until {@link #popAlpha()}. */
     public void pushAlpha(double factor) {
@@ -152,7 +148,6 @@ public final class Render2D {
         return (float) Math.floor(v * gs) / gs;
     }
 
-    /** True between {@link #begin} and {@link #end}. */
     public boolean isActive() {
         return g != null;
     }
@@ -174,8 +169,6 @@ public final class Render2D {
     private int c(int argb) {
         return alpha >= 0.999f ? argb : ColorUtil.fade(argb, alpha);
     }
-
-    // ================================================================== primitives
 
     public void rect(int x, int y, int w, int h, int color) {
         if (w <= 0 || h <= 0 || ColorUtil.alpha(color) == 0) return;
@@ -349,8 +342,6 @@ public final class Render2D {
         return r - Math.sqrt(Math.max(0, r * r - dy * dy));
     }
 
-    // ================================================================== shape batching
-
     /*
      * Every GUI element costs a search through the elements already on screen (GuiRenderState.hasIntersection), so
      * a shape made of many 1-pixel fills (gradients, anti-aliased corners, circles) gets slow fast. Between
@@ -434,8 +425,6 @@ public final class Render2D {
         }
     }
 
-    // ================================================================== text
-
     public void text(String s, int x, int y, int color) {
         if (s == null || s.isEmpty() || ColorUtil.alpha(c(color)) < 5) return;
         g.text(font, s, x, y, c(color), textShadow);
@@ -475,8 +464,6 @@ public final class Render2D {
     public int fontHeight() {
         return font.lineHeight;
     }
-
-    // ================================================================== styled text, glyphs, textures
 
     /** Draws server-styled runs one after another. Runs with colour 0 use {@code defaultColor}, and colourless runs keep their font. */
     public void runs(List<TextRun> runs, int x, int y, int defaultColor, boolean useRunColors) {

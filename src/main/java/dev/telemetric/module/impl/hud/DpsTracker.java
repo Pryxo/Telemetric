@@ -49,7 +49,6 @@ final class DpsTracker {
         recent.clear();
     }
 
-    /** True once a fight has had a hit (still true after it ended, until {@link #reset()}). */
     boolean hasFight() {
         return lastHitTime >= 0;
     }
@@ -64,7 +63,6 @@ final class DpsTracker {
         return active(now, timeoutMs) ? now : lastHitTime;
     }
 
-    /** Fight length in ms, from the first hit to {@code end}. */
     long duration(long end) {
         return start < 0 ? 0 : Math.max(0, end - start);
     }

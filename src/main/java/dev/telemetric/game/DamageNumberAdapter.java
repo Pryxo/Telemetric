@@ -32,22 +32,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * MC ADAPTER: finds floating damage numbers around the player.
+ * Finds floating damage numbers around the player.
  * <p>
- * <b>Telos Realms</b> shows hits as {@code text_display} entities whose text is drawn with image glyphs from the
- * server pack font {@code telos:text} (the "xikage" sets {@code default}/{@code miniboss}/{@code boss}/{@code misc}):
- * a {@code start} frame, digits / {@code dot}, an {@code end} frame, separated by U+F801 spacers. Mob name plates use
- * the same glyph sets but contain letters, so we reject those.
+ * Telos shows hits as {@code text_display} entities drawn with image glyphs from the server pack font {@code telos:text}
+ * (the "xikage" sets default, miniboss, boss and misc): a {@code start} frame, digits or {@code dot}, an {@code end}
+ * frame, separated by U+F801 spacers. Mob name plates use the same glyph sets but contain letters, so they are rejected.
  * <p>
- * The glyph-to-character map is built at runtime from the pack's {@code assets/telos/font/text.json}. Each bitmap
- * provider's file name ({@code .../xikage/<set>/<name>.png}) names its character ({@code 0}–{@code 9},
- * {@code a}–{@code z}, {@code dot}, {@code dash}, {@code slash}, {@code space}; {@code start}/{@code end}/
- * {@code frame}/{@code inner} are decoration). It gets re-read whenever the world changes.
+ * The glyph-to-character map is built at runtime from the pack's {@code assets/telos/font/text.json}: each bitmap
+ * provider's file name ({@code .../xikage/<set>/<name>.png}) gives its character. {@code start}, {@code end},
+ * {@code frame} and {@code inner} are decoration. It is re-read whenever the world changes.
  * <p>
- * Plain-text numbers ("15.9" in the default font) only count when {@code plainNumbers} is on, because Telos uses them
- * for countdowns ("3", "2", "1"), not damage.
+ * Plain-text numbers ("15.9" in the default font) only count with {@code plainNumbers} on, since Telos uses them for
+ * countdowns ("3", "2", "1") too.
  * <p>
- * Entities that are already there when scanning (re)starts get marked as seen without being reported.
+ * Entities already present when scanning (re)starts are marked as seen without being reported.
  */
 public final class DamageNumberAdapter {
 
@@ -85,8 +83,8 @@ public final class DamageNumberAdapter {
     private DamageNumberAdapter() {}
 
     /**
-     * The glyph damage numbers that showed up this tick, polled once per {@code tick} and shared by every caller
-     * ({@link #poll} reports each number only once, so two callers polling it would steal hits from each other).
+     * Damage numbers that showed up this tick. {@link #poll} reports each number only once, so callers would steal
+     * hits from each other if they polled it.
      */
     public static List<DamageNumber> thisTick(long tick) {
         if (tick != polledTick) {
@@ -103,8 +101,7 @@ public final class DamageNumberAdapter {
     }
 
     /**
-     * New damage numbers since the last call. Every damage number in the loaded world counts, with no range or self
-     * filter.
+     * New damage numbers since the last call. Every number in the loaded world counts; there is no range or self filter.
      *
      * @param plainNumbers also count numbers written in ordinary (non-glyph) text
      */
@@ -157,8 +154,6 @@ public final class DamageNumberAdapter {
         if (entity != null) entity.discard();
     }
 
-    // ------------------------------------------------------------------ entity text
-
     /** The text of a text display, or the visible custom name of an armor stand or non-living marker entity. */
     private static Component textOf(Entity entity) {
         if (entity instanceof Display.TextDisplay td) return ((TextDisplayAccessor) td).telemetric$getText();
@@ -166,8 +161,6 @@ public final class DamageNumberAdapter {
         if (!entity.isCustomNameVisible()) return null;
         return entity.getCustomName();
     }
-
-    // ------------------------------------------------------------------ parsing
 
     private record Parsed(double amount, int color, String raw, String set) {}
 
@@ -227,7 +220,7 @@ public final class DamageNumberAdapter {
         return new Parsed(value, color[0], raw, s);
     }
 
-    /** Keeps digits (from any script, turned into ASCII), separators, signs and letters. Any other symbol becomes 0 (a separator). */
+    /** Keeps digits (any script, turned into ASCII), separators, signs and letters. Other symbols become 0 (a separator). */
     private static char mapPlain(int cp) {
         if (Character.isDigit(cp)) return (char) ('0' + Character.digit(cp, 10));
         if (cp == '.' || cp == ',' || cp == '-' || cp == '+' || cp == '/') return (char) cp;
@@ -244,8 +237,6 @@ public final class DamageNumberAdapter {
                 && fontJson.getPath().equals("font/" + res.id().getPath() + ".json");
     }
 
-    // ------------------------------------------------------------------ server pack font
-
     private static Object glyphLevel;
 
     /** Reads the server pack font again on a new level, and every 5 s while it's still empty (the pack may be applied late). */
@@ -259,9 +250,8 @@ public final class DamageNumberAdapter {
     }
 
     /**
-     * The letter a Telos text-font glyph draws ({@code telos:font/text.json}, all xikage sets: default / miniboss /
-     * boss / misc mob plates and damage numbers). That's a lower-case {@code a}–{@code z}, a digit, or ' ', and 0 for
-     * anything else (brackets, frames, unknown code points).
+     * The character a Telos text-font glyph draws (from {@code telos:font/text.json}, all xikage sets). A lower-case
+     * letter, a digit or a space; 0 for anything else (brackets, frames, unknown code points).
      */
     public static char textFontLetter(int cp) {
         ClientLevel level = Minecraft.getInstance().level;
@@ -273,8 +263,8 @@ public final class DamageNumberAdapter {
     }
 
     /**
-     * Decodes Telos text-font glyphs in {@code s} to their characters (letters, digits, ' ', '.', '-', '/'); frame
-     * glyphs are dropped, plain ASCII is kept and any other code point is dropped. E.g. a mob HP plate reads "24 / 24".
+     * Decodes Telos text-font glyphs in {@code s} to characters. Frame glyphs are dropped, plain ASCII is kept, and
+     * other code points are dropped. E.g. a mob HP plate reads "24 / 24".
      */
     public static String textFontText(String s) {
         ClientLevel level = Minecraft.getInstance().level;

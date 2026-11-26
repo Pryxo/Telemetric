@@ -30,7 +30,6 @@ public final class ThemeModule extends Module {
     public final EnumSetting<ThemePreset> preset = add(new EnumSetting<>(
             "Preset", "Base colour palette of the interface", ThemePreset.MIDNIGHT).searchable());
 
-    // ---- accent override (a group: right-click to edit the colours) ----
     public final GroupToggleSetting customAccent = add(new GroupToggleSetting(
             "Custom Accent", "Override the preset's accent colours (right-click to edit)", false));
 
@@ -47,7 +46,6 @@ public final class ThemeModule extends Module {
                 Toasts.info("Copied accents from " + preset.get().displayName());
             })));
 
-    // ---- full palette override ----
     public final GroupToggleSetting customColors = add(new GroupToggleSetting(
             "Custom Colors", "Use your own colours for every part of the interface instead of the preset's "
             + "(right-click to edit; starts from the current preset)", false));
@@ -73,7 +71,6 @@ public final class ThemeModule extends Module {
                 Toasts.info("Copied colours from " + preset.get().displayName());
             })));
 
-    // ---- HUD text colours (elements with "Use Server Color" off) ----
     public final GroupToggleSetting customHudColors = add(new GroupToggleSetting(
             "Custom HUD Colors", "Your own index (label) and value colours for every HUD element that doesn't use "
             + "the server colours (right-click to edit; off = accent / text colour)", false));
@@ -84,7 +81,6 @@ public final class ThemeModule extends Module {
     public final ColorSetting hudValueColor = add(customHudColors.child(new ColorSetting(
             "HUD Value", "Values of HUD rows (\"12\" in \"Kills: 12\")", DEFAULTS.text(), false)));
 
-    // ---- per-category accents ----
     public final GroupToggleSetting categoryColors = add(new GroupToggleSetting(
             "Category Colors", "Give every panel (and the Settings windows of its modules) its own accent colour "
             + "(right-click to edit)", false));
@@ -97,7 +93,6 @@ public final class ThemeModule extends Module {
     public final ColorSetting socialColor = categoryColor(Category.SOCIAL, 0xFFEC4899);
     public final ColorSetting miscColor = categoryColor(Category.MISC, 0xFF14B8A6);
 
-    // ---- look ----
     public final EnumSetting<HeaderStyle> headerStyle = add(new EnumSetting<>(
             "Header Style", "Line: dark header with an accent line. Accent Fill: header filled with the accent gradient",
             HeaderStyle.LINE));

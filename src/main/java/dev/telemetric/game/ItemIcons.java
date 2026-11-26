@@ -9,8 +9,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * MC ADAPTER: an item you can draw from nothing but its item model id ({@code telos:material/boss/anubis}), e.g. the
- * boss or drop icons from the data tables. Stacks are cached per model, and a bad id gives null.
+ * A drawable item built from nothing but its item model id ({@code telos:material/boss/anubis}), e.g. the boss or drop
+ * icons in the data tables. Stacks are cached per model; a bad id gives null.
  */
 public final class ItemIcons {
 

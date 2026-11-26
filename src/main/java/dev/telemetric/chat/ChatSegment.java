@@ -1,7 +1,7 @@
 package dev.telemetric.chat;
 
 /**
- * One styled run of a chat message (pure Java, no Minecraft types). The styles are the <b>resolved</b> ones: a run
+ * One styled run of a chat message. The styles are the resolved ones: a run
  * inherits bold/italic/… from its parent components the same way the game draws it. Colour is left out on purpose,
  * because chat mods (ChatNotify highlighting your name, for example) recolour runs, and a system message is already
  * known to come from the server.

@@ -35,7 +35,6 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
     private int alpha;
     private int lastSynced;
 
-    // hex field
     private final Animation focus = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private String hexBuffer = "";
     private boolean selectAll;
@@ -123,11 +122,9 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         r.circle(cx + 0.5, cy + 0.5, 3, 0xFFFFFFFF);
         r.circle(cx + 0.5, cy + 0.5, 2, ColorUtil.hsv(hue, sat, val, 255));
 
-        // hue bar
         for (int i = 0; i < pw; i++) r.rect(px + i, hueY, 1, BAR_H, ColorUtil.hsv(i / (float) pw, 1f, 1f, 255));
         drawHandle(r, px + Math.round(hue * (pw - 1)), hueY, p);
 
-        // alpha bar
         if (setting.allowsAlpha()) {
             drawChecker(r, px, alphaY, pw, BAR_H);
             int opaque = ColorUtil.hsv(hue, sat, val, 255);
@@ -138,8 +135,6 @@ public class ColorComponent extends SettingComponent<ColorSetting> {
         r.popAlpha();
         r.popClip();
     }
-
-    // ------------------------------------------------------------------ hex field
 
     private int hexDigits() {
         return setting.allowsAlpha() ? 8 : 6;

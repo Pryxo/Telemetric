@@ -21,11 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * MC ADAPTER: the blocks around you as textured faces, for the Settings window's 3D previews (the "World" option).
- * Every block model quad (same quads, UVs, tint and face shading as the world) in a box of {@code radius} blocks
- * around your feet, {@link #BELOW} levels down and {@link #ABOVE} up. Faces hidden by a full opaque neighbour inside
- * the box are left out; the box's outer faces are kept, so it reads as a small diorama. Built at most once per
- * {@link #REFRESH_MS} (or when you move to another block / change the radius), drawn every frame by the preview.
+ * The blocks around you as textured faces, for the Settings window's 3D previews (the "World" option). Every block
+ * model quad (same quads, UVs, tint and face shading as the world) within {@code radius} blocks of your feet,
+ * {@link #BELOW} levels down and {@link #ABOVE} up. Faces hidden by a full opaque neighbour inside the box are left out;
+ * the outer faces stay, so it reads as a small diorama. Rebuilt at most every {@link #REFRESH_MS} ms, or when you move
+ * to another block or change the radius. The preview draws it every frame.
  */
 public final class WorldPreviewAdapter {
 
@@ -35,8 +35,8 @@ public final class WorldPreviewAdapter {
     private static final int MAX_FACES = 12_000;
 
     /**
-     * One face: 4 corners {x, y, z} relative to {@link Snapshot}'s origin block (blocks), the atlas UVs per corner,
-     * the colour (tint × face shade, opaque) and the face normal. {@code ghost} = above your feet (drawn faded).
+     * One face: four corners {x, y, z} relative to {@link Snapshot}'s origin block, their atlas UVs, the colour (tint
+     * times face shade, opaque) and the face normal. {@code ghost} marks faces above your feet (drawn faded).
      */
     public record Face(float[] pos, float[] uv, int argb, float nx, float ny, float nz, boolean ghost) {}
 

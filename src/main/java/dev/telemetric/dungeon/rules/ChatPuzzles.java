@@ -7,7 +7,7 @@ import dev.telemetric.chat.ChatPattern;
  * completed ...", "The Colour Room has reset!"), shown in Dungeon Info with one row per puzzle
  * ({@code dungeon/PuzzleBoard}). Room names aren't known until the first message about them, so rows start as "???".
  *
- * @param label    label ("Completed Room"; not shown since 0.19.6)
+ * @param label    label ("Completed Room")
  * @param slots    number of puzzle rooms in the dungeon (rows shown, max completed count)
  * @param attempt  attempt message, named groups {@code player} and {@code room}
  * @param complete completion message, named groups {@code player} and {@code room}

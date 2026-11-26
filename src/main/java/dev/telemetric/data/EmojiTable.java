@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * {@code tables/emojis.json}: the Telos chat emojis (from the /wiki Emoji page), in their wiki categories. {@code code}
  * is what you type in chat (the server turns it into the emoji), {@code glyph} is the resource-pack character it
- * shows as. Used by the chat Emoji Picker. Pure Java.
+ * shows as. Used by the chat Emoji Picker.
  *
  * <p>{@code tables/modEmojis.json} uses the same format for client-side mod emojis (Melinoe): the server leaves their
  * codes as text and the client turns them into the glyph ({@code ChatHudAdapter#modEmojis}). A category may name an

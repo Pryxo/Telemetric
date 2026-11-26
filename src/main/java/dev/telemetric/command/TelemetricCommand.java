@@ -19,8 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
- * {@code /telemetric} (alias {@code /tm}), the mod's own client command. It works on every server. Every reply is one
- * chat message with the {@code Telemetric ›} prefix only once (see {@code ClientCommandAdapter#runOwn});
+ * {@code /telemetric} (alias {@code /tm}), the mod's own client command. It works on every server. Each reply is one
+ * chat message with a single {@code Telemetric ›} prefix (see {@code ClientCommandAdapter#runOwn}).
  * <ul>
  *   <li>{@code /telemetric} opens the ClickGUI on Telos (elsewhere it prints the help).</li>
  *   <li>{@code /telemetric help} lists the sub-commands.</li>
@@ -64,8 +64,6 @@ public final class TelemetricCommand {
                 () -> HeadStatusApi.cachedTop25().values(), TelemetricCommand::statusSet);
         ClientCommandAdapter.alias(ROOT, ALIAS);
     }
-
-    // ---------------------------------------------------------------- help / utility
 
     private static String line(String command, String description) {
         return "§8§l> §r§6" + command + " §8- §7" + description;
@@ -130,8 +128,6 @@ public final class TelemetricCommand {
     private static void version(Consumer<String> reply) {
         reply.accept("§6Version: §7" + Telemetric.version());
     }
-
-    // ---------------------------------------------------------------- status
 
     private static void statusHelp(Consumer<String> reply) {
         reply.accept("Status Commands:");

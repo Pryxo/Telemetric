@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * {@code tables/callouts.json}: what the Callouts key needs to know about bosses and portals. That's the public call
- * cooldown, partial boss bars, duo bosses, phase names by HP, and portal labels. Pure Java.
+ * cooldown, partial boss bars, duo bosses, phase names by HP, and portal labels.
  */
 public record CalloutTable(Cooldown cooldown, Map<String, Integer> barFrom, List<Duo> duos,
                            Map<String, List<Stage>> phases, Map<String, String> portals,

@@ -15,7 +15,7 @@ import java.util.List;
  */
 public final class ShinyColors {
 
-    /** 0xRRGGBB per frame, read off {@code shiny_outline.png} (16×144, 9 frames) on 2026-11-16. */
+    /** 0xRRGGBB per frame, read off {@code shiny_outline.png} (16×144, 9 frames). */
     private static final int[] FRAMES = {
             0xF7D8E0, 0xE8AEF1, 0xCBDCFC, 0xB5D5FF, 0x89FFE8, 0xADFFF4, 0xBAFFA3, 0xFFF3B8, 0xFFD2BE
     };

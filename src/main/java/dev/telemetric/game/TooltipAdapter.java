@@ -15,9 +15,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
 /**
- * MC ADAPTER: item tooltips. Features add lines through {@link #addEditor}. They get the tooltip's plain lines and
- * return {@link Insert}s, and the adapter word-wraps each one to the tooltip's width (its title line) and gives it the
- * style of the part of the line it belongs to. On Telos only.
+ * Item tooltips. Features add lines through {@link #addEditor}: they get the tooltip's plain lines and return
+ * {@link Insert}s. The adapter word-wraps each one to the tooltip's width and styles it like the part of the line it
+ * belongs to. On Telos only.
  */
 public final class TooltipAdapter {
 
@@ -32,7 +32,6 @@ public final class TooltipAdapter {
 
     private TooltipAdapter() {}
 
-    // ── Tooltip Scale (read by GuiGraphicsExtractorTooltipMixin) ──
     private static volatile float tooltipScale = 1f;
 
     public static void setTooltipScale(float s) { tooltipScale = Math.max(0.25f, Math.min(3f, s)); }

@@ -27,8 +27,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * MC ADAPTER: Telos combat data. Covers the items the player holds and wears (classified once per stack and cached),
- * the server's item-cooldown packets ({@code ClientPacketListenerMixin}) and the particles combat features read.
+ * Telos combat data: the held and worn items (classified once per stack and cached), the server's item-cooldown
+ * packets ({@code ClientPacketListenerMixin}) and the particles combat features read.
  * <p>
  * Telos puts weapons, abilities and armor abilities on the vanilla item cooldown, so a cooldown packet
  * ({@code cooldownGroup}, {@code duration} in ticks, 0 means over) gives the exact start and end of every cooldown.
@@ -55,13 +55,11 @@ public final class CombatAdapter {
     }
 
     /**
-     * One classified item.
-     *
      * @param item  drawable handle (a private copy, safe to keep after the slot changes)
      * @param name  plain display name (kerning and bracket glyphs removed)
-     * @param group vanilla cooldown group id ({@code "minecraft:carrot_on_a_stick"}, {@code "telos:..."})
-     * @param range    effective range from the lore ({@code "Range » 8 + 2"} gives 10), or -1 if it has none
-     * @param cooldown ability cooldown in seconds from the lore ({@code "Cooldown » 30s"}), or -1 if it has none
+     * @param group vanilla cooldown group id, e.g. {@code "minecraft:carrot_on_a_stick"} or {@code "telos:..."}
+     * @param range    effective range from the lore, e.g. {@code "Range » 8 + 2"} gives 10, or -1 if none
+     * @param cooldown ability cooldown in seconds from the lore, e.g. {@code "Cooldown » 30s"}, or -1 if none
      * @param slot     armor slot for {@link Kind#ARMOR}, otherwise null
      */
     public record ItemInfo(GameItem item, Kind kind, String name, String group, float range, float cooldown,
@@ -84,7 +82,7 @@ public final class CombatAdapter {
         void particle(ParticleKind kind, double x, double y, double z);
     }
 
-    /** "Range » 8", "Range: 6.5 + 2", "Range » 8 - 1". Groups 3/4 are the trait modifier. */
+    /** "Range » 8", "Range: 6.5 + 2", "Range » 8 - 1". Group 1 is the base, groups 2 and 3 the trait modifier. */
     private static final Pattern RANGE = Pattern.compile(
             "Range\\s*[»:]\\s*(-?\\d+(?:\\.\\d+)?)(?:\\s*([+-])\\s*(\\d+(?:\\.\\d+)?))?");
     /** "Cooldown » 30s", "Cooldown: 2.5s". */
@@ -102,15 +100,12 @@ public final class CombatAdapter {
         return Minecraft.getInstance().player;
     }
 
-    // ================================================================== items
-
     /** Main hand item, or null if it's empty or we're not in a world. */
     public static ItemInfo mainHand() {
         LocalPlayer p = player();
         return p == null ? null : info(p, p.getMainHandItem());
     }
 
-    /** Off hand item, or null. */
     public static ItemInfo offHand() {
         LocalPlayer p = player();
         return p == null ? null : info(p, p.getOffhandItem());
@@ -124,7 +119,6 @@ public final class CombatAdapter {
         return off != null && off.kind() == kind ? off : null;
     }
 
-    /** The armor piece worn in {@code slot}, or null. */
     public static ItemInfo worn(ArmorSlot slot) {
         LocalPlayer p = player();
         return p == null ? null : info(p, p.getItemBySlot(slot.vanilla));
@@ -251,7 +245,7 @@ public final class CombatAdapter {
 
     private static final Map<Kind, GameItem> PREVIEW = new java.util.EnumMap<>(Kind.class);
 
-    /** Stand-in icon for the HUD editor preview when the real item is missing. It's a vanilla item, never Telos data. */
+    /** HUD editor preview icon per kind. A vanilla item, never Telos data. */
     public static GameItem previewItem(Kind kind) {
         return PREVIEW.computeIfAbsent(kind, k -> new GameItem(new ItemStack(switch (k) {
             case WEAPON -> Items.IRON_SWORD;
@@ -263,7 +257,6 @@ public final class CombatAdapter {
 
     private static final Map<ArmorSlot, GameItem> PREVIEW_ARMOR = new java.util.EnumMap<>(ArmorSlot.class);
 
-    /** Stand-in armor icon for {@code slot} in the HUD editor preview. */
     public static GameItem previewArmor(ArmorSlot slot) {
         return PREVIEW_ARMOR.computeIfAbsent(slot, s -> new GameItem(new ItemStack(switch (s) {
             case HEAD -> Items.IRON_HELMET;
@@ -284,8 +277,6 @@ public final class CombatAdapter {
         return sb.toString().trim();
     }
 
-    // ================================================================== cooldown packets
-
     /** Called from {@code ClientPacketListenerMixin} (client thread) when the server started or cleared a cooldown. */
     public static void onCooldownPacket(Identifier group, int ticks) {
         if (group == null || !ServerGate.onTelos()) return;
@@ -300,8 +291,6 @@ public final class CombatAdapter {
         COOLDOWNS.clear();
         return out;
     }
-
-    // ================================================================== particles
 
     public static void addParticleListener(ParticleListener listener) {
         PARTICLE_LISTENERS.add(listener);

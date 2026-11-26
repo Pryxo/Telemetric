@@ -6,17 +6,16 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.util.List;
 
 /**
- * The boss level: the open space you land in when you take the boss drop.
+ * The boss level: the open air you land in after the boss drop.
  * <p>
- * Telos boss arenas sit under (or next to) the dungeon pieces. Their ledges are standable, have a ceiling over them,
- * and are often only a few blocks below the main floor (Corvus Crypt: ledges at y 85–92, dungeon level 100). So
- * they'd count as dungeon floor and give us "holes" at the ledge edges that score higher than the real drop.
+ * Boss arenas sit under or next to the dungeon pieces. Their ledges are standable with a ceiling over them, often only
+ * a few blocks below the main floor (Corvus Crypt: ledges at y 85-92, level 100), so as normal floor they would give
+ * fake holes at the ledge edges that outrank the real drop.
  * <p>
- * So when we have a boss anchor (the boss-bar mob's feet, or the boss's nameplate when the boss itself is
- * invisible), we flood the open air starting from the floor under the anchor. The flood is capped 2 blocks under the
- * main level so it can't climb a drop shaft back up into the rooms. The boss drop is then the drop with the highest
- * rim that falls into that air (ledges may break the fall). Without an anchor we fall back to the deep drop whose rim
- * is on the main level, flooded from where it lands. Every standable cell in that air is the boss level.
+ * With a boss anchor (the boss-bar mob's feet, or its nameplate when the boss is invisible) we flood the open air from
+ * the floor under it, capped 2 blocks under the main level so the flood can't climb a drop shaft back into the rooms.
+ * The boss drop is the drop with the highest rim that falls into that air; ledges may break the fall. Without an
+ * anchor we fall back to the deep drop whose rim is on the main level and flood from where it lands.
  */
 public final class BossArena {
 
@@ -47,7 +46,7 @@ public final class BossArena {
             int bestY = Integer.MIN_VALUE, bx = 0, bz = 0;
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue; // only ring r
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
                     for (short s : map.stand(ax + dx, az + dz)) {
                         if (s <= ay + 1 && s >= ay - ANCHOR_DOWN && s > bestY) {
                             bestY = s;

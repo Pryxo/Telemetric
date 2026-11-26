@@ -121,7 +121,6 @@ public final class PityCounterHud extends LinesHudModule {
         return context.title();
     }
 
-    // ------------------------------------------------------------------ which boss
 
     @Override
     public void onTick() {
@@ -185,7 +184,6 @@ public final class PityCounterHud extends LinesHudModule {
         return boss == null ? null : loot.realm(boss);
     }
 
-    /** The realm boss with the nearest spawn spot within {@code range} blocks. */
     private static String nearestSpawn(double range) {
         Point me = DungeonAdapter.playerPos();
         if (me == null) return null;
@@ -219,7 +217,6 @@ public final class PityCounterHud extends LinesHudModule {
         return List.copyOf(out.values());
     }
 
-    // ------------------------------------------------------------------ HUD rows
 
     @Override
     protected List<Line> lines(boolean preview) {
@@ -315,7 +312,6 @@ public final class PityCounterHud extends LinesHudModule {
         return r == null ? 0 : 0xFF000000 | r.rgb();
     }
 
-    // ------------------------------------------------------------------ chat lines
 
     private void postDrop(Drop drop, int pityAt, String from) {
         int base = LootTracker.tabLootBoost(), contribution = lastContribution;

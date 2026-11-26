@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * Dungeon to boss to drops, read from the bosses in {@code tables/Boss.json}. It feeds the Pity Counter (which drops
  * a boss kill counts for), drop detection (matching a dropped item's model or name to its drop) and the drop
- * messages. Pure Java.
+ * messages.
  *
  * @param dungeons dungeon key ({@link Names#partKey}, keeps ": Part …") to its loot bosses, final boss last
  *                 ({@value #REALM} holds minibosses and bosses outside dungeons)
@@ -195,7 +195,6 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         return path.startsWith("pet/") ? "pet" : path.startsWith("mount/") ? "mount" : "item";
     }
 
-    // ------------------------------------------------------------------ lookups
 
     /**
      * The loot bosses of the dungeon with this in-game (HUD) name, final boss last, or empty if it's unknown. A part

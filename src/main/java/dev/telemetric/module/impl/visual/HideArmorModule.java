@@ -13,8 +13,8 @@ import dev.telemetric.ui.clickgui.window.SettingsPreview;
 import dev.telemetric.ui.notification.Toasts;
 
 /**
- * Hides worn armor pieces (models and Telos helmet items) so skins and capes show. There are two action keys: one
- * pauses the hiding, the other briefly shows everyone's real item models under their skins ("true items").
+ * Hides worn armor (models and Telos helmet items) so skins and capes show. One key pauses the hiding, another briefly
+ * shows everyone's real item models ("true items").
  */
 public final class HideArmorModule extends Module {
 

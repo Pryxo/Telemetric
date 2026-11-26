@@ -26,14 +26,14 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Social → Callouts:
+ * Boss and portal call-outs, with links:
  * <ul>
- *   <li><b>Callout Key</b> sends the boss you're fighting ({@code Teleport for X - 42% HP}, in dungeons with its phase
+ *   <li>Callout Key sends the boss you're fighting ({@code Teleport for X - 42% HP}, in dungeons with its phase
  *       from {@code callouts.json}), the portal next to you ({@code … - 12s left}), or {@code Currently in <area>}.
  *       A public call is held back if someone else just called the same thing in your realm.</li>
- *   <li><b>Click to Teleport</b> gives other players' call-outs a link that teleports you to them. Across realms it
+ *   <li>Click to Teleport gives other players' call-outs a link that teleports you to them. Across realms it
  *       takes a second click ({@code /joinq} to the caller's realm, then {@code /tp} once you've arrived).</li>
- *   <li><b>Realm Links</b>: clicking the {@code [realm]} tag in player chat joins that realm (right-click joins and
+ *   <li>Realm Links: clicking the {@code [realm]} tag in player chat joins that realm (right-click joins and
  *       teleports).</li>
  * </ul>
  * Call-outs are player text, so they're only remembered and linked, and nothing happens without your click.
@@ -62,7 +62,6 @@ public class CalloutsModule extends Module {
         ChatHudAdapter.addLinker(this::links);
     }
 
-    // ------------------------------------------------------------------ incoming lines
 
     /** Runs for every new chat line: remembers call-outs and links them and the realm tag. */
     private List<ChatLink> links(String plain) {
@@ -148,7 +147,6 @@ public class CalloutsModule extends Module {
         confirmPlayer = null;
     }
 
-    // ------------------------------------------------------------------ callout key
 
     private void callOut() {
         if (!PlayerAdapter.isInWorld()) return;

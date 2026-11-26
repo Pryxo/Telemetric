@@ -9,8 +9,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * MC ADAPTER: the only place gameplay modules read or change the local player.
- * Every method is null-safe, so outside a world they just report "nothing to do".
+ * The only place gameplay modules read or change the local player. Every method is null-safe, so outside a world
+ * they just report "nothing to do".
  */
 public final class PlayerAdapter {
 
@@ -86,8 +86,6 @@ public final class PlayerAdapter {
         if (p != null) ((LivingEntityAccessor) p).telemetric$setNoJumpDelay(0);
     }
 
-    // ------------------------------------------------------------------ combat
-
     /** True while the vanilla attack key (left click by default) is held and no screen is open. */
     public static boolean isAttackKeyHeld() {
         Minecraft mc = Minecraft.getInstance();
@@ -139,8 +137,6 @@ public final class PlayerAdapter {
     public static boolean autoSprint() {
         return autoSprint && ServerGate.onTelos();
     }
-
-    // ------------------------------------------------------------------ health
 
     /** Current and max health (hearts × 2), or null outside a world. */
     public record Health(float current, float max) {

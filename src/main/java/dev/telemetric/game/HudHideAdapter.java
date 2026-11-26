@@ -5,9 +5,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 /**
- * MC ADAPTER: tells Telemetric's HUD layer to stay hidden while Telos shows its black fade. The server sends a title
- * that is only the glyph U+15F96, which the server pack draws as {@code telos:glyph/title/black.png} over the full
- * screen (e.g. ~2 s after the Unrest kill). Vanilla HUD layers are left alone; {@code HudOverlay} asks {@link #hidden()}.
+ * Keeps Telemetric's HUD hidden while Telos shows its black fade. The server sends a title of only the glyph U+15F96,
+ * which the pack draws as {@code telos:glyph/title/black.png} over the whole screen (about 2 s after an Unrest kill).
+ * Vanilla HUD layers are left alone; {@code HudOverlay} asks {@link #hidden()}.
  */
 public final class HudHideAdapter {
 

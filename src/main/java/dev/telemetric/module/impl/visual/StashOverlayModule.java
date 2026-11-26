@@ -7,11 +7,10 @@ import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.stash.StashSession;
 
 /**
- * Replaces the Telos stash screen with a grid of every saved stash page plus the player's inventory. Pages are saved
- * as you see them (or all at once with Scan). Clicking a page walks the stash there using its own arrows, items can be
- * moved like in a normal container (on other pages too), and pages can be renamed.
- * Normal and seasonal pages are kept apart, with a toggle in the overlay header. The logic is in {@link StashSession},
- * the drawing in {@code ui/stash/StashOverlay}, and game access in {@code game/StashAdapter}.
+ * Replaces the Telos stash screen with a grid of all saved stash pages plus your inventory. Pages are saved as you see
+ * them (or all at once with Scan). Clicking a page walks the stash there, items move like in a normal container
+ * (also on other pages) and pages can be renamed. Normal and seasonal pages are kept apart.
+ * Logic is in {@link StashSession}, drawing in {@code ui/stash/StashOverlay}, game access in {@code game/StashAdapter}.
  */
 public final class StashOverlayModule extends Module {
 

@@ -119,9 +119,6 @@ public class Panel extends UIComponent {
         return category.getName();
     }
 
-    // ================================================================== render
-
-    /** Renders the panel. {@code screenW/H} are in ClickGUI units. */
     public void render(Render2D r, int mouseX, int mouseY, float delta, int screenW, int screenH) {
         double fade = searchFade.get();
         if (fade <= 0.001) return;
@@ -162,7 +159,6 @@ public class Panel extends UIComponent {
         x = state.x + offX;
         y = state.y + offY;
 
-        // ---- measure
         expand.animateTo(state.collapsed ? 0 : 1);
         double ex = expand.get();
         int content = 0;
@@ -187,7 +183,7 @@ public class Panel extends UIComponent {
             r.pushTransform(cx * (1 - s), cy * (1 - s), s);
         }
 
-        // ---- frame (a dragged panel lifts off with an accent glow)
+        // a dragged panel lifts off with an accent glow
         dragGlow.animateTo(dragging ? 1 : 0);
         if (ctx.themes().shadows()) r.shadow(x, y, width, height, radius, p.shadow(), Layout.SHADOW_SIZE);
         Fx.glow(r, ctx.themes(), x, y, width, height, radius, p.accent(), dragGlow.get());
@@ -248,7 +244,6 @@ public class Panel extends UIComponent {
         r.text(count, x + width - Layout.PAD - 10 - r.textWidth(count), ty, countColor, look);
         Icons.chevron(r, x + width - Layout.PAD - 3, y + Layout.HEADER_HEIGHT / 2, ex, chevronColor);
 
-        // ---- body
         if (bodyH > 0) {
             r.pushClip(x, bodyY, width, bodyH);
             boolean mouseInBody = ctx.hasCapture() || (mouseX >= x && mouseX < x + width && mouseY >= bodyY && mouseY < bodyY + bodyH);
@@ -308,8 +303,6 @@ public class Panel extends UIComponent {
     public void render(Render2D r, int mouseX, int mouseY, float delta) {
         throw new UnsupportedOperationException("Use render(r, mx, my, delta, screenW, screenH)");
     }
-
-    // ================================================================== input
 
     @Override
     public boolean isHovered(double mouseX, double mouseY) {

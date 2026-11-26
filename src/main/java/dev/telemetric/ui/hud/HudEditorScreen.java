@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * MC ADAPTER: the HUD editor. It shows every <b>enabled</b> HUD element (with placeholder data where the real data is
+ * The HUD editor. It shows every enabled HUD element (with placeholder data where the real data is
  * missing) and lets you:
  * <ul>
  *   <li>left-drag an element to move it (it snaps to screen edges, the centre and other elements; Shift for free),</li>
@@ -70,8 +70,6 @@ public class HudEditorScreen extends Screen {
     public boolean isPauseScreen() {
         return false;
     }
-
-    // ================================================================== rendering
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
@@ -158,8 +156,6 @@ public class HudEditorScreen extends Screen {
         r.popAlpha();
     }
 
-    // ================================================================== drag / resize
-
     private void updateDrag(int mx, int my, int sw, int sh) {
         guides.clear();
         if (dragging == null) return;
@@ -226,8 +222,6 @@ public class HudEditorScreen extends Screen {
         int hx = b[0] + b[2], hy = b[1] + b[3];
         return mx >= hx - HANDLE - 1 && mx <= hx + 2 && my >= hy - HANDLE - 1 && my <= hy + 2;
     }
-
-    // ================================================================== input
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
@@ -309,8 +303,6 @@ public class HudEditorScreen extends Screen {
         }
         return super.keyPressed(event); // Esc goes to onClose()
     }
-
-    // ================================================================== lifecycle
 
     @Override
     public void onClose() {

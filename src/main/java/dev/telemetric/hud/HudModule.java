@@ -24,12 +24,12 @@ import java.util.function.ToIntFunction;
  * Base class for every HUD element. A HUD element is a toggleable module in the {@link Category#STATS} panel (unless it names another category). While
  * it's enabled, the HUD overlay draws it in-game, and you can move and resize it in the HUD editor.
  * <p>
- * The <b>position</b> is stored as two fractions (hidden settings {@code X}/{@code Y}) of the free space
+ * The position is stored as two fractions (hidden settings {@code X}/{@code Y}) of the free space
  * {@code screen - margins - element size}: 0 is the left/top edge and 1 the right/bottom edge. That keeps elements
  * anchored in a corner in their corner on any window size or GUI scale.
- * The <b>size</b> is the visible {@code Scale} setting (the editor's resize handle changes it too).
+ * The size is the visible {@code Scale} setting (the editor's resize handle changes it too).
  * <p>
- * Every element has a <b>HUD Settings</b> dropdown (Text Align, Mirror Text, and what the element supports: Value
+ * Every element has a HUD Settings dropdown (Text Align, Mirror Text, and what the element supports: Value
  * Align, Background / Bg Opacity / Accent Bar, Icons, and a Colors section). Misc → HUD changes the shared ones on
  * every element at once.
  * <p>
@@ -55,7 +55,6 @@ public abstract class HudModule extends Module {
     private final NumberSetting posY;
     public final NumberSetting scale;
 
-    /** The "HUD Settings" dropdown. */
     protected final GroupSetting hudSettings;
     private final ModeSetting align;
     private final BooleanSetting mirrorText;
@@ -98,7 +97,6 @@ public abstract class HudModule extends Module {
                 .visibleWhen(() -> align.is(ALIGN_RIGHT))));
     }
 
-    // ================================================================== HUD Settings (registered by subclasses)
 
     /**
      * Adds a setting to the HUD Settings dropdown, in front of its Colors section. Use it in constructors and field
@@ -196,7 +194,6 @@ public abstract class HudModule extends Module {
         return Telemetric.get().theme().palette();
     }
 
-    // ================================================================== style read by the drawing code
 
     /** The element whose HUD Settings this one follows (split-off parts follow their owner). */
     protected HudModule styleOwner() {
@@ -252,7 +249,6 @@ public abstract class HudModule extends Module {
         if (hasAccentBar() && (alignRight || !isCentered())) r.rect(alignRight ? w - 1 : 0, 2, 1, h - 4, accentBarColor());
     }
 
-    // ================================================================== Misc → HUD (universal)
 
     /** Misc → HUD changed a shared setting: copy it onto this element. */
     public void applyGlobalBackground(boolean on) {
@@ -287,7 +283,6 @@ public abstract class HudModule extends Module {
         if (icons != null && !values.has(icons.getName())) icons.set(global.statIcons.get());
     }
 
-    // ================================================================== alignment
 
     /** Right-aligned rows drawn mirrored ("Value :Label <icon>") instead of in normal reading order. */
     public boolean isTextMirrored() {
@@ -329,7 +324,6 @@ public abstract class HudModule extends Module {
         setEnabled(false);
     }
 
-    // ================================================================== content
 
     /** Unscaled content width. */
     public abstract int contentWidth(Render2D r, boolean preview);
@@ -382,7 +376,6 @@ public abstract class HudModule extends Module {
         }
     }
 
-    // ================================================================== geometry (GUI units)
 
     public float getScale() {
         return scale.getFloat();

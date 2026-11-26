@@ -6,7 +6,7 @@ import dev.telemetric.ui.render.Render2D;
  * Base of every ClickGUI element. It's framework-level and doesn't know about MC: input arrives as primitives,
  * already converted to ClickGUI units by {@code ClickGuiScreen}.
  * <p>
- * <b>Layout contract (immediate mode):</b> the parent calls {@link #setBounds} every frame right before
+ * Layout contract (immediate mode): the parent calls {@link #setBounds} every frame right before
  * {@link #render}. {@link #getHeight()} may be animated, and parents stack their children using it. Input handlers use
  * the bounds from the last rendered frame.
  * <p>
@@ -42,8 +42,6 @@ public abstract class UIComponent {
     public boolean isHovered(double mouseX, double mouseY) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
     }
-
-    // ------------------------------------------------------------------ input (default: ignore)
 
     public boolean mouseClicked(double mouseX, double mouseY, int button) { return false; }
 

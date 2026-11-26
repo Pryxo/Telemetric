@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
  *   <li>{@code <boss> is at <hp>% HP - <phase or area>} / {@code <a> & <b> are at <x>%/<y>% HP - …} (dungeon),</li>
  *   <li>{@code Currently in <area>} (dungeon, no boss bar).</li>
  * </ul>
- * Call-outs are <b>player text</b>, so they never trigger anything on their own. We only remember who called what in
- * which realm (for the public cooldown and cross-realm teleports) and add a link the user can click. Pure Java.
+ * Call-outs are player text, so they never trigger anything on their own. We only remember who called what in
+ * which realm (for the public cooldown and cross-realm teleports) and add a link the user can click.
  */
 public final class Callouts {
 
@@ -66,7 +66,6 @@ public final class Callouts {
     private final Map<String, Seen> realmOfPlayer = new HashMap<>();
     private final Map<String, Seen> publicCalls = new HashMap<>();
 
-    // ------------------------------------------------------------------ reading
 
     /** The player chat line in {@code plain}, or null for anything else (system lines, plugins). */
     public static Line line(String plain) {
@@ -94,7 +93,6 @@ public final class Callouts {
         return parse(plain) != null;
     }
 
-    // ------------------------------------------------------------------ writing
 
     public static String teleport(String boss, int hp) {
         return "Teleport for " + boss + " - " + hp + "% HP";
@@ -116,7 +114,6 @@ public final class Callouts {
         return "Currently in " + area;
     }
 
-    // ------------------------------------------------------------------ memory
 
     /** Remembers the sender's realm and, for public lines, that {@code call.target} was just called there. */
     public void remember(Call call, long now) {

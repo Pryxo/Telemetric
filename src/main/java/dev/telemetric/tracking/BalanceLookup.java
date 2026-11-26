@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
  * {@link #CACHE_MS}, so the server's spam limit is never hit. The replies to our own requests never reach the chat
  * (not even All Chat); a {@code /balance} you type yourself still shows.
  * <p>
- * Reply (read live 2026-11-22): {@code "zPryxo has ❖16,652,699 normal and ❖1,632,163.3 seasonal balance.\nFragments:
+ * Reply: {@code "zPryxo has ❖16,652,699 normal and ❖1,632,163.3 seasonal balance.\nFragments:
  * 0/120 𖆲 + 93/120 𖃰 + 39/120 𕵁 + 69/120 𖆱"} (glyphs in {@code telos:material}); unknown player:
  * {@code "Sorry! player 'Notch' is not online or not on this server."}
  */

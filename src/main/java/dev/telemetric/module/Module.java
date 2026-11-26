@@ -18,23 +18,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Base class for everything shown as a row in the ClickGUI.
- * <p>
- * There are two flavours:
- * <ul>
- *   <li><b>Toggleable</b> (the default): a feature with an on/off state and a keybind.
- *       Left-click toggles it, the gear opens its Settings window, right-click shows the bind and pinned settings.</li>
- *   <li><b>Settings group</b> ({@code toggleable = false}), e.g. Theme or Interface. No on/off and no keybind; any
- *       click opens the settings.</li>
- * </ul>
- * Subclasses declare their settings as fields through {@link #add(Setting)}:
- * <pre>{@code
- * public class ExampleModule extends Module {
- *     private final BooleanSetting flag = add(new BooleanSetting("Flag", "Does a thing", true));
- *     public ExampleModule() { super("Example", "Example module", Category.MISC); }
- *     @Override public void onTick() { if (flag.get()) { ... } }
- * }
- * }</pre>
+ * A row in the ClickGUI. Toggleable by default (on/off + keybind); with {@code toggleable = false} it is a plain
+ * settings group (Theme, Interface) where any click opens the settings.
  */
 public abstract class Module implements JsonSerializable {
 
@@ -63,9 +48,7 @@ public abstract class Module implements JsonSerializable {
         this.bind = toggleable ? new KeybindSetting("Bind", "Key that toggles " + name, KeybindSetting.NONE) : null;
     }
 
-    // ------------------------------------------------------------------ settings
 
-    /** Registers a setting and returns it, for use in field initialisers. */
     protected <S extends Setting<?>> S add(S setting) {
         for (Setting<?> existing : settings) {
             if (existing.getName().equalsIgnoreCase(setting.getName())) {
@@ -99,7 +82,6 @@ public abstract class Module implements JsonSerializable {
         return setting;
     }
 
-    /** Whether {@code setting} sits (directly or deeper) under {@code group}. */
     private static boolean isInside(Setting<?> setting, Setting<?> group) {
         for (Setting<?> g = setting.getGroup(); g != null; g = g.getGroup()) if (g == group) return true;
         return false;
@@ -135,7 +117,6 @@ public abstract class Module implements JsonSerializable {
         return list;
     }
 
-    /** Movable settings in the user's current order. */
     public List<Setting<?>> getSettingOrder() {
         return Collections.unmodifiableList(order);
     }
@@ -183,7 +164,6 @@ public abstract class Module implements JsonSerializable {
         return bind;
     }
 
-    // ------------------------------------------------------------------ state
 
     public boolean isEnabled() {
         return enabled;
@@ -241,7 +221,6 @@ public abstract class Module implements JsonSerializable {
         return "enable:" + name;
     }
 
-    /** Restores every persistent setting and the enabled state to defaults. */
     public void resetToDefaults() {
         for (Setting<?> setting : settings) if (setting.isPersistent()) setting.reset();
         if (bind != null) bind.reset();
@@ -254,21 +233,17 @@ public abstract class Module implements JsonSerializable {
         return false;
     }
 
-    // ------------------------------------------------------------------ lifecycle hooks
 
-    /** Called when the module turns on. */
     protected void onEnable() {}
 
-    /** Called when the module turns off. */
     protected void onDisable() {}
 
     /** Called every client tick while enabled (or always, for non-toggleable modules; see ModuleManager). */
     public void onTick() {}
 
-    /** Called once after all modules are registered and the config has been loaded. */
+    /** After all modules are registered and the config is loaded. */
     public void onPostInit() {}
 
-    // ------------------------------------------------------------------ meta
 
     public String getName() { return name; }
     public String getDescription() { return description; }
@@ -286,7 +261,6 @@ public abstract class Module implements JsonSerializable {
         return null;
     }
 
-    // ------------------------------------------------------------------ serialisation
 
     @Override
     public JsonObject toJson() {

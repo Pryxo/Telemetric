@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.network.chat.Component;
@@ -24,9 +25,9 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * MC ADAPTER: floating text labels in the 3D world (billboards that face the camera, like nameplates).
- * The text is drawn with Minecraft's font renderer in a {@link BadgeText} font, so a badge is just a string of glyphs
- * that tile into one coloured shape. Features register a {@link Source}, which gets asked once per frame.
+ * Floating text labels in the 3D world (billboards that face the camera, like nameplates). The text is drawn with the
+ * font renderer in a {@link BadgeText} font, so a badge is a string of glyphs that tiles into one coloured shape.
+ * Features register a {@link Source}, which is asked once per frame.
  */
 public final class WorldLabelAdapter {
 
@@ -34,7 +35,7 @@ public final class WorldLabelAdapter {
      * One label, centred on (x, z) with its bottom edge at y. {@code height} is the glyph height in blocks (badges are
      * 8 px tall, so 1 px = height / 8 blocks). {@code text} is plain text. For badge styles, empty text draws a small
      * blank badge. {@code bg} (ARGB, 0 = none) is a rounded panel behind the text, {@code bgPad} label px around it,
-     * with an {@code accent} bar (ARGB, 0 = none) on its left edge — the HUD elements' background in the world.
+     * with an {@code accent} bar (ARGB, 0 = none) on its left edge, as on the HUD elements.
      */
     public record Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                         boolean throughWalls, boolean shadow, boolean bold, boolean underline,
@@ -147,7 +148,10 @@ public final class WorldLabelAdapter {
                 if (l.sideOffset() != 0) pose.translate(l.sideOffset(), 0, 0);
                 pose.scale(unit, -unit, unit);
                 float tx = -font.width(text) * l.align();
-                if (l.hasBackground()) drawBackground(l, tx, font.width(text), pose, buffers);
+                if (l.hasBackground()) {
+                    buffers.endBatch(); // earlier labels first, so this panel can't cover their text
+                    drawBackground(l, tx, font.width(text), pose, buffers);
+                }
                 if (l.outline() && l.throughWalls()) {
                     // drawInBatch8xOutline is always depth-tested, so we build the outline from 8 see-through copies instead.
                     int black = argb & 0xFF000000;
@@ -181,10 +185,11 @@ public final class WorldLabelAdapter {
      * rounded panels. It sits just behind the text (z -0.01, where vanilla draws its text backgrounds); it's drawn
      * before the text, so see-through labels paint the text over it.
      */
-    private static void drawBackground(Label l, float tx, int width, PoseStack pose, MultiBufferSource buffers) {
+    private static void drawBackground(Label l, float tx, int width, PoseStack pose, MultiBufferSource.BufferSource buffers) {
         int pad = l.bgPad();
         float x0 = tx - pad, x1 = tx + width + pad, y0 = -GLYPH_PX - pad, y1 = pad;
-        VertexConsumer vc = buffers.getBuffer(l.throughWalls() ? RenderTypes.textBackgroundSeeThrough() : RenderTypes.textBackground());
+        RenderType type = l.throughWalls() ? RenderTypes.textBackgroundSeeThrough() : RenderTypes.textBackground();
+        VertexConsumer vc = buffers.getBuffer(type);
         Matrix4f m = pose.last().pose();
         int bg = l.bg();
         float r = Math.min(2, Math.min(x1 - x0, y1 - y0) / 2);
@@ -198,6 +203,9 @@ public final class WorldLabelAdapter {
             quad(vc, m, x0, y0, x1, y1, -0.01f, bg);
         }
         if ((l.accent() >>> 24) != 0 && y1 - y0 > 4) quad(vc, m, x0, y0 + 2, x0 + 1, y1 - 2, -0.005f, l.accent());
+        // Flush the panel now: see-through text ignores depth, so if the panel batch were drawn after the text batch
+        // (endBatch order isn't ours to pick) the translucent panel would darken the text.
+        buffers.endBatch(type);
     }
 
     private static void quad(VertexConsumer vc, Matrix4f m, float x0, float y0, float x1, float y1, float z, int argb) {

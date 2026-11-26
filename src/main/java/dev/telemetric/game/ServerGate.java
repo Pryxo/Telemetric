@@ -6,9 +6,9 @@ import net.minecraft.client.multiplayer.ServerData;
 import java.util.Locale;
 
 /**
- * MC ADAPTER: "are we on Telos Realms?". The whole mod (ClickGUI, HUD, module ticks, keybinds) only runs while you're
- * connected to a server whose address matches {@code *.telosrealms.*} (e.g. {@code play.telosrealms.com},
- * {@code telosrealms.com}). In singleplayer, on LAN or on other servers it's off.
+ * Whether we're on Telos Realms. The mod (ClickGUI, HUD, module ticks, keybinds) only runs while connected to a server
+ * whose address matches {@code *.telosrealms.*}, e.g. {@code play.telosrealms.com} or {@code telosrealms.com}. In
+ * singleplayer, on LAN or on other servers it's off.
  */
 public final class ServerGate {
 
@@ -20,7 +20,7 @@ public final class ServerGate {
         ServerData server = mc.getCurrentServer();
         if (server == null) return false;
         String ip = server.ip;
-        if (ip != lastIp) { // cheap enough for per-entity and per-frame use, since the address is only parsed once per server
+        if (ip != lastIp) { // cheap enough per entity and per frame: the address is only parsed when the server changes
             lastIp = ip;
             lastResult = isTelosAddress(ip);
         }

@@ -6,17 +6,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Open registry of module categories. Each category with at least one visible module gets its own ClickGUI panel.
- * Adding a category takes one line:
- * <pre>{@code public static final Category COMBAT = register("Combat", 10);}</pre>
- * A lower {@code order} puts it further left in the default layout.
- */
+/** Open registry of module categories; each one with a visible module gets a ClickGUI panel. Lower {@code order} is further left. */
 public final class Category {
 
     private static final List<Category> VALUES = new ArrayList<>();
 
-    // ---- registered categories -------------------------------------------------------------
     public static final Category COMBAT = register("Combat", 10);
     public static final Category PLAYER = register("Player", 11);
     public static final Category WORLD = register("World", 12);

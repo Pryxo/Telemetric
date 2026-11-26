@@ -15,7 +15,7 @@ import dev.telemetric.ui.theme.Theme;
 /**
  * A single-line text field (label above, input below). Click to focus. Enter (which runs the setting's submit
  * action), Esc or clicking elsewhere unfocuses it. Backspace deletes, Ctrl+Backspace clears, Ctrl+V pastes, and
- * Ctrl+C copies the whole value. The caret always sits at the end, which keeps it simple and robust.
+ * Ctrl+C copies the whole value. The caret always sits at the end.
  */
 public class TextComponent extends SettingComponent<TextSetting> {
 
@@ -56,7 +56,6 @@ public class TextComponent extends SettingComponent<TextSetting> {
         if (value.isEmpty() && !focused) {
             r.text("Click to type", bx + 3, by + 2, p.textDisabled());
         } else {
-            // if the text overflows, show its tail
             String shown = value;
             if (shown.length() > 256) shown = shown.substring(shown.length() - 256); // for long pastes, only measure the tail
             while (!shown.isEmpty() && r.textWidth(shown) > innerW - 2) shown = shown.substring(1);

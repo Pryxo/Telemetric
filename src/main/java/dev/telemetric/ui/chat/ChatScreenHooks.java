@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MC ADAPTER (UI): what Social → Chat adds to the chat screen ({@code mixin/ChatScreenMixin}). That's the tab bar
+ * What Social → Chat adds to the chat screen ({@code mixin/ChatScreenMixin}). That's the tab bar
  * between the chat lines and the input box (click a tab, Alt + ←/→ cycles, the scroll wheel over the bar pans it, and a
  * red badge counts the lines a tab got while another one was open), right-click on a line (a link's right-click action,
  * otherwise copy), typed messages while a queued send is switching chat modes, and the emoji icon + {@link EmojiPicker}
@@ -52,8 +52,6 @@ public final class ChatScreenHooks {
     private static ChatModule chat() {
         return ServerGate.onTelos() ? Telemetric.get().modules().get(ChatModule.class) : null;
     }
-
-    // ------------------------------------------------------------------ tab bar
 
     public static void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         ChatModule chat = chat();
@@ -185,8 +183,6 @@ public final class ChatScreenHooks {
     private static int barHeight() {
         return Minecraft.getInstance().font.lineHeight + PAD * 2 - 1;
     }
-
-    // ------------------------------------------------------------------ input
 
     public static boolean mouseClicked(double mouseX, double mouseY, int button) {
         ChatModule chat = chat();

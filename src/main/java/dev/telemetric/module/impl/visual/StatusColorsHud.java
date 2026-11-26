@@ -16,10 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Nametag → Status Title → <i>Show Status Colors</i>: a HUD preview of the current Status Theme. It shows one example status title per
- * leaderboard slot ({@code "#1"} … {@code "#21-#25"}), drawn exactly like on a name tag (same text, animated gradient,
- * #1 wave, icon, text-display background). It uses your own status (board and count) if you have one, otherwise an
- * example. Not listed in the ClickGUI; shown while the Show Status Colors toggle is on, and movable in the HUD editor.
+ * HUD preview of the current Status Theme: one example status title per leaderboard slot ({@code "#1"} … {@code "#21-#25"}),
+ * drawn like on a name tag. Uses your own status if you have one. Not listed in the ClickGUI; shown while the
+ * Show Status Colors toggle is on, and movable in the HUD editor.
  */
 public final class StatusColorsHud extends HudModule {
 

@@ -15,7 +15,7 @@ import dev.telemetric.ui.theme.Theme;
 
 /**
  * A slider. Left-click or drag sets the value, right-click resets it to the default. The fill eases towards the real
- * value (micro-interaction timing) so jumps never look abrupt. Clicking the value number opens a text field where you
+ * value so jumps never look abrupt. Clicking the value number opens a text field where you
  * can type a number. Enter or clicking away applies it (clamped to the range and snapped to the step), and Esc
  * cancels.
  */
@@ -27,7 +27,6 @@ public class NumberComponent extends SettingComponent<NumberSetting> {
     private final Animation knob = new Animation(Durations.MICRO, Easing.OUT_CUBIC);
     private boolean dragging;
 
-    // the typed value field
     private String buffer = "";
     private boolean selectAll;
     private long focusTime;
@@ -117,8 +116,6 @@ public class NumberComponent extends SettingComponent<NumberSetting> {
         }
         return false;
     }
-
-    // ------------------------------------------------------------------ typed value
 
     private String plainValue() {
         String f = setting.format();

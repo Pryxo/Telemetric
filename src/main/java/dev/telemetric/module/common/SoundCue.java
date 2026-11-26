@@ -12,10 +12,7 @@ import dev.telemetric.ui.notification.Toasts;
 import java.util.List;
 
 /**
- * Reusable "play a sound" settings: a group toggle with the sound id, volume, pitch and a Test button.
- * <pre>{@code private final SoundCue sound = addBundle(new SoundCue("Ready Sound", "When the cooldown ends", "entity.player.levelup"));
- * ...
- * sound.play(); // no-op while the toggle is off}</pre>
+ * Reusable "play a sound" settings: a group toggle with sound id, volume, pitch and a Test button.
  * Config keys are {@code <name>}, {@code <name> Id}, {@code <name> Volume} and {@code <name> Pitch}.
  */
 public final class SoundCue implements SettingBundle {
@@ -49,7 +46,6 @@ public final class SoundCue implements SettingBundle {
         return toggle.get();
     }
 
-    /** Plays the sound if the toggle is on. */
     public void play() {
         if (toggle.get()) SoundAdapter.play(id.get(), volume.getFloat(), pitch.getFloat());
     }

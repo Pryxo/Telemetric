@@ -13,7 +13,7 @@ import java.util.regex.PatternSyntaxException;
 /**
  * {@code tables/serverMessages.json}: the server lines that Social → Server Messages can hide. {@code bosses} maps a
  * boss name to its lines (ticking the boss hides all of them). {@code misc} has one line per entry, and each one is
- * its own option. Every entry is a regex over the whole plain text. Pure Java.
+ * its own option. Every entry is a regex over the whole plain text.
  *
  * @param bosses boss name to its line regexes, in file order
  * @param misc   option label to line regex, in file order

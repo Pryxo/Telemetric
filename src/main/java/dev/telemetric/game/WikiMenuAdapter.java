@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MC ADAPTER: a plain-text view of the open server menu, plus clicks, for walking through Telos' {@code /wiki}
- * ({@code tracking/WikiStatsScan}). Only the menu's own slots are read; the player inventory is left out.
+ * Plain-text view of the open server menu, plus clicks, for walking through Telos' {@code /wiki} (used by
+ * {@code tracking/WikiStatsScan}). Only the menu's own slots are read; the player inventory is left out.
  */
 public final class WikiMenuAdapter {
 

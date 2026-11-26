@@ -2,7 +2,7 @@ package dev.telemetric.data;
 
 import java.util.Locale;
 
-/** Name matching shared by every table lookup. Pure Java. */
+/** Name matching shared by every table lookup. */
 public final class Names {
 
     private Names() {}

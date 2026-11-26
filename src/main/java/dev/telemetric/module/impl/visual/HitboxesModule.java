@@ -75,7 +75,6 @@ public final class HitboxesModule extends Module {
         });
     }
 
-    // ------------------------------------------------------------------ Settings window preview
 
     @Override
     public SettingsPreview createPreview() {
@@ -83,10 +82,8 @@ public final class HitboxesModule extends Module {
     }
 
     /**
-     * The hitboxes in the preview, drawn like in the world (same style, colours, widths, Through Walls) as real 3D
-     * lines and fills in the preview scene: your own box ("Yourself") around the preview player, plus the boxes of
-     * the nearby entities when Interface > 3D View > Show Entities is on. Falls back to a flat overlay of your own box
-     * if the scene can't be drawn.
+     * The hitboxes in the preview, drawn like in the world as real 3D lines and fills: your own box plus nearby entities
+     * when Interface > 3D View > Show Entities is on. Falls back to a flat overlay of your box if the scene can't draw.
      */
     private final class PreviewBox implements PlayerPreview.Layer {
         @Override

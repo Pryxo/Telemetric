@@ -9,9 +9,9 @@ import java.util.PriorityQueue;
 import java.util.function.BooleanSupplier;
 
 /**
- * Multi-goal A* over the standable cells of a {@link DungeonMap}. Pure Java and safe to run on a worker thread.
+ * Multi-goal A* over the standable cells of a {@link DungeonMap}. Safe to run on a worker thread.
  * Moves: 8 directions, walking, stepping or jumping up 1, dropping up to {@link #MAX_FALL} blocks, climbing up and down
- * ladders and vines, and riding known <b>jump pads</b> ({@link #lifts}: straight up the pad's shaft until a block
+ * ladders and vines, and riding known jump pads ({@link #lifts}: straight up the pad's shaft until a block
  * stops it, barrier ceilings included, then sideways onto a ledge). It also sprint-jumps straight across gaps
  * 1..{@link #MAX_GAP} wide ({@link #gapJumps}).
  * Diagonals can't cut corners. The cost is roughly the distance walked, plus penalties for jumps and falls. Only real

@@ -79,7 +79,7 @@ public final class WayfinderModule extends Module {
     private static final int ROOM_LEVEL_MARGIN = 4;
     /** How far around the drop (blocks) counts as "at the drop", if no wall is in between. */
     private static final int DROP_AREA = 10;
-    /** How far a hole has to drop to count as the boss drop (this used to be the "Drop Depth" slider). */
+    /** How far a hole has to drop to count as the boss drop. */
     private static final int DROP_DEPTH = 10;
 
     private final EnumSetting<Target> target = add(new EnumSetting<>("Target",
@@ -152,7 +152,6 @@ public final class WayfinderModule extends Module {
         clearRoute();
     }
 
-    // ------------------------------------------------------------------ planning
 
     @Override
     public void onTick() {
@@ -231,8 +230,8 @@ public final class WayfinderModule extends Module {
     /**
      * True once you've reached the boss drop: within {@link #DROP_AREA} blocks of it at about its rim level (feet within
      * {@link #ROOM_LEVEL_MARGIN}) with no wall between you and the drop, or inside the drop's shaft under the rim.
-     * There's deliberately no "below the main level" test, because before, a low Y anywhere (falling while chunks load,
-     * a sunken room) latched it.
+     * There's deliberately no "below the main level" test: a low Y anywhere (falling while chunks load, a sunken room)
+     * would trigger it.
      */
     private static boolean inBossSegment(DungeonTracker tracker, Hole hole, Point player) {
         double x = player.x(), y = player.y(), z = player.z();
@@ -409,7 +408,6 @@ public final class WayfinderModule extends Module {
         lastStart = Long.MIN_VALUE;
     }
 
-    // ------------------------------------------------------------------ blacklist
 
     private List<String> blacklistOptions() {
         List<String> options = new ArrayList<>(dev.telemetric.game.TelosLocations.dungeons());
@@ -453,7 +451,6 @@ public final class WayfinderModule extends Module {
         }
     }
 
-    // ------------------------------------------------------------------ drawing
 
     private record Nearest(int segment, Point point, double distSq) {}
 

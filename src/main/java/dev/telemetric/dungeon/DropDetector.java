@@ -46,8 +46,8 @@ public final class DropDetector {
      *               of {@code minDepth}, because the boss drop may land on a ledge first (e.g. Treasure Cave)
      */
     public static List<Hole> detect(DungeonMap map, int minDepth, LongPredicate floor, LongPredicate inBoss) {
-        Long2IntOpenHashMap dropY = new Long2IntOpenHashMap();     // column to rim y
-        Long2IntOpenHashMap dropDepth = new Long2IntOpenHashMap(); // column to depth
+        Long2IntOpenHashMap dropY = new Long2IntOpenHashMap();
+        Long2IntOpenHashMap dropDepth = new Long2IntOpenHashMap();
         Long2ObjectOpenHashMap<LongArrayList> approach = new Long2ObjectOpenHashMap<>();
 
         for (ChunkCells chunk : map.chunks()) {

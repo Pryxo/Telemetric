@@ -20,13 +20,12 @@ import java.util.regex.Pattern;
 
 /**
  * Every typed Telos table read from the shared data repo ({@code data/tables/*.json}, all written by hand; see
- * {@link SharedData} and {@code docs/data.md}). This is the one place to look up which file feeds which feature, and
+ * {@link SharedData}). This is the one place to look up which file feeds which feature, and
  * new tables go here too. Values are immutable snapshots. Read them again with {@code TABLE.get()}, because a value
- * may be swapped once the start-up update check finds a newer file. Pure Java.
+ * may be swapped once the start-up update check finds a newer file.
  */
 public final class TelosData {
 
-    /** Repo folder of the tables. */
     static final String DIR = "tables/";
 
     private TelosData() {}
@@ -36,7 +35,6 @@ public final class TelosData {
         // touching the class runs the static declarations below, so there's nothing else to do
     }
 
-    // ------------------------------------------------------------------ bosses + loot + boss bars
 
     /**
      * {@code shinyChance.json}: the shiny chance divisor per rarity (shiny chance = normal chance / divisor). This has
@@ -89,7 +87,6 @@ public final class TelosData {
         }
     }
 
-    // ------------------------------------------------------------------ rarities
 
     /** {@code rarities.json}: rarity colours and glyphs plus the loot bags, keyed by the last part of the tooltip style. */
     public static final SharedFile<Rarities> RARITIES =
@@ -153,7 +150,6 @@ public final class TelosData {
         }
     }
 
-    // ------------------------------------------------------------------ loot bags
 
     /** Loot bag types (drop totem model, drop sound) for Custom Bags and Lifetime Stats. They're part of {@code rarities.json}. */
     public static final Supplier<Bags> BAGS = () -> RARITIES.get().bags();
@@ -221,12 +217,10 @@ public final class TelosData {
         }
     }
 
-    // ------------------------------------------------------------------ traits
 
     /** {@code traits.json}: unique trait descriptions per tier (Trait Details). */
     public static final SharedFile<TraitTable> TRAITS = SharedData.file(DIR + "traits.json", TraitTable::parse, TraitTable.EMPTY);
 
-    // ------------------------------------------------------------------ chat + callouts
 
     /** {@code callouts.json}: boss and portal call-out data (Callouts). */
     public static final SharedFile<CalloutTable> CALLOUTS = SharedData.file(DIR + "callouts.json", CalloutTable::parse, CalloutTable.EMPTY);
@@ -424,7 +418,6 @@ public final class TelosData {
         }
     }
 
-    // ------------------------------------------------------------------ head status colour themes
 
     /**
      * {@code statusColor.json}: presets for Status Title → Status Theme. Maps a theme name to leaderboard slots
@@ -471,7 +464,6 @@ public final class TelosData {
         }
     }
 
-    // ------------------------------------------------------------------ head status icons
 
     /** {@code statusIcons.json}: one icon per HeadStatus leaderboard ID, drawn in the Status Title line. */
     public static final SharedFile<StatusIcons> STATUS_ICONS =

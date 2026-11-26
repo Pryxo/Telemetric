@@ -30,10 +30,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * MC ADAPTER: plays a sound file from disk (OGG Vorbis or WAV) through the vanilla sound engine, no resource pack
- * needed. Each play gets a stream id {@code telemetric:sounds/file/<n>.ogg}, and {@code SoundBufferLibraryMixin} asks
- * {@link #open} for it. OGG goes through vanilla's own decoder and WAV through Java's. Long files are cut at the given
- * length with a short fade-out.
+ * Plays a sound file from disk (OGG Vorbis or WAV) through the vanilla sound engine, no resource pack needed. Each play
+ * gets a stream id {@code telemetric:sounds/file/<n>.ogg}, which {@code SoundBufferLibraryMixin} opens through
+ * {@link #open}. OGG goes through vanilla's decoder and WAV through Java's. Long files are cut at the given length with
+ * a short fade-out.
  */
 public final class SoundFiles {
 
@@ -101,8 +101,6 @@ public final class SoundFiles {
         return p.substring(STREAM_PREFIX.length(), p.length() - STREAM_SUFFIX.length());
     }
 
-    // ------------------------------------------------------------------ sound instance
-
     /** A sound that bypasses sounds.json and resolves to one streamed FILE entry. */
     private static final class FileSound extends AbstractSoundInstance {
         FileSound(Identifier id, float volume) {
@@ -121,8 +119,6 @@ public final class SoundFiles {
             return events;
         }
     }
-
-    // ------------------------------------------------------------------ streams
 
     private static AudioStream wav(Path file) throws IOException {
         try {

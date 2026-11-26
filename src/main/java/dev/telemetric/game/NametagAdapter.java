@@ -19,13 +19,12 @@ import java.util.WeakHashMap;
 import java.util.function.Predicate;
 
 /**
- * MC ADAPTER: Telos player name tags. Telos hides the vanilla name tag (every player's team has
- * {@code nameTagVisibility: NEVER}) and puts a text display on the player as a passenger instead, e.g.
- * {@code "<rank glyph> [Member] Name\nHP: 20"}. This class finds those displays, works out who they belong to, and asks
- * the Status Title module's rule whether to draw them. Hooks: {@link #hidden} from {@code EntityRenderDispatcherMixin}
- * via {@link PlayerVisibilityAdapter}, and the extra lines (status title, Player Currency) through {@link #extrasFor} /
- * {@link #decorate} from {@code TextDisplayTitleMixin}.
- * All of it is off away from Telos.
+ * Telos player name tags. Telos hides the vanilla name tag (every player's team has {@code nameTagVisibility: NEVER})
+ * and puts a text display on the player as a passenger instead, e.g. {@code "<rank glyph> [Member] Name\nHP: 20"}.
+ * This class finds those displays, works out who they belong to, and asks the Status Title rule whether to draw them.
+ * Hooks: {@link #hidden} (from {@code EntityRenderDispatcherMixin} via {@link PlayerVisibilityAdapter}), and the extra
+ * lines (status title, Player Currency) through {@link #extrasFor} and {@link #decorate} from
+ * {@code TextDisplayTitleMixin}. Off Telos it does nothing.
  */
 public final class NametagAdapter {
 
@@ -51,8 +50,6 @@ public final class NametagAdapter {
         if (owner == null) return false;
         return rule.test(new PlayerNametag(owner.getScoreboardName(), owner == Minecraft.getInstance().player, text));
     }
-
-    // ------------------------------------------------------------------ title line
 
     /**
      * A status title line for a name tag: {@code "#1 <icon> Miraj - 1,234 kills"}. {@code rank} ("#1", may be empty)
@@ -84,8 +81,6 @@ public final class NametagAdapter {
         titlePosition = position == null ? TitlePosition.TOP : position;
     }
 
-    // ------------------------------------------------------------------ currency line
-
     /** One fragment count of a currency line: {@code "93"} and its Telos glyph (drawn in {@link #FRAGMENT_FONT}). */
     public record FragmentCount(String count, String glyph) {}
 
@@ -101,7 +96,7 @@ public final class NametagAdapter {
     public record CurrencyColors(int fameIcon, int fame, int separator, int fragmentCount, int fragmentIcon) {}
 
     /**
-     * Where currency lines come from: (owner username, is it you, their mode from the tag's ruleset glyph —
+     * Where currency lines come from: (owner username, is it you, their mode from the tag's ruleset glyph
      * {@code normal} / {@code seasonal} / {@code hardcore} / {@code group} or "") gives a line, or null for none.
      */
     public interface CurrencySource {
@@ -175,8 +170,6 @@ public final class NametagAdapter {
         }
         return out;
     }
-
-    // ------------------------------------------------------------------ extra lines
 
     /**
      * What gets added to one name tag: the status title and the currency line (either may be null) with their
@@ -423,8 +416,6 @@ public final class NametagAdapter {
         if (font != null) style = style.withFont(new FontDescription.Resource(font));
         return Component.literal(icon.glyph()).withStyle(style);
     }
-
-    // ------------------------------------------------------------------ detection
 
     /** Per display, {component, plain text or null if it isn't a name tag}. Refreshed when the text changes. */
     private static final Map<Display.TextDisplay, Object[]> TAG_CACHE = new WeakHashMap<>();

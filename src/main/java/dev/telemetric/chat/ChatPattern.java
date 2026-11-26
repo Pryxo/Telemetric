@@ -8,17 +8,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A <b>trusted</b> server message: a plain-text regex plus an exact style fingerprint. A message only matches if
+ * A trusted server message: a plain-text regex plus an exact style fingerprint. A message only matches if
  * <ol>
  *   <li>it's a server system message ({@link ChatMessage} is never built from player chat),</li>
  *   <li>it's in the chat, or in the action bar for {@link Builder#overlay()} patterns, and not the other one,</li>
- *   <li>its <b>whole</b> plain text matches {@code text} ({@link Matcher#matches()}), so nothing like a player
+ *   <li>its whole plain text matches {@code text} ({@link Matcher#matches()}), so nothing like a player
  *       name, rank, "[Party]" or whisper arrow can come before it,</li>
- *   <li>it has <b>exactly</b> the listed runs, in order: each run's text matches its regex and
+ *   <li>it has exactly the listed runs, in order: each run's text matches its regex and
  *       bold/italic/underlined/strikethrough/obfuscated are exactly the given flags,</li>
  *   <li>no run has a click/hover event and no run uses a custom font (unless the run allows it).</li>
  * </ol>
- * Colour is <b>not</b> checked. Point 1 already proves the server sent it, and chat mods recolour runs (ChatNotify
+ * Colour is not checked. Point 1 already proves the server sent it, and chat mods recolour runs (ChatNotify
  * paints your own name), which made colour checks miss real messages. Runs are only split where bold/italic/…
  * change. A player's line relayed by the server (whisper, party, chat format) has a name, rank or channel prefix,
  * so it can't pass point 3.

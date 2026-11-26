@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
  *       {@code Boss has spawned at x, y, z}.</li>
  * </ul>
  * Which bosses exist, where they are, and their lines and timers come from {@code tables/Boss.json}
- * ({@code tracker} data). Pure logic; the menu comes through {@link BossMenuAdapter}. The chat layouts haven't been
+ * ({@code tracker} data). The menu comes through {@link BossMenuAdapter}. The chat layouts haven't been
  * read live yet ({@code anyRuns}).
  */
 public final class RealmBossTracker {
@@ -117,7 +117,6 @@ public final class RealmBossTracker {
         clear();
     }
 
-    // ------------------------------------------------------------------ read
 
     public synchronized List<Tracked> all() {
         return List.copyOf(tracked.values());
@@ -140,7 +139,6 @@ public final class RealmBossTracker {
     /** When a realm was last joined from somewhere other than a dungeon (0 if not yet). That's when to read /bosses. */
     public long realmJoinedAt() { return realmJoinedAt; }
 
-    // ------------------------------------------------------------------ lifecycle
 
     /** New realm or hub: forget everything except the always-present bosses and markers. */
     public synchronized void clear() {
@@ -193,7 +191,6 @@ public final class RealmBossTracker {
         BossMenuAdapter.runCommandAndRead("bosses", RealmBossTracker::isBossMenu, this::readMenu);
     }
 
-    // ------------------------------------------------------------------ inputs
 
     private static boolean isBossMenu(List<MenuItem> items) {
         for (MenuItem i : items) if (MENU_NAME.matcher(i.name()).find()) return true;
@@ -341,7 +338,6 @@ public final class RealmBossTracker {
         }
     }
 
-    // ------------------------------------------------------------------ state
 
     private Tracked set(String name, State state) {
         Tracked t = tracked.get(Names.key(name));

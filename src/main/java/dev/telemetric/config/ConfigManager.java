@@ -33,7 +33,6 @@ import java.util.regex.Pattern;
  *    └─ &lt;name&gt;.json      module states + setting values
  * </pre>
  * Every write is atomic (temp file, then move), so a crash can't leave a half-written config behind.
- * See docs/config.md.
  */
 public final class ConfigManager {
 
@@ -58,8 +57,6 @@ public final class ConfigManager {
         this.metaFile = ModPaths.META;
         this.layoutFile = ModPaths.LAYOUT;
     }
-
-    // ================================================================== lifecycle
 
     public void init() {
         try {
@@ -87,8 +84,6 @@ public final class ConfigManager {
         if (autoSave) saveProfile(activeProfile);
         saveMeta();
     }
-
-    // ================================================================== profiles
 
     /**
      * Copies the entries of modules that aren't registered right now (an add-on that isn't installed this session,
@@ -198,8 +193,6 @@ public final class ConfigManager {
                 || (codepoint >= '0' && codepoint <= '9') || codepoint == '_' || codepoint == '-';
     }
 
-    // ================================================================== meta / layout
-
     public void saveLayout() {
         writeJson(layoutFile, layout.toJson());
     }
@@ -242,8 +235,6 @@ public final class ConfigManager {
         this.autoSave = autoSave;
         saveMeta();
     }
-
-    // ================================================================== migration
 
     /** Upgrades older profile formats in place. Add a case per format bump. */
     private JsonObject migrate(JsonObject json) {
@@ -318,8 +309,6 @@ public final class ConfigManager {
     private static boolean isNoBind(JsonElement e) {
         return e.isJsonPrimitive() && e.getAsJsonPrimitive().isNumber() && e.getAsInt() == KeybindSetting.NONE;
     }
-
-    // ================================================================== io
 
     private Path profileFile(String profile) {
         return profilesDir.resolve(profile + ".json");

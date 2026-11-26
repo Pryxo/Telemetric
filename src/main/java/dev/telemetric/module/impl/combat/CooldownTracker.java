@@ -18,17 +18,14 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Shared cooldown state for every combat feature: one timer per vanilla cooldown group, started and cleared by the
- * server's cooldown packets ({@link CombatAdapter#drainCooldowns()}) and kept in wall-clock time.
+ * Shared cooldown timers for the combat features: one per vanilla cooldown group, driven by the server's cooldown
+ * packets ({@link CombatAdapter#drainCooldowns()}) and kept in wall-clock time.
  * <p>
- * Vanilla forgets cooldowns whenever the client gets a new player (dungeon entry, respawn), but Telos keeps them
- * running server-side, so these timers survive world changes. The exception is items listed in
- * {@link TelosItemRules#resetsOnWorldChange}. A realm or hub switch (the Tab list's "Server" changes) resets all of
- * them, the same as the server does. Features read the timers ({@link #get}, {@link #latest}, {@link #active}) and get
- * {@link #addListener ready events}.
+ * Vanilla forgets cooldowns when the client gets a new player (dungeon entry, respawn) but Telos keeps them running
+ * server-side, so these survive world changes. Exceptions: items in {@link TelosItemRules#resetsOnWorldChange}, and a
+ * realm or hub switch (the Tab list's "Server" changes), which clears everything like the server does.
  * <p>
- * The entrypoint ticks it every client tick on Telos, whether or not a feature is on, so a feature that's switched on
- * mid-cooldown shows it right away. When idle it costs a few map lookups.
+ * Ticked every client tick on Telos even if no feature is on, so one enabled mid-cooldown shows it right away.
  */
 public final class CooldownTracker {
 
@@ -75,7 +72,6 @@ public final class CooldownTracker {
         listeners.add(listener);
     }
 
-    /** The entrypoint calls this every client tick (on Telos). */
     public void tick() {
         long now = System.currentTimeMillis();
         detectResets();
@@ -97,7 +93,6 @@ public final class CooldownTracker {
         if (ready != null) for (Cooldown c : ready) fire(c);
     }
 
-    /** The running cooldown of {@code group}, or null. */
     public Cooldown get(String group) {
         return group == null ? null : active.get(group);
     }

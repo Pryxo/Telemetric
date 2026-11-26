@@ -30,7 +30,6 @@ public final class ReadyAlertsHud extends HudModule {
         addFrameSettings(false);
     }
 
-    /** The shared instance (registered once in {@code ModuleManager}). */
     static ReadyAlertsHud get() {
         return Telemetric.get().modules().get(ReadyAlertsHud.class);
     }

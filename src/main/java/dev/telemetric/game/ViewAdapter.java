@@ -7,14 +7,12 @@ import net.minecraft.client.Options;
 import net.minecraft.client.player.LocalPlayer;
 
 /**
- * MC ADAPTER: how the player sees the world. Covers brightness (Fullbright, read by {@code LightmapMixin}) and the
- * camera perspective (Camera). Modules push their settings through the setters, and every effect only applies on Telos.
+ * How the player sees the world: brightness (Fullbright, read by {@code LightmapMixin}) and the camera perspective
+ * (Camera). Modules push their settings through the setters. Every effect only applies on Telos.
  */
 public final class ViewAdapter {
 
     private ViewAdapter() {}
-
-    // ------------------------------------------------------------------ fullbright
 
     private static volatile float fullbright;
 
@@ -27,8 +25,6 @@ public final class ViewAdapter {
     public static float fullbright() {
         return fullbright > 0 && ServerGate.onTelos() ? fullbright : 0f;
     }
-
-    // ------------------------------------------------------------------ camera
 
     /**
      * @param noFront        the perspective key only switches between first and third person (no front view)

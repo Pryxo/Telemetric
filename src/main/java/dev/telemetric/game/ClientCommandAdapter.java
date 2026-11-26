@@ -22,21 +22,16 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
- * MC ADAPTER: client-side chat commands. There are two kinds:
- * <ul>
- *   <li>{@link #greedy} ({@code /gc <message>}): the handler returns false when it doesn't take the command (feature
- *       off). In that case, and always off Telos, the command goes to the server unchanged, so a client command
- *       never hides a server command of the same name.</li>
- *   <li>{@link #own} ({@code /telemetric update-cache}): the mod's own commands. They work on every server and are
- *       never forwarded.</li>
- * </ul>
+ * Client-side chat commands. A {@link #greedy} command goes to the server unchanged when its handler declines it (or
+ * when off Telos), so it never hides a server command with the same name. {@link #own} commands work on every server
+ * and are never forwarded.
  */
 public final class ClientCommandAdapter {
 
     private static final Map<String, Predicate<String>> COMMANDS = new ConcurrentHashMap<>();
-    /** Own commands: root to (sub-command, or "" for the bare root, to handler). They work on every server. */
+    /** Root, then sub-command ("" for the bare root), then handler. */
     private static final Map<String, Map<String, Consumer<Consumer<String>>>> OWN = new ConcurrentHashMap<>();
-    /** Own commands that take a text argument: root to (sub path to handler). */
+    /** Own commands with a text argument: root, then sub-command, then handler. */
     private static final Map<String, Map<String, ArgCommand>> OWN_ARG = new ConcurrentHashMap<>();
     /** Alias to root. {@code /alias …} is built from the same tree as {@code /root …}. */
     private static final Map<String, String> ALIASES = new ConcurrentHashMap<>();
@@ -44,23 +39,22 @@ public final class ClientCommandAdapter {
 
     private ClientCommandAdapter() {}
 
-    /** Adds {@code /name <text…>}. {@code handler} gets the text (may be empty) and returns true if it handled it. */
+    /** Adds {@code /name <text…>}. Returning false from the handler forwards the command to the server. */
     public static synchronized void greedy(String name, Predicate<String> handler) {
         COMMANDS.put(name, handler);
         ensureRegistered();
     }
 
     /**
-     * Adds one of our own client commands, {@code /root sub} (sub {@code ""} means bare {@code /root}). It works on
-     * every server and is never forwarded. The handler gets a reply function that prints a line to the player's chat;
-     * that can be called later from any thread.
+     * Adds {@code /root sub} ({@code ""} for the bare {@code /root}). Never forwarded. The reply function prints a chat
+     * line and can be called later from any thread.
      */
     public static synchronized void own(String root, String sub, Consumer<Consumer<String>> handler) {
         OWN.computeIfAbsent(root, k -> new ConcurrentHashMap<>()).put(sub, handler);
         ensureRegistered();
     }
 
-    /** Handler for one of our commands with a text argument. It gets the text (may contain spaces) and a reply function. */
+    /** Handler for an own command with a text argument. The text may contain spaces. */
     @FunctionalInterface
     public interface ArgHandler {
         void run(String arg, Consumer<String> reply);
@@ -69,9 +63,8 @@ public final class ClientCommandAdapter {
     private record ArgCommand(String argName, Supplier<Collection<String>> suggestions, ArgHandler handler) {}
 
     /**
-     * Adds {@code /root sub… <argName>}, and the rest of the line goes to {@code handler}. {@code sub} can contain spaces
-     * ({@code "status set"} gives {@code /root status set <text>}). {@code suggestions} supplies the tab-complete values
-     * (asked on every key press, may be empty), which get filtered by what was typed, ignoring case.
+     * Adds {@code /root sub… <argName>}. {@code sub} may contain spaces. Suggestions are asked on every key press (the
+     * list may be empty) and filtered case-insensitively by what was typed.
      */
     public static synchronized void ownArg(String root, String sub, String argName,
                                            Supplier<Collection<String>> suggestions, ArgHandler handler) {
@@ -79,7 +72,7 @@ public final class ClientCommandAdapter {
         ensureRegistered();
     }
 
-    /** Makes {@code /alias …} work exactly like {@code /root …} (same sub-commands, same handlers). */
+    /** Alias for a root: same sub-commands and handlers. */
     public static synchronized void alias(String root, String alias) {
         ALIASES.put(alias, root);
         ensureRegistered();
@@ -108,7 +101,7 @@ public final class ClientCommandAdapter {
         });
     }
 
-    /** Builds {@code /literal …} with every one of {@code root}'s own sub-commands. Brigadier merges literals with the same name. */
+    /** Builds {@code /literal …} from the root's own sub-commands. Brigadier merges literals of the same name. */
     private static LiteralArgumentBuilder<FabricClientCommandSource> ownTree(String literal, String root) {
         LiteralArgumentBuilder<FabricClientCommandSource> node = ClientCommands.literal(literal);
         for (Map.Entry<String, Consumer<Consumer<String>>> s : OWN.getOrDefault(root, Map.of()).entrySet()) {
@@ -148,8 +141,8 @@ public final class ClientCommandAdapter {
     }
 
     private static int runOwn(String root, Consumer<Consumer<String>> handler, FabricClientCommandSource source) {
-        // Lines the handler replies with right away become ONE message with the "Telemetric ›" prefix only once
-        // (chat/ChatStyle). Lines sent later (async results) are their own message, each with the prefix.
+        // Lines replied to synchronously are joined into one message with a single "Telemetric ›" prefix
+        // (see chat/ChatStyle). Lines sent later (async results) are separate messages, each with the prefix.
         java.util.List<String> now = new java.util.ArrayList<>();
         boolean[] done = {false};
         Consumer<String> reply = line -> {

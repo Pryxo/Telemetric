@@ -32,11 +32,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * MC ADAPTER: how entities are drawn. Covers Player Size (scales players and their Telos nametags), Hide Armor (skips
- * worn armor and can briefly reveal the real item models under skins) and Hitboxes (entity boxes for the world
- * drawer). Modules push their settings through the setters, and the render mixins ({@code AvatarRendererMixin},
- * {@code DisplayRendererMixin}, {@code ArmorLayerMixin}, {@code LivingEntityRendererMixin},
- * {@code ItemModelResolverMixin}, {@code HumanoidMobRendererMixin}) call the hooks. All of it is off away from Telos.
+ * How entities are drawn: Player Size (scales players and their Telos nametags), Hide Armor (skips worn armor and can
+ * briefly reveal the real item models under skins) and Hitboxes (entity boxes for the world drawer). Modules push their
+ * settings through the setters, and the render mixins ({@code AvatarRendererMixin}, {@code DisplayRendererMixin},
+ * {@code ArmorLayerMixin}, {@code LivingEntityRendererMixin}, {@code ItemModelResolverMixin},
+ * {@code HumanoidMobRendererMixin}) call the hooks. Off Telos it does nothing.
  */
 public final class EntityVisualsAdapter {
 
@@ -49,8 +49,6 @@ public final class EntityVisualsAdapter {
             return this == EVERYONE || (this == SELF) == self;
         }
     }
-
-    // ================================================================== player size
 
     /** Scale per axis (a negative y means upside down). */
     public record Scale(float x, float y, float z) {
@@ -106,8 +104,6 @@ public final class EntityVisualsAdapter {
         pose.translate(0, 1.8 * (size.y() - 1), 0);
         scalePlayer(pose, size);
     }
-
-    // ================================================================== hide armor
 
     /**
      * @param hiddenSlots bit set: 1 = helmet, 2 = chestplate, 4 = leggings, 8 = boots
@@ -217,8 +213,6 @@ public final class EntityVisualsAdapter {
         String type = bukkit.getStringOr("realm:item_type", "");
         return type.isEmpty() ? null : Identifier.tryParse(type);
     }
-
-    // ================================================================== hitboxes
 
     public enum BoxKind { SELF, PLAYER, MOB, ARMOR_STAND, ITEM, OTHER }
 
@@ -359,8 +353,6 @@ public final class EntityVisualsAdapter {
         }
         return false;
     }
-
-    // ================================================================== helpers
 
     private static boolean isSelf(Entity e) {
         return e == Minecraft.getInstance().player;

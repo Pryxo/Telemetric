@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * The "new version" chat block (Mahoraga-themed), centred. Only the title, the mod name and the two versions get the
- * gold-to-black gradient; everything else is grey. Pure Java — {@code game/ChatAdapter#post} shows each line.
+ * gold-to-black gradient; everything else is grey. {@code game/ChatAdapter#post} shows each line.
  */
 public final class UpdateNotice {
 

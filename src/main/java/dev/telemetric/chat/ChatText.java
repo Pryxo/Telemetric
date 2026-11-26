@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A client-side chat line built by a feature (pure Java): coloured spans, optionally bold or underlined, with hover
+ * A client-side chat line built by a feature: coloured spans, optionally bold or underlined, with hover
  * text and a click that puts a command or message into the chat box. {@code game/ChatAdapter#post} shows it.
  * <pre>{@code
  * ChatText.of().add("Dropped ", 0xAAAAAA).add(item, rgb, ChatText.BOLD).hover(ChatText.of().add("Pity 42", -1))
@@ -122,7 +122,6 @@ public final class ChatText {
         return this;
     }
 
-    /** Hover text for the last span. */
     public ChatText hover(ChatText hover) {
         return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), hover, s.suggest(), s.font(), s.sprite(), s.url()));
     }
@@ -137,7 +136,6 @@ public final class ChatText {
         return replaceLast(s -> new Span(s.text(), s.rgb(), s.styles(), s.hover(), text, s.font(), s.sprite(), s.url()));
     }
 
-    /** Appends another text's spans. */
     public ChatText append(ChatText other) {
         spans.addAll(other.spans);
         return this;
@@ -151,7 +149,6 @@ public final class ChatText {
         return spans.isEmpty();
     }
 
-    /** Plain text, for logs and tests. */
     @Override
     public String toString() {
         StringBuilder b = new StringBuilder();

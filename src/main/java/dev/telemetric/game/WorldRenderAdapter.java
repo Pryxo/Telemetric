@@ -42,16 +42,16 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * MC ADAPTER: the only place that draws shapes in the 3D world. Features register a {@link Drawer} and emit plain
- * world-space shapes through a {@link LineSink}: line segments, filled quads, and the helpers built on those (box
- * outline and fill, camera-facing rectangles). Once per frame everything is batched into four render types: lines and
- * quads, each either depth-tested or see-through (no depth test). Drawers added with {@link #addUnderDrawer} (e.g.
- * Hitboxes) form a separate layer that's drawn first and never writes depth, so everything else (health bars, ranges)
- * stays on top of it. {@link WorldLabelAdapter} labels are drawn right after.
+ * The only place that draws shapes in the 3D world. Features register a {@link Drawer} and emit plain world-space shapes
+ * through a {@link LineSink}: line segments, filled quads, and helpers built on those (box outline and fill,
+ * camera-facing rectangles). Once per frame everything is batched into four render types: lines and quads, each either
+ * depth-tested or see-through. Drawers added with {@link #addUnderDrawer} (e.g. Hitboxes) form a bottom layer that is
+ * drawn first and never writes depth, so everything else (health bars, ranges) stays on top. {@link WorldLabelAdapter}
+ * labels are drawn right after.
  * <p>
  * Everything is drawn at {@code END_MAIN}, after translucent terrain (water, stained glass, ice) and translucent
  * particles, so those never cover the overlays. The depth test uses a copy of the depth buffer taken just before
- * translucent terrain ({@link #snapshotDepth}). That way only opaque blocks hide the shapes, never translucent ones.
+ * translucent terrain ({@link #snapshotDepth}), so only opaque blocks hide the shapes.
  */
 public final class WorldRenderAdapter {
 
@@ -164,8 +164,6 @@ public final class WorldRenderAdapter {
         }
     }
 
-    // ------------------------------------------------------------------ opaque-only depth
-
     private static GpuTexture opaqueDepth;
     private static GpuTextureView opaqueDepthView;
     private static boolean depthReady, depthFailed;
@@ -202,8 +200,6 @@ public final class WorldRenderAdapter {
             Telemetric.LOGGER.error("Opaque depth copy unavailable, world overlays use the live depth buffer", e);
         }
     }
-
-    // ------------------------------------------------------------------ world → screen
 
     private static final Matrix4f VIEW_PROJ = new Matrix4f();
     private static Vec3 viewCam;
@@ -297,8 +293,6 @@ public final class WorldRenderAdapter {
             emit(buffers, type != null ? type : RenderTypes.linesTranslucent(), pose, b.seeThrough);
         }
     }
-
-    // ------------------------------------------------------------------ 3D preview scene
 
     /**
      * For the Settings window's 3D preview ({@code ScenePreviewAdapter}): the shapes {@code drawer} makes (world

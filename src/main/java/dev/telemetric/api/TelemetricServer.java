@@ -21,8 +21,9 @@ import java.util.concurrent.TimeUnit;
  * WebSocket link to the Telemetric API server ({@value #URL}). On client start it answers the server's
  * {@code challenge} (Mojang join, so the server can verify the account) with {@code hello}: the signed-in account's
  * UUID, name, mod version and the challenge id; then keeps the number of players online with the mod, pushed by the
- * server about once a minute, and the UUIDs of everyone online with the mod ({@code players} → {@link ModUsers}). Reconnects with jittered backoff (2 s doubling to 60 s, reset after a minute up) and
- * stops for good on close code 4002 (protocol no longer supported). Protocol: the server's {@code docs/protocol.md}.
+ * server about once a minute, and the UUIDs of everyone online with the mod ({@code players} → {@link ModUsers}).
+ * Reconnects with jittered backoff (2 s doubling to 60 s, reset after a minute up) and stops for good on close code
+ * 4002 (protocol no longer supported). Protocol: the server's {@code docs/protocol.md}.
  * No Minecraft imports except through {@link MojangSessionAdapter}.
  */
 public final class TelemetricServer {

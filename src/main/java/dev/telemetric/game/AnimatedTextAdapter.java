@@ -11,39 +11,39 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * MC ADAPTER: animated text colours and the wave bob (through {@code mixin/FontAnimatedColorMixin}). Animated
- * characters carry a <b>marker</b> {@link TextColor}. It's an ordinary {@code TextColor.fromRgb} instance, so it
- * serializes, copies and compares like any colour and its value is the still gradient, but this class recognises it
- * by identity. While drawing, Minecraft's font asks {@link #color} for every glyph's colour (and {@link #waveY} for its
- * height). Markers get the moving colour; everything else passes through after a single identity-map check.
+ * Animated text colours and the wave bob, hooked in through {@code mixin/FontAnimatedColorMixin}.
  * <p>
- * There are two kinds of marker sets: the shiny chat cycle ({@link #shiny}, switched by {@link #setAnimated} from
- * Misc → Chat Colors), and one set per {@link StatusRankColors.Tier} ({@link #status}, always moving unless
- * animations are off). Status markers only remember their tier, and the colour comes from the current
- * {@link StatusRankColors.Theme} at draw time.
+ * Animated characters use a marker {@link TextColor}: a plain RGB colour whose value is the still gradient, so it
+ * serializes and compares like any colour. This class finds markers by identity. The font asks {@link #color} for
+ * each glyph and {@link #waveY} for its height. Markers get the moving colour, everything else passes through after
+ * one identity-map lookup.
  * <p>
- * If another mod replaces text rendering, the hook just doesn't apply and the markers show their still colours.
- * The same happens to anything that re-creates the colour (a JSON round trip, say).
+ * Two kinds of markers: the shiny chat cycle ({@link #shiny}, toggled by {@link #setAnimated}) and one set per
+ * {@link StatusRankColors.Tier} ({@link #status}, always moving unless animations are off). Status markers only store
+ * their tier; the colour comes from the current {@link StatusRankColors.Theme} at draw time.
+ * <p>
+ * If another mod replaces text rendering, the hook doesn't run and the markers show their still colours. Anything
+ * that re-creates the colour (a JSON round trip, say) loses its marker the same way.
  */
 public final class AnimatedTextAdapter {
 
     /** What a marker stands for: the {@code index}-th character of {@code cycle}. */
     private record Marker(ColorCycle cycle, StatusRankColors.Tier tier, int index, boolean wave, boolean chat) {}
 
-    /** Markers per status tier. It's longer than any status line, so the gradient never has a seam inside one. */
+    /** Markers per status tier. Longer than any status line, so the gradient has no seam inside one. */
     private static final int STATUS_CHARS = 64;
 
     /** Wave height (text pixels, up and down) and phase step per character (radians). */
     private static final float WAVE_PX = 1.0f;
     private static final double WAVE_STEP = 0.6;
 
-    /** Marker to what it stands for. Filled once in the static block and read-only after that, so any thread can read it. */
+    /** Marker to meaning. Filled once in the static block and read-only after, so any thread can read it. */
     private static final Map<TextColor, Marker> MARKERS = new IdentityHashMap<>();
 
     private static final TextColor[] SHINY = markers(ShinyColors.CYCLE, false, true);
     private static final TextColor[][] STATUS = new TextColor[StatusRankColors.Tier.values().length][];
 
-    /** White markers that only wave (no colour change), for icons that bob along with a wave title. */
+    /** White markers that only wave, for icons inside a wave title. */
     private static final TextColor[] WAVE_ONLY = new TextColor[ShinyColors.CYCLE.cycleChars()];
 
     static {

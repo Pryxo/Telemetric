@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
  * {@code hardcore:<id>}, see {@link PityScopes}), the known hardcore characters ({@code hardcore}), and the lifetime
  * stats ({@code stats}, account-wide). Pity calls use the active scope ({@link #setPityScope}). Version 1 files (one
  * flat pity map) load as the {@code normal} scope. Changes are saved 2 s after the last one (on a background thread)
- * and on game exit. Pure Java (no Minecraft imports) and thread-safe.
+ * and on game exit. Thread-safe.
  */
 public final class TrackingStore {
 
@@ -79,7 +79,6 @@ public final class TrackingStore {
         for (TrackingStore s : STORES.values()) s.saveNow();
     }
 
-    // ------------------------------------------------------------------ pity
 
     /** The scope that the pity calls below use (from {@link PityScopes}). */
     public synchronized void setPityScope(String scope) {
@@ -127,7 +126,6 @@ public final class TrackingStore {
         return old == null ? 0 : old.size();
     }
 
-    // ------------------------------------------------------------------ hardcore characters
 
     public synchronized PityScopes.HardcoreChar hardcoreChar(String id) {
         return hardcore.get(id);
@@ -143,7 +141,6 @@ public final class TrackingStore {
         changed();
     }
 
-    // ------------------------------------------------------------------ stats
 
     public synchronized int stat(String key) {
         return stats.getOrDefault(key, 0);
@@ -160,7 +157,6 @@ public final class TrackingStore {
         changed();
     }
 
-    // ------------------------------------------------------------------ file
 
     private void changed() {
         if (pendingSave != null) pendingSave.cancel(false);

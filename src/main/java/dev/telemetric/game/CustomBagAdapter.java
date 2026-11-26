@@ -36,21 +36,18 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * MC ADAPTER for Custom Bags: the player's own picture (PNG/JPG/GIF) and sound (OGG/WAV) for a loot bag drop.
- * <ul>
- *   <li><b>Files</b> live in {@code config/telemetric/custom/bags/<key>.<ext>} (the key comes from the bags in
- *       {@code data/tables/rarities.json}). They're imported through a native file picker, so players never have to
- *       find the folder.</li>
- *   <li><b>Picture</b>: Telos shows a drop as a totem pop of {@code telos:<totem>}. {@code GameRendererMixin} hands the
- *       floating stack to {@link #onDropAnimation}, which switches it to {@code telemetric:bags/<model>} (the bag's
- *       banner plus a flat screen) and writes the picture into the screen's sprite ({@code telemetric:mob/bags/image})
- *       in every atlas that holds it. GIF frames get swapped each tick while the pop lasts. With Shiny Effect the
- *       picture gets the Telos shiny pouch look each tick ({@link ShinyEffect}).</li>
- *   <li><b>Sound</b>: {@code SoundEngineMixin} asks {@link #replaceDropSound} about each
- *       {@code noise:player.bags.create_<sound>}, and a custom file plays instead if there is one (via
- *       {@link SoundFiles}).</li>
- * </ul>
- * Decoding happens on a background thread and the result is cached until the file changes.
+ * The player's own picture (PNG/JPG/GIF) and sound (OGG/WAV) for loot bag drops.
+ * <p>
+ * Files live in {@code config/telemetric/custom/bags/<key>.<ext>}, keyed by the bags in {@code data/tables/rarities.json}.
+ * They are imported through a native file picker, so players never need to find the folder. Telos shows a drop as a
+ * totem pop; {@code GameRendererMixin} hands the stack to {@link #onDropAnimation}, which switches it to the bag model
+ * and writes the picture into the screen sprite in every atlas that holds it. GIFs advance each tick while the pop
+ * lasts, and Shiny Effect applies {@link ShinyEffect} to the picture.
+ * <p>
+ * {@code SoundEngineMixin} asks {@link #replaceDropSound} about each {@code noise:player.bags.create_<sound>}, and a
+ * custom file plays instead if there is one ({@link SoundFiles}).
+ * <p>
+ * Decoding runs on a background thread; the result is cached until the file changes.
  */
 public final class CustomBagAdapter {
 
@@ -60,13 +57,13 @@ public final class CustomBagAdapter {
     private static final String[] IMAGE_EXT = {"gif", "png", "jpg", "jpeg"}, SOUND_EXT = {"ogg", "wav"};
     private static final long MAX_FILE_BYTES = 15L << 20, ANIM_MS = 4000, PREVIEW_REOPEN_TICKS = 40;
     private static final String IMAGE_ONLY_MODEL = "bags/image_only", IMAGE_ONLY_LAYERED_MODEL = "bags/image_only_layered";
-    /** Share of (mostly) transparent pixels from which the banner-less picture uses the see-through-sides model. */
+    /** Share of transparent pixels from which a picture uses the see-through-sides model. */
     private static final float TRANSPARENT_SHARE = 0.10f;
 
     /**
-     * Module settings. Null means off. {@code scale} = size of the drop pop while it shows a custom picture (1 = normal),
-     * {@code maxSoundSeconds} = where a custom sound gets cut off, {@code stopOnWorldChange} false = a custom sound the
-     * game stopped on a world / dimension change picks up where it was.
+     * Module settings. Null means off. {@code scale}: size of the drop pop while it shows a custom picture (1 = normal).
+     * {@code maxSoundSeconds}: where a custom sound is cut off. {@code stopOnWorldChange} false: a custom sound that
+     * the game stopped on a world or dimension change resumes where it was.
      */
     public record Settings(float volume, boolean showBanner, float scale, float maxSoundSeconds, boolean stopOnWorldChange,
                            Shiny shiny, float shinyStrength, float animSpeed, float thickness) {}
@@ -126,8 +123,6 @@ public final class CustomBagAdapter {
         }
     }
 
-    // ================================================================== files
-
     /** The bag's custom file with one of these extensions, or null. */
     private static Path file(String key, String[] exts) {
         for (String ext : exts) {
@@ -184,7 +179,7 @@ public final class CustomBagAdapter {
             String ext = name.substring(name.lastIndexOf('.') + 1);
             if (!List.of(exts).contains(ext)) return "Unsupported file type ." + ext;
             if (Files.size(source) > MAX_FILE_BYTES) return "File is larger than 15 MB";
-            byte[] data = Files.readAllBytes(source); // read it first, because the source may be one of the files deleted below
+            byte[] data = Files.readAllBytes(source); // read first: the source may be one of the files deleted below
             Files.createDirectories(DIR);
             for (String e : exts) Files.deleteIfExists(DIR.resolve(key + "." + e));
             Path target = DIR.resolve(key + "." + (ext.equals("jpeg") ? "jpg" : ext));
@@ -214,8 +209,6 @@ public final class CustomBagAdapter {
         t.setDaemon(true);
         t.start();
     }
-
-    // ================================================================== picture
 
     private static void dropCache(String key) {
         Decoded old;
@@ -347,9 +340,9 @@ public final class CustomBagAdapter {
         for (int i = 0; i < sprites.size(); i++) {
             TextureAtlasSprite s = sprites.get(i);
             GpuTexture tex = atlases.get(i).getTexture();
-            // getX/getY are the padded slot's corner; the picture itself starts `pad` pixels in. Writing the
-            // picture at getX/getY shifted it 1 px up-left and left the placeholder's last column/row showing
-            // (the black right/bottom border). So: build the padded slot (border = clamped edge pixels) and write that.
+            // getX/getY are the padded slot's corner and the picture starts `pad` pixels in. Writing the picture at
+            // getX/getY shifts it one pixel up-left and leaves the placeholder's last row and column showing (a black
+            // border), so build the padded slot (border = clamped edge pixels) and write that.
             int w = s.contents().width(), h = s.contents().height();
             // vanilla has no padding getter: the UVs point at the picture itself, getX at the padded slot
             int pad = Math.max(0, Math.round(s.getU0() * tex.getWidth(0)) - s.getX());
@@ -380,10 +373,7 @@ public final class CustomBagAdapter {
         return true;
     }
 
-    /**
-     * Box-filter resize (alpha-weighted) that fills every target pixel. The vanilla resize left a dark last
-     * column/row, which showed as a black line on the right and bottom of the picture.
-     */
+    /** Alpha-weighted box-filter resize that fills every target pixel. Vanilla's leaves a dark last row and column. */
     private static void resample(NativeImage src, NativeImage dst) {
         int sw = src.getWidth(), sh = src.getHeight(), dw = dst.getWidth(), dh = dst.getHeight();
         int[] px = src.getPixels(); // ARGB
@@ -512,8 +502,6 @@ public final class CustomBagAdapter {
         }
     }
 
-    // ================================================================== sound
-
     /** {@code SoundEngineMixin}: true if the custom file plays instead of this vanilla sound. */
     public static boolean replaceDropSound(Identifier soundId) {
         Settings s = settings;
@@ -590,8 +578,6 @@ public final class CustomBagAdapter {
         }
         SoundFiles.play(p.file(), p.volume(), p.maxSeconds(), elapsed);
     }
-
-    // ================================================================== preview
 
     /** Plays the bag's drop pop and sound right now (closes the open screen for 2 s). */
     public static void preview(Bag bag) {

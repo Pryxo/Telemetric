@@ -10,8 +10,8 @@ import net.minecraft.client.gui.screens.Screen;
 import java.util.function.Supplier;
 
 /**
- * MC ADAPTER: opens one of our screens from a chat command. The chat screen closes itself after it ran the command, so
- * the screen is opened on the next client tick ({@link #tick}, called from {@code Telemetric#onEndTick}).
+ * Opens one of our screens from a chat command. The chat screen closes itself after running the command, so the screen
+ * opens on the next client tick ({@link #tick}, called from {@code Telemetric#onEndTick}).
  */
 public final class ScreenOpener {
 

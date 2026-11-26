@@ -10,7 +10,7 @@ import java.util.List;
  * Animated colours for a HeadStatus title, by leaderboard position (Status Title → Show Status). Positions map to a
  * {@link Tier} slot (#1, #2, #3, #4–10, #11–20, #21–25; anything lower stays plain). The selected {@link Theme}
  * (Status Title → Status Theme, from {@code statusColor.json}) gives each slot its {@link ColorCycle} (a single colour
- * means solid). The theme is read at draw time, so switching it recolours existing name tags right away. Pure Java.
+ * means solid). The theme is read at draw time, so switching it recolours existing name tags right away.
  */
 public final class StatusRankColors {
 

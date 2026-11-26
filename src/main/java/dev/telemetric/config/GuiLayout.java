@@ -16,11 +16,10 @@ import java.util.Set;
  * The ClickGUI layout that persists between sessions: each panel's position, collapsed state and scroll offset, which
  * module accordions and setting dropdowns are open, and the panel stacking order.
  * It's stored apart from the profiles ({@code layout.json}), so switching profiles doesn't move panels around.
- * See docs/config.md.
  */
 public final class GuiLayout implements JsonSerializable {
 
-    /** v3 brought a new panel order (Player | Visual | Dungeon | HUD | Misc), so older layouts get re-arranged once. */
+    /** Bumped when the panel order changes; older layouts get re-arranged once. */
     public static final int FORMAT_VERSION = 5;
 
     /** Mutable per-panel state. {@code x/y} are in ClickGUI units (after UI scale). */

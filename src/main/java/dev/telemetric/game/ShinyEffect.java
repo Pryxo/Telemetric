@@ -3,15 +3,14 @@ package dev.telemetric.game;
 import com.mojang.blaze3d.platform.NativeImage;
 
 /**
- * MC ADAPTER helper for Custom Bags: paints the Telos "shiny" look onto a custom bag picture.
+ * Paints the Telos "shiny" look onto a custom bag picture.
  * <p>
- * Modelled on the server pack's shiny pouch ({@code telos:mob/pouch/shiny}): its textures are 9-frame animations at
- * 2 ticks per frame (0.9 s loop) whose hue runs backwards round the colour wheel — pink-red → purple → blue → cyan
- * → green → yellow → orange — with a pastel outline ({@code shiny_outline}) of the same hue and white glints
- * ({@code shiny_effect}). Here that becomes: a luminance-keeping rainbow tint, a pastel outline along the picture's
- * transparent edges (none on photos), and a white diagonal glint that sweeps across.
+ * Modelled on the server pack's shiny pouch ({@code telos:mob/pouch/shiny}): 9-frame animations at 2 ticks per frame
+ * (0.9 s loop) whose hue runs backwards round the colour wheel, a pastel outline ({@code shiny_outline}) of the same
+ * hue, and white glints ({@code shiny_effect}). Here that becomes a luminance-keeping rainbow tint, a pastel outline
+ * along the picture's transparent edges (none on photos), and a white diagonal glint that sweeps across.
  * <p>
- * Runs on the render thread only. The output buffer is reused between calls; {@link #release} frees it.
+ * Render thread only. The output buffer is reused between calls; {@link #release} frees it.
  */
 final class ShinyEffect {
 

@@ -9,9 +9,9 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * Which pity pool the character you're playing counts into. Telos shares pity per mode: every <b>normal</b> character
- * shares one pool, every <b>seasonal</b> character another, and each <b>hardcore</b> character has its own.
- * <b>Group</b> characters (ruleset {@code group_type/<colour>} glyphs) are tracked like hardcore ones, one pool each.
+ * Which pity pool the character you're playing counts into. Telos shares pity per mode: every normal character
+ * shares one pool, every seasonal character another, and each hardcore character has its own.
+ * Group characters (ruleset {@code group_type/<colour>} glyphs) are tracked like hardcore ones, one pool each.
  * The scope keys are {@code normal}, {@code seasonal}, {@code hardcore:<id>} and {@code group:<id>}.
  * <p>
  * The mode comes from the Tab "Class" glyph ({@link TelosCharacter}). All hardcore characters share that glyph, so a

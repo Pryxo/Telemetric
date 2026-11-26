@@ -12,8 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * "Cooldown over" feedback shared by every cooldown feature: a <b>Ready Alert</b> group toggle (text, colour, time,
- * shown by {@link ReadyAlertsHud}) and a <b>Ready Sound</b> ({@link SoundCue}).
+ * "Cooldown over" feedback shared by every cooldown feature: a Ready Alert group toggle (text, colour, time,
+ * shown by {@link ReadyAlertsHud}) and a Ready Sound ({@link SoundCue}).
  * The alert text can use {@code {item}} (item name) and {@code {slot}} (Weapon / Ability / Helmet / …).
  */
 final class ReadyCue implements SettingBundle {

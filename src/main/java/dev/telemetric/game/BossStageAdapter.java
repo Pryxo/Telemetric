@@ -22,19 +22,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * MC ADAPTER: the boss damage stage on Telos Realms. A boss carries a stack of {@code text_display} passengers. One
- * of them shows the status glyph U+15FF8, tinted by stage (blue = immune, purple = shielded, anything else =
- * damageable), and a sibling passenger shows U+1604C or a nameplate that spells a Boss.json boss (e.g. Unrest). {@link #scan} finds those status displays once per tick,
- * {@link #position} gives their frame-interpolated X/Z, and the badge Y is the floor under the player.
+ * Boss damage stage on Telos. The status glyph U+15FF8 is tinted by stage (blue = immune, purple = shielded, anything
+ * else = damageable). {@link #scan} runs once per tick and {@link #position} gives the interpolated X/Z. The badge
+ * sits on the floor under the player.
  */
 public final class BossStageAdapter {
 
     public enum Kind { IMMUNE, SHIELDED, DAMAGEABLE }
 
     /**
-     * One boss status display: entity id, stage, raw glyph colour (RGB, -1 for none), the floor Y under the player, and
-     * the boss health: {@code hp}/{@code maxHp} from its HP plate (NaN when it has none), {@code percent} 0..100 from
-     * the plate or, without one, from the only known boss bar (-1 when unknown), and its squared distance to the player. {@link #scan} lists nearest first.
+     * hp and maxHp are NaN without an HP plate. percent is 0..100, or -1 when unknown.
      */
     public record Stage(int entityId, Kind kind, int rgb, double groundY, double hp, double maxHp, double percent,
                         double distanceSq) {
@@ -43,7 +40,7 @@ public final class BossStageAdapter {
         }
     }
 
-    /** A decoded HP plate, e.g. "24 / 24" or "1.2k/3.5k". */
+    /** Matches HP plate text such as "24 / 24" or "1.2k/3.5k". */
     private static final Pattern HP = Pattern.compile("^\\s*([0-9][0-9.,]*)\\s*([kmb]?)\\s*/\\s*([0-9][0-9.,]*)\\s*([kmb]?)\\s*$");
 
     private static final String STATUS_GLYPH = new String(Character.toChars(0x15FF8));
@@ -59,7 +56,7 @@ public final class BossStageAdapter {
 
     private BossStageAdapter() {}
 
-    /** Status displays within {@code range} blocks of the player. Empty when not in a world. */
+    /** Empty when not in a world. */
     public static List<Stage> scan(double range) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
@@ -67,8 +64,8 @@ public final class BossStageAdapter {
         List<Stage> out = new ArrayList<>();
         if (level == null || player == null) return out;
         double r2 = range * range;
-        // Badges sit on the floor the player stands on, because the boss's own column can be void or a tall prop.
-        // It's cached and only re-measured while standing on the ground, so jumps and falls don't move the badges.
+        // Badges sit on the floor under the player, since the boss's own column can be void or a tall prop.
+        // Cached and only re-measured on the ground, so jumps and falls don't move the badges.
         if (player.onGround() || Double.isNaN(cachedFloorY)) {
             cachedFloorY = groundY(level, player.getX(), player.getY() + 0.5, player.getZ());
         }
@@ -87,7 +84,7 @@ public final class BossStageAdapter {
             out.add(new Stage(e.getId(), kindOf(rgb), rgb, floorY, hp != null ? hp[0] : Double.NaN,
                     hp != null ? hp[1] : Double.NaN, percent, e.distanceToSqr(player)));
         }
-        out.sort(java.util.Comparator.comparingDouble(Stage::distanceSq)); // nearest first
+        out.sort(java.util.Comparator.comparingDouble(Stage::distanceSq));
         return out;
     }
 
@@ -101,9 +98,8 @@ public final class BossStageAdapter {
     }
 
     /**
-     * True when the status display belongs to a boss: a sibling passenger shows the boss-font glyph U+1604C, or a
-     * sibling nameplate spells a boss name (or its {@code plate}) from {@code Boss.json}. Some bosses (Unrest) use the normal-mob font, whose
-     * stack (name, U+15FF7, U+15FF8, title) is the same on every mob, so only the name tells them apart.
+     * True if a sibling passenger shows the boss glyph U+1604C, or a nameplate that spells a Boss.json boss name or plate.
+     * Unrest uses the normal-mob font, and its stack looks like any other mob's, so only the name separates them.
      */
     private static boolean hasPair(Display.TextDisplay status, Set<String> keys) {
         Entity root = status.getRootVehicle();
@@ -154,7 +150,7 @@ public final class BossStageAdapter {
         }
     }
 
-    /** Boss names from {@code Boss.json} as nameplate letters, rebuilt when the table is reloaded. */
+    /** Boss names as nameplate letters. Rebuilt when the table is reloaded. */
     private static Set<String> bossKeys() {
         BossTable table = TelosData.BOSSES.get();
         if (table != keysFrom) {
@@ -171,7 +167,7 @@ public final class BossStageAdapter {
         return bossKeys;
     }
 
-    /** Colour (RGB) of the text run that holds the status glyph, or -1 if there's none. */
+    /** RGB of the text run containing the status glyph, or -1. */
     private static int statusColor(Component text) {
         Optional<Integer> found = text.visit((style, s) -> {
             if (!s.contains(STATUS_GLYPH)) return Optional.empty();

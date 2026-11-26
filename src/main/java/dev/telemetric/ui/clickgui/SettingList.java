@@ -147,8 +147,6 @@ public final class SettingList {
         return pins != null ? PIN_GUTTER : 0;
     }
 
-    // ------------------------------------------------------------------ rendering
-
     /**
      * Draws the rows from {@code top}. Rows outside {@code [clipTop, clipBottom)} are skipped (the caller clips).
      * {@code mouseY} should already be moved off-screen when the mouse isn't over the visible area.
@@ -204,8 +202,6 @@ public final class SettingList {
         return ColorUtil.hsv(hue, hsv[1], hsv[2], 255);
     }
 
-    // ------------------------------------------------------------------ pin stars
-
     /** Every row can be pinned except the bind, which the right-click menu always shows. */
     private boolean pinnable(Setting<?> s) {
         return s != module.getBind();
@@ -234,8 +230,6 @@ public final class SettingList {
         Icons.star(r, left + PIN_GUTTER / 2, c.getY() + rh / 2, pinned, ColorUtil.fade(color, t));
         if (hot) ctx.requestTooltip(this, pinned ? "Unpin from the right-click menu" : "Pin to the right-click menu");
     }
-
-    // ------------------------------------------------------------------ reordering
 
     /** Rebuilds the row order after a drag, profile load or reset changed the module's setting order. */
     private void syncOrder() {
@@ -352,8 +346,6 @@ public final class SettingList {
         dragging = null;
         ctx.releaseCapture(owner);
     }
-
-    // ------------------------------------------------------------------ input
 
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (pins != null && button == MouseButton.LEFT) {

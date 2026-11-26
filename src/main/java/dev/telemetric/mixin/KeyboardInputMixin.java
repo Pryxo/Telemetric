@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * MC ADAPTER (mixin) for Sneak Ability's "Sneak Key" method: after {@code KeyboardInput#tick} built this tick's
+ * For Sneak Ability's "Sneak Key" method, after {@code KeyboardInput#tick} built this tick's
  * {@code keyPresses}, replace its shift flag while {@link SneakAdapter#forcedShift()} is set. Injecting at TAIL (not
  * into the {@code keyShift.isDown()} call) keeps working next to other mods that wrap that call (e.g. Freecam).
  */

@@ -11,27 +11,27 @@ import java.util.Map;
  * so "Kobold's Den" = "kobolds den"), the same way as the Wayfinder blacklist.
  * <p>
  * To add a dungeon, write one {@code rule(...)} line that combines existing mechanics. A new mechanic needs a flag in
- * {@link DungeonRules}, its own class in {@code dungeon/}, and a line in {@code docs/dungeon.md} (Dungeon rules).
+ * {@link DungeonRules} and its own class in {@code dungeon/}.
  */
 public final class DungeonRulebook {
 
     private static final Map<String, DungeonRules> RULES = new LinkedHashMap<>();
 
     static {
-        // clear mobs: two "Keeper of Dusk" (checked in game, 2026-11-14). No boss drop (user, 2026-11-14)
+        // Clear mobs: two "Keeper of Dusk". No boss drop.
         rule("Midnight Stronghold", DungeonRules.DEFAULT.withGoalMob("Keeper of Dusk").withBossLevel(false));
-        // clear mobs: "Dyerftum Overlord" (nameplate read in game, 2026-11-14). No boss drop, just the spawn and 2 clear mobs
-        // (user, 2026-11-14). Its boss bar ("The Creator") sits on a mob at y 30 under the spawn, not on a boss level
+        // Clear mob: "Dyerftum Overlord". No boss drop, just the spawn and 2 clear mobs. Its boss bar ("The Creator") sits on
+        // a mob at y 30 under the spawn, not on a boss level.
         rule("Illarius' Hideout", DungeonRules.DEFAULT.withGoalMob("Dyerftum Overlord").withBossLevel(false));
-        // books: each pick-up sends a random line plus "(x/5)" (read in game, 2026-11-14), with the line italic and "(x/5)" bold
+        // Books: each pick-up sends a random line plus "(x/5)", the line italic and "(x/5)" bold.
         rule("Resounding Ruins", rulesFor("Resounding Ruins").withChatCounter(new ChatCounter("Books", 5,
                 ChatPattern.builder("Resounding Ruins book", "(?<line>[^()\\n]+) \\((?<n>\\d+)/(?<total>\\d+)\\)")
                         .run("[^()\\n]+ ", ChatPattern.ITALIC)
                         .run("\\(\\d+/\\d+\\)", ChatPattern.BOLD)
                         .build())));
-        // renown (read live 2026-11-14; all runs italic, only the colour differs). The goal is "Gain 110 renown to prove
-        // yourselves worthy before Cherubim.", progress is "The garden recognizes your progress. (61/110)" every 50,
-        // and each pick-up spawns an armor stand named "(75/110)" (gold/yellow, plain)
+        // Renown: all runs italic, only the colour differs. The goal is "Gain 110 renown to prove yourselves worthy before
+        // Cherubim.", progress is "The garden recognizes your progress. (61/110)" every 50, and each pick-up spawns an
+        // armor stand named "(75/110)" (gold/yellow, plain).
         rule("Neo Eden", rulesFor("Neo Eden").withChatCounter(new ChatCounter("Renown", 0,
                 ChatPattern.builder("Neo Eden renown progress",
                                 "The garden recognizes your progress\\. \\((?<n>\\d+)/(?<total>\\d+)\\)")
@@ -42,8 +42,8 @@ public final class DungeonRulebook {
                         .run(".+", ChatPattern.ITALIC)
                         .build(),
                 java.util.regex.Pattern.compile("\\((?<n>\\d+)/\\d+\\)"))));
-        // 3 puzzle rooms, 2 of which spawn the boss; no Wayfinder (user, 2026-11-14). The messages (read live
-        // 2026-11-14) only differ by colour, with no bold or italic, so each is one plain run
+        // 3 puzzle rooms, 2 of which spawn the boss; no Wayfinder. The messages only differ by colour, with no bold or
+        // italic, so each is one plain run.
         rule("Dreadwood Thicket", DungeonRules.DEFAULT.withChatPuzzles(new ChatPuzzles(
                 "Completed Room", 3,
                 dreadwood("Dreadwood room attempt", "is attempting the "),
@@ -73,7 +73,7 @@ public final class DungeonRulebook {
         if (dungeon == null) return DungeonRules.DEFAULT;
         String key = normalize(dungeon);
         DungeonRules r = RULES.getOrDefault(key, DungeonRules.DEFAULT);
-        // no Wayfinder for the dungeons in dungeons.json → unmapped (location names, matched normalised)
+        // no Wayfinder for dungeons that dungeons.json lists as unmapped (matched on the normalised name)
         for (String u : TelosData.DUNGEON_TABLE.get().unmapped()) if (normalize(u).equals(key)) return r.withMapped(false);
         return r;
     }

@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Social → Server Messages: hides chosen server lines from the chat. The lines come from
+ * Hides chosen server lines from the chat. The lines come from
  * {@code tables/serverMessages.json}. A boss option hides every line listed under that boss, and a misc option hides
  * its one line. Hidden lines still get dispatched on {@link ChatBus}, so trackers keep reading them (and All Chat
  * shows them).

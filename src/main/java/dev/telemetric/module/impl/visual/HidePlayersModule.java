@@ -11,9 +11,8 @@ import dev.telemetric.ui.notification.Toasts;
 import java.util.List;
 
 /**
- * Hides every other player (the model, everything riding them, and their Telos name tag through
- * {@link NametagModule}) except whitelisted usernames. You type names into "Add Player" and press Enter, and clicking
- * a name in the Whitelist dropdown removes it. Game access goes through {@link PlayerVisibilityAdapter}.
+ * Hides every other player (model, riders and their Telos name tag via {@link NametagModule}) except whitelisted
+ * usernames. Add names with "Add Player" + Enter, remove them by clicking them in the Whitelist dropdown.
  */
 public final class HidePlayersModule extends Module {
 

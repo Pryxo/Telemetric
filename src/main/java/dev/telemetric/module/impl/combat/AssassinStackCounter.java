@@ -11,7 +11,7 @@ import java.util.List;
  * <p>
  * Feed every spark and dust particle to {@link #accept} (position relative to the player's feet). A stack counts once
  * both particles have been seen at one spot within {@value #LIFETIME_MS} ms. No particle for {@value #TIMEOUT_MS} ms
- * means 0. The ring-wrap spacing check and the layer pick are our own.
+ * means 0.
  */
 final class AssassinStackCounter {
 
@@ -43,7 +43,6 @@ final class AssassinStackCounter {
         }
     }
 
-    /** One particle at (dx, dy, dz) blocks from the player's feet. */
     void accept(boolean spark, double dx, double dy, double dz, long now) {
         if (now - lastAdded > TIMEOUT_MS) reset();
         int layer = Math.clamp(Math.round(dy / LAYER_SPACING), 0, LAYERS - 1); // nearest ring by height
