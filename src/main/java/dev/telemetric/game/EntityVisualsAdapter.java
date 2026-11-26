@@ -242,6 +242,7 @@ public final class EntityVisualsAdapter {
         List<Display.TextDisplay> tags = hpTags(level, self, range);
         boolean boss = BossBarAdapter.hasBossBar();
         for (Entity e : level.entitiesForRendering()) {
+            if (e.distanceToSqr(self) > r2) continue; // cheapest test first (you are always in range of yourself)
             // Entities that aren't drawn (Hide Players, their riders, hidden name tags) get no hitbox either.
             if (PlayerVisibilityAdapter.skipRender(e)) continue;
             BoxKind kind;
@@ -252,10 +253,8 @@ public final class EntityVisualsAdapter {
             else if (e instanceof ArmorStand) kind = BoxKind.ARMOR_STAND;
             else if (e instanceof LivingEntity) kind = BoxKind.MOB;
             else if (e instanceof ItemEntity) kind = BoxKind.ITEM;
-            else if (e instanceof Interaction h && e.distanceToSqr(self) <= r2 && isTelosMob(h, tags, boss)) {
-                kind = BoxKind.MOB;
-            } else kind = BoxKind.OTHER;
-            if (e != self && e.distanceToSqr(self) > r2) continue;
+            else if (e instanceof Interaction h && isTelosMob(h, tags, boss)) kind = BoxKind.MOB;
+            else kind = BoxKind.OTHER;
             AABB b = e.getBoundingBox();
             // Telos spawns marker armor stands (no hitbox) to carry ability and projectile models, so show a small box for them.
             if (kind == BoxKind.ARMOR_STAND && b.getXsize() < 0.01) b = b.inflate(MARKER_HALF, 0, MARKER_HALF).expandTowards(0, MARKER_HALF * 2, 0);

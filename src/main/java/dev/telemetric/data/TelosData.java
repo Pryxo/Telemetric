@@ -138,11 +138,6 @@ public final class TelosData {
             return r != null ? r : events.get(k);
         }
 
-        /** The coloured event bag ({@code halloween}, …) for this key, or null. */
-        public Rarity event(String key) {
-            return key == null ? null : events.get(key.toLowerCase(Locale.ROOT));
-        }
-
         public List<String> labels() {
             List<String> out = new ArrayList<>(byKey.size());
             for (Rarity r : byKey.values()) out.add(r.label());

@@ -2,7 +2,6 @@ package dev.telemetric.ui.hud;
 
 import dev.telemetric.Telemetric;
 import dev.telemetric.hud.HudModule;
-import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.ui.render.Render2D;
 

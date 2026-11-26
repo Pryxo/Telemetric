@@ -8,7 +8,7 @@ package dev.telemetric.ui.animation;
  * <pre>{@code
  * Animation hover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
  * hover.animateTo(isHovered ? 1 : 0);
- * int bg = ColorUtil.lerp(palette.surface(), palette.surfaceHover(), hover.getF());
+ * int bg = ColorUtil.lerp(palette.surface(), palette.surfaceHover(), (float) hover.get());
  * }</pre>
  */
 public final class Animation {
@@ -77,10 +77,6 @@ public final class Animation {
         double progress = progress();
         if (progress >= 1) return to;
         return from + (to - from) * active.apply(progress);
-    }
-
-    public float getF() {
-        return (float) get();
     }
 
     /** The linear progress 0..1 of the current transition. */

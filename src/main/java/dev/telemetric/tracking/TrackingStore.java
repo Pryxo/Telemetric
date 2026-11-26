@@ -45,8 +45,10 @@ public final class TrackingStore {
 
     private static final Map<String, TrackingStore> STORES = new HashMap<>();
     /** The store of the account seen last (kept while no world is loaded), and its id. */
-    private static volatile TrackingStore current;
-    private static volatile String currentId;
+    private static volatile Current current;
+
+    /** The last store and the account id it was asked for, swapped as one so a reader never mixes two accounts. */
+    private record Current(TrackingStore store, String accountId) {}
 
     private final Path file;
     /** Scope to drop key to the kills without it. */
@@ -63,13 +65,12 @@ public final class TrackingStore {
 
     /** The store for this account (loaded on first use). A null account means the last one, or a shared "default". */
     public static TrackingStore of(String accountId) {
-        TrackingStore c = current;
-        if (c != null && (accountId == null || accountId.equals(currentId))) return c; // this is the per-frame path
+        Current c = current;
+        if (c != null && (accountId == null || accountId.equals(c.accountId()))) return c.store(); // the per-frame path
         synchronized (TrackingStore.class) {
             String key = accountId == null || accountId.isBlank() ? "default" : accountId.replaceAll("[^A-Za-z0-9-]", "");
             TrackingStore store = STORES.computeIfAbsent(key, k -> new TrackingStore(DIR.resolve(k + ".json")));
-            current = store;
-            currentId = accountId;
+            current = new Current(store, accountId);
             return store;
         }
     }
@@ -210,12 +211,16 @@ public final class TrackingStore {
             JsonArray chars = root.getAsJsonArray("hardcore");
             if (chars != null) {
                 for (JsonElement el : chars) {
-                    JsonObject o = el.getAsJsonObject();
-                    PityScopes.HardcoreChar c = new PityScopes.HardcoreChar(o.get("id").getAsString(),
-                            o.get("signature").getAsString(), o.has("class") ? o.get("class").getAsString() : "",
-                            o.has("level") ? o.get("level").getAsInt() : -1,
-                            o.has("lastSeen") ? o.get("lastSeen").getAsLong() : 0);
-                    hardcore.put(c.id(), c);
+                    try { // one bad entry is skipped; it must not wipe the whole file
+                        JsonObject o = el.getAsJsonObject();
+                        PityScopes.HardcoreChar c = new PityScopes.HardcoreChar(o.get("id").getAsString(),
+                                o.get("signature").getAsString(), o.has("class") ? o.get("class").getAsString() : "",
+                                o.has("level") ? o.get("level").getAsInt() : -1,
+                                o.has("lastSeen") ? o.get("lastSeen").getAsLong() : 0);
+                        hardcore.put(c.id(), c);
+                    } catch (RuntimeException bad) {
+                        Telemetric.LOGGER.warn("Tracking data {}: skipped a bad hardcore entry: {}", file, bad.toString());
+                    }
                 }
             }
             readInts(root.getAsJsonObject("stats"), stats);
@@ -231,7 +236,9 @@ public final class TrackingStore {
     private static void readInts(JsonObject o, Map<String, Integer> into) {
         if (o == null) return;
         for (Map.Entry<String, JsonElement> e : o.entrySet()) {
-            if (e.getValue().isJsonPrimitive()) into.put(e.getKey(), e.getValue().getAsInt());
+            if (e.getValue().isJsonPrimitive() && e.getValue().getAsJsonPrimitive().isNumber()) {
+                into.put(e.getKey(), e.getValue().getAsInt()); // a non-number value is skipped, not fatal
+            }
         }
     }
 }

@@ -350,13 +350,18 @@ public final class VoxyAdapter {
         reingestLevel = new WeakReference<>(level);
         var player = Minecraft.getInstance().player;
         if (player == null) return;
-        int cx = player.blockPosition().getX() >> 4, cz = player.blockPosition().getZ() >> 4;
+        var at = player.blockPosition();
+        int cx = at.getX() >> 4, cz = at.getZ() >> 4;
         int r = Minecraft.getInstance().options.getEffectiveRenderDistance() + 1;
-        for (int ring = 0; ring <= r; ring++) {
+        reingestQueue.add(ChunkPos.pack(cx, cz));
+        for (int ring = 1; ring <= r; ring++) { // only each ring's border, nearest ring first
             for (int x = cx - ring; x <= cx + ring; x++) {
-                for (int z = cz - ring; z <= cz + ring; z++) {
-                    if (Math.max(Math.abs(x - cx), Math.abs(z - cz)) == ring) reingestQueue.add(ChunkPos.pack(x, z));
-                }
+                reingestQueue.add(ChunkPos.pack(x, cz - ring));
+                reingestQueue.add(ChunkPos.pack(x, cz + ring));
+            }
+            for (int z = cz - ring + 1; z <= cz + ring - 1; z++) {
+                reingestQueue.add(ChunkPos.pack(cx - ring, z));
+                reingestQueue.add(ChunkPos.pack(cx + ring, z));
             }
         }
     }

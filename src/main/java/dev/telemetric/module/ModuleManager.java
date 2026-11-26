@@ -170,6 +170,9 @@ public final class ModuleManager {
         return tickCount;
     }
 
+    /** Modules whose tick already failed once; later failures are not logged again (no 20-per-second log spam). */
+    private final java.util.Set<Module> tickFailed = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
     /** Ticks the enabled toggleable modules and all settings-group modules. */
     public void tick() {
         tickCount++;
@@ -178,7 +181,7 @@ public final class ModuleManager {
             try {
                 module.onTick();
             } catch (RuntimeException e) {
-                Telemetric.LOGGER.error("Tick failed for {}", module.getName(), e);
+                if (tickFailed.add(module)) Telemetric.LOGGER.error("Tick failed for {} (further failures not logged)", module.getName(), e);
             }
         }
     }

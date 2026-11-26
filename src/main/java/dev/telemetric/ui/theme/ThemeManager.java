@@ -60,11 +60,6 @@ public final class ThemeManager {
         return current;
     }
 
-    /** A palette that a category's panel always uses instead of the theme, or {@code null} to follow the theme. */
-    public Theme fixedPalette(Category category) {
-        return FIXED_PALETTES.get(category);
-    }
-
     /**
      * The palette for {@code category}'s panel and its modules' Settings windows: its fixed palette, else the theme
      * with the Category Colors accent blended in, else {@code null} (follow the theme).

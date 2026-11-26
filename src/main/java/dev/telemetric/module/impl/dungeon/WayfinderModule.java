@@ -113,8 +113,6 @@ public final class WayfinderModule extends Module {
     private record Route(List<Point> sharp, List<Point> clean, Point target, boolean boss, Hole hole, boolean complete) {}
 
     private volatile Route route;
-    /** True if there's a target (a treasure or boss drop not reached yet); see {@link #isTracking()}. */
-    private boolean tracking;
     private Future<?> job;
     private boolean acquired;
     private long lastPlanMs;
@@ -198,7 +196,6 @@ public final class WayfinderModule extends Module {
             plannedKey = key;
             return;
         }
-        tracking = true;
 
         long now = System.currentTimeMillis();
         long since = now - lastPlanMs;
@@ -396,12 +393,7 @@ public final class WayfinderModule extends Module {
         return sb.toString();
     }
 
-    public boolean isTracking() {
-        return isEnabled() && tracking;
-    }
-
     private void clearRoute() {
-        tracking = false;
         route = null;
         plannedKey = "";
         plannedMapVersion = -1;

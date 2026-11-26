@@ -709,22 +709,33 @@ public final class Render2D {
         Style style = Style.EMPTY;
         if (argb != 0) style = style.withColor(argb & 0xFFFFFF);
         if (fontId != null) {
-            Identifier id = Identifier.tryParse(fontId);
-            if (id != null) style = style.withFont(new FontDescription.Resource(id));
+            FontDescription font = FONTS.computeIfAbsent(fontId, f -> {
+                Identifier id = Identifier.tryParse(f);
+                return id == null ? NO_FONT : new FontDescription.Resource(id);
+            });
+            if (font != NO_FONT) style = style.withFont(font);
         }
         return style;
     }
+
+    /** Parsed font ids of text runs (a handful of server fonts), so a HUD frame doesn't re-parse them per run. */
+    private static final Map<String, FontDescription> FONTS = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Marks an unparsable font id in {@link #FONTS} (the map takes no nulls). */
+    private static final FontDescription NO_FONT = FontDescription.DEFAULT;
 
     /** Cuts {@code s} off with an ellipsis so it fits {@code maxWidth}. */
     public String trim(String s, int maxWidth) {
         if (textWidth(s) <= maxWidth) return s;
         String ellipsis = "…";
         int budget = maxWidth - textWidth(ellipsis);
-        StringBuilder out = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) {
-            if (textWidth(out.toString() + s.charAt(i)) > budget) break;
-            out.append(s.charAt(i));
+        // the longest prefix that fits, by binary search (prefix widths only grow), not one measurement per character
+        int lo = 0, hi = s.length();
+        while (lo < hi) {
+            int mid = (lo + hi + 1) >>> 1;
+            if (textWidth(s.substring(0, mid)) <= budget) lo = mid;
+            else hi = mid - 1;
         }
-        return out + ellipsis;
+        if (lo > 0 && Character.isHighSurrogate(s.charAt(lo - 1))) lo--; // never split a surrogate pair
+        return s.substring(0, lo) + ellipsis;
     }
 }

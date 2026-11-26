@@ -8,7 +8,6 @@ import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.clickgui.Layout;
 import dev.telemetric.ui.framework.GuiContext;
 import dev.telemetric.ui.framework.MouseButton;
-import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
 

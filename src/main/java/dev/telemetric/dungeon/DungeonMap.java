@@ -44,19 +44,6 @@ public final class DungeonMap {
         return false;
     }
 
-    /** Stand cells ({@link Cell#pack}) of all known jump pads whose column is scanned. */
-    public long[] padCells() {
-        it.unimi.dsi.fastutil.longs.LongArrayList out = new it.unimi.dsi.fastutil.longs.LongArrayList();
-        for (var e : pads.entrySet()) {
-            int x = Cell.columnX(e.getKey()), z = Cell.columnZ(e.getKey());
-            for (int py : e.getValue()) {
-                int y = standNear(x, py, z, 0, PAD_ABOVE);
-                if (y != Integer.MIN_VALUE) out.add(Cell.pack(x, y, z));
-            }
-        }
-        return out.toLongArray();
-    }
-
     /** Particle source blocks ({@link Cell#pack}) of every recorded jump pad, whether or not it resolved to a stand (debug). */
     public long[] padSources() {
         it.unimi.dsi.fastutil.longs.LongArrayList out = new it.unimi.dsi.fastutil.longs.LongArrayList();

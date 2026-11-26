@@ -273,10 +273,14 @@ public final class WorldRenderAdapter {
             try {
                 d.draw(sink);
             } catch (RuntimeException e) {
-                Telemetric.LOGGER.error("World drawer failed", e);
+                // logged once per drawer: a broken drawer would otherwise print a stack trace every frame
+                if (FAILED_DRAWERS.add(d.getClass())) Telemetric.LOGGER.error("World drawer failed (further failures not logged)", e);
             }
         }
     }
+
+    /** Drawer classes whose failure was already logged (render thread only). */
+    private static final java.util.Set<Class<?>> FAILED_DRAWERS = new java.util.HashSet<>();
 
     /** One layer. Fills go first so outlines drawn on the same box stay on top. */
     private static void emitBatch(MultiBufferSource.BufferSource buffers, PoseStack.Pose pose, Batch b,
@@ -307,7 +311,7 @@ public final class WorldRenderAdapter {
         try {
             drawer.draw(sink);
         } catch (RuntimeException e) {
-            Telemetric.LOGGER.error("Preview drawer failed", e);
+            if (FAILED_DRAWERS.add(drawer.getClass())) Telemetric.LOGGER.error("Preview drawer failed (further failures not logged)", e);
         }
         return batch;
     }

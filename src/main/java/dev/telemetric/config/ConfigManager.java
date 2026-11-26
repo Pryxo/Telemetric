@@ -238,8 +238,8 @@ public final class ConfigManager {
 
     /** Upgrades older profile formats in place. Add a case per format bump. */
     private JsonObject migrate(JsonObject json) {
-        int version = json.has("version") ? json.get("version").getAsInt() : 1;
-        // if (version < 2) { ...; version = 2; }
+        int version = json.has("version") && json.get("version").isJsonPrimitive()
+                && json.getAsJsonPrimitive("version").isNumber() ? json.get("version").getAsInt() : 1;
         renameModule(json, "Nametags", "Status Title");
         if (json.has("modules") && json.get("modules").isJsonObject()) mergeNametag(json.getAsJsonObject("modules"));
         json.addProperty("version", Math.max(version, FORMAT_VERSION));
@@ -320,8 +320,11 @@ public final class ConfigManager {
             JsonElement element = JsonParser.parseReader(reader);
             if (element != null && element.isJsonObject()) return Optional.of(element.getAsJsonObject());
             Telemetric.LOGGER.warn("{} is not a JSON object", file);
-        } catch (IOException | RuntimeException e) {
-            Telemetric.LOGGER.error("Could not read {}, backing it up", file, e);
+        } catch (IOException e) {
+            // a read error (file locked by another program…) says nothing about the content: keep the file as it is
+            Telemetric.LOGGER.error("Could not read {}", file, e);
+        } catch (RuntimeException e) {
+            Telemetric.LOGGER.error("Could not parse {}, backing it up", file, e);
             AtomicFiles.backupCorrupt(file);
         }
         return Optional.empty();

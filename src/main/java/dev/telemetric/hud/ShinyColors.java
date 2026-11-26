@@ -63,9 +63,6 @@ public final class ShinyColors {
     /** The same shiny cycle as a {@link ColorCycle}, for animated text markers and status titles. */
     public static final ColorCycle CYCLE = new ColorCycle(FRAMES, CHAR_STEP, Durations.SHINY_LOOP);
 
-    /** How many characters until the per-character offset wraps around the whole cycle (9 frames / 0.45 = 20). */
-    public static final int CYCLE_CHARS = (int) Math.round(FRAMES.length / CHAR_STEP);
-
     /** 0xRRGGBB of the {@code index}-th character right now (moving, or still when animations are off). */
     public static int rgbNow(int index) {
         return rgbAt(phase() + index * CHAR_STEP);

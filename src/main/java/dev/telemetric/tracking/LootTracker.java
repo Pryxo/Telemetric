@@ -312,7 +312,7 @@ public final class LootTracker {
         String me = PlayerAdapter.name();
         String row = null;
         for (String line : lines) if (line.contains(SELF_ARROW)) row = line;
-        if (row == null && me != null) for (String line : lines) if (line.contains(me)) row = line;
+        if (row == null && me != null && !me.isEmpty()) for (String line : lines) if (line.contains(me)) row = line;
         if (row == null) return 0;
         Matcher m = PERCENT.matcher(row);
         String last = null;
@@ -387,6 +387,7 @@ public final class LootTracker {
 
 
     private void onBag(String totem) {
+        if (totem == null) return;
         Bag bag = TelosData.BAGS.get().byTotem().get(totem);
         if (bag == null) {
             if (totem.contains("pouch")) Telemetric.debug("Unknown loot bag '{}' (add it to tables/rarities.json: bag / eventBags)", totem);

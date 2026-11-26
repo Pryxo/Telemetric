@@ -427,27 +427,6 @@ public final class DungeonAdapter {
         return out;
     }
 
-    /** A nameplate whose letters are one of the names asked for, and where it is. */
-    public record KnownPlate(String letters, Point pos) {}
-
-    /** Nameplates within {@code range} blocks whose decoded letters ({@link #plateLetters}) are in {@code names}. */
-    public static List<KnownPlate> namePlatesIn(java.util.Set<String> names, double range) {
-        ClientLevel level = level();
-        List<KnownPlate> out = new ArrayList<>();
-        var player = Minecraft.getInstance().player;
-        if (level == null || player == null || names.isEmpty()) return out;
-        double r2 = range * range;
-        for (Entity e : level.entitiesForRendering()) {
-            if (e.isRemoved() || !(e instanceof net.minecraft.world.entity.Display.TextDisplay td)) continue;
-            if (e.distanceToSqr(player) > r2) continue;
-            net.minecraft.network.chat.Component text = ((dev.telemetric.mixin.TextDisplayAccessor) td).telemetric$getText();
-            if (text == null) continue;
-            String letters = plateLetters(text.getString());
-            if (names.contains(letters)) out.add(new KnownPlate(letters, new Point(e.getX(), e.getY(), e.getZ())));
-        }
-        return out;
-    }
-
     /** True while the chunk holding block column (x, z) is loaded on the client. */
     public static boolean isLoaded(double x, double z) {
         ClientLevel level = level();

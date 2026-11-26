@@ -185,7 +185,7 @@ public abstract class HudModule extends Module {
         return hudColor(label, description, () -> paletteColor.applyAsInt(palette()));
     }
 
-    /** A fixed-default colour of this element (e.g. map rooms) in the Colors section, always shown. */
+    /** A fixed-default colour of this element in the Colors section, always shown (API for custom elements, hud.md). */
     protected final ColorSetting addHudColor(ColorSetting setting) {
         return add(colorGroup().child(setting));
     }

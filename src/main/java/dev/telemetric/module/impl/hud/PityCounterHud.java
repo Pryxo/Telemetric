@@ -32,11 +32,9 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Pity Counter: kills since each drop of the boss you're at. That's the dungeon you're in, or else the realm boss found

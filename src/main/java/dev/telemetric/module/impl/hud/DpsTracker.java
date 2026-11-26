@@ -58,11 +58,6 @@ final class DpsTracker {
         return lastHitTime >= 0 && now - lastHitTime <= timeoutMs;
     }
 
-    /** The end of the fight's clock: {@code now} while it's running, or its last hit once it ended. */
-    long clock(long now, long timeoutMs) {
-        return active(now, timeoutMs) ? now : lastHitTime;
-    }
-
     long duration(long end) {
         return start < 0 ? 0 : Math.max(0, end - start);
     }

@@ -677,6 +677,7 @@ public final class StashOverlay {
 
     /** @return true if the character went into the page name being edited or into the search box */
     public static boolean charTyped(String s) {
+        if (s == null || s.isEmpty()) return false;
         if (renamePage <= 0 && searchFocused) {
             if (s.codePointAt(0) >= 32 && searchText.codePointCount(0, searchText.length()) < MAX_SEARCH) searchText += s;
             return true;

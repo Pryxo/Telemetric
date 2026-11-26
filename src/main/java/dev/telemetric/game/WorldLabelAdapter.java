@@ -100,6 +100,8 @@ public final class WorldLabelAdapter {
     public static final float ICON_PX = 16f, ICON_GAP_PX = 2f;
     private static final Map<String, Identifier> ICON_TEXTURES = new java.util.concurrent.ConcurrentHashMap<>();
     private static final List<Source> SOURCES = new CopyOnWriteArrayList<>();
+    /** Sources whose failure was already logged (render thread only). */
+    private static final java.util.Set<Class<?>> FAILED_SOURCES = new java.util.HashSet<>();
     private static final Map<BadgeText.Style, Style> FONTS = new EnumMap<>(BadgeText.Style.class);
 
     static {
@@ -133,7 +135,8 @@ public final class WorldLabelAdapter {
             try {
                 labels = source.labels(partial);
             } catch (RuntimeException e) {
-                Telemetric.LOGGER.error("World label source failed", e);
+                // once per source, not once per frame
+                if (FAILED_SOURCES.add(source.getClass())) Telemetric.LOGGER.error("World label source failed (further failures not logged)", e);
                 continue;
             }
             if (labels == null) continue;

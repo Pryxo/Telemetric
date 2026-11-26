@@ -132,17 +132,25 @@ public final class Telemetric implements ClientModInitializer {
         }
         dev.telemetric.game.ScreenOpener.tick(client); // /tm, /tm edithud
         moduleKeyHandler.tick();
-        DungeonTracker.get().tick();
-        RealmBossTracker.get().tick();
-        LootTracker.get().tick();
-        WikiStatsScan.get().tick();
-        dev.telemetric.api.HeadStatusCache.tick(); // head statuses of loaded players, checked every 10 s, cached for 15 min
-        try {
-            CooldownTracker.get().tick();
-        } catch (RuntimeException e) {
-            LOGGER.error("Cooldown tracker tick failed", e);
-        }
+        guardedTick("Dungeon tracker", DungeonTracker.get()::tick);
+        guardedTick("Realm boss tracker", RealmBossTracker.get()::tick);
+        guardedTick("Loot tracker", LootTracker.get()::tick);
+        guardedTick("Wiki stats scan", WikiStatsScan.get()::tick);
+        guardedTick("Head status cache", dev.telemetric.api.HeadStatusCache::tick); // loaded players, every 10 s, cached 15 min
+        guardedTick("Cooldown tracker", CooldownTracker.get()::tick);
         moduleManager.tick();
+    }
+
+    /** Names of the trackers whose tick already failed once (logged once, not every tick). */
+    private final java.util.Set<String> tickFailed = new java.util.HashSet<>();
+
+    /** Runs one tracker's tick; a crash there is logged once and never takes the client down. */
+    private void guardedTick(String name, Runnable tick) {
+        try {
+            tick.run();
+        } catch (RuntimeException e) {
+            if (tickFailed.add(name)) LOGGER.error("{} tick failed (further failures not logged)", name, e);
+        }
     }
 
     private boolean updateShown;

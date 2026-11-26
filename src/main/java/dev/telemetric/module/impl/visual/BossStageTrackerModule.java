@@ -244,6 +244,11 @@ public final class BossStageTrackerModule extends Module {
     @Override
     public void onTick() {
         stages = BossStageAdapter.scan(range.get());
+        // flash state is keyed per boss entity, so forget it once no boss is tracked (it would grow all session)
+        if (stages.isEmpty() && flashLast.size() > 32) {
+            flashLast.clear();
+            flashAt.clear();
+        }
     }
 
     @Override

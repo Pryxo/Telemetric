@@ -55,7 +55,6 @@ public final class TelemetricServer {
     /** The server's {@code welcome} said Mojang confirmed our account. */
     private static volatile boolean verified;
     private static volatile int online = -1;
-    private static volatile long onlineAt;
     private static volatile int intervalSecs = 60;
     private static volatile boolean stopped;
     /** Last frame (text, ping or pong) from the server. */
@@ -74,7 +73,14 @@ public final class TelemetricServer {
         EXEC.execute(() -> {
             if (!watching) {
                 watching = true;
-                EXEC.scheduleWithFixedDelay(TelemetricServer::watchdog, WATCHDOG_MS, WATCHDOG_MS, TimeUnit.MILLISECONDS);
+                // an exception escaping a fixed-delay task cancels all later runs, so the watchdog never throws
+                EXEC.scheduleWithFixedDelay(() -> {
+                    try {
+                        watchdog();
+                    } catch (RuntimeException e) {
+                        Telemetric.LOGGER.warn("[Telemetric] API watchdog failed: {}", e.toString());
+                    }
+                }, WATCHDOG_MS, WATCHDOG_MS, TimeUnit.MILLISECONDS);
             }
             connect();
         });
@@ -100,11 +106,6 @@ public final class TelemetricServer {
     /** Players online with the mod (unique accounts, yourself included), or -1 if unknown. */
     public static int online() {
         return connected() ? online : -1;
-    }
-
-    /** True when the last count is older than two push intervals (a push was missed). */
-    public static boolean stale() {
-        return System.currentTimeMillis() - onlineAt > intervalSecs * 2_000L;
     }
 
     private static void connect() {
@@ -276,7 +277,6 @@ public final class TelemetricServer {
             }
             if (o.has("online")) {
                 online = Math.max(0, o.get("online").getAsInt());
-                onlineAt = System.currentTimeMillis();
             }
         } catch (RuntimeException e) {
             Telemetric.LOGGER.debug("[Telemetric] Bad API server message: {}", json);
