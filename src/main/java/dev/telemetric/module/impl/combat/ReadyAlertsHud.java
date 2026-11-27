@@ -3,9 +3,7 @@ package dev.telemetric.module.impl.combat;
 import dev.telemetric.Telemetric;
 import dev.telemetric.hud.HudModule;
 import dev.telemetric.module.Category;
-import dev.telemetric.module.Module;
-import dev.telemetric.setting.Setting;
-import dev.telemetric.setting.impl.ColorSetting;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.render.Render2D;
 
@@ -23,7 +21,7 @@ public final class ReadyAlertsHud extends HudModule {
     private static final int MAX_ALERTS = 3, LINE_GAP = 2;
     private static final String PREVIEW = "Ability Ready!";
 
-    private record Alert(String text, int color, long startMs, long endMs) {}
+    private record Alert(String text, ColorRamp color, long startMs, long endMs) {}
 
     private final ArrayDeque<Alert> alerts = new ArrayDeque<>();
 
@@ -38,7 +36,7 @@ public final class ReadyAlertsHud extends HudModule {
     }
 
     /** Shows {@code text} for {@code durationMs}. Posting the same text again restarts it instead of stacking. */
-    void post(String text, int color, long durationMs) {
+    void post(String text, ColorRamp color, long durationMs) {
         if (!isEnabled() || text == null || text.isBlank()) return;
         long now = System.currentTimeMillis();
         alerts.removeIf(a -> a.text().equals(text));
@@ -60,7 +58,7 @@ public final class ReadyAlertsHud extends HudModule {
     private List<Alert> visible(boolean preview) {
         long now = System.currentTimeMillis();
         alerts.removeIf(a -> now >= a.endMs());
-        if (alerts.isEmpty() && preview) return List.of(new Alert(PREVIEW, ReadyCue.DEFAULT_COLOR, now, Long.MAX_VALUE));
+        if (alerts.isEmpty() && preview) return List.of(new Alert(PREVIEW, ColorRamp.solid(ReadyCue.DEFAULT_COLOR), now, Long.MAX_VALUE));
         return new ArrayList<>(alerts);
     }
 
@@ -91,23 +89,12 @@ public final class ReadyAlertsHud extends HudModule {
             r.pushAlpha(Math.clamp(alpha, 0, 1));
             try {
                 int tw = r.textWidth(a.text());
-                r.text(a.text(), alignRight ? w - tw : (w - tw) / 2, y, a.color());
+                int tx = alignRight ? w - tw : (w - tw) / 2;
+                r.text(a.text(), tx, y, a.color(), null, tx, tw); // a gradient runs across the alert's text
             } finally {
                 r.popAlpha();
             }
             y += r.fontHeight() + LINE_GAP;
         }
-    }
-
-    /** The cue colours (Alert Color of every cooldown HUD), so a gradient alert colour draws as a gradient. */
-    @Override
-    protected List<ColorSetting> extraColorSources() {
-        List<ColorSetting> out = new ArrayList<>();
-        for (Module m : Telemetric.get().modules().getModules()) {
-            for (Setting<?> s : m.getSettings()) {
-                if (s instanceof ColorSetting cs && cs.isGradient() && "Alert Color".equals(cs.getName())) out.add(cs);
-            }
-        }
-        return out;
     }
 }

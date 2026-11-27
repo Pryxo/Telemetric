@@ -11,6 +11,7 @@ import dev.telemetric.game.WorldRenderAdapter.LineSink;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.EnumSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
@@ -136,7 +137,8 @@ public final class ItemRangeModule extends Module {
 
         boolean target = highlight.get() && area.drawRange()
                 && targetInside(s, pose.x(), pose.y(), pose.z(), cx, cz, fx, fz, area.range(), half);
-        int argb = ColorUtil.lerp(color.get(), targetColor.get(), ease(target));
+        // a gradient colour runs along the line / around the ring
+        ColorRamp argb = ColorRamp.lerp(color, targetColor, ease(target));
         float w = width.getFloat();
         boolean walls = throughWalls.get();
 
@@ -199,7 +201,8 @@ public final class ItemRangeModule extends Module {
      * edge line plus, with Ground Fill, translucent bands fading inward. {@code fade} is how much of each end is faded.
      */
     private void ring(LineSink sink, double cx, double y, double cz, double r, double yaw, double half, double fade,
-                      int segments, int argb, float w, boolean walls) {
+                      int segments, ColorRamp argb, float w, boolean walls) {
+        boolean loop = half >= Math.PI - 1e-6; // a full circle: there and back, so the gradient has no seam
         boolean bands = fill.get() && r > 1;
         double px = 0, pz = 0, pa = 0;
         for (int i = 0; i <= segments; i++) {
@@ -210,7 +213,8 @@ public final class ItemRangeModule extends Module {
             if (i > 0) {
                 double edge = Math.abs(t - 0.5 / segments - 0.5) * 2; // 0 is the middle, 1 the end
                 double f = fade > 0 && edge > 1 - fade ? (1 - edge) / fade : 1;
-                int c = ColorUtil.fade(argb, f);
+                double mid = t - 0.5 / segments;
+                int c = ColorUtil.fade(argb.at((float) (loop ? 1 - Math.abs(2 * mid - 1) : mid)), f);
                 sink.line(px, y, pz, x, y, z, c, w, walls);
                 if (bands) {
                     double ps = -Math.sin(pa), pc = Math.cos(pa);
@@ -229,23 +233,24 @@ public final class ItemRangeModule extends Module {
     }
 
     /** A line that fades in from the player towards its end. */
-    private static void fadingLine(LineSink sink, double x1, double y, double z1, double x2, double z2, int argb,
+    private static void fadingLine(LineSink sink, double x1, double y, double z1, double x2, double z2, ColorRamp argb,
                                    float w, boolean walls) {
         for (int i = 0; i < LINE_STEPS; i++) {
             double t0 = i / (double) LINE_STEPS, t1 = (i + 1) / (double) LINE_STEPS;
             sink.line(x1 + (x2 - x1) * t0, y, z1 + (z2 - z1) * t0, x1 + (x2 - x1) * t1, y, z1 + (z2 - z1) * t1,
-                    ColorUtil.fade(argb, t1), w, walls);
+                    ColorUtil.fade(argb.at((float) t0), t0), ColorUtil.fade(argb.at((float) t1), t1), w, walls);
         }
     }
 
-    private static void square(LineSink sink, double cx, double y, double cz, double h, double yaw, int argb, float w,
+    private static void square(LineSink sink, double cx, double y, double cz, double h, double yaw, ColorRamp argb, float w,
                                boolean walls) {
         double cos = Math.cos(yaw), sin = Math.sin(yaw);
         double[][] c = {{-h, -h}, {h, -h}, {h, h}, {-h, h}};
         for (int i = 0; i < 4; i++) {
             double[] a = c[i], b = c[(i + 1) % 4];
             sink.line(cx + a[0] * cos - a[1] * sin, y, cz + a[0] * sin + a[1] * cos,
-                    cx + b[0] * cos - b[1] * sin, y, cz + b[0] * sin + b[1] * cos, argb, w, walls);
+                    cx + b[0] * cos - b[1] * sin, y, cz + b[0] * sin + b[1] * cos,
+                    argb.at(1 - Math.abs(i / 2f - 1)), argb.at(1 - Math.abs((i + 1) / 2f - 1)), w, walls);
         }
     }
 }

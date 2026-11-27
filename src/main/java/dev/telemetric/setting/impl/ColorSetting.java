@@ -139,6 +139,13 @@ public class ColorSetting extends Setting<Integer> implements ColorRamp {
         if (changed && before == value) notifyChanged();
     }
 
+    /** Copies {@code other}'s whole value (solid colour, gradient and mode). */
+    public void copyFrom(ColorSetting other) {
+        if (other == null || other == this) return;
+        fromJson(other.toJson());
+        if (other.gradient == null) setGradientMode(false);
+    }
+
     private Gradient clean(Gradient g) {
         return allowAlpha ? g : g.opaque();
     }

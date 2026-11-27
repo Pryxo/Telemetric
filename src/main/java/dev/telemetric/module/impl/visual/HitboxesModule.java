@@ -71,7 +71,7 @@ public final class HitboxesModule extends Module {
             if (k == null || !k.shown().get()) return;
             int argb = k.color().get();
             if (fill) sink.boxFill(x0, y0, z0, x1, y1, z1, ColorUtil.withAlpha(argb, fillAlpha), walls);
-            if (outline) sink.boxOutline(x0, y0, z0, x1, y1, z1, argb, width, walls);
+            if (outline) sink.boxOutline(x0, y0, z0, x1, y1, z1, k.color(), width, walls);
         });
     }
 
@@ -99,7 +99,7 @@ public final class HitboxesModule extends Module {
                 if (k == null || !k.shown().get()) return;
                 int argb = k.color().get();
                 if (fill) sink.boxFill(x0, y0, z0, x1, y1, z1, ColorUtil.withAlpha(argb, fillAlpha), walls);
-                if (outline) sink.boxOutline(x0, y0, z0, x1, y1, z1, argb, width, walls);
+                if (outline) sink.boxOutline(x0, y0, z0, x1, y1, z1, k.color(), width, walls);
             };
             double hw = EntityPreviewAdapter.playerWidth() / 2, h = EntityPreviewAdapter.playerHeight();
             box.box(BoxKind.SELF, feet[0] - hw, feet[1], feet[2] - hw, feet[0] + hw, feet[1] + h, feet[2] + hw);

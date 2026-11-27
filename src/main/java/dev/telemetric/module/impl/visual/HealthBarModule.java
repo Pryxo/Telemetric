@@ -8,6 +8,7 @@ import dev.telemetric.game.WorldRenderAdapter;
 import dev.telemetric.hud.HudModule;
 import dev.telemetric.module.Category;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.ModeSetting;
@@ -174,17 +175,28 @@ public final class HealthBarModule extends HudModule {
     }
 
     private int barColor(double f) {
+        return barRamp(f).at(0);
+    }
+
+    /** The bar colour at health {@code f}; a gradient High / Mid / Low colour runs along the bar. */
+    private ColorRamp barRamp(double f) {
         double pct = f * 100, m = midAt.get(), lo = lowAt.get();
-        int c;
+        ColorRamp c;
         if (smooth.get()) {
-            if (pct >= m) c = ColorUtil.lerp(mid.get(), high.get(), m >= 100 ? 1 : Math.clamp((pct - m) / (100 - m), 0, 1));
-            else if (pct >= lo) c = ColorUtil.lerp(low.get(), mid.get(), m <= lo ? 1 : Math.clamp((pct - lo) / (m - lo), 0, 1));
-            else c = low.get();
+            if (pct >= m) c = ColorRamp.lerp(mid, high, m >= 100 ? 1 : Math.clamp((pct - m) / (100 - m), 0, 1));
+            else if (pct >= lo) c = ColorRamp.lerp(low, mid, m <= lo ? 1 : Math.clamp((pct - lo) / (m - lo), 0, 1));
+            else c = low;
         } else {
-            c = pct <= lo ? low.get() : pct <= m ? mid.get() : high.get();
+            c = pct <= lo ? low : pct <= m ? mid : high;
         }
         double fl = flash.get();
-        return fl > 0.001 ? ColorUtil.lerp(c, flashColor.get(), fl * 0.7) : c;
+        if (fl <= 0.001) return c;
+        int fc = flashColor.get();
+        return c.map(v -> ColorUtil.lerp(v, fc, fl * 0.7));
+    }
+
+    private ColorRamp textRamp(double f) {
+        return textOnly() && !staticText.get() ? barRamp(f) : textColor;
     }
 
     private String text(boolean preview) {
@@ -229,10 +241,10 @@ public final class HealthBarModule extends HudModule {
         return hudHeight.getInt() + (textAbove() && showText(t) ? textH(r) + 1 : 0);
     }
 
-    private void drawText(Render2D r, String t, double x, double y, int color) {
+    private void drawText(Render2D r, String t, double x, double y, ColorRamp color) {
         r.pushTransform(Math.round(x), Math.round(y), textScale.getFloat());
         try {
-            r.text(t, 0, 0, color, look());
+            r.text(t, 0, 0, color, look(), 0, r.textWidth(t));
         } finally {
             r.popTransform();
         }
@@ -241,7 +253,7 @@ public final class HealthBarModule extends HudModule {
     /** Draws the bar with its top-left corner at the origin ({@link #flatWidth} × {@link #flatHeight}). */
     private void drawFlat(Render2D r, double f, String t) {
         int w = flatWidth(r, t);
-        int col = textArgb(f);
+        ColorRamp col = textRamp(f);
         if (textOnly()) {
             drawText(r, t, 0, 0, col);
             return;
@@ -253,10 +265,17 @@ public final class HealthBarModule extends HudModule {
             y = textH(r) + 1;
         }
         int h = hudHeight.getInt();
-        r.rect(0, y, w, h, border.get());
-        r.rect(1, y + 1, w - 2, h - 2, background.get());
-        int[] fc = fillColors(f);
-        r.gradientV(1, y + 1, (int) Math.round((w - 2) * f), h - 2, fc[0], fc[1]);
+        r.fillRamp(0, y, w, h, 0, 0, border, 1);
+        r.fillRamp(1, y + 1, w - 2, h - 2, 0, 0, background, 1);
+        int fw = (int) Math.round((w - 2) * f);
+        ColorRamp bar = barRamp(f);
+        if (!bar.isUniform()) {
+            // a gradient runs along the whole bar; the fill shows its part of it
+            if (fw > 0) r.fillRamp(1, y + 1, fw, h - 2, 0, 0, bar.part(0f, fw / (float) Math.max(1, w - 2)), 1);
+        } else {
+            int[] fc = fillColors(f);
+            r.gradientV(1, y + 1, fw, h - 2, fc[0], fc[1]);
+        }
         if (text && !textAbove()) {
             r.nextLayer();
             int tw = textW(r, t);
@@ -336,9 +355,12 @@ public final class HealthBarModule extends HudModule {
         if (f < 0 || p == null) return;
         double y = p.y();
         boolean through = throughBlocks.get();
-        sink.billboard(p.x(), y, p.z(), -w - b, -b, w + b, h + b, border.get(), through);
-        sink.billboard(p.x(), y, p.z(), -w, 0, w, h, background.get(), through);
-        if (f > 0) {
+        sink.billboard(p.x(), y, p.z(), -w - b, -b, w + b, h + b, border, through);
+        sink.billboard(p.x(), y, p.z(), -w, 0, w, h, background, through);
+        ColorRamp bar = barRamp(f);
+        if (f > 0 && !bar.isUniform()) {
+            sink.billboard(p.x(), y, p.z(), -w, 0, -w + 2 * w * f, h, bar.part(0f, (float) f), through);
+        } else if (f > 0) {
             int[] fc = fillColors(f);
             double right = -w + 2 * w * f;
             sink.billboard(p.x(), y, p.z(), -w, h / 2, right, h, fc[0], through);
@@ -447,13 +469,18 @@ public final class HealthBarModule extends HudModule {
                 rw = right - left + pb * 2;
                 rh = bottom - top + pb * 2;
                 if (!textOnly()) {
-                    r.rect(rx, ry, rw, rh, border.get());
-                    r.rect(left, top, right - left, bottom - top, background.get());
+                    r.fillRamp(rx, ry, rw, rh, 0, 0, border, 1);
+                    r.fillRamp(left, top, right - left, bottom - top, 0, 0, background, 1);
                     int fill = (int) Math.round((right - left) * f);
                     int mid = top + (bottom - top) / 2;
-                    int[] fc = fillColors(f);
-                    r.rect(left, top, fill, mid - top, fc[0]);
-                    r.rect(left, mid, fill, bottom - mid, fc[1]);
+                    ColorRamp bar = barRamp(f);
+                    if (!bar.isUniform()) {
+                        if (fill > 0) r.fillRamp(left, top, fill, bottom - top, 0, 0, bar.part(0f, (float) f), 1);
+                    } else {
+                        int[] fc = fillColors(f);
+                        r.rect(left, top, fill, mid - top, fc[0]);
+                        r.rect(left, mid, fill, bottom - mid, fc[1]);
+                    }
                 }
                 if (showText(t)) {
                     double textH = worldTextHeight(h);
@@ -465,7 +492,7 @@ public final class HealthBarModule extends HudModule {
                     double tyBottom = s[1] - lift * k;
                     r.pushTransform(Math.round(tx), Math.round(tyBottom - textH * k), ts);
                     try {
-                        r.text(t, 0, 0, textArgb(f), look());
+                        r.text(t, 0, 0, textRamp(f), look(), 0, r.textWidth(t));
                     } finally {
                         r.popTransform();
                     }
@@ -560,6 +587,7 @@ public final class HealthBarModule extends HudModule {
         Render2D.TextLook look = look();
         return List.of(new WorldLabelAdapter.Label(p.x(), ty, p.z(), t, BadgeText.Style.PLAIN, textH,
                 textArgb(f), throughBlocks.get()).aligned(side, align)
-                .look(look == Render2D.TextLook.SHADOW, look == Render2D.TextLook.OUTLINE));
+                .look(look == Render2D.TextLook.SHADOW, look == Render2D.TextLook.OUTLINE)
+                .withRamps(new WorldLabelAdapter.Ramps(textRamp(f), null, null)));
     }
 }

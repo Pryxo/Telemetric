@@ -559,9 +559,6 @@ public final class Render2D {
         gradientGlyphs(s, scopeStyle(Style.EMPTY), x, y, ramp, spanX, spanW);
     }
 
-    /** Width of one gradient slice in GUI units: thin enough that no step is visible. */
-    private static final int SLICE = 1;
-
     /**
      * Draws {@code s} glyph by glyph, each glyph several times through thin vertical clips with the ramp's colour at
      * that column, so the colour changes smoothly across (and inside) the letters. Returns the end x.
@@ -577,16 +574,39 @@ public final class Render2D {
             int gw = font.width(glyph);
             if (cp != ' ' && gw > 0) {
                 // a little past the advance on both sides: italic / bold glyphs overhang it
-                for (int sx = cx - 1; sx < cx + gw + 2; sx += SLICE) {
-                    int col = c(ramp.at(Math.clamp((sx + SLICE / 2f - spanX) / span, 0f, 1f)));
-                    g.enableScissor(sx, top, sx + SLICE, top + h);
-                    g.text(font, glyph, cx, y, col, false);
-                    g.disableScissor();
-                }
+                int gx = cx;
+                sliced(cx - 1, cx + gw + 2, top, top + h, ramp, spanX, span,
+                        col -> g.text(font, glyph, gx, y, c(col), false));
             }
             cx += gw;
         }
         return cx;
+    }
+
+    /**
+     * Calls {@code draw} once per screen column (whole GUI pixels after the current transform, so scaled previews get
+     * no gaps or doubled columns) of the local box, clipped to that column, with the ramp colour at its centre.
+     * Assumes a transform without rotation (translate / scale only).
+     */
+    private void sliced(float lx0, float lx1, float ly0, float ly1, ColorRamp ramp, float spanX, float span,
+                        java.util.function.IntConsumer draw) {
+        org.joml.Matrix3x2f m = new org.joml.Matrix3x2f(g.pose());
+        org.joml.Vector2f a = m.transformPosition(lx0, ly0, new org.joml.Vector2f());
+        org.joml.Vector2f b = m.transformPosition(lx1, ly1, new org.joml.Vector2f());
+        int sx0 = (int) Math.floor(Math.min(a.x, b.x)), sx1 = (int) Math.ceil(Math.max(a.x, b.x));
+        int sy0 = (int) Math.floor(Math.min(a.y, b.y)), sy1 = (int) Math.ceil(Math.max(a.y, b.y));
+        if (m.m00 == 0) return;
+        for (int sx = sx0; sx < sx1; sx++) {
+            float local = (sx + 0.5f - m.m20) / m.m00;
+            int col = ramp.at(Math.clamp((local - spanX) / span, 0f, 1f));
+            // the scissor box is given in screen units: set it with no transform, then draw with the real one
+            g.pose().pushMatrix();
+            g.pose().identity();
+            g.enableScissor(sx, sy0, sx + 1, sy1);
+            g.pose().popMatrix();
+            draw.accept(col);
+            g.disableScissor();
+        }
     }
 
     /** Vanilla's drop-shadow colour (RGB at 25 %). */
@@ -730,7 +750,17 @@ public final class Render2D {
      */
     public void worldLabel(dev.telemetric.game.WorldLabelAdapter.Label label, int x, int y) {
         int argb = (label.argb() >>> 24) == 0 ? label.argb() | 0xFF000000 : label.argb();
-        g.text(font, dev.telemetric.game.WorldLabelAdapter.text(label), x, y, c(argb), label.shadow());
+        Component text = dev.telemetric.game.WorldLabelAdapter.text(label);
+        ColorRamp ramp = label.textRamp();
+        if (ramp == null) {
+            g.text(font, text, x, y, c(argb), label.shadow());
+            return;
+        }
+        // a gradient label (Settings window preview): the same thin clipped slices as gradient HUD text
+        int w = Math.max(1, font.width(text));
+        if (label.shadow()) g.text(font, text, x + 1, y + 1, shadowOf(c(ramp.at(0.5f))), false);
+        sliced(x - 1, x + w + 2, y - 1, y + font.lineHeight + 1, ramp, x, w,
+                col -> g.text(font, text, x, y, c(col), false));
     }
 
     public int worldLabelWidth(dev.telemetric.game.WorldLabelAdapter.Label label) {

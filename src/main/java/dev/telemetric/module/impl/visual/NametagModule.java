@@ -266,8 +266,13 @@ public final class NametagModule extends Module {
     }
 
     private CurrencyColors colors(boolean seasonal) {
-        return new CurrencyColors(seasonal ? seasonalIcon.get() : normalIcon.get(), fameColor.get(),
-                separatorColor.get(), fragmentColor.get(), fragmentIconColor.get());
+        ColorSetting icon = seasonal ? seasonalIcon : normalIcon;
+        ColorSetting[] all = {icon, fameColor, separatorColor, fragmentColor, fragmentIconColor};
+        boolean gradient = false;
+        for (ColorSetting c : all) gradient |= c.isGradient();
+        // plain colours keep the cached line; with a gradient the ramps colour it letter by letter
+        return new CurrencyColors(icon.get(), fameColor.get(), separatorColor.get(), fragmentColor.get(),
+                fragmentIconColor.get(), gradient ? all : null);
     }
 
 

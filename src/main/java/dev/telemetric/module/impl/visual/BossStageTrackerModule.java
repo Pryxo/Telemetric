@@ -14,6 +14,7 @@ import dev.telemetric.module.Module;
 import dev.telemetric.module.impl.hud.DpsMeterHud;
 import dev.telemetric.setting.Setting;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
@@ -147,6 +148,19 @@ public final class BossStageTrackerModule extends Module {
             if (!hasBg() || bgOpacity.get() <= 0) return 0;
             int c = bgThemeColors.get() ? Telemetric.get().theme().palette().panel() : bgColor.get();
             return ColorUtil.fade(c | 0xFF000000, bgOpacity.get() / 100.0 * opacity.get() / 100.0);
+        }
+
+        /** The panel's gradient (null = plain {@link #bgArgb}), with the same opacity rule. */
+        ColorRamp bgRamp() {
+            if (bgThemeColors.get() || !bgColor.isGradient()) return null;
+            double a = bgOpacity.get() / 100.0 * opacity.get() / 100.0;
+            return bgColor.map(c -> ColorUtil.fade(c | 0xFF000000, a));
+        }
+
+        ColorRamp accentRamp() {
+            if (bgThemeColors.get() || !accentColor.isGradient()) return null;
+            double a = opacity.get() / 100.0;
+            return accentColor.map(c -> ColorUtil.fade(c | 0xFF000000, a));
         }
 
         int accentArgb() {
@@ -309,14 +323,16 @@ public final class BossStageTrackerModule extends Module {
         if (on == null || !on.get()) return row;
         String k = key + "|" + row.head().getName();
         long now = System.nanoTime() / 1_000_000L;
-        String shown = row.text() + "#" + row.argb(); // colour too: a compact stage badge has no text
+        // colour too (a compact stage badge has no text); a gradient counts by its setting, not its moving colour
+        String shown = row.text() + "#" + (row.color().isUniform() ? row.color().at(0) : System.identityHashCode(row.color()));
         String old = flashLast.put(k, shown);
         if (old != null && !old.equals(shown)) flashAt.put(k, now);
         Long at = flashAt.get(k);
         int dur = Durations.scaled(flashTime.get().intValue());
         if (at == null || dur <= 0 || now - at >= dur) return row;
         double f = 1 - (now - at) / (double) dur;
-        return new Row(row.text(), row.look(), ColorUtil.lerp(row.argb(), flashColor.get(), f), row.head(), row.group());
+        int flash = flashColor.get();
+        return new Row(row.text(), row.look(), row.color().map(c -> ColorUtil.lerp(c, flash, f)), row.head(), row.group());
     }
 
     /** A label line (stage, health or DPS stat) that is switched on. */
@@ -354,7 +370,8 @@ public final class BossStageTrackerModule extends Module {
      * One label line before it's stacked: text, the look it uses (the line above's when linked), its colour, the movable
      * setting it belongs to, and its link group (linked lines share one; they stack tight and share one background).
      */
-    private record Row(String text, LineStyle look, int argb, Setting<?> head, int group) {}
+    /** One label line; {@code color} is its setting (a gradient runs across the line) or a fixed colour. */
+    private record Row(String text, LineStyle look, ColorRamp color, Setting<?> head, int group) {}
 
     private List<WorldLabelAdapter.Label> labels(float partialTick) {
         List<Stage> current = stages;
@@ -382,13 +399,13 @@ public final class BossStageTrackerModule extends Module {
                 if (kind == Kind.DAMAGEABLE && !showDamageable.get()) continue;
                 rows.add(new Row(name(kind), stageStyle, color(kind), stageLine, 0));
             } else if (line == healthLine && healthLine.get()) {
-                if (hp != null) rows.add(new Row(healthStyle.fill(hp, hp), healthStyle, healthColor.get(), healthLine, 0));
+                if (hp != null) rows.add(new Row(healthStyle.fill(hp, hp), healthStyle, healthColor, healthLine, 0));
             } else if (line instanceof BooleanSetting b && b.get() && dpsLines.contains(b)) {
                 DpsMeterHud.Row r = dps.get(b.getName());
                 if (r == null) continue;
                 DpsLook look = dpsLooks.get(b);
-                int argb = look.damageColors().get() && r.argb() != 0 ? r.argb() : look.color().get();
-                rows.add(new Row(look.style().fill(r.label() + " " + r.value(), r.value()), look.style(), argb, b, 0));
+                ColorRamp color = look.damageColors().get() && r.argb() != 0 ? ColorRamp.solid(r.argb()) : look.color();
+                rows.add(new Row(look.style().fill(r.label() + " " + r.value(), r.value()), look.style(), color, b, 0));
             }
         }
         link(rows);
@@ -407,7 +424,7 @@ public final class BossStageTrackerModule extends Module {
             boolean joined = i > 0 && (rows.get(i - 1).look().link.is(LINK_BELOW) || rows.get(i).look().link.is(LINK_ABOVE));
             if (!joined) group++;
             Row r = rows.get(i);
-            rows.set(i, new Row(r.text(), r.look(), r.argb(), r.head(), group));
+            rows.set(i, new Row(r.text(), r.look(), r.color(), r.head(), group));
         }
         for (int i = 0; i < rows.size(); ) {
             int end = i;
@@ -422,7 +439,7 @@ public final class BossStageTrackerModule extends Module {
             for (int j = i; j <= end; j++) {
                 Row r = rows.get(j);
                 boolean blank = r.head() == stageLine && stageStyle.compact.get() && look.font() != BadgeText.Style.PLAIN;
-                rows.set(j, new Row(blank ? "" : r.text(), look, r.argb(), r.head(), r.group()));
+                rows.set(j, new Row(blank ? "" : r.text(), look, r.color(), r.head(), r.group()));
             }
             i = end + 1;
         }
@@ -443,9 +460,10 @@ public final class BossStageTrackerModule extends Module {
             double size = l.size.get(), padBlocks = l.pad() * size / 8.0;
             if (!linkBelow) y += padBlocks;
             WorldLabelAdapter.Label label = new WorldLabelAdapter.Label(x, y, z, row.text(), l.font(), size,
-                    l.faded(row.argb()), walls, l.shadow.get(), plain && l.bold.get(), plain && l.underline.get())
+                    l.faded(row.color().at(0)), walls, l.shadow.get(), plain && l.bold.get(), plain && l.underline.get())
                     .look(l.shadow.get(), l.outline.get())
-                    .withBackground(l.bgArgb(), l.accentArgb(), l.pad());
+                    .withBackground(l.bgArgb(), l.accentArgb(), l.pad())
+                    .withRamps(new WorldLabelAdapter.Ramps(row.color().map(l::faded), l.bgRamp(), l.accentRamp()));
             out.add(linkBelow || linkAbove ? label.inBgGroup(groupBase + row.group()) : label);
             y += linkAbove ? size * (1 + linkedSpacing.get()) : size * (1 + spacing.get()) + padBlocks;
         }
@@ -471,7 +489,7 @@ public final class BossStageTrackerModule extends Module {
             if (line == dpsLine || values.has(line.getName() + " Style")) continue;
             DpsLook d = dpsLooks.get(line);
             d.style().copyFrom(first.style());
-            d.color().set(first.color().get());
+            d.color().copyFrom(first.color());
             d.damageColors().set(first.damageColors().get());
         }
     }
@@ -505,11 +523,11 @@ public final class BossStageTrackerModule extends Module {
         };
     }
 
-    private int color(Kind kind) {
+    private ColorSetting color(Kind kind) {
         return switch (kind) {
-            case IMMUNE -> immuneColor.get();
-            case SHIELDED -> shieldedColor.get();
-            case DAMAGEABLE -> damageableColor.get();
+            case IMMUNE -> immuneColor;
+            case SHIELDED -> shieldedColor;
+            case DAMAGEABLE -> damageableColor;
         };
     }
 
@@ -655,8 +673,12 @@ public final class BossStageTrackerModule extends Module {
                     if (l.hasBackground() && !member) {
                         // the same panel the world draws (stepped 2 px corners, accent bar on the left)
                         int[] b = panel(r, labels, i, lw);
-                        r.roundedRect(b[0], b[1], b[2], b[3], 2, l.bg());
-                        if ((l.accent() >>> 24) != 0 && b[3] > 4) r.rect(b[0], b[1] + 2, 1, b[3] - 4, l.accent());
+                        if (l.bgRamp() != null) r.fillRamp(b[0], b[1], b[2], b[3], 2, Render2D.CORNERS_ALL, l.bgRamp(), 1);
+                        else r.roundedRect(b[0], b[1], b[2], b[3], 2, l.bg());
+                        if ((l.accent() >>> 24) != 0 && b[3] > 4) {
+                            if (l.accentRamp() != null) r.fillRampV(b[0], b[1] + 2, 1, b[3] - 4, l.accentRamp());
+                            else r.rect(b[0], b[1] + 2, 1, b[3] - 4, l.accent());
+                        }
                     }
                     if (l.outline()) {
                         WorldLabelAdapter.Label black = new WorldLabelAdapter.Label(0, 0, 0, l.text(), l.style(),

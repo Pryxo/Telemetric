@@ -139,10 +139,14 @@ public final class BossTrackerModule extends LinesHudModule {
     }
 
     private int color(Tracked t) {
+        return colorSetting(t).get();
+    }
+
+    private ColorSetting colorSetting(Tracked t) {
         return switch (t.state()) {
-            case PORTAL -> portalColor.get();
-            case ALIVE -> t.calledBy() != null ? fightingColor.get() : availableColor.get();
-            default -> idleColor.get();
+            case PORTAL -> portalColor;
+            case ALIVE -> t.calledBy() != null ? fightingColor : availableColor;
+            default -> idleColor;
         };
     }
 
@@ -339,7 +343,8 @@ public final class BossTrackerModule extends LinesHudModule {
             boolean icon = !waypointStyle.is(STYLE_TEXT) && !t.boss.icon().isEmpty();
             String text = waypointStyle.is(STYLE_ICON) && icon ? "" : waypointText(t, now, dist);
             out.add(new WorldLabelAdapter.Label(p[0], p[1], p[2], text, BadgeText.Style.PLAIN,
-                    height, argb, true).look(false, true).withIcon(icon ? t.boss.icon() : null));
+                    height, argb, true).look(false, true).withIcon(icon ? t.boss.icon() : null)
+                    .withRamps(new WorldLabelAdapter.Ramps(colorSetting(t), null, null)));
         }
         return out;
     }

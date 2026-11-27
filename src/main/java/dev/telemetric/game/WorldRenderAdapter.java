@@ -14,6 +14,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.telemetric.Telemetric;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.dungeon.Point;
 import dev.telemetric.mixin.RenderPipelinesAccessor;
 import dev.telemetric.mixin.RenderTypeInvoker;
@@ -71,7 +72,49 @@ public final class WorldRenderAdapter {
         void billboard(double x, double y, double z, double left, double bottom, double right, double top, int argb,
                        boolean throughWalls);
 
+        /**
+         * A {@link #billboard} coloured left to right by {@code ramp} (a gradient colour setting); a uniform ramp is
+         * one plain billboard.
+         */
+        default void billboard(double x, double y, double z, double left, double bottom, double right, double top,
+                               ColorRamp ramp, boolean throughWalls) {
+            billboard(x, y, z, left, bottom, right, top, ramp.at(0), throughWalls);
+        }
+
         /** The 12 edges of an axis-aligned box. */
+        /** A line whose colour blends from {@code argbStart} (point 1) to {@code argbEnd} (point 2). */
+        default void line(double x1, double y1, double z1, double x2, double y2, double z2, int argbStart, int argbEnd,
+                          float width, boolean throughWalls) {
+            line(x1, y1, z1, x2, y2, z2, argbStart, width, throughWalls);
+        }
+
+        /** {@link #boxOutline} with a gradient colour running bottom ({@code ramp.at(0)}) to top. */
+        default void boxOutline(double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
+                                ColorRamp ramp, float width, boolean throughWalls) {
+            if (ramp.isUniform()) {
+                boxOutline(minX, minY, minZ, maxX, maxY, maxZ, ramp.at(0), width, throughWalls);
+                return;
+            }
+            int lo = ramp.at(0), hi = ramp.at(1);
+            line(minX, minY, minZ, maxX, minY, minZ, lo, width, throughWalls);
+            line(minX, minY, maxZ, maxX, minY, maxZ, lo, width, throughWalls);
+            line(minX, minY, minZ, minX, minY, maxZ, lo, width, throughWalls);
+            line(maxX, minY, minZ, maxX, minY, maxZ, lo, width, throughWalls);
+            line(minX, maxY, minZ, maxX, maxY, minZ, hi, width, throughWalls);
+            line(minX, maxY, maxZ, maxX, maxY, maxZ, hi, width, throughWalls);
+            line(minX, maxY, minZ, minX, maxY, maxZ, hi, width, throughWalls);
+            line(maxX, maxY, minZ, maxX, maxY, maxZ, hi, width, throughWalls);
+            // the vertical edges carry the whole gradient (split so multi-stop gradients show every stop)
+            int n = 8;
+            double[][] posts = {{minX, minZ}, {maxX, minZ}, {minX, maxZ}, {maxX, maxZ}};
+            for (double[] c : posts) {
+                for (int i = 0; i < n; i++) {
+                    double ya = minY + (maxY - minY) * i / n, yb = minY + (maxY - minY) * (i + 1) / n;
+                    line(c[0], ya, c[1], c[0], yb, c[1], ramp.at(i / (float) n), ramp.at((i + 1) / (float) n), width, throughWalls);
+                }
+            }
+        }
+
         default void boxOutline(double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
                                 int argb, float width, boolean throughWalls) {
             line(minX, minY, minZ, maxX, minY, minZ, argb, width, throughWalls);
@@ -105,9 +148,11 @@ public final class WorldRenderAdapter {
         void draw(LineSink sink);
     }
 
-    private record Segment(float x1, float y1, float z1, float x2, float y2, float z2, int argb, float width) {}
+    /** A line from point 1 (colour {@code argb}) to point 2 (colour {@code argb2}); the colour blends along it. */
+    private record Segment(float x1, float y1, float z1, float x2, float y2, float z2, int argb, int argb2, float width) {}
 
-    private record Quad(float[] xyz, int argb) {}
+    /** Four corners and one ARGB per corner (colours blend across the quad). */
+    private record Quad(float[] xyz, int[] argb) {}
 
     /** One layer's shapes for this frame. */
     static final class Batch {
@@ -341,9 +386,15 @@ public final class WorldRenderAdapter {
         @Override
         public void line(double x1, double y1, double z1, double x2, double y2, double z2, int argb, float width,
                          boolean throughWalls) {
+            line(x1, y1, z1, x2, y2, z2, argb, argb, width, throughWalls);
+        }
+
+        @Override
+        public void line(double x1, double y1, double z1, double x2, double y2, double z2, int argbStart, int argbEnd,
+                         float width, boolean throughWalls) {
             (throughWalls ? batch.seeThrough : batch.depth).add(new Segment((float) (x1 - cam.x), (float) (y1 - cam.y),
-                    (float) (z1 - cam.z), (float) (x2 - cam.x), (float) (y2 - cam.y), (float) (z2 - cam.z), argb,
-                    width * widthScale));
+                    (float) (z1 - cam.z), (float) (x2 - cam.x), (float) (y2 - cam.y), (float) (z2 - cam.z), argbStart,
+                    argbEnd, width * widthScale));
         }
 
         @Override
@@ -356,7 +407,29 @@ public final class WorldRenderAdapter {
                     (float) (x2 - cam.x), (float) (y2 - cam.y), (float) (z2 - cam.z),
                     (float) (x3 - cam.x), (float) (y3 - cam.y), (float) (z3 - cam.z),
                     (float) (x4 - cam.x), (float) (y4 - cam.y), (float) (z4 - cam.z)};
-            (throughWalls ? batch.quadsSeeThrough : batch.quadsDepth).add(new Quad(p, argb));
+            (throughWalls ? batch.quadsSeeThrough : batch.quadsDepth).add(new Quad(p, new int[] {argb, argb, argb, argb}));
+        }
+
+        @Override
+        public void billboard(double x, double y, double z, double left, double bottom, double right, double top,
+                              ColorRamp ramp, boolean throughWalls) {
+            if (ramp.isUniform()) {
+                billboard(x, y, z, left, bottom, right, top, ramp.at(0), throughWalls);
+                return;
+            }
+            Vector3f r = this.right, u = this.up;
+            int n = 24;
+            for (int i = 0; i < n; i++) {
+                double a = left + (right - left) * i / n, b = left + (right - left) * (i + 1) / n;
+                int ca = ramp.at(i / (float) n), cb = ramp.at((i + 1) / (float) n);
+                if ((ca >>> 24) == 0 && (cb >>> 24) == 0) continue;
+                float[] p = {
+                        (float) (x + r.x * a + u.x * bottom - cam.x), (float) (y + r.y * a + u.y * bottom - cam.y), (float) (z + r.z * a + u.z * bottom - cam.z),
+                        (float) (x + r.x * b + u.x * bottom - cam.x), (float) (y + r.y * b + u.y * bottom - cam.y), (float) (z + r.z * b + u.z * bottom - cam.z),
+                        (float) (x + r.x * b + u.x * top - cam.x), (float) (y + r.y * b + u.y * top - cam.y), (float) (z + r.z * b + u.z * top - cam.z),
+                        (float) (x + r.x * a + u.x * top - cam.x), (float) (y + r.y * a + u.y * top - cam.y), (float) (z + r.z * a + u.z * top - cam.z)};
+                (throughWalls ? batch.quadsSeeThrough : batch.quadsDepth).add(new Quad(p, new int[] {ca, cb, cb, ca}));
+            }
         }
 
         @Override
@@ -381,7 +454,7 @@ public final class WorldRenderAdapter {
             dy /= len;
             dz /= len;
             vc.addVertex(pose, s.x1, s.y1, s.z1).setColor(s.argb).setNormal(pose, dx, dy, dz).setLineWidth(s.width);
-            vc.addVertex(pose, s.x2, s.y2, s.z2).setColor(s.argb).setNormal(pose, dx, dy, dz).setLineWidth(s.width);
+            vc.addVertex(pose, s.x2, s.y2, s.z2).setColor(s.argb2).setNormal(pose, dx, dy, dz).setLineWidth(s.width);
         }
         buffers.endBatch(type);
     }
@@ -391,7 +464,7 @@ public final class WorldRenderAdapter {
         VertexConsumer vc = buffers.getBuffer(type);
         for (Quad q : quads) {
             float[] p = q.xyz;
-            for (int i = 0; i < 12; i += 3) vc.addVertex(pose, p[i], p[i + 1], p[i + 2]).setColor(q.argb);
+            for (int i = 0; i < 12; i += 3) vc.addVertex(pose, p[i], p[i + 1], p[i + 2]).setColor(q.argb[i / 3]);
         }
         buffers.endBatch(type);
     }

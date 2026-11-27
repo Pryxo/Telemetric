@@ -3,6 +3,7 @@ package dev.telemetric.game;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.telemetric.Telemetric;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.ui.render.BadgeText;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
@@ -40,11 +41,11 @@ public final class WorldLabelAdapter {
     public record Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                         boolean throughWalls, boolean shadow, boolean bold, boolean underline,
                         double sideOffset, float align, boolean outline, String icon, int bg, int accent, int bgPad,
-                        int bgGroup) {
+                        int bgGroup, Ramps ramps) {
 
         public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                      boolean throughWalls, boolean shadow, boolean bold, boolean underline) {
-            this(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, 0, 0.5f, false, null, 0, 0, 0, 0);
+            this(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, 0, 0.5f, false, null, 0, 0, 0, 0, null);
         }
 
         public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
@@ -58,19 +59,19 @@ public final class WorldLabelAdapter {
          */
         public Label aligned(double sideOffset, float align) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline, icon, bg, accent, bgPad, bgGroup);
+                    align, outline, icon, bg, accent, bgPad, bgGroup, ramps);
         }
 
         /** Shadow off or on, or a black outline instead (the outline wins). */
         public Label look(boolean shadow, boolean outline) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow && !outline, bold, underline,
-                    sideOffset, align, outline, icon, bg, accent, bgPad, bgGroup);
+                    sideOffset, align, outline, icon, bg, accent, bgPad, bgGroup, ramps);
         }
 
         /** A rounded background panel (ARGB {@code bg}, 0 = none), {@code pad} label px around the text, with an accent bar (0 = none). */
         public Label withBackground(int bg, int accent, int pad) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline, icon, bg, accent, Math.max(0, pad), bgGroup);
+                    align, outline, icon, bg, accent, Math.max(0, pad), bgGroup, ramps);
         }
 
         /**
@@ -80,7 +81,29 @@ public final class WorldLabelAdapter {
          */
         public Label inBgGroup(int group) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline, icon, bg, accent, bgPad, group);
+                    align, outline, icon, bg, accent, bgPad, group, ramps);
+        }
+
+        /**
+         * Gradient colours (any part may be null = its plain ARGB): the text runs left to right through {@code text},
+         * the panel left to right through {@code bg}, the accent bar top to bottom through {@code accent}. The ARGB
+         * fields still decide opacity and whether a panel / bar is drawn.
+         */
+        public Label withRamps(Ramps ramps) {
+            return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
+                    align, outline, icon, bg, accent, bgPad, bgGroup, ramps);
+        }
+
+        public ColorRamp textRamp() {
+            return ramps == null || ramps.text() == null || ramps.text().isUniform() ? null : ramps.text();
+        }
+
+        public ColorRamp bgRamp() {
+            return ramps == null || ramps.bg() == null || ramps.bg().isUniform() ? null : ramps.bg();
+        }
+
+        public ColorRamp accentRamp() {
+            return ramps == null || ramps.accent() == null || ramps.accent().isUniform() ? null : ramps.accent();
         }
 
         /** True when a background panel is drawn. */
@@ -95,9 +118,12 @@ public final class WorldLabelAdapter {
          */
         public Label withIcon(String model) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline, model, bg, accent, bgPad, bgGroup);
+                    align, outline, model, bg, accent, bgPad, bgGroup, ramps);
         }
     }
+
+    /** Gradient colours of a {@link Label} (see {@link Label#withRamps}). */
+    public record Ramps(ColorRamp text, ColorRamp bg, ColorRamp accent) {}
 
     @FunctionalInterface
     public interface Source {
@@ -165,6 +191,11 @@ public final class WorldLabelAdapter {
                 if (l.sideOffset() != 0) pose.translate(l.sideOffset(), 0, 0);
                 pose.scale(unit, -unit, unit);
                 float tx = -font.width(text) * l.align();
+                // a gradient text colour: draw in white and tint every glyph vertex by its x (smooth through letters)
+                ColorRamp tr = l.textRamp();
+                MultiBufferSource textBuffers = tr == null ? buffers
+                        : new RampBuffers(buffers, tr, tx, Math.max(1, font.width(text)));
+                if (tr != null) argb = (argb & 0xFF000000) | 0xFFFFFF;
                 if (l.hasBackground() && !member) {
                     buffers.endBatch(); // earlier labels first, so this panel can't cover their text
                     float[] box = l.bgGroup() != 0 ? groupPanel(labels, li, font)
@@ -178,17 +209,17 @@ public final class WorldLabelAdapter {
                         for (int dy = -1; dy <= 1; dy++) {
                             if (dx == 0 && dy == 0) continue;
                             font.drawInBatch(text, tx + dx, -GLYPH_PX + dy, black, false, pose.last().pose(),
-                                    buffers, Font.DisplayMode.SEE_THROUGH, 0, FULL_BRIGHT);
+                                    textBuffers, Font.DisplayMode.SEE_THROUGH, 0, FULL_BRIGHT);
                         }
                     }
-                    font.drawInBatch(text, tx, -GLYPH_PX, argb, false, pose.last().pose(), buffers,
+                    font.drawInBatch(text, tx, -GLYPH_PX, argb, false, pose.last().pose(), textBuffers,
                             Font.DisplayMode.SEE_THROUGH, 0, FULL_BRIGHT);
                 } else if (l.outline()) {
                     font.drawInBatch8xOutline(text.getVisualOrderText(), tx, -GLYPH_PX, argb, argb & 0xFF000000,
-                            pose.last().pose(), buffers, FULL_BRIGHT);
+                            pose.last().pose(), textBuffers, FULL_BRIGHT);
                 } else {
                     font.drawInBatch(text, tx, -GLYPH_PX, argb, l.shadow(), pose.last().pose(),
-                            buffers, l.throughWalls() ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL,
+                            textBuffers, l.throughWalls() ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL,
                             0, FULL_BRIGHT);
                 }
                 if (l.icon() != null && !l.icon().isEmpty()) drawIcon(l, text, tx, argb, pose, buffers, font);
@@ -210,17 +241,23 @@ public final class WorldLabelAdapter {
         VertexConsumer vc = buffers.getBuffer(type);
         Matrix4f m = pose.last().pose();
         int bg = l.bg();
+        ColorRamp br = l.bgRamp();
+        ColorRamp fill = br != null ? br : ColorRamp.solid(bg);
         float r = Math.min(2, Math.min(x1 - x0, y1 - y0) / 2);
         if (r >= 2) {
-            quad(vc, m, x0 + 2, y0, x1 - 2, y0 + 1, -0.01f, bg);
-            quad(vc, m, x0 + 1, y0 + 1, x1 - 1, y0 + 2, -0.01f, bg);
-            quad(vc, m, x0, y0 + 2, x1, y1 - 2, -0.01f, bg);
-            quad(vc, m, x0 + 1, y1 - 2, x1 - 1, y1 - 1, -0.01f, bg);
-            quad(vc, m, x0 + 2, y1 - 1, x1 - 2, y1, -0.01f, bg);
+            quadH(vc, m, x0 + 2, y0, x1 - 2, y0 + 1, -0.01f, fill, x0, x1);
+            quadH(vc, m, x0 + 1, y0 + 1, x1 - 1, y0 + 2, -0.01f, fill, x0, x1);
+            quadH(vc, m, x0, y0 + 2, x1, y1 - 2, -0.01f, fill, x0, x1);
+            quadH(vc, m, x0 + 1, y1 - 2, x1 - 1, y1 - 1, -0.01f, fill, x0, x1);
+            quadH(vc, m, x0 + 2, y1 - 1, x1 - 2, y1, -0.01f, fill, x0, x1);
         } else {
-            quad(vc, m, x0, y0, x1, y1, -0.01f, bg);
+            quadH(vc, m, x0, y0, x1, y1, -0.01f, fill, x0, x1);
         }
-        if ((l.accent() >>> 24) != 0 && y1 - y0 > 4) quad(vc, m, x0, y0 + 2, x0 + 1, y1 - 2, -0.005f, l.accent());
+        if ((l.accent() >>> 24) != 0 && y1 - y0 > 4) {
+            ColorRamp ar = l.accentRamp();
+            if (ar == null) quad(vc, m, x0, y0 + 2, x0 + 1, y1 - 2, -0.005f, l.accent());
+            else quadV(vc, m, x0, y0 + 2, x0 + 1, y1 - 2, -0.005f, ar);
+        }
         // Flush the panel now: see-through text ignores depth, so if the panel batch were drawn after the text batch
         // (endBatch order isn't ours to pick) the translucent panel would darken the text.
         buffers.endBatch(type);
@@ -244,6 +281,124 @@ public final class WorldLabelAdapter {
         }
         float x0 = -maxW * l.align() - pad;
         return new float[] {x0, (float) (-(top - l.y()) / unit) - pad, x0 + maxW + 2 * pad, (float) ((l.y() - bottom) / unit) + pad};
+    }
+
+    /** Gradient segments per panel / bar: vertex colours blend between them, so a handful is smooth. */
+    private static final int RAMP_SEGMENTS = 16;
+
+    /** A quad coloured left to right by {@code ramp}, where the ramp spans {@code spanX0 .. spanX1}. */
+    private static void quadH(VertexConsumer vc, Matrix4f m, float x0, float y0, float x1, float y1, float z,
+                              ColorRamp ramp, float spanX0, float spanX1) {
+        if (ramp.isUniform()) {
+            quad(vc, m, x0, y0, x1, y1, z, ramp.at(0));
+            return;
+        }
+        float span = Math.max(1e-3f, spanX1 - spanX0);
+        for (int i = 0; i < RAMP_SEGMENTS; i++) {
+            float a = x0 + (x1 - x0) * i / RAMP_SEGMENTS, b = x0 + (x1 - x0) * (i + 1) / RAMP_SEGMENTS;
+            int ca = ramp.at(Math.clamp((a - spanX0) / span, 0f, 1f)), cb = ramp.at(Math.clamp((b - spanX0) / span, 0f, 1f));
+            vc.addVertex(m, a, y0, z).setColor(ca).setLight(FULL_BRIGHT);
+            vc.addVertex(m, a, y1, z).setColor(ca).setLight(FULL_BRIGHT);
+            vc.addVertex(m, b, y1, z).setColor(cb).setLight(FULL_BRIGHT);
+            vc.addVertex(m, b, y0, z).setColor(cb).setLight(FULL_BRIGHT);
+        }
+    }
+
+    /** A quad coloured top to bottom by {@code ramp}. */
+    private static void quadV(VertexConsumer vc, Matrix4f m, float x0, float y0, float x1, float y1, float z, ColorRamp ramp) {
+        for (int i = 0; i < RAMP_SEGMENTS; i++) {
+            float a = y0 + (y1 - y0) * i / RAMP_SEGMENTS, b = y0 + (y1 - y0) * (i + 1) / RAMP_SEGMENTS;
+            int ca = ramp.at(i / (float) RAMP_SEGMENTS), cb = ramp.at((i + 1) / (float) RAMP_SEGMENTS);
+            vc.addVertex(m, x0, a, z).setColor(ca).setLight(FULL_BRIGHT);
+            vc.addVertex(m, x0, b, z).setColor(cb).setLight(FULL_BRIGHT);
+            vc.addVertex(m, x1, b, z).setColor(cb).setLight(FULL_BRIGHT);
+            vc.addVertex(m, x1, a, z).setColor(ca).setLight(FULL_BRIGHT);
+        }
+    }
+
+    /**
+     * Buffers that tint every vertex by a colour ramp at the vertex's x (label pixels, {@code x0 .. x0 + w}). Glyph
+     * quads are drawn in white, so the result is the ramp colour, darkened for shadows and kept black for outlines.
+     */
+    private record RampBuffers(MultiBufferSource inner, ColorRamp ramp, float x0, float w) implements MultiBufferSource {
+        @Override
+        public VertexConsumer getBuffer(RenderType type) {
+            return new RampConsumer(inner.getBuffer(type), this);
+        }
+
+        int tint(int argb, float x) {
+            int c = ramp.at(Math.clamp((x - x0) / w, 0f, 1f));
+            int r = ((c >> 16) & 0xFF) * ((argb >> 16) & 0xFF) / 255;
+            int g = ((c >> 8) & 0xFF) * ((argb >> 8) & 0xFF) / 255;
+            int b = (c & 0xFF) * (argb & 0xFF) / 255;
+            return (argb & 0xFF000000) | (r << 16) | (g << 8) | b;
+        }
+    }
+
+    private static final class RampConsumer implements VertexConsumer {
+        private final VertexConsumer d;
+        private final RampBuffers ramp;
+        private float lastX;
+
+        RampConsumer(VertexConsumer d, RampBuffers ramp) {
+            this.d = d;
+            this.ramp = ramp;
+        }
+
+        @Override
+        public VertexConsumer addVertex(org.joml.Matrix4fc pose, float x, float y, float z) {
+            lastX = x;
+            d.addVertex(pose, x, y, z);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer addVertex(float x, float y, float z) {
+            d.addVertex(x, y, z);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setColor(int r, int g, int b, int a) {
+            d.setColor(ramp.tint((a << 24) | (r << 16) | (g << 8) | b, lastX));
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setColor(int argb) {
+            d.setColor(ramp.tint(argb, lastX));
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv(float u, float v) {
+            d.setUv(u, v);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv1(int u, int v) {
+            d.setUv1(u, v);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv2(int u, int v) {
+            d.setUv2(u, v);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setNormal(float x, float y, float z) {
+            d.setNormal(x, y, z);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setLineWidth(float width) {
+            d.setLineWidth(width);
+            return this;
+        }
     }
 
     private static void quad(VertexConsumer vc, Matrix4f m, float x0, float y0, float x1, float y1, float z, int argb) {

@@ -5,6 +5,7 @@ import dev.telemetric.hud.HudModule;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.common.SoundCue;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.ModeSetting;
@@ -130,9 +131,10 @@ public final class LowHealthWarningHud extends HudModule {
     public void draw(Render2D r, boolean preview, boolean alignRight) {
         Level l = showing(preview);
         if (l == null) return;
-        int c = l.color.get();
+        ColorRamp c = l.color;
         int half = Durations.loop(Durations.ALERT_FLASH);
-        if (flashing.get() && half > 0 && (System.currentTimeMillis() / half) % 2 == 0) c = ColorUtil.shade(c, 0.35);
-        r.text(l.text.get(), 0, 0, c);
+        if (flashing.get() && half > 0 && (System.currentTimeMillis() / half) % 2 == 0) c = c.map(v -> ColorUtil.shade(v, 0.35));
+        String t = l.text.get();
+        r.text(t, 0, 0, c, null, 0, r.textWidth(t));
     }
 }

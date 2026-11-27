@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.hud.StatusRankColors;
+import dev.telemetric.setting.impl.ColorRamp;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
@@ -93,7 +94,12 @@ public final class NametagAdapter {
     public record CurrencyLine(String fame, java.util.List<FragmentCount> fragments, CurrencyColors colors) {}
 
     /** RGB colours of a currency line: the ❖ fame icon, fame number, " | " separator, fragment numbers and icons. */
-    public record CurrencyColors(int fameIcon, int fame, int separator, int fragmentCount, int fragmentIcon) {}
+    public record CurrencyColors(int fameIcon, int fame, int separator, int fragmentCount, int fragmentIcon,
+                                 ColorRamp[] ramps) {
+        public CurrencyColors(int fameIcon, int fame, int separator, int fragmentCount, int fragmentIcon) {
+            this(fameIcon, fame, separator, fragmentCount, fragmentIcon, null);
+        }
+    }
 
     /**
      * Where currency lines come from: (owner username, is it you, their mode from the tag's ruleset glyph
@@ -154,6 +160,7 @@ public final class NametagAdapter {
     /** Colours come from {@link CurrencyLine#colors()} (defaults match Telos' /balance reply). */
     private static Component build(CurrencyLine line) {
         CurrencyColors c = line.colors();
+        if (c.ramps() != null) return buildRamped(line, c.ramps());
         MutableComponent out = Component.empty();
         if (line.fame() != null) {
             out.append(Component.literal("❖").withColor(c.fameIcon() & 0xFFFFFF));
@@ -167,6 +174,43 @@ public final class NametagAdapter {
             out.append(Component.literal(f.count() + " ").withColor(c.fragmentCount() & 0xFFFFFF));
             out.append(Component.literal(f.glyph()).withStyle(Style.EMPTY.withColor(c.fragmentIcon() & 0xFFFFFF)
                     .withFont(new FontDescription.Resource(FRAGMENT_FONT))));
+        }
+        return out;
+    }
+
+    /**
+     * The currency line with gradient colours (ramps: icon, fame, separator, counts, fragment icons): each part's
+     * gradient runs across the whole line, letter by letter (vanilla draws name tags, one colour per glyph).
+     */
+    private static Component buildRamped(CurrencyLine line, ColorRamp[] ramps) {
+        java.util.List<String[]> parts = new java.util.ArrayList<>(); // {text, rampIndex, isIcon}
+        if (line.fame() != null) {
+            parts.add(new String[] {"❖", "0", ""});
+            parts.add(new String[] {line.fame(), "1", ""});
+            if (!line.fragments().isEmpty()) parts.add(new String[] {" | ", "2", ""});
+        }
+        boolean first = true;
+        for (FragmentCount f : line.fragments()) {
+            if (!first) parts.add(new String[] {" ", "3", ""});
+            first = false;
+            parts.add(new String[] {f.count() + " ", "3", ""});
+            parts.add(new String[] {f.glyph(), "4", "icon"});
+        }
+        int total = 0;
+        for (String[] p : parts) total += p[0].codePointCount(0, p[0].length());
+        MutableComponent out = Component.empty();
+        int i = 0;
+        for (String[] p : parts) {
+            ColorRamp ramp = ramps[Integer.parseInt(p[1])];
+            Style base = p[2].isEmpty() ? Style.EMPTY : Style.EMPTY.withFont(new FontDescription.Resource(FRAGMENT_FONT));
+            String t = p[0];
+            for (int k = 0; k < t.length(); ) {
+                int cp = t.codePointAt(k);
+                k += Character.charCount(cp);
+                float pos = total <= 1 ? 0 : i / (float) (total - 1);
+                out.append(Component.literal(new String(Character.toChars(cp))).withStyle(base.withColor(ramp.at(pos) & 0xFFFFFF)));
+                i++;
+            }
         }
         return out;
     }

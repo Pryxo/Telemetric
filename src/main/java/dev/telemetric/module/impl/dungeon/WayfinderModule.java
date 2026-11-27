@@ -479,7 +479,9 @@ public final class WayfinderModule extends Module {
             case SHARP -> r.sharp();
         };
         if (pts.isEmpty()) return;
-        int color = r.boss() ? bossColor.get() : treasureColor.get();
+        ColorSetting ramp = r.boss() ? bossColor : treasureColor;
+        // a gradient runs along the route (you = start, target = end); the target marker uses the end colour
+        int color = ramp.at(1);
         float w = (float) (double) lineWidth.get();
         boolean tw = throughWalls.get();
 
@@ -487,9 +489,30 @@ public final class WayfinderModule extends Module {
         if (showLine.get() && pts.size() >= 2) {
             Nearest n = nearestOnRoute(pts, new Point(player.x(), player.y() + PathGeometry.LIFT, player.z()));
             Point prev = n.point();
+            double total = 0, done = 0;
+            if (!ramp.isUniform()) {
+                Point a = prev;
+                for (int i = n.segment() + 1; i < pts.size(); i++) {
+                    total += dist(a, pts.get(i));
+                    a = pts.get(i);
+                }
+            }
             for (int i = n.segment() + 1; i < pts.size(); i++) {
                 Point next = pts.get(i);
-                sink.line(prev.x(), prev.y(), prev.z(), next.x(), next.y(), next.z(), color, w, tw);
+                if (total <= 0) {
+                    sink.line(prev.x(), prev.y(), prev.z(), next.x(), next.y(), next.z(), color, w, tw);
+                } else {
+                    double len = dist(prev, next);
+                    int steps = Math.max(1, (int) Math.ceil(len / 2)); // short pieces so multi-stop gradients show
+                    for (int k = 0; k < steps; k++) {
+                        double t0 = k / (double) steps, t1 = (k + 1) / (double) steps;
+                        sink.line(prev.x() + (next.x() - prev.x()) * t0, prev.y() + (next.y() - prev.y()) * t0,
+                                prev.z() + (next.z() - prev.z()) * t0, prev.x() + (next.x() - prev.x()) * t1,
+                                prev.y() + (next.y() - prev.y()) * t1, prev.z() + (next.z() - prev.z()) * t1,
+                                ramp.at((float) ((done + len * t0) / total)), ramp.at((float) ((done + len * t1) / total)), w, tw);
+                    }
+                    done += len;
+                }
                 prev = next;
             }
         }
@@ -497,6 +520,11 @@ public final class WayfinderModule extends Module {
         // blocks. The target marker still shows where to go.
         if (r.boss()) drawDrop(sink, r.hole(), r.target(), color, w, tw);
         else drawTreasure(sink, r.target(), color, w, tw);
+    }
+
+    private static double dist(Point a, Point b) {
+        double dx = a.x() - b.x(), dy = a.y() - b.y(), dz = a.z() - b.z();
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     private static void drawTreasure(WorldRenderAdapter.LineSink sink, Point t, int color, float w, boolean tw) {

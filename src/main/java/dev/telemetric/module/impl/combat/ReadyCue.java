@@ -50,7 +50,7 @@ final class ReadyCue implements SettingBundle {
         if (alert.get()) {
             String shown = text.get().replace("{item}", itemName == null ? "" : itemName)
                     .replace("{slot}", slotLabel == null ? "" : slotLabel).trim();
-            ReadyAlertsHud.get().post(shown, color.get(), Math.round(seconds.get() * 1000));
+            ReadyAlertsHud.get().post(shown, color, Math.round(seconds.get() * 1000));
         }
         sound.play();
     }

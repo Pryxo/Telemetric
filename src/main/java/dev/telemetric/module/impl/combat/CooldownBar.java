@@ -3,6 +3,7 @@ package dev.telemetric.module.impl.combat;
 import dev.telemetric.Telemetric;
 import dev.telemetric.setting.Setting;
 import dev.telemetric.setting.SettingBundle;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.ui.animation.Durations;
@@ -43,17 +44,20 @@ final class CooldownBar implements SettingBundle {
         if (iw <= 0 || ih <= 0) return;
         r.rect(ix, iy, iw, ih, ColorUtil.fade(p.control(), 0.85));
         if (remaining <= 0f) {
-            r.rect(ix, iy, iw, ih, ready.get());
+            if (vertical) r.fillRampV(ix, iy, iw, ih, ready);
+            else r.fillRamp(ix, iy, iw, ih, 0, 0, ready, 1);
             return;
         }
-        int fill = ColorUtil.lerp(almost.get(), cooling.get(), remaining);
+        // gradients run along the whole bar (left to right / bottom to top); the fill reveals its part of it
+        ColorRamp fill = ColorRamp.lerp(almost, cooling, remaining);
         float done = 1f - remaining;
         if (vertical) {
             int fh = Math.round(ih * done);
-            if (fh > 0) r.rect(ix, iy + ih - fh, iw, fh, fill);
+            // fillRampV runs top to bottom: the top of the fill is at 'done' along the bar, the bottom at 0
+            if (fh > 0) r.fillRampV(ix, iy + ih - fh, iw, fh, fill.part(fh / (float) ih, 0f));
         } else {
             int fw = Math.round(iw * done);
-            if (fw > 0) r.rect(ix, iy, fw, ih, fill);
+            if (fw > 0) r.fillRamp(ix, iy, fw, ih, 0, 0, fill.part(0f, fw / (float) iw), 1);
         }
     }
 
