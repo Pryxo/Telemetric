@@ -7,6 +7,8 @@ import dev.telemetric.module.Module;
 import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.setting.Setting;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.module.impl.misc.ThemeModule;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.ModeSetting;
@@ -95,6 +97,22 @@ public abstract class HudModule extends Module {
         this.mirrorText = add(hudSettings.child(new BooleanSetting("Mirror Text",
                 "Right align mirrors rows (\"Arcanist :Class <icon>\"); off keeps \"<icon> Class: Arcanist\" (HUD editor: N)", true)
                 .visibleWhen(() -> align.is(ALIGN_RIGHT))));
+        this.textStyle = add(hudSettings.child(new GroupSetting("HUD Text Style",
+                "Bold, italic, underline and strikethrough for all of this element's text").withLabel("Text Style")));
+        this.bold = add(textStyle.child(new BooleanSetting("HUD Bold", "Bold text", false).withLabel("Bold")));
+        this.italic = add(textStyle.child(new BooleanSetting("HUD Italic", "Italic text", false).withLabel("Italic")));
+        this.underline = add(textStyle.child(new BooleanSetting("HUD Underline", "Underlined text", false).withLabel("Underline")));
+        this.strikethrough = add(textStyle.child(new BooleanSetting("HUD Strikethrough", "Struck-through text", false)
+                .withLabel("Strikethrough")));
+    }
+
+    private final GroupSetting textStyle;
+    private final BooleanSetting bold, italic, underline, strikethrough;
+
+    /** Applies this element's Text Style (its style owner's for split-off parts) to {@code r} until cleared. */
+    private void applyTextStyle(Render2D r) {
+        HudModule o = styleOwner();
+        r.setTextStyle(o.bold.get(), o.italic.get(), o.underline.get(), o.strikethrough.get());
     }
 
 
@@ -172,10 +190,16 @@ public abstract class HudModule extends Module {
 
     /** A theme-derived colour in the Colors section (shown while Theme Colors is off). */
     protected final HudColor hudColor(String label, String description, IntSupplier themeColor) {
+        return hudColor(label, description, themeColor, null);
+    }
+
+    /** Same, with the theme colour also given as a ramp (so a Theme gradient runs across the element). */
+    protected final HudColor hudColor(String label, String description, IntSupplier themeColor,
+                                      java.util.function.Supplier<ColorRamp> themeRamp) {
         GroupSetting group = colorGroup();
         ColorSetting setting = add(group.child(new ColorSetting("HUD " + label + " Color", description,
                 0xFFFFFFFF, false).withLabel(label).visibleWhen(() -> !themeColors.get())));
-        HudColor color = new HudColor(setting, themeColor, () -> !themeColors.get());
+        HudColor color = new HudColor(setting, themeColor, () -> !themeColors.get(), themeRamp);
         colors.add(color);
         return color;
     }
@@ -245,8 +269,14 @@ public abstract class HudModule extends Module {
     /** Draws the background panel and the accent bar (on the left, the right when right-aligned, none when centred). */
     protected final void drawFrame(Render2D r, int w, int h, boolean alignRight) {
         if (!hasBackground()) return;
-        r.roundedRect(0, 0, w, h, 3, backgroundColor());
-        if (hasAccentBar() && (alignRight || !isCentered())) r.rect(alignRight ? w - 1 : 0, 2, 1, h - 4, accentBarColor());
+        // gradient colours run across the background (left to right) and down the accent bar
+        HudModule o = styleOwner();
+        ColorRamp bg = o.bgColor == null ? ColorRamp.solid(palette().panel()) : o.bgColor;
+        r.fillRamp(0, 0, w, h, 3, Render2D.CORNERS_ALL, bg, o.bgOpacity == null ? 0.7 : o.bgOpacity.get() / 100.0);
+        if (hasAccentBar() && (alignRight || !isCentered())) {
+            ColorRamp accent = o.accentColor == null ? ColorRamp.solid(palette().accent()) : o.accentColor;
+            r.fillRampV(alignRight ? w - 1 : 0, 2, 1, h - 4, accent);
+        }
     }
 
 
@@ -352,28 +382,74 @@ public abstract class HudModule extends Module {
 
     /** Unscaled width including the background {@link #render} draws. */
     public final int frameWidth(Render2D r, boolean preview) {
-        return contentWidth(r, preview) + framePad() * 2;
+        int before = r.textStyleBits();
+        applyTextStyle(r);
+        try {
+            return contentWidth(r, preview) + framePad() * 2;
+        } finally {
+            r.setTextStyleBits(before);
+        }
     }
 
     /** Unscaled height including the background {@link #render} draws. */
     public final int frameHeight(Render2D r, boolean preview) {
-        return contentHeight(r, preview) + framePad() * 2;
+        int before = r.textStyleBits();
+        applyTextStyle(r);
+        try {
+            return contentHeight(r, preview) + framePad() * 2;
+        } finally {
+            r.setTextStyleBits(before);
+        }
     }
 
     /** Draws the element: its background (if it doesn't draw its own) and then its content. */
     public final void render(Render2D r, boolean preview, boolean alignRight) {
         int pad = framePad();
-        if (pad == 0) {
-            draw(r, preview, alignRight);
-            return;
-        }
-        drawFrame(r, frameWidth(r, preview), frameHeight(r, preview), alignRight);
-        r.pushTransform(pad, pad, 1f);
+        // text in one of this element's gradient colours is drawn as that gradient across the whole element
+        r.setAutoRamps(gradientSources(), -pad, frameWidth(r, preview));
+        applyTextStyle(r);
         try {
-            draw(r, preview, alignRight);
+            if (pad == 0) {
+                draw(r, preview, alignRight);
+                return;
+            }
+            drawFrame(r, frameWidth(r, preview), frameHeight(r, preview), alignRight);
+            r.pushTransform(pad, pad, 1f);
+            try {
+                draw(r, preview, alignRight);
+            } finally {
+                r.popTransform();
+            }
         } finally {
-            r.popTransform();
+            r.clearAutoRamps();
+            r.clearTextStyle();
         }
+    }
+
+    /**
+     * The colour settings in Gradient mode whose colour this element's text may use: its own, its style owner's,
+     * Theme: Custom HUD Colors, plus {@link #extraColorSources()}.
+     */
+    private List<ColorSetting> gradientSources() {
+        List<ColorSetting> out = new ArrayList<>();
+        collectGradients(getSettings(), out);
+        if (styleOwner() != this) collectGradients(styleOwner().getSettings(), out);
+        ThemeModule theme = Telemetric.get().modules().get(ThemeModule.class);
+        if (theme != null && theme.customHudColors.get()) {
+            if (theme.hudIndexColor.isGradient()) out.add(theme.hudIndexColor);
+            if (theme.hudValueColor.isGradient()) out.add(theme.hudValueColor);
+        }
+        for (ColorSetting cs : extraColorSources()) if (cs.isGradient()) out.add(cs);
+        return out.isEmpty() ? List.of() : out;
+    }
+
+    private static void collectGradients(List<Setting<?>> settings, List<ColorSetting> out) {
+        for (Setting<?> s : settings) if (s instanceof ColorSetting cs && cs.isGradient()) out.add(cs);
+    }
+
+    /** Colour settings of other modules whose colours this element draws (e.g. the Ready Alerts cue colours). */
+    protected List<ColorSetting> extraColorSources() {
+        return List.of();
     }
 
 

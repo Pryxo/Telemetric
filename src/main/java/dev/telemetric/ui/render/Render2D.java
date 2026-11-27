@@ -7,6 +7,8 @@ import dev.telemetric.game.NametagAdapter;
 import dev.telemetric.hud.HudIcon;
 import dev.telemetric.hud.TextRun;
 import dev.telemetric.mixin.GuiGraphicsExtractorAccessor;
+import dev.telemetric.setting.impl.ColorRamp;
+import dev.telemetric.setting.impl.ColorSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -55,7 +57,72 @@ public final class Render2D {
         this.textShadow = textShadow;
         this.quadCount = 0;
         this.batchDepth = 0;
+        this.autoRamps = List.of();
+        clearTextStyle();
         drawPass++;
+        ColorSetting.tickFrame();
+    }
+
+    // ---- automatic gradient text (HUD elements) ---------------------------------------------------------------------
+
+    private List<ColorSetting> autoRamps = List.of();
+    private int autoSpanX, autoSpanW = 1;
+
+    /**
+     * While set, plain text whose colour is exactly the current colour of one of {@code ramps} (a gradient setting's
+     * {@link ColorSetting#get()}) is drawn as that gradient, spread over {@code spanX .. spanX + spanW}. HudModule sets
+     * this around each element so every HUD text picks up its gradient settings without per-feature code.
+     */
+    public void setAutoRamps(List<ColorSetting> ramps, int spanX, int spanW) {
+        autoRamps = ramps == null ? List.of() : ramps;
+        autoSpanX = spanX;
+        autoSpanW = Math.max(1, spanW);
+    }
+
+    public void clearAutoRamps() {
+        autoRamps = List.of();
+    }
+
+    /** Bold / italic / underline / strikethrough applied to all text while set (a HUD element's Text Style). */
+    private boolean bold, italic, underline, strike;
+
+    public void setTextStyle(boolean bold, boolean italic, boolean underline, boolean strikethrough) {
+        this.bold = bold;
+        this.italic = italic;
+        this.underline = underline;
+        this.strike = strikethrough;
+    }
+
+    public void clearTextStyle() {
+        bold = italic = underline = strike = false;
+    }
+
+    /** The current text style as bits (to restore it after a nested change). */
+    public int textStyleBits() {
+        return (bold ? 1 : 0) | (italic ? 2 : 0) | (underline ? 4 : 0) | (strike ? 8 : 0);
+    }
+
+    public void setTextStyleBits(int bits) {
+        setTextStyle((bits & 1) != 0, (bits & 2) != 0, (bits & 4) != 0, (bits & 8) != 0);
+    }
+
+    private boolean styled() {
+        return bold || italic || underline || strike;
+    }
+
+    private Style scopeStyle(Style st) {
+        if (!styled()) return st;
+        if (bold) st = st.withBold(true);
+        if (italic) st = st.withItalic(true);
+        if (underline) st = st.withUnderlined(true);
+        if (strike) st = st.withStrikethrough(true);
+        return st;
+    }
+
+    private ColorRamp autoRamp(int color) {
+        if (autoRamps.isEmpty()) return null;
+        for (ColorSetting cs : autoRamps) if (cs.isGradient() && cs.get() == color) return cs;
+        return null;
     }
 
     private static long drawPass;
@@ -427,27 +494,132 @@ public final class Render2D {
     }
 
     public void text(String s, int x, int y, int color) {
-        if (s == null || s.isEmpty() || ColorUtil.alpha(c(color)) < 5) return;
-        g.text(font, s, x, y, c(color), textShadow);
+        text(s, x, y, color, null);
     }
 
     /** A text look picked by a feature instead of the theme's shadow setting. */
     public enum TextLook { NONE, SHADOW, OUTLINE }
 
-    /** Text with an explicit look: plain, a drop shadow, or a 1 px black outline. */
+    /** Text with an explicit look: plain, a drop shadow, or a 1 px black outline ({@code null}: the theme's shadow). */
     public void text(String s, int x, int y, int color, TextLook look) {
         if (s == null || s.isEmpty() || ColorUtil.alpha(c(color)) < 5) return;
+        ColorRamp auto = autoRamp(color);
+        if (auto != null) {
+            text(s, x, y, auto, look, autoSpanX, autoSpanW);
+            return;
+        }
         int col = c(color);
-        if (look == TextLook.OUTLINE) {
-            // all 8 neighbours: with only the 4 straight ones, diagonal glyph corners were left without black
-            int outline = col & 0xFF000000;
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    if (dx != 0 || dy != 0) g.text(font, s, x + dx, y + dy, outline, false);
-                }
+        boolean shadow = look == null ? textShadow : look == TextLook.SHADOW;
+        if (!styled()) {
+            if (look == TextLook.OUTLINE) outline(s, x, y, col);
+            g.text(font, s, x, y, col, shadow);
+            return;
+        }
+        Component comp = Component.literal(s).withStyle(scopeStyle(Style.EMPTY));
+        if (look == TextLook.OUTLINE) outline(comp, x, y, col);
+        g.text(font, comp, x, y, col, shadow);
+    }
+
+    private void outline(String s, int x, int y, int col) {
+        outline(Component.literal(s).withStyle(scopeStyle(Style.EMPTY)), x, y, col);
+    }
+
+    /** All 8 neighbours: with only the 4 straight ones, diagonal glyph corners were left without black. */
+    private void outline(Component comp, int x, int y, int col) {
+        int outline = col & 0xFF000000;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx != 0 || dy != 0) g.text(font, comp, x + dx, y + dy, outline, false);
             }
         }
-        g.text(font, s, x, y, col, look == TextLook.SHADOW);
+    }
+
+    /** Text in a colour ramp spread over the text's own width. */
+    public void text(String s, int x, int y, ColorRamp ramp) {
+        text(s, x, y, ramp, null, x, textWidth(s));
+    }
+
+    /**
+     * Text coloured by {@code ramp}, where the ramp runs from {@code spanX} over {@code spanW} units: give a whole HUD
+     * element's span so its lines share one gradient. The gradient is continuous (it runs through each glyph too, not
+     * one colour per letter). {@code look == null} uses the theme's shadow setting. A uniform ramp draws as plain text.
+     */
+    public void text(String s, int x, int y, ColorRamp ramp, TextLook look, int spanX, int spanW) {
+        if (s == null || s.isEmpty()) return;
+        if (ramp.isUniform()) {
+            text(s, x, y, ramp.at(0), look);
+            return;
+        }
+        int base = c(ramp.at(0.5f));
+        if (ColorUtil.alpha(base) < 5) return;
+        Component whole = Component.literal(s).withStyle(scopeStyle(Style.EMPTY));
+        if (look == TextLook.OUTLINE) outline(whole, x, y, base);
+        boolean shadow = look == null ? textShadow : look == TextLook.SHADOW;
+        if (shadow) g.text(font, whole, x + 1, y + 1, shadowOf(base), false);
+        gradientGlyphs(s, scopeStyle(Style.EMPTY), x, y, ramp, spanX, spanW);
+    }
+
+    /** Width of one gradient slice in GUI units: thin enough that no step is visible. */
+    private static final int SLICE = 1;
+
+    /**
+     * Draws {@code s} glyph by glyph, each glyph several times through thin vertical clips with the ramp's colour at
+     * that column, so the colour changes smoothly across (and inside) the letters. Returns the end x.
+     */
+    private int gradientGlyphs(String s, Style style, int x, int y, ColorRamp ramp, int spanX, int spanW) {
+        float span = Math.max(1, spanW);
+        int top = y - 1, h = font.lineHeight + 2;
+        int cx = x;
+        for (int i = 0; i < s.length(); ) {
+            int cp = s.codePointAt(i);
+            i += Character.charCount(cp);
+            Component glyph = Component.literal(new String(Character.toChars(cp))).withStyle(style);
+            int gw = font.width(glyph);
+            if (cp != ' ' && gw > 0) {
+                // a little past the advance on both sides: italic / bold glyphs overhang it
+                for (int sx = cx - 1; sx < cx + gw + 2; sx += SLICE) {
+                    int col = c(ramp.at(Math.clamp((sx + SLICE / 2f - spanX) / span, 0f, 1f)));
+                    g.enableScissor(sx, top, sx + SLICE, top + h);
+                    g.text(font, glyph, cx, y, col, false);
+                    g.disableScissor();
+                }
+            }
+            cx += gw;
+        }
+        return cx;
+    }
+
+    /** Vanilla's drop-shadow colour (RGB at 25 %). */
+    private static int shadowOf(int argb) {
+        return (argb & 0xFF000000) | ((argb >> 2) & 0x3F3F3F);
+    }
+
+    /**
+     * A rounded rect filled with a colour ramp running left to right (a gradient setting as a horizontal gradient),
+     * faded by {@code opacity}. A uniform ramp is one plain rounded rect.
+     */
+    public void fillRamp(int x, int y, int w, int h, int radius, int corners, ColorRamp ramp, double opacity) {
+        if (w <= 0 || h <= 0) return;
+        if (ramp.isUniform()) {
+            roundedRect(x, y, w, h, radius, ColorUtil.fade(ramp.at(0), opacity), corners);
+            return;
+        }
+        float span = Math.max(1, w);
+        fillH(x, y, w, h, radius, corners, px -> ColorUtil.fade(ramp.at(Math.clamp((px - x) / span, 0f, 1f)), opacity), 2);
+    }
+
+    /** A plain rect filled with a colour ramp running top to bottom. */
+    public void fillRampV(int x, int y, int w, int h, ColorRamp ramp) {
+        if (w <= 0 || h <= 0) return;
+        if (ramp.isUniform()) {
+            rect(x, y, w, h, ramp.at(0));
+            return;
+        }
+        int step = 2;
+        for (int sy = 0; sy < h; sy += step) {
+            int eh = Math.min(step, h - sy);
+            gradientV(x, y + sy, w, eh, ramp.at(sy / (float) h), ramp.at((sy + eh) / (float) h));
+        }
     }
 
     public void textCentered(String s, int centerX, int y, int color) {
@@ -459,7 +631,8 @@ public final class Render2D {
     }
 
     public int textWidth(String s) {
-        return s == null ? 0 : font.width(s);
+        if (s == null) return 0;
+        return styled() ? font.width(Component.literal(s).withStyle(scopeStyle(Style.EMPTY))) : font.width(s);
     }
 
     public int fontHeight() {
@@ -469,7 +642,30 @@ public final class Render2D {
     /** Draws server-styled runs one after another. Runs with colour 0 use {@code defaultColor}, and colourless runs keep their font. */
     public void runs(List<TextRun> runs, int x, int y, int defaultColor, boolean useRunColors) {
         if (runs == null || runs.isEmpty() || ColorUtil.alpha(c(defaultColor)) < 5) return;
-        g.text(font, component(runs, useRunColors), x, y, c(defaultColor), textShadow);
+        boolean anyRamp = false;
+        if (!autoRamps.isEmpty()) {
+            for (TextRun run : runs) anyRamp |= autoRamp(useRunColors && run.color() != 0 ? run.color() : defaultColor) != null;
+        }
+        if (!anyRamp) {
+            g.text(font, component(runs, useRunColors), x, y, c(defaultColor), textShadow);
+            return;
+        }
+        // some runs are in a gradient colour: draw run by run, those as smooth gradients
+        int cx = x;
+        for (TextRun run : runs) {
+            int col = useRunColors && run.color() != 0 ? run.color() : defaultColor;
+            ColorRamp ramp = autoRamp(col);
+            Style st = scopeStyle(style(useRunColors ? run.color() : 0, run.font()));
+            Component part = Component.literal(run.text()).withStyle(st);
+            if (ramp == null) {
+                g.text(font, part, cx, y, c(defaultColor), textShadow);
+                cx += font.width(part);
+                continue;
+            }
+            int base = c(ramp.at(0.5f));
+            if (textShadow) g.text(font, part, cx + 1, y + 1, shadowOf(base), false);
+            cx = gradientGlyphs(run.text(), st.withColor((net.minecraft.network.chat.TextColor) null), cx, y, ramp, autoSpanX, autoSpanW);
+        }
     }
 
     public int runsWidth(List<TextRun> runs) {
@@ -698,10 +894,10 @@ public final class Render2D {
         g.blit(RenderPipelines.GUI_TEXTURED, id, x, y, u, v, w, h, regionW, regionH, texW, texH, c(tint));
     }
 
-    private static Component component(List<TextRun> runs, boolean useRunColors) {
+    private Component component(List<TextRun> runs, boolean useRunColors) {
         MutableComponent out = Component.empty();
         for (TextRun run : runs) {
-            out.append(Component.literal(run.text()).withStyle(style(useRunColors ? run.color() : 0, run.font())));
+            out.append(Component.literal(run.text()).withStyle(scopeStyle(style(useRunColors ? run.color() : 0, run.font()))));
         }
         return out;
     }

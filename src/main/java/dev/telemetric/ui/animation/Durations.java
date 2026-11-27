@@ -44,6 +44,8 @@ public final class Durations {
 
     /** One pass of the flowing accent gradient (Theme → Flowing Gradient) across one {@code Fx.FLOW_SPAN}. Looping, so not capped. */
     public static final int FLOW_LOOP = 3200;
+    /** One there-and-back pass of a colour setting's flowing gradient (Flow: Slow / Medium / Fast). Looping, so not capped. */
+    public static final int GRADIENT_FLOW_SLOW = 8000, GRADIENT_FLOW_MEDIUM = 4000, GRADIENT_FLOW_FAST = 2000;
     /** Time a background particle (Interface → Particles) needs to drift one screen height. Looping, so not capped. */
     public static final int PARTICLE_DRIFT_LOOP = 26000;
     /** A click ripple spreading over a row and fading out. */
@@ -54,6 +56,8 @@ public final class Durations {
     public static final int TOOLTIP_DELAY = 400;
     /** Stagger between panels during the open sequence. */
     public static final int STAGGER = 35;
+    /** How long a "Copied" / "Pasted" note stays on a button. Not a transition but a dwell time. */
+    public static final int CLIPBOARD_NOTE = 1200;
     /** Half the period of a blinking text caret (on, then off for just as long). */
     public static final int CARET_BLINK = 530;
     /** Half the period of a flashing warning (Low Health Warning text: bright, then normal for just as long). */

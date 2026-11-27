@@ -39,11 +39,12 @@ public final class WorldLabelAdapter {
      */
     public record Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                         boolean throughWalls, boolean shadow, boolean bold, boolean underline,
-                        double sideOffset, float align, boolean outline, String icon, int bg, int accent, int bgPad) {
+                        double sideOffset, float align, boolean outline, String icon, int bg, int accent, int bgPad,
+                        int bgGroup) {
 
         public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
                      boolean throughWalls, boolean shadow, boolean bold, boolean underline) {
-            this(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, 0, 0.5f, false, null, 0, 0, 0);
+            this(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, 0, 0.5f, false, null, 0, 0, 0, 0);
         }
 
         public Label(double x, double y, double z, String text, BadgeText.Style style, double height, int argb,
@@ -57,19 +58,29 @@ public final class WorldLabelAdapter {
          */
         public Label aligned(double sideOffset, float align) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline, icon, bg, accent, bgPad);
+                    align, outline, icon, bg, accent, bgPad, bgGroup);
         }
 
         /** Shadow off or on, or a black outline instead (the outline wins). */
         public Label look(boolean shadow, boolean outline) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow && !outline, bold, underline,
-                    sideOffset, align, outline, icon, bg, accent, bgPad);
+                    sideOffset, align, outline, icon, bg, accent, bgPad, bgGroup);
         }
 
         /** A rounded background panel (ARGB {@code bg}, 0 = none), {@code pad} label px around the text, with an accent bar (0 = none). */
         public Label withBackground(int bg, int accent, int pad) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline, icon, bg, accent, Math.max(0, pad));
+                    align, outline, icon, bg, accent, Math.max(0, pad), bgGroup);
+        }
+
+        /**
+         * Puts this label in background group {@code group} (0 = its own panel): consecutive labels of one source
+         * with the same group share ONE panel, as wide as the widest text and spanning all of them, drawn with the
+         * first label's colours and padding. The labels should share their anchor and height.
+         */
+        public Label inBgGroup(int group) {
+            return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
+                    align, outline, icon, bg, accent, bgPad, group);
         }
 
         /** True when a background panel is drawn. */
@@ -84,7 +95,7 @@ public final class WorldLabelAdapter {
          */
         public Label withIcon(String model) {
             return new Label(x, y, z, text, style, height, argb, throughWalls, shadow, bold, underline, sideOffset,
-                    align, outline, model, bg, accent, bgPad);
+                    align, outline, model, bg, accent, bgPad, bgGroup);
         }
     }
 
@@ -140,7 +151,10 @@ public final class WorldLabelAdapter {
                 continue;
             }
             if (labels == null) continue;
-            for (Label l : labels) {
+            for (int li = 0; li < labels.size(); li++) {
+                Label l = labels.get(li);
+                // a later member of a shared-background group: the group's first label already drew the panel
+                boolean member = l.bgGroup() != 0 && li > 0 && labels.get(li - 1).bgGroup() == l.bgGroup();
                 if (l.height() <= 0) continue;
                 Component text = component(l);
                 float unit = (float) (l.height() / GLYPH_PX);
@@ -151,9 +165,11 @@ public final class WorldLabelAdapter {
                 if (l.sideOffset() != 0) pose.translate(l.sideOffset(), 0, 0);
                 pose.scale(unit, -unit, unit);
                 float tx = -font.width(text) * l.align();
-                if (l.hasBackground()) {
+                if (l.hasBackground() && !member) {
                     buffers.endBatch(); // earlier labels first, so this panel can't cover their text
-                    drawBackground(l, tx, font.width(text), pose, buffers);
+                    float[] box = l.bgGroup() != 0 ? groupPanel(labels, li, font)
+                            : new float[] {tx - l.bgPad(), -GLYPH_PX - l.bgPad(), tx + font.width(text) + l.bgPad(), l.bgPad()};
+                    drawBackground(l, box[0], box[1], box[2], box[3], pose, buffers);
                 }
                 if (l.outline() && l.throughWalls()) {
                     // drawInBatch8xOutline is always depth-tested, so we build the outline from 8 see-through copies instead.
@@ -188,9 +204,8 @@ public final class WorldLabelAdapter {
      * rounded panels. It sits just behind the text (z -0.01, where vanilla draws its text backgrounds); it's drawn
      * before the text, so see-through labels paint the text over it.
      */
-    private static void drawBackground(Label l, float tx, int width, PoseStack pose, MultiBufferSource.BufferSource buffers) {
-        int pad = l.bgPad();
-        float x0 = tx - pad, x1 = tx + width + pad, y0 = -GLYPH_PX - pad, y1 = pad;
+    private static void drawBackground(Label l, float x0, float y0, float x1, float y1, PoseStack pose,
+                                       MultiBufferSource.BufferSource buffers) {
         RenderType type = l.throughWalls() ? RenderTypes.textBackgroundSeeThrough() : RenderTypes.textBackground();
         VertexConsumer vc = buffers.getBuffer(type);
         Matrix4f m = pose.last().pose();
@@ -209,6 +224,26 @@ public final class WorldLabelAdapter {
         // Flush the panel now: see-through text ignores depth, so if the panel batch were drawn after the text batch
         // (endBatch order isn't ours to pick) the translucent panel would darken the text.
         buffers.endBatch(type);
+    }
+
+    /**
+     * The one panel of the background group that starts at {@code labels[first]}, in that label's pixel space
+     * {x0, y0, x1, y1}: as wide as the group's widest text, from the lowest label's bottom to the highest one's top,
+     * plus the first label's padding.
+     */
+    private static float[] groupPanel(List<Label> labels, int first, Font font) {
+        Label l = labels.get(first);
+        float unit = (float) (l.height() / GLYPH_PX);
+        int pad = l.bgPad(), maxW = 0;
+        double bottom = l.y(), top = l.y() + l.height();
+        for (int i = first; i < labels.size() && labels.get(i).bgGroup() == l.bgGroup(); i++) {
+            Label m = labels.get(i);
+            maxW = Math.max(maxW, font.width(component(m)));
+            bottom = Math.min(bottom, m.y());
+            top = Math.max(top, m.y() + m.height());
+        }
+        float x0 = -maxW * l.align() - pad;
+        return new float[] {x0, (float) (-(top - l.y()) / unit) - pad, x0 + maxW + 2 * pad, (float) ((l.y() - bottom) / unit) + pad};
     }
 
     private static void quad(VertexConsumer vc, Matrix4f m, float x0, float y0, float x1, float y1, float z, int argb) {

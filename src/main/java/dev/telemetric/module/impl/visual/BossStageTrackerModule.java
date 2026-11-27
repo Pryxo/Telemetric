@@ -19,6 +19,7 @@ import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.GroupToggleSetting;
 import dev.telemetric.setting.impl.ModeSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.setting.impl.TextSetting;
 import dev.telemetric.ui.clickgui.window.PlayerPreview;
 import dev.telemetric.ui.clickgui.window.SettingsPreview;
 import dev.telemetric.ui.framework.GuiContext;
@@ -43,9 +44,13 @@ public final class BossStageTrackerModule extends Module {
 
     static final String REST_HP = "Rest HP", PERCENT_HP = "% HP", CURRENT_MAX = "Current / Max";
     private static final String[] STYLES = {"Pill", "Ribbon", "Text"};
+    private static final String LINK_NONE = "None", LINK_ABOVE = "Above", LINK_BELOW = "Below";
 
     /** The look settings one label line has: a section of its own in the Settings window. */
     private final class LineStyle {
+        final Setting<?> head; // the line's movable setting
+        final ModeSetting link; // None / Above / Below: use that neighbour's look + share its background
+        final TextSetting text; // "<value>" template, null for the stage line
         final ModeSetting style;
         final BooleanSetting compact; // stage line only, else null
         final BooleanSetting bold, underline, shadow, outline;
@@ -55,45 +60,72 @@ public final class BossStageTrackerModule extends Module {
         final NumberSetting bgOpacity, bgPadding;
         final ColorSetting bgColor, accentColor;
 
-        LineStyle(GroupSetting g, String what, String prefix, String styleKey, String compactKey, String boldKey,
-                  String underlineKey, String shadowKey, String outlineKey, String sizeKey, double defaultSize) {
+        LineStyle(Setting<?> head, GroupSetting g, String what, String prefix, String styleKey, String compactKey,
+                  String boldKey, String underlineKey, String shadowKey, String outlineKey, String sizeKey,
+                  double defaultSize, String defaultText) {
+            this.head = head;
+            link = add(g.child(new ModeSetting(prefix + " Link",
+                    "Link with the line above or below: use its look settings and share one background with it (no gap)",
+                    LINK_NONE, LINK_NONE, LINK_ABOVE, LINK_BELOW).withLabel("Link")));
+            text = defaultText == null ? null : add(g.child(new TextSetting(prefix + " Text",
+                    "What the line shows: <value> is the number, anywhere in the text (e.g. \"Max <value>\"). Empty = default",
+                    defaultText, 48).withLabel("Text")));
             style = add(g.child(new ModeSetting(styleKey, what + ": Pill / Ribbon = badge font, Text = plain Minecraft text",
-                    "Pill", STYLES).withLabel("Style")));
+                    "Pill", STYLES).withLabel("Style").visibleWhen(this::unlinked)));
             compact = compactKey == null ? null : add(g.child(new BooleanSetting(compactKey,
                     "Badge styles: a small blank badge in the stage colour instead of the word", false)
-                    .visibleWhen(() -> !style.is("Text"))));
+                    .visibleWhen(() -> linked() || !style.is("Text"))));
             bold = add(g.child(new BooleanSetting(boldKey, what + " (Text style): bold", false)
-                    .visibleWhen(() -> style.is("Text")).withLabel("Bold")));
+                    .visibleWhen(() -> unlinked() && style.is("Text")).withLabel("Bold")));
             underline = add(g.child(new BooleanSetting(underlineKey, what + " (Text style): underlined", false)
-                    .visibleWhen(() -> style.is("Text")).withLabel("Underline")));
+                    .visibleWhen(() -> unlinked() && style.is("Text")).withLabel("Underline")));
             shadow = add(g.child(new BooleanSetting(shadowKey, what + ": drop shadow under the text", true)
-                    .visibleWhen(() -> !outline().get()).withLabel("Shadow")));
+                    .visibleWhen(() -> unlinked() && !outline().get()).withLabel("Shadow")));
             outline = add(g.child(new BooleanSetting(outlineKey, what + ": black outline around the text (instead of the shadow)",
-                    false).withLabel("Outline")));
+                    false).withLabel("Outline").visibleWhen(this::unlinked)));
             size = add(g.child(new NumberSetting(sizeKey, what + ": height in blocks (or scroll over the line in the preview)",
-                    defaultSize, 0.04, 1.0, 0.01).withLabel("Size")));
+                    defaultSize, 0.04, 1.0, 0.01).withLabel("Size").visibleWhen(this::unlinked)));
             opacity = add(g.child(new NumberSetting(prefix + " Opacity", what + ": opacity of the text", 100, 10, 100, 1)
-                    .withSuffix("%").withLabel("Opacity")));
+                    .withSuffix("%").withLabel("Opacity").visibleWhen(this::unlinked)));
             background = add(g.child(new BooleanSetting(prefix + " Background",
                     what + " (Text style): a panel behind the text, like the HUD elements' background", false)
-                    .visibleWhen(this::plain).withLabel("Background")));
+                    .visibleWhen(() -> unlinked() && plain()).withLabel("Background")));
             bgOpacity = add(g.child(new NumberSetting(prefix + " Bg Opacity", what + ": opacity of the background",
-                    70, 0, 100, 1).withSuffix("%").visibleWhen(this::hasBg).withLabel("Bg Opacity")));
+                    70, 0, 100, 1).withSuffix("%").visibleWhen(this::ownBg).withLabel("Bg Opacity")));
             bgPadding = add(g.child(new NumberSetting(prefix + " Bg Padding", what + ": room around the text, in text pixels",
-                    3, 0, 8, 1).withSuffix("px").visibleWhen(this::hasBg).withLabel("Bg Padding")));
+                    3, 0, 8, 1).withSuffix("px").visibleWhen(this::ownBg).withLabel("Bg Padding")));
             accentBar = add(g.child(new BooleanSetting(prefix + " Accent Bar", what + ": thin accent edge on the left of the background",
-                    false).visibleWhen(this::hasBg).withLabel("Accent Bar")));
+                    false).visibleWhen(this::ownBg).withLabel("Accent Bar")));
             bgThemeColors = add(g.child(new BooleanSetting(prefix + " Bg Theme Colors",
                     "On: background and accent follow the Theme (like the HUD); off: your own colours", true)
-                    .visibleWhen(this::hasBg).withLabel("Theme Colors")));
+                    .visibleWhen(this::ownBg).withLabel("Theme Colors")));
             bgColor = add(g.child(new ColorSetting(prefix + " Bg Color", what + ": background colour", 0xFF101014, false)
-                    .visibleWhen(() -> hasBg() && !bgThemeColors.get()).withLabel("Bg Color")));
+                    .visibleWhen(() -> ownBg() && !bgThemeColors.get()).withLabel("Bg Color")));
             accentColor = add(g.child(new ColorSetting(prefix + " Accent Color", what + ": accent bar colour", 0xFFFFFFFF, false)
-                    .visibleWhen(() -> hasBg() && accentBar.get() && !bgThemeColors.get()).withLabel("Accent Color")));
+                    .visibleWhen(() -> ownBg() && accentBar.get() && !bgThemeColors.get()).withLabel("Accent Color")));
         }
 
         private BooleanSetting outline() {
             return outline;
+        }
+
+        /** Linked to a neighbour that is shown: the look comes from that line. */
+        boolean linked() {
+            return link.is(LINK_ABOVE) ? hasLineNext(head, false) : link.is(LINK_BELOW) && hasLineNext(head, true);
+        }
+
+        boolean unlinked() {
+            return !linked();
+        }
+
+        private boolean ownBg() {
+            return unlinked() && hasBg();
+        }
+
+        /** {@code value} put into this line's Text ({@code <value>} = the number), or {@code fallback} when empty. */
+        String fill(String fallback, String value) {
+            String t = text == null ? "" : text.get();
+            return t.isBlank() ? fallback : t.replace("<value>", value);
         }
 
         boolean plain() {
@@ -176,8 +208,8 @@ public final class BossStageTrackerModule extends Module {
     // each section shows only while its line is on
     private final GroupSetting stageGroup = add(new GroupSetting("Stage Label Style", "Look of the stage badge")
             .visibleWhen(stageLine::get));
-    private final LineStyle stageStyle = new LineStyle(stageGroup, "Stage badge", "Stage", "Label Style", "Compact", "Bold",
-            "Underline", "Stage Shadow", "Stage Outline", "Label Size", 0.2);
+    private final LineStyle stageStyle = new LineStyle(stageLine, stageGroup, "Stage badge", "Stage", "Label Style", "Compact",
+            "Bold", "Underline", "Stage Shadow", "Stage Outline", "Label Size", 0.2, null);
     private final ColorSetting immuneColor = add(stageGroup.child(new ColorSetting("Immune Color",
             "Badge colour while immune", 0xFF1757A7, false)));
     private final ColorSetting shieldedColor = add(stageGroup.child(new ColorSetting("Shielded Color",
@@ -187,8 +219,8 @@ public final class BossStageTrackerModule extends Module {
 
     private final GroupSetting healthGroup = add(new GroupSetting("Health Line Style", "Look of the Health line")
             .visibleWhen(healthLine::get));
-    private final LineStyle healthStyle = new LineStyle(healthGroup, "Health line", "Health", "Health Style", null, "Health Bold",
-            "Health Underline", "Health Shadow", "Health Outline", "Health Size", 0.16);
+    private final LineStyle healthStyle = new LineStyle(healthLine, healthGroup, "Health line", "Health", "Health Style", null,
+            "Health Bold", "Health Underline", "Health Shadow", "Health Outline", "Health Size", 0.16, "<value>");
     private final ColorSetting healthColor = add(healthGroup.child(new ColorSetting("Health Color",
             "Colour of the Health line", 0xFFE5484D, false).withLabel("Color")));
 
@@ -201,8 +233,8 @@ public final class BossStageTrackerModule extends Module {
         for (BooleanSetting line : dpsLines) {
             String s = line.getName();
             GroupSetting g = add(new GroupSetting(s + " Line Style", "Look of the " + s + " line").visibleWhen(line::get));
-            LineStyle look = new LineStyle(g, s + " line", s, s + " Style", null, s + " Bold", s + " Underline",
-                    s + " Shadow", s + " Outline", s + " Size", 0.16);
+            LineStyle look = new LineStyle(line, g, s + " line", s, s + " Style", null, s + " Bold", s + " Underline",
+                    s + " Shadow", s + " Outline", s + " Size", 0.16, s + " <value>");
             ColorSetting color = add(g.child(new ColorSetting(s + " Color", "Colour of the " + s + " line", 0xFFF5A524,
                     false).withLabel("Color")));
             BooleanSetting damage = add(g.child(new BooleanSetting(s + " Damage Colors",
@@ -215,6 +247,8 @@ public final class BossStageTrackerModule extends Module {
     private final GroupSetting positionGroup = add(new GroupSetting("Position", "Spacing and height of the label"));
     private final NumberSetting spacing = add(positionGroup.child(new NumberSetting("Line Spacing",
             "Gap between the lines, in line heights", 0.35, 0, 2, 0.05)));
+    private final NumberSetting linkedSpacing = add(positionGroup.child(new NumberSetting("Linked Spacing",
+            "Gap between linked lines (Link), in line heights", 0.15, 0, 2, 0.05)));
     private final NumberSetting offset = add(positionGroup.child(new NumberSetting("Height Offset",
             "Blocks above the ground under the boss (negative = into the floor)", 0.05, -1.0, 3.0, 0.05)));
 
@@ -282,7 +316,28 @@ public final class BossStageTrackerModule extends Module {
         int dur = Durations.scaled(flashTime.get().intValue());
         if (at == null || dur <= 0 || now - at >= dur) return row;
         double f = 1 - (now - at) / (double) dur;
-        return new Row(row.text(), row.look(), ColorUtil.lerp(row.argb(), flashColor.get(), f), row.head());
+        return new Row(row.text(), row.look(), ColorUtil.lerp(row.argb(), flashColor.get(), f), row.head(), row.group());
+    }
+
+    /** A label line (stage, health or DPS stat) that is switched on. */
+    private boolean lineOn(Setting<?> s) {
+        if (s == stageLine) return stageLine.get();
+        if (s == healthLine) return healthLine.get();
+        return s instanceof BooleanSetting b && dpsLines.contains(b) && b.get();
+    }
+
+    /** True when a switched-on label line comes before ({@code below} false) or after {@code head} in the user's order. */
+    private boolean hasLineNext(Setting<?> head, boolean below) {
+        boolean past = false;
+        for (Setting<?> s : getSettingOrder()) {
+            if (s == head) {
+                if (!below) return false;
+                past = true;
+            } else if (lineOn(s) && (past || !below)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean anyDpsLine() {
@@ -295,8 +350,11 @@ public final class BossStageTrackerModule extends Module {
         return isEnabled() && anyDpsLine() && hideDpsHud.get() && !stages.isEmpty();
     }
 
-    /** One label line before it's stacked: text, its line's look and colour, and the movable setting it belongs to. */
-    private record Row(String text, LineStyle look, int argb, Setting<?> head) {}
+    /**
+     * One label line before it's stacked: text, the look it uses (the line above's when linked), its colour, the movable
+     * setting it belongs to, and its link group (linked lines share one; they stack tight and share one background).
+     */
+    private record Row(String text, LineStyle look, int argb, Setting<?> head, int group) {}
 
     private List<WorldLabelAdapter.Label> labels(float partialTick) {
         List<Stage> current = stages;
@@ -311,7 +369,7 @@ public final class BossStageTrackerModule extends Module {
             if (xz == null) continue;
             // DPS is global, so it only goes on the nearest boss
             List<Row> rows = rows(s.kind(), healthLine.get() ? healthText(s) : null, i == 0 ? dps : Map.of(), "boss" + s.entityId());
-            out.addAll(stack(rows, xz[0], s.groundY() + offset.get(), xz[1], throughWalls.get()));
+            out.addAll(stack(rows, xz[0], s.groundY() + offset.get(), xz[1], throughWalls.get(), (i + 1) * 1000));
         }
         return out;
     }
@@ -322,46 +380,76 @@ public final class BossStageTrackerModule extends Module {
         for (Setting<?> line : getSettingOrder()) {
             if (line == stageLine && stageLine.get()) {
                 if (kind == Kind.DAMAGEABLE && !showDamageable.get()) continue;
-                boolean blank = stageStyle.compact.get() && stageStyle.font() != BadgeText.Style.PLAIN;
-                rows.add(new Row(blank ? "" : name(kind), stageStyle, color(kind), stageLine));
+                rows.add(new Row(name(kind), stageStyle, color(kind), stageLine, 0));
             } else if (line == healthLine && healthLine.get()) {
-                if (hp != null) rows.add(new Row(hp, healthStyle, healthColor.get(), healthLine));
+                if (hp != null) rows.add(new Row(healthStyle.fill(hp, hp), healthStyle, healthColor.get(), healthLine, 0));
             } else if (line instanceof BooleanSetting b && b.get() && dpsLines.contains(b)) {
                 DpsMeterHud.Row r = dps.get(b.getName());
                 if (r == null) continue;
                 DpsLook look = dpsLooks.get(b);
                 int argb = look.damageColors().get() && r.argb() != 0 ? r.argb() : look.color().get();
-                rows.add(new Row(r.label() + " " + r.value(), look.style(), argb, b));
+                rows.add(new Row(look.style().fill(r.label() + " " + r.value(), r.value()), look.style(), argb, b, 0));
             }
         }
+        link(rows);
         rows.replaceAll(row -> flashed(key, row));
         return rows;
     }
 
-    /** Stacks the rows bottom-up from {@code y}. A row's background padding takes extra room so panels don't overlap. */
-    private List<WorldLabelAdapter.Label> stack(List<Row> rows, double x, double y, double z, boolean walls) {
+    /**
+     * Groups the rows (each still carrying its own look): row i and i+1 are linked when the upper one says Below or the
+     * lower one says Above. Every row of a group then uses the look of its first unlinked (None) row, else the top one's.
+     * A compact stage badge loses its word once its look is known.
+     */
+    private void link(List<Row> rows) {
+        int group = 0;
+        for (int i = 0; i < rows.size(); i++) {
+            boolean joined = i > 0 && (rows.get(i - 1).look().link.is(LINK_BELOW) || rows.get(i).look().link.is(LINK_ABOVE));
+            if (!joined) group++;
+            Row r = rows.get(i);
+            rows.set(i, new Row(r.text(), r.look(), r.argb(), r.head(), group));
+        }
+        for (int i = 0; i < rows.size(); ) {
+            int end = i;
+            while (end + 1 < rows.size() && rows.get(end + 1).group() == rows.get(i).group()) end++;
+            LineStyle look = rows.get(i).look();
+            for (int j = i; j <= end; j++) {
+                if (rows.get(j).look().link.is(LINK_NONE)) {
+                    look = rows.get(j).look();
+                    break;
+                }
+            }
+            for (int j = i; j <= end; j++) {
+                Row r = rows.get(j);
+                boolean blank = r.head() == stageLine && stageStyle.compact.get() && look.font() != BadgeText.Style.PLAIN;
+                rows.set(j, new Row(blank ? "" : r.text(), look, r.argb(), r.head(), r.group()));
+            }
+            i = end + 1;
+        }
+    }
+
+    /**
+     * Stacks the rows bottom-up from {@code y}. A row's background padding takes extra room so panels don't overlap;
+     * linked rows sit {@link #linkedSpacing} apart and share one background (group {@code groupBase} + row group).
+     */
+    private List<WorldLabelAdapter.Label> stack(List<Row> rows, double x, double y, double z, boolean walls, int groupBase) {
         List<WorldLabelAdapter.Label> out = new ArrayList<>(rows.size());
         for (int r = rows.size() - 1; r >= 0; r--) {
             Row row = rows.get(r);
             LineStyle l = row.look();
             boolean plain = l.font() == BadgeText.Style.PLAIN;
+            boolean linkBelow = r + 1 < rows.size() && rows.get(r + 1).group() == row.group();
+            boolean linkAbove = r > 0 && rows.get(r - 1).group() == row.group();
             double size = l.size.get(), padBlocks = l.pad() * size / 8.0;
-            y += padBlocks;
-            out.add(new WorldLabelAdapter.Label(x, y, z, row.text(), l.font(), size, l.faded(row.argb()), walls,
-                    l.shadow.get(), plain && l.bold.get(), plain && l.underline.get())
+            if (!linkBelow) y += padBlocks;
+            WorldLabelAdapter.Label label = new WorldLabelAdapter.Label(x, y, z, row.text(), l.font(), size,
+                    l.faded(row.argb()), walls, l.shadow.get(), plain && l.bold.get(), plain && l.underline.get())
                     .look(l.shadow.get(), l.outline.get())
-                    .withBackground(l.bgArgb(), l.accentArgb(), l.pad()));
-            y += size * (1 + spacing.get()) + padBlocks;
+                    .withBackground(l.bgArgb(), l.accentArgb(), l.pad());
+            out.add(linkBelow || linkAbove ? label.inBgGroup(groupBase + row.group()) : label);
+            y += linkAbove ? size * (1 + linkedSpacing.get()) : size * (1 + spacing.get()) + padBlocks;
         }
         return out;
-    }
-
-    /** The style section of a label line (its movable setting), or null. */
-    private LineStyle styleOf(Setting<?> head) {
-        if (head == stageLine) return stageStyle;
-        if (head == healthLine) return healthStyle;
-        DpsLook d = head instanceof BooleanSetting b ? dpsLooks.get(b) : null;
-        return d == null ? null : d.style();
     }
 
     /** Copies the old shared "DPS …" look into the per-stat lines. */
@@ -370,6 +458,13 @@ public final class BossStageTrackerModule extends Module {
         super.fromJson(json);
         if (!json.has("settings") || !json.get("settings").isJsonObject()) return;
         JsonObject values = json.getAsJsonObject("settings");
+        // "<prefix> Link" was an on/off "Link Above" toggle
+        for (LineStyle l : allStyles()) {
+            String k = l.link.getName();
+            if (values.has(k) && values.get(k).isJsonPrimitive() && values.get(k).getAsJsonPrimitive().isBoolean()) {
+                l.link.set(values.get(k).getAsBoolean() ? LINK_ABOVE : LINK_NONE);
+            }
+        }
         DpsLook first = dpsLooks.get(dpsLine);
         if (!values.has(DpsMeterHud.DPS + " Style")) return;
         for (BooleanSetting line : dpsLines) {
@@ -379,6 +474,12 @@ public final class BossStageTrackerModule extends Module {
             d.color().set(first.color().get());
             d.damageColors().set(first.damageColors().get());
         }
+    }
+
+    private List<LineStyle> allStyles() {
+        List<LineStyle> out = new ArrayList<>(List.of(stageStyle, healthStyle));
+        for (BooleanSetting l : dpsLines) out.add(dpsLooks.get(l).style());
+        return out;
     }
 
     /** The Health line in the chosen format, or null when the boss's health isn't known. */
@@ -428,6 +529,7 @@ public final class BossStageTrackerModule extends Module {
         private Kind sample = Kind.IMMUNE;
         private final List<double[]> rects = new ArrayList<>(); // GUI {x0, y0, x1, y1} per drawn line
         private final List<Setting<?>> heads = new ArrayList<>(); // the label line (movable setting) per drawn line
+        private final List<LineStyle> looks = new ArrayList<>(); // the look each drawn line uses (linked = the line above's)
         private double[] ground = {0, 0}, stemTop = {0, 0};
         private double groundR;
         private boolean held, reordering;
@@ -463,11 +565,13 @@ public final class BossStageTrackerModule extends Module {
             List<Row> rows = rows(sample, sampleHp(), sampleDps(), "preview");
             stageIndex = -1;
             heads.clear();
+            looks.clear();
             for (int i = rows.size() - 1; i >= 0; i--) {
-                if (rows.get(i).look() == stageStyle) stageIndex = rows.size() - 1 - i;
+                if (rows.get(i).head() == stageLine) stageIndex = rows.size() - 1 - i;
                 heads.add(rows.get(i).head());
+                looks.add(rows.get(i).look());
             }
-            return stack(rows, 0, offset.get(), 0, true);
+            return stack(rows, 0, offset.get(), 0, true, 1000);
         }
 
         /** The label lines shown, top to bottom, each once. */
@@ -536,7 +640,7 @@ public final class BossStageTrackerModule extends Module {
                 double[] a = v.project(0, l.y(), 0);
                 int lw = r.worldLabelWidth(l);
                 double left = a[0] - lw * k / 2, top = a[1] - 8 * k;
-                int pad = l.hasBackground() ? l.bgPad() : 0;
+                int pad = l.hasBackground() && l.bgGroup() == 0 ? l.bgPad() : 0;
                 rects.add(new double[] {left - pad * k, top - pad * k, left + (lw + pad) * k, a[1] + pad * k});
                 Setting<?> head = i < heads.size() ? heads.get(i) : null;
                 boolean lit = held ? (!reordering || head == heldHead) : head == hotHead;
@@ -547,10 +651,12 @@ public final class BossStageTrackerModule extends Module {
                 }
                 r.pushTransform((float) left, (float) top, (float) k);
                 try {
-                    if (l.hasBackground()) {
+                    boolean member = l.bgGroup() != 0 && i > 0 && labels.get(i - 1).bgGroup() == l.bgGroup();
+                    if (l.hasBackground() && !member) {
                         // the same panel the world draws (stepped 2 px corners, accent bar on the left)
-                        r.roundedRect(-pad, -pad, lw + 2 * pad, 8 + 2 * pad, 2, l.bg());
-                        if ((l.accent() >>> 24) != 0 && 8 + 2 * pad > 4) r.rect(-pad, -pad + 2, 1, 8 + 2 * pad - 4, l.accent());
+                        int[] b = panel(r, labels, i, lw);
+                        r.roundedRect(b[0], b[1], b[2], b[3], 2, l.bg());
+                        if ((l.accent() >>> 24) != 0 && b[3] > 4) r.rect(b[0], b[1] + 2, 1, b[3] - 4, l.accent());
                     }
                     if (l.outline()) {
                         WorldLabelAdapter.Label black = new WorldLabelAdapter.Label(0, 0, 0, l.text(), l.style(),
@@ -568,12 +674,33 @@ public final class BossStageTrackerModule extends Module {
                 boolean reorder = shownHeads().size() > 1;
                 String what = reorder ? "Drag up / down: reorder the lines. Shift-drag: Height Offset ("
                         + offset.format() + ")" : "Drag up / down: Height Offset (" + offset.format() + ")";
-                LineStyle look = hotHead == null ? null : styleOf(hotHead);
+                LineStyle look = hot < looks.size() ? looks.get(hot) : null;
                 String size = look == null ? "" : ". Scroll: size (" + look.size.format() + ", Shift = bigger steps)";
                 ctx.requestTooltip(this, what + size + (hot == stageIndex ? ". Click: next stage" : ""));
             } else if (stemHot) {
                 ctx.requestTooltip(this, "Drag up / down: Height Offset (" + offset.format() + ")");
             }
+        }
+
+        /**
+         * Label {@code i}'s background panel {x, y, w, h} in its own pixels (text at 0..lw, 0..8): just its padding, or
+         * for a linked group the one panel over all its lines (widest text, lowest bottom to highest top).
+         */
+        private int[] panel(Render2D r, List<WorldLabelAdapter.Label> labels, int i, int lw) {
+            WorldLabelAdapter.Label l = labels.get(i);
+            int pad = l.bgPad();
+            if (l.bgGroup() == 0) return new int[] {-pad, -pad, lw + 2 * pad, 8 + 2 * pad};
+            double unit = l.height() / 8.0, bottom = l.y(), top = l.y() + l.height();
+            int maxW = lw;
+            for (int j = i; j < labels.size() && labels.get(j).bgGroup() == l.bgGroup(); j++) {
+                WorldLabelAdapter.Label m = labels.get(j);
+                maxW = Math.max(maxW, r.worldLabelWidth(m));
+                bottom = Math.min(bottom, m.y());
+                top = Math.max(top, m.y() + m.height());
+            }
+            int y0 = (int) Math.round(8 - (top - l.y()) / unit) - pad, y1 = (int) Math.round(8 + (l.y() - bottom) / unit) + pad;
+            int x0 = (int) Math.round((lw - maxW) / 2.0) - pad;
+            return new int[] {x0, y0, maxW + 2 * pad, y1 - y0};
         }
 
         private int lineAt(double mx, double my) {
@@ -647,7 +774,7 @@ public final class BossStageTrackerModule extends Module {
         public boolean scroll(PlayerPreview.View v, double mouseX, double mouseY, double amount) {
             if (held) return false;
             int i = lineAt(mouseX, mouseY);
-            LineStyle look = i >= 0 && i < heads.size() ? styleOf(heads.get(i)) : null;
+            LineStyle look = i >= 0 && i < looks.size() ? looks.get(i) : null;
             if (look == null || amount == 0) return false;
             double step = InputUtil.isShiftDown() ? 0.05 : 0.01;
             look.size.set(Math.clamp(look.size.get() + Math.signum(amount) * step, look.size.getMin(), look.size.getMax()));

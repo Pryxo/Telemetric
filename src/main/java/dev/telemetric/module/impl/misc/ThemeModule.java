@@ -34,10 +34,10 @@ public final class ThemeModule extends Module {
             "Custom Accent", "Override the preset's accent colours (right-click to edit)", false));
 
     public final ColorSetting accent = add(customAccent.child(new ColorSetting(
-            "Accent", "Primary accent colour", DEFAULTS.accent(), false)));
+            "Accent", "Primary accent colour", DEFAULTS.accent(), false).solidOnly()));
 
     public final ColorSetting accentAlt = add(customAccent.child(new ColorSetting(
-            "Accent 2", "Secondary accent used in gradients", DEFAULTS.accentAlt(), false)));
+            "Accent 2", "Secondary accent used in gradients", DEFAULTS.accentAlt(), false).solidOnly()));
 
     public final ActionSetting copyAccentPreset = add(customAccent.child(new ActionSetting(
             "Copy Accents From Preset", "Fill the custom accents with the selected preset's accents", () -> {
@@ -157,12 +157,12 @@ public final class ThemeModule extends Module {
     }
 
     private ColorSetting color(String name, String description, int defaultArgb, boolean alpha) {
-        return add(customColors.child(new ColorSetting(name, description, defaultArgb, alpha)));
+        return add(customColors.child(new ColorSetting(name, description, defaultArgb, alpha).solidOnly()));
     }
 
     private ColorSetting categoryColor(Category category, int defaultArgb) {
         ColorSetting setting = add(categoryColors.child(new ColorSetting(
-                category.getName(), "Accent of the " + category.getName() + " panel", defaultArgb, false)));
+                category.getName(), "Accent of the " + category.getName() + " panel", defaultArgb, false).solidOnly()));
         categoryColorsByName.put(category.getName(), setting);
         return setting;
     }

@@ -3,6 +3,9 @@ package dev.telemetric.module.impl.combat;
 import dev.telemetric.Telemetric;
 import dev.telemetric.hud.HudModule;
 import dev.telemetric.module.Category;
+import dev.telemetric.module.Module;
+import dev.telemetric.setting.Setting;
+import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.render.Render2D;
 
@@ -94,5 +97,17 @@ public final class ReadyAlertsHud extends HudModule {
             }
             y += r.fontHeight() + LINE_GAP;
         }
+    }
+
+    /** The cue colours (Alert Color of every cooldown HUD), so a gradient alert colour draws as a gradient. */
+    @Override
+    protected List<ColorSetting> extraColorSources() {
+        List<ColorSetting> out = new ArrayList<>();
+        for (Module m : Telemetric.get().modules().getModules()) {
+            for (Setting<?> s : m.getSettings()) {
+                if (s instanceof ColorSetting cs && cs.isGradient() && "Alert Color".equals(cs.getName())) out.add(cs);
+            }
+        }
+        return out;
     }
 }

@@ -61,6 +61,12 @@ public abstract class Setting<T> {
         set(defaultValue);
     }
 
+    /** Fires the change listeners with {@link #get()}, for subclasses whose state changed outside {@link #value}. */
+    protected void notifyChanged() {
+        T now = get();
+        for (Consumer<T> listener : listeners) listener.accept(now);
+    }
+
     public T getDefault() {
         return defaultValue;
     }

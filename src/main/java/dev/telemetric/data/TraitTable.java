@@ -46,7 +46,17 @@ public record TraitTable(Map<String, Trait> byKey, List<String> tiers) {
             m.appendTail(out);
             return out.toString();
         }
+
+        /** Placeholder {@code {index}}'s value for {@code tier} as a number ({@code "1.85x"}, {@code "50%"} → 1.85, 50), or NaN. */
+        public double number(int index, String tier) {
+            String v = index >= 0 && index < values.size() && tier != null ? values.get(index).get(tier) : null;
+            if (v == null) return Double.NaN;
+            Matcher m = NUMBER.matcher(v);
+            return m.find() ? Double.parseDouble(m.group()) : Double.NaN;
+        }
     }
+
+    private static final Pattern NUMBER = Pattern.compile("-?\\d+(?:\\.\\d+)?");
 
     static TraitTable parse(JsonObject root) {
         List<String> tiers = new ArrayList<>();

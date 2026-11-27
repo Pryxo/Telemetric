@@ -1,5 +1,6 @@
 package dev.telemetric.game;
 
+import dev.telemetric.data.TraitTable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
@@ -61,15 +62,30 @@ public final class CombatAdapter {
      * @param range    effective range from the lore, e.g. {@code "Range » 8 + 2"} gives 10, or -1 if none
      * @param cooldown ability cooldown in seconds from the lore, e.g. {@code "Cooldown » 30s"}, or -1 if none
      * @param slot     armor slot for {@link Kind#ARMOR}, otherwise null
+     * @param traits   the lore lines that start with a tier glyph ({@code <glyph> Primed}), in lore order
      */
     public record ItemInfo(GameItem item, Kind kind, String name, String group, float range, float cooldown,
-                           ArmorSlot slot) {
+                           ArmorSlot slot, List<ItemTrait> traits) {
         /** Lower-case name for table lookups. */
         public String nameKey() { return name.toLowerCase(Locale.ROOT); }
 
         /** True if it has an ability you can activate (a cooldown line in its lore). */
         public boolean hasAbility() { return cooldown > 0; }
+
+        /** The trait with this name (case-insensitive), or null. */
+        public ItemTrait trait(String traitName) {
+            for (ItemTrait t : traits) if (t.name().equalsIgnoreCase(traitName)) return t;
+            return null;
+        }
     }
+
+    /**
+     * A tiered lore line of an item.
+     *
+     * @param name the text after the tier glyph, e.g. {@code "Primed"} (stat traits give e.g. {@code "+4.5%"})
+     * @param tier tier index, 0 is the lowest ({@link TraitTable#tierOfGlyph})
+     */
+    public record ItemTrait(String name, int tier) {}
 
     /** A cooldown packet. {@code ticks} is the full duration, and 0 means the cooldown was cleared. */
     public record CooldownEvent(String group, int ticks) {}
@@ -183,16 +199,23 @@ public final class CombatAdapter {
         }
         String group = p.getCooldowns().getCooldownGroup(stack).toString();
         float range = -1f, cooldown = -1f;
+        List<ItemTrait> traits = new ArrayList<>(3);
         ItemLore lore = stack.get(DataComponents.LORE);
         if (lore != null) {
             for (Component line : lore.lines()) {
                 String text = line.getString();
                 if (range < 0) range = parseRange(text);
                 if (cooldown < 0) cooldown = parseFirstNumber(COOLDOWN, text);
+                String stripped = text.strip();
+                int tier = TraitTable.tierOfGlyph(stripped);
+                if (tier >= 0) {
+                    String traitName = stripped.substring(Character.charCount(stripped.codePointAt(0))).strip();
+                    if (!traitName.isEmpty()) traits.add(new ItemTrait(traitName, tier));
+                }
             }
         }
         return new ItemInfo(new GameItem(stack.copy()), kind, plainName(stack.getHoverName()), group,
-                range, cooldown, slot);
+                range, cooldown, slot, List.copyOf(traits));
     }
 
     private static Kind kindOf(ItemStack stack) {

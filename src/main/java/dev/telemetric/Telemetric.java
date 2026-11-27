@@ -138,6 +138,7 @@ public final class Telemetric implements ClientModInitializer {
         guardedTick("Wiki stats scan", WikiStatsScan.get()::tick);
         guardedTick("Head status cache", dev.telemetric.api.HeadStatusCache::tick); // loaded players, every 10 s, cached 15 min
         guardedTick("Cooldown tracker", CooldownTracker.get()::tick);
+        guardedTick("Primed tracker", dev.telemetric.module.impl.combat.PrimedTracker.get()::tick);
         moduleManager.tick();
     }
 

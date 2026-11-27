@@ -4,6 +4,7 @@ import dev.telemetric.Telemetric;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.animation.Durations;
@@ -102,9 +103,11 @@ public abstract class LinesHudModule extends HudModule {
         addIconSetting();
         titleColor = paletteColor("Title", "The title row", Theme::accent);
         labelColor = hudColor("Label", "Labels (\"Kills\" in \"Kills: 12\")",
-                () -> serverPalette() ? SERVER_LABEL : Telemetric.get().theme().hudIndex());
+                () -> serverPalette() ? SERVER_LABEL : Telemetric.get().theme().hudIndex(),
+                () -> serverPalette() ? ColorRamp.solid(SERVER_LABEL) : Telemetric.get().theme().hudIndexRamp());
         valueColor = hudColor("Value", "Values (\"12\" in \"Kills: 12\")",
-                () -> serverPalette() ? SERVER_VALUE : Telemetric.get().theme().hudValue());
+                () -> serverPalette() ? SERVER_VALUE : Telemetric.get().theme().hudValue(),
+                () -> serverPalette() ? ColorRamp.solid(SERVER_VALUE) : Telemetric.get().theme().hudValueRamp());
         separatorColor = paletteColor("Separator", "The \": \" between label and value", Theme::textMuted);
         dividerColor = paletteColor("Divider", "Lines between row groups", t -> ColorUtil.fade(t.textMuted(), 0.5));
     }
@@ -325,23 +328,27 @@ public abstract class LinesHudModule extends HudModule {
         String title = shownTitle();
         if (title != null) {
             int tw = r.textWidth(title);
-            r.text(title, alignRight ? w - PAD_X - tw : centered ? (w - tw) / 2 : PAD_X, y, colors.titleColor.get());
+            paint(r, title, alignRight ? w - PAD_X - tw : centered ? (w - tw) / 2 : PAD_X, y, colors.titleColor.get(), colors.titleColor, w);
             y += lineHeight(r);
         }
         for (Line line : lines) {
             if (line.divider()) {
-                r.rect(PAD_X, y + 1, w - PAD_X * 2, 1, colors.dividerColor.get());
+                r.fillRamp(PAD_X, y + 1, w - PAD_X * 2, 1, 0, 0, colors.dividerColor, 1);
                 y += DIVIDER_H;
                 continue;
             }
             int lc = serverColors && line.labelColor() != 0 ? line.labelColor() : defaultLabel;
             int vc = serverColors && line.valueColor() != 0 ? line.valueColor() : defaultValue;
+            // gradient colours run across the whole element; server colours and the flash use the plain colour
+            ColorRamp labelRamp = serverColors && line.labelColor() != 0 ? null : colors.labelColor;
+            ColorRamp valueRamp = serverColors && line.valueColor() != 0 ? null : colors.valueColor;
             int tint = line.tintIcon() ? iconTint(line, vc) : 0xFFFFFFFF;
             boolean runColors = serverColors || line.ownColors();
             double flash = flashAmount(line, preview);
             if (flash > 0) {
                 vc = ColorUtil.lerp(vc, flashColor.get(), flash);
                 runColors = false;
+                valueRamp = null;
             }
             int x;
             if (alignRight && isTextMirrored()) {
@@ -352,15 +359,15 @@ public abstract class LinesHudModule extends HudModule {
                 if (!line.label().isEmpty()) {
                     x -= labelWidth(r, line);
                     if (line.styledLabel()) r.runs(line.labelRuns(), x, y, lc, runColors);
-                    else r.text(line.label(), x, y, lc);
+                    else paint(r, line.label(), x, y, lc, labelRamp, w);
                     String sep = new StringBuilder(separator()).reverse().toString();
                     x -= r.textWidth(sep);
-                    r.text(sep, x, y, sepColor);
+                    paint(r, sep, x, y, sepColor, colors.separatorColor, w);
                 }
                 x -= valueWidth(r, line);
                 if (edge && !line.label().isEmpty()) x = PAD_X; // Value Align Right: mirrored values at the far (left) edge
                 if (line.styled()) r.runs(mirroredValueRuns(line), x, y, vc, runColors);
-                else r.text(line.value(), x, y, vc);
+                else paint(r, line.value(), x, y, vc, valueRamp, w);
                 y += lineHeight(r);
                 continue;
             } else if (centered || alignRight) {
@@ -379,17 +386,23 @@ public abstract class LinesHudModule extends HudModule {
 
             if (!line.label().isEmpty()) {
                 if (line.styledLabel()) r.runs(line.labelRuns(), x, y, lc, runColors);
-                else r.text(line.label(), x, y, lc);
+                else paint(r, line.label(), x, y, lc, labelRamp, w);
                 x += labelWidth(r, line);
-                r.text(separator(), x, y, sepColor);
+                paint(r, separator(), x, y, sepColor, colors.separatorColor, w);
                 x += r.textWidth(separator());
                 // Value Align Right: left-aligned rows push their value to the right edge
                 if (edge && !centered && !alignRight) x = Math.max(x, w - PAD_X - valueWidth(r, line));
             }
             if (line.styled()) r.runs(line.valueRuns(), x, y, vc, runColors);
-            else r.text(line.value(), x, y, vc);
+            else paint(r, line.value(), x, y, vc, valueRamp, w);
             y += lineHeight(r);
         }
+    }
+
+    /** Plain text, or glyph-by-glyph gradient text spread over the element's width when {@code ramp} is a gradient. */
+    private static void paint(Render2D r, String s, int x, int y, int color, ColorRamp ramp, int w) {
+        if (ramp == null || ramp.isUniform()) r.text(s, x, y, color);
+        else r.text(s, x, y, ramp, null, 0, w);
     }
 
     /**

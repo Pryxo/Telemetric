@@ -3,6 +3,7 @@ package dev.telemetric.ui.theme;
 import dev.telemetric.Telemetric;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.impl.misc.ThemeModule;
+import dev.telemetric.setting.impl.ColorRamp;
 import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
@@ -139,5 +140,17 @@ public final class ThemeManager {
     public int hudValue() {
         ThemeModule module = Telemetric.get().modules().get(ThemeModule.class);
         return module.customHudColors.get() ? module.hudValueColor.get() : current.text();
+    }
+
+    /** {@link #hudIndex()} as a ramp, so a Custom HUD Colors gradient runs across the element. */
+    public ColorRamp hudIndexRamp() {
+        ThemeModule module = Telemetric.get().modules().get(ThemeModule.class);
+        return module.customHudColors.get() ? module.hudIndexColor : ColorRamp.solid(current.accent());
+    }
+
+    /** {@link #hudValue()} as a ramp. */
+    public ColorRamp hudValueRamp() {
+        ThemeModule module = Telemetric.get().modules().get(ThemeModule.class);
+        return module.customHudColors.get() ? module.hudValueColor : ColorRamp.solid(current.text());
     }
 }
