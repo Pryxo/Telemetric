@@ -78,8 +78,12 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
      * @param pityOnly {@link Names#key name keys} of the only drops a kill of this boss adds pity to (Boss.json
      *                 {@code pityOnly}). Seraph's Domain, for example, drops the earlier bosses' loot, but only its
      *                 own extra item gains pity. Empty means every pity drop counts
+     * @param plate     the boss's in-world nameplate (Boss.json {@code plate}, else {@code boss})
+     * @param plateKill Boss.json {@code plateKill}: the kill is also counted like a named mob's (its plate vanishes near
+     *                  you after your damage number hit it), for bosses that send no kill leaderboard
      */
-    public record BossLoot(String dungeon, String boss, List<Drop> drops, Set<String> pityOnly) {
+    public record BossLoot(String dungeon, String boss, List<Drop> drops, Set<String> pityOnly, String plate,
+                           boolean plateKill) {
 
         /** The drops a kill of this boss adds pity to (normal and shiny). */
         public List<Drop> pityDrops() {
@@ -140,7 +144,11 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
                     if (n.isJsonPrimitive()) pityOnly.add(Names.key(n.getAsString()));
                 }
             }
-            BossLoot loot = new BossLoot(place, boss, List.copyOf(drops), Set.copyOf(pityOnly));
+            String plate = JsonFields.str(o, "plate");
+            boolean plateKill = o.has("plateKill") && o.get("plateKill").isJsonPrimitive()
+                    && o.get("plateKill").getAsBoolean();
+            BossLoot loot = new BossLoot(place, boss, List.copyOf(drops), Set.copyOf(pityOnly),
+                    plate.isEmpty() ? boss : plate, plateKill && !UNKNOWN.equals(boss));
             if (dungeon) dungeons.computeIfAbsent(Names.partKey(place), k -> new ArrayList<>()).add(loot);
             else realm.add(loot);
             if (!UNKNOWN.equals(boss)) byBoss.computeIfAbsent(Names.key(boss), k -> new ArrayList<>()).add(loot);
@@ -223,6 +231,17 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
                 }
             }
         }
+        return out;
+    }
+
+    /**
+     * The {@link BossLoot#plateKill} bosses to watch here, as plate name key ({@link Names#key}) to the boss: the ones of
+     * the dungeon with this in-game name, or outside a dungeon ({@code placeName} null) the realm ones.
+     */
+    public Map<String, BossLoot> plateKillBosses(String placeName) {
+        Map<String, BossLoot> out = new LinkedHashMap<>();
+        List<BossLoot> list = placeName == null ? dungeons.getOrDefault(Names.key(REALM), List.of()) : dungeon(placeName);
+        for (BossLoot b : list) if (b.plateKill()) out.putIfAbsent(Names.key(b.plate()), b);
         return out;
     }
 

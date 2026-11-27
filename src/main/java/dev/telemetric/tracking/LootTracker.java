@@ -46,6 +46,10 @@ import java.util.regex.Pattern;
  *       {@value #MOB_KILL_RANGE} blocks of you while the chunk is still loaded, it was killed near you and its drops get
  *       +1 ({@link Listener#onMobKill}). If a plate shows up again right there within {@value #MOB_RESENT_MS} ms, it was
  *       only re-sent and the kill is taken back.</li>
+ *   <li>Plate boss kill: a boss with Boss.json {@code "plateKill": true} (no leaderboard on its kill) is followed the
+ *       same way (its {@code plate} name, within {@value #BOSS_KILL_RANGE} blocks; realm bosses outside dungeons too)
+ *       and its kill counts like a leaderboard kill (contribution boost 0). A leaderboard of it within
+ *       {@link #SAME_KILL_MS} isn't counted again, and the other way round.</li>
  *   <li>Bag: a loot bag's totem pop gives {@code bag:<group>} +1 ({@code tables/rarities.json} bags).</li>
  * </ul>
  * The counters live in {@link TrackingStore} (per account). The chat layouts haven't been read live yet ({@code anyRuns}).
@@ -99,6 +103,10 @@ public final class LootTracker {
 
     /** A mob nameplate that vanishes within this many blocks (horizontal) of you counts as a kill. */
     static final int MOB_KILL_RANGE = 16;
+    /** Same for a {@link BossLoot#plateKill} boss (bigger fights, you're often further away). */
+    static final int BOSS_KILL_RANGE = 32;
+    /** A plate kill and a leaderboard of the same boss this close together are one kill. */
+    private static final long SAME_KILL_MS = 60_000;
     /** A plate that shows up within {@link #MOB_SAME_SQ} of a kill this soon after it is the same mob (the plate was re-sent). */
     static final long MOB_RESENT_MS = 5_000;
     private static final double MOB_SAME_SQ = 3 * 3, MOB_TELEPORT_SQ = 32 * 32;
@@ -115,6 +123,8 @@ public final class LootTracker {
     private final Map<String, Long> recentDrops = new HashMap<>();
     private BossLoot lastKill;
     private long lastKillAt;
+    /** {@link #lastKill} came from its plate ({@link BossLoot#plateKill}), not its leaderboard. */
+    private boolean lastKillByPlate;
     private boolean started;
 
     /**
@@ -123,8 +133,12 @@ public final class LootTracker {
      */
     private record MobPlate(String mob, Point pos, boolean hit) {}
 
-    /** A counted mob kill, kept for {@link #MOB_RESENT_MS} so it can be taken back if the plate comes back. */
-    private record MobKill(Point pos, long at, List<Drop> drops) {}
+    /**
+     * A counted mob kill, kept for {@link #MOB_RESENT_MS} so it can be taken back if the plate comes back. {@code boss}
+     * is set for a {@link BossLoot#plateKill} boss ({@code drops} are then its pity drops, {@code run} whether a run was
+     * counted too).
+     */
+    private record MobKill(Point pos, long at, List<Drop> drops, BossLoot boss, boolean run) {}
 
     private final Map<Integer, MobPlate> mobPlates = new HashMap<>();
     private final List<MobKill> mobKills = new ArrayList<>();
@@ -182,22 +196,26 @@ public final class LootTracker {
         PityScopes.get().tick(TrackingStore.of(PlayerAdapter.accountId()));
         String place = DungeonAdapter.isInDungeon() ? DungeonAdapter.dungeonName() : null;
         Map<String, List<Drop>> drops = place == null ? Map.of() : TelosData.LOOT.get().mobDrops(place);
+        Map<String, BossLoot> bosses = TelosData.LOOT.get().plateKillBosses(place);
+        boolean watch = !drops.isEmpty() || !bosses.isEmpty();
         Point player = DungeonAdapter.playerPos();
         // a new dungeon, no dungeon, or a teleport (death, portal, world change): forget the plates without counting
         boolean jumped = player == null || mobLastPlayer == null
                 || player.distanceSq(mobLastPlayer.x(), mobLastPlayer.y(), mobLastPlayer.z()) > MOB_TELEPORT_SQ;
-        if (drops.isEmpty() || jumped || !place.equals(mobPlace)) {
+        if (!watch || jumped || !java.util.Objects.equals(place, mobPlace)) {
             mobPlates.clear();
             mobKills.clear();
         }
         mobPlace = place;
         mobLastPlayer = player;
-        if (drops.isEmpty() || player == null) return;
+        if (!watch || player == null) return;
 
         long now = System.currentTimeMillis();
         mobKills.removeIf(k -> now - k.at() > MOB_RESENT_MS);
         Set<Integer> present = new HashSet<>();
-        for (String mob : drops.keySet()) {
+        Set<String> names = new java.util.LinkedHashSet<>(drops.keySet());
+        names.addAll(bosses.keySet());
+        for (String mob : names) {
             for (DungeonAdapter.NamePlate plate : DungeonAdapter.namePlates(mob)) {
                 present.add(plate.id());
                 MobPlate old = mobPlates.get(plate.id());
@@ -211,20 +229,45 @@ public final class LootTracker {
             it.remove();
             Point p = e.getValue().pos();
             double dx = p.x() - player.x(), dz = p.z() - player.z();
-            if (!DungeonAdapter.isLoaded(p.x(), p.z()) || dx * dx + dz * dz > MOB_KILL_RANGE * MOB_KILL_RANGE) continue;
-            List<Drop> own = drops.get(e.getValue().mob());
-            if (own == null || own.isEmpty()) continue;
+            String key = e.getValue().mob();
+            BossLoot boss = bosses.get(key);
+            int range = boss != null ? BOSS_KILL_RANGE : MOB_KILL_RANGE;
+            if (!DungeonAdapter.isLoaded(p.x(), p.z()) || dx * dx + dz * dz > range * range) continue;
+            List<Drop> own = drops.getOrDefault(key, List.of());
+            if (own.isEmpty() && boss == null) continue;
             if (!e.getValue().hit()) {
                 Telemetric.debug("Pity: named mob at {} died without a damage number near it (not yours, no pity)", p);
                 continue;
             }
+            if (boss != null) plateBossKill(boss, p, now);
+            if (own.isEmpty()) continue;
             TrackingStore store = store();
             for (Drop d : own) if (counts(d)) store.addPity(d.key());
-            mobKills.add(new MobKill(p, now, own));
-            String name = own.getFirst().mobName(e.getValue().mob());
+            mobKills.add(new MobKill(p, now, own, null, false));
+            String name = own.getFirst().mobName(key);
             Telemetric.debug("Pity: named mob '{}' killed at {}", name, p);
             for (Listener l : listeners) l.onMobKill(name, own);
         }
+    }
+
+    /**
+     * A {@link BossLoot#plateKill} boss died near you after you hit it: counted like a leaderboard kill, unless a
+     * leaderboard for it already counted it just now ({@link #SAME_KILL_MS}).
+     */
+    private void plateBossKill(BossLoot boss, Point p, long now) {
+        if (lastKill == boss && now - lastKillAt < SAME_KILL_MS) {
+            Telemetric.debug("Pity: boss '{}' plate gone, already counted by its leaderboard", boss.boss());
+            return;
+        }
+        boolean run = countKill(boss);
+        lastKill = boss;
+        lastKillAt = now;
+        lastKillByPlate = true;
+        List<Drop> counted = new ArrayList<>();
+        for (Drop d : boss.pityDrops()) if (counts(d)) counted.add(d);
+        mobKills.add(new MobKill(p, now, counted, boss, run));
+        Telemetric.debug("Pity: boss '{}' killed at {} (plate gone after your hit)", boss.boss(), p);
+        for (Listener l : listeners) l.onKill(boss, 0);
     }
 
     /**
@@ -262,6 +305,11 @@ public final class LootTracker {
             it.remove();
             TrackingStore store = store();
             for (Drop d : k.drops()) store.removePity(d.key());
+            if (k.boss() != null) {
+                store.addStat(STAT_KILLS, -1);
+                if (k.run()) store.addStat(STAT_RUNS, -1);
+                if (lastKill == k.boss()) lastKill = null;
+            }
             Telemetric.debug("Pity: named mob at {} is still alive (kill undone)", pos);
             return true;
         }
@@ -286,19 +334,28 @@ public final class LootTracker {
             Telemetric.debug("Pity: no loot table for boss '{}' (place {})", boss, place);
             return;
         }
+        long now = System.currentTimeMillis();
+        if (lastKill == loot && lastKillByPlate && now - lastKillAt < SAME_KILL_MS) {
+            Telemetric.debug("Pity: leaderboard for '{}', already counted by its plate", boss);
+            return;
+        }
         countKill(loot);
         lastKill = loot;
-        lastKillAt = System.currentTimeMillis();
+        lastKillAt = now;
+        lastKillByPlate = false;
         int boost = contributionBoost(lines);
         for (Listener l : listeners) l.onKill(loot, boost);
     }
 
-    private void countKill(BossLoot loot) {
+    /** @return true if a run was counted too */
+    private boolean countKill(BossLoot loot) {
         TrackingStore store = store();
         for (Drop d : loot.pityDrops()) if (counts(d)) store.addPity(d.key());
         store.addStat(STAT_KILLS, 1);
         List<BossLoot> bosses = loot.isRealm() ? List.of() : TelosData.LOOT.get().dungeon(loot.dungeon());
-        if (loot.isRealm() || (!bosses.isEmpty() && bosses.getLast() == loot)) store.addStat(STAT_RUNS, 1);
+        boolean run = loot.isRealm() || (!bosses.isEmpty() && bosses.getLast() == loot);
+        if (run) store.addStat(STAT_RUNS, 1);
+        return run;
     }
 
     private void onBonusChest() {
