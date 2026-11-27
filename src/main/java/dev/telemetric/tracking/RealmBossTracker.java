@@ -11,6 +11,7 @@ import dev.telemetric.game.BossMenuAdapter;
 import dev.telemetric.game.BossMenuAdapter.MenuItem;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.PlayerAdapter;
+import dev.telemetric.game.TelosServer;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,7 +24,8 @@ import java.util.regex.Pattern;
  * The state of the realm's bosses for the Boss Tracker. It's fed by:
  * <ul>
  *   <li>the {@code /bosses} menu ({@code » [Anubis] «} items, lore "alive" / "defeated" / "not spawned", Raphael's
- *       {@code (n/m)}), read whenever it closes, or automatically on realm entry ({@link #scanMenu});</li>
+ *       {@code (n/m)}), read whenever it closes, or automatically on every realm entry, also back from a dungeon
+ *       ({@link #scanMenu});</li>
  *   <li>server lines: {@code [Boss] …} (alive; the boss's {@code call} regex names who's fighting it; {@code spawn} /
  *       {@code defeat} lines of always-present bosses), {@code Boss has been defeated (n/m)} (portal open for
  *       {@code portalSeconds}; at n = m the {@code progress} boss's portal opens), and
@@ -86,6 +88,9 @@ public final class RealmBossTracker {
     /** Any server line, checked against the counter bosses' {@code ready} regexes ("A portal to Tenebris has opened…"). */
     static final ChatPattern ANY_LINE = ChatPattern.builder("Boss ready line", "[^\n]{8,160}").anyRuns().build();
 
+    /** How long a realm world may wait for its Tab "Server" value before falling back to the world change alone. */
+    private static final long REALM_WAIT_MS = 10_000;
+
     private static final RealmBossTracker INSTANCE = new RealmBossTracker();
 
     private final Map<String, Tracked> tracked = new LinkedHashMap<>();
@@ -94,8 +99,16 @@ public final class RealmBossTracker {
     private int progress, progressMax;
     private long realmJoinedAt;
     private Object world;
-    private boolean wasDungeon;
     private boolean started;
+    /** Tab "Server" value of the realm the state belongs to (null after the hub or before the first realm). */
+    private String realmServer;
+    /** Last Tab "Server" value seen outside a realm world (dungeon, hub), so a stale Tab list isn't taken as the realm. */
+    private String otherServer;
+    /** A realm world was entered and its Tab "Server" isn't known yet; since then (ms). 0 = nothing pending. */
+    private long pendingSince;
+    /** The world before the pending realm world was a realm world too (realm switch without a stop in between). */
+    private boolean pendingFromRealm;
+    private boolean inRealmWorld;
 
     private RealmBossTracker() {}
 
@@ -136,7 +149,10 @@ public final class RealmBossTracker {
         return c == null ? null : c.clone();
     }
 
-    /** When a realm was last joined from somewhere other than a dungeon (0 if not yet). That's when to read /bosses. */
+    /**
+     * When a realm world was last entered (0 if not yet), also when coming back from a dungeon: the realm's chat lines
+     * don't reach you while you're away, so that's when to read /bosses again.
+     */
     public long realmJoinedAt() { return realmJoinedAt; }
 
 
@@ -159,24 +175,56 @@ public final class RealmBossTracker {
     }
 
     /**
-     * Runs every client tick (on Telos). A new hub or realm (not coming back from a dungeon) forgets the old realm's
-     * bosses, and portals that ran out turn into defeated.
+     * Runs every client tick (on Telos). The hub forgets the realm's bosses. Entering a realm world keeps them if it's
+     * the same realm as before (Tab "Server", e.g. back from a dungeon or Raphael's Castle) and forgets them for
+     * another realm; either way /bosses is read again. Portals that ran out turn into defeated.
      */
     public void tick() {
+        long now = System.currentTimeMillis();
         Object w = PlayerAdapter.worldToken();
         if (w != null && w != world) {
             world = w;
             String dim = DungeonAdapter.dimensionId();
             if (dim == null) dim = "";
+            boolean wasRealm = inRealmWorld;
+            inRealmWorld = dim.startsWith("telos:realm");
+            pendingSince = 0;
             if (dim.startsWith("telos:hub") || dim.startsWith("telos:daily")) {
                 clear();
-            } else if (dim.startsWith("telos:realm") && !wasDungeon) {
-                clear();
-                realmJoinedAt = System.currentTimeMillis();
+                realmServer = null;
+            } else if (inRealmWorld) {
+                pendingSince = now;
+                pendingFromRealm = wasRealm;
             }
-            wasDungeon = DungeonAdapter.isInDungeon();
         }
-        expirePortals(System.currentTimeMillis());
+        String server = serverValue();
+        if (!inRealmWorld) {
+            if (server != null) otherServer = server;
+        } else {
+            checkRealm(server, now);
+        }
+        expirePortals(now);
+    }
+
+    /** In a realm world: forgets the state when the Tab list names another realm, and asks for a /bosses read. */
+    private void checkRealm(String server, long now) {
+        // the Tab list can still show the server you came from for a moment, so wait for the realm's own value
+        boolean known = server != null && (server.equals(realmServer) || !server.equals(otherServer));
+        if (known && !server.equals(realmServer)) {
+            clear();
+            realmServer = server;
+        } else if (pendingSince == 0 || !known && now - pendingSince < REALM_WAIT_MS) {
+            return;
+        } else if (!known && (pendingFromRealm || realmServer == null)) {
+            clear(); // no Tab list in time: realm to realm (or the first realm) counts as a new realm
+        }
+        pendingSince = 0;
+        realmJoinedAt = now;
+    }
+
+    private static String serverValue() {
+        TelosServer s = TelosServer.current();
+        return s == null ? null : s.display();
     }
 
     private synchronized void expirePortals(long now) {
