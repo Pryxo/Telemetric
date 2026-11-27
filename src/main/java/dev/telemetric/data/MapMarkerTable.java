@@ -26,7 +26,10 @@ public record MapMarkerTable(Map<String, String> states, List<Category> categori
     /** {@code markers}: the {@code markers} list; {@code players}: loaded players. */
     public enum Source { MARKERS, PLAYERS }
 
-    /** How a marker is drawn. {@code ICON} falls back to a dot when its icon isn't in the resource pack. */
+    /**
+     * How a marker is drawn. With an icon in the resource pack (its own or the category's), {@code ICON}/{@code DOT}
+     * draw a round badge and {@code DIAMOND} a diamond badge with the item inside; without one a dot / diamond.
+     */
     public enum Shape { ICON, DOT, DIAMOND, HEAD }
 
     /**
@@ -115,8 +118,10 @@ public record MapMarkerTable(Map<String, String> states, List<Category> categori
                     JsonFields.bool(o, "map", true), JsonFields.bool(o, "minimap", true)));
         }
         List<Entry> markers = new ArrayList<>();
+        java.util.Set<String> unknown = new java.util.TreeSet<>();
         for (JsonObject o : JsonFields.objects(root, "markers")) {
             String cat = JsonFields.str(o, "category"), region = JsonFields.str(o, "region");
+            if (!cat.isEmpty() && cats.stream().noneMatch(c -> c.id.equals(cat))) unknown.add(cat);
             List<Spot> spots = new ArrayList<>();
             for (JsonObject s : JsonFields.objects(o, "spots")) {
                 if (s.has("x") && s.has("z")) spots.add(new Spot(num(s, "x", 0) + 0.5, num(s, "y", 64), num(s, "z", 0) + 0.5));
@@ -124,6 +129,9 @@ public record MapMarkerTable(Map<String, String> states, List<Category> categori
             if (cat.isEmpty() || region.isEmpty() || spots.isEmpty()) continue;
             markers.add(new Entry(cat, JsonFields.str(o, "name"), region, icon(o),
                     Color.parse(JsonFields.str(o, "color"), null), JsonFields.str(o, "note"), List.copyOf(spots)));
+        }
+        if (!unknown.isEmpty()) {
+            dev.telemetric.Telemetric.LOGGER.warn("mapMarkers.json: markers use unknown categories {} (not drawn)", unknown);
         }
         return new MapMarkerTable(Map.copyOf(states), List.copyOf(cats), List.copyOf(markers));
     }

@@ -5,6 +5,7 @@ import dev.telemetric.data.MapTable;
 import dev.telemetric.game.MapTextureAdapter;
 import dev.telemetric.game.ResourceAdapter;
 import dev.telemetric.data.MapMarkerTable.Category;
+import dev.telemetric.data.MapMarkerTable.Shape;
 import dev.telemetric.map.MapMarkers;
 import dev.telemetric.map.MapMarkers.Marker;
 import dev.telemetric.ui.render.ColorUtil;
@@ -180,60 +181,62 @@ public final class MapRenderer {
     /** Half the hit size of a marker drawn at {@code size} (before its category's size factor). */
     public static double hitRadius(Marker m, double size) {
         double s = size * m.category().size();
-        return switch (m.category().shape()) {
-            case HEAD -> Math.max(4, s * 0.7) / 2 + 1;
-            case DIAMOND, DOT -> s * 0.3;
-            case ICON -> iconOf(m) != null ? s * 0.55 : s * 0.3;
-        };
+        if (m.category().shape() == Shape.HEAD) return Math.max(4, s * 0.7) / 2 + 1;
+        if (iconOf(m) != null) return badgeRadius(m.category().shape(), s) + 1;
+        return s * 0.3;
     }
 
     /**
      * Draws a marker centred on (sx, sy) the way its category says ({@code mapMarkers.json} {@code shape}).
-     * {@code size} is the icon size in GUI units before the category's size factor.
+     * {@code size} is the icon size in GUI units before the category's size factor. A marker with an icon in the
+     * resource pack is drawn as a badge in its shape (round for {@code icon}/{@code dot}, diamond for
+     * {@code diamond}) with the item inside; without one it is a plain dot or diamond.
      */
     public static void marker(Render2D r, Marker m, double sx, double sy, double size, boolean hovered, Theme p) {
         double s = size * m.category().size();
         int outline = ColorUtil.withAlpha(p.shadow(), 230);
+        Shape shape = m.category().shape();
+        if (shape == Shape.HEAD) {
+            head(r, m.skin(), sx, sy, Math.max(4, s * 0.7), 1, hovered ? p.text() : outline, p.textMuted());
+            return;
+        }
+        String icon = iconOf(m);
+        if (icon != null) {
+            badge(r, shape, icon, sx, sy, badgeRadius(shape, s), hovered ? p.text() : m.color(), p);
+            return;
+        }
         int fill = hovered ? p.text() : m.color();
-        switch (m.category().shape()) {
-            case HEAD -> head(r, m.skin(), sx, sy, Math.max(4, s * 0.7), 1, hovered ? p.text() : outline, p.textMuted());
-            case DIAMOND -> {
-                diamond(r, sx, sy, s * 0.3 + 1, outline);
-                diamond(r, sx, sy, s * 0.3, fill);
-            }
-            case DOT -> dot(r, sx, sy, s, fill, outline);
-            case ICON -> {
-                String icon = iconOf(m);
-                if (icon != null) iconDisc(r, icon, sx, sy, s, m.color(), outline, p);
-                else dot(r, sx, sy, s, fill, outline);
-            }
+        if (shape == Shape.DIAMOND) {
+            diamond(r, sx, sy, s * 0.3 + 1, outline);
+            diamond(r, sx, sy, s * 0.3, fill);
+        } else {
+            dot(r, sx, sy, s, fill, outline);
         }
     }
 
-    /** A category's legend swatch, {@code size} wide, centred on (cx, cy). {@code skin} is for head categories. */
-    public static void swatch(Render2D r, Category c, double cx, double cy, double size, String skin, Theme p) {
+    /**
+     * A category's legend swatch, {@code size} wide, centred on (cx, cy): the same badge as its markers.
+     * {@code icon} is the item model to show (the category's, or one of its markers'), or null; {@code skin} is for
+     * head categories.
+     */
+    public static void swatch(Render2D r, Category c, String icon, double cx, double cy, double size, String skin,
+                              Theme p) {
         int outline = ColorUtil.withAlpha(p.shadow(), 230);
         int color = MapMarkers.legendColor(c);
         double half = size / 2;
-        switch (c.shape()) {
-            case HEAD -> head(r, skin, cx, cy, size - 1, 1, outline, p.textMuted());
-            case DIAMOND -> {
-                diamond(r, cx, cy, half, outline);
-                diamond(r, cx, cy, half - 1, color);
-            }
-            case DOT -> {
-                disc(r, cx, cy, half - 0.5, outline);
-                disc(r, cx, cy, half - 1.5, color);
-            }
-            case ICON -> {
-                String icon = usable(c.icon());
-                if (icon != null) {
-                    r.itemModel(icon, (float) (cx - half - 1), (float) (cy - half - 1), (float) (size + 2));
-                } else {
-                    disc(r, cx, cy, half + 1, outline);
-                    disc(r, cx, cy, half, color);
-                }
-            }
+        if (c.shape() == Shape.HEAD) {
+            head(r, skin, cx, cy, size - 2, 1, outline, p.textMuted());
+            return;
+        }
+        String model = usable(icon);
+        if (model != null) {
+            badge(r, c.shape(), model, cx, cy, c.shape() == Shape.DIAMOND ? half * 0.95 : half - 1, color, p);
+        } else if (c.shape() == Shape.DIAMOND) {
+            diamond(r, cx, cy, half - 1, outline);
+            diamond(r, cx, cy, half - 2, color);
+        } else {
+            disc(r, cx, cy, half - 1.5, outline);
+            disc(r, cx, cy, half - 2.5, color);
         }
     }
 
@@ -243,13 +246,34 @@ public final class MapRenderer {
         disc(r, sx, sy, rad, fill);
     }
 
-    private static void iconDisc(Render2D r, String icon, double sx, double sy, double s, int ring, int outline, Theme p) {
-        double rad = s * 0.55;
-        disc(r, sx, sy, rad + 1.5, outline);
-        disc(r, sx, sy, rad + 0.5, ring);
-        disc(r, sx, sy, rad - 0.5, ColorUtil.withAlpha(p.panel(), 235));
-        double is = Math.max(8, s * 0.8);
-        r.itemModel(icon, (float) (sx - is / 2), (float) (sy - is / 2), (float) is);
+    /** Inner radius of an icon badge (disc radius, or the diamond's half diagonal) for size {@code s}. */
+    private static double badgeRadius(Shape shape, double s) {
+        return shape == Shape.DIAMOND ? s * 0.72 : s * 0.55;
+    }
+
+    /**
+     * An icon badge: soft drop shadow, dark outline, a 1-unit {@code ring} in the marker's colour, a panel-coloured
+     * face and the item model on top, sized to fill the face (a diamond's face only fits a square of its half
+     * diagonal, so its item is relatively smaller).
+     */
+    private static void badge(Render2D r, Shape shape, String icon, double cx, double cy, double rad, int ring, Theme p) {
+        int shadow = ColorUtil.withAlpha(p.shadow(), 90), outline = ColorUtil.withAlpha(p.shadow(), 230);
+        int face = ColorUtil.withAlpha(p.panel(), 240);
+        double is;
+        if (shape == Shape.DIAMOND) {
+            diamond(r, cx, cy + 1, rad + 2, shadow);
+            diamond(r, cx, cy, rad + 2, outline);
+            diamond(r, cx, cy, rad + 0.8, ring);
+            diamond(r, cx, cy, rad - 0.6, face);
+            is = Math.max(7, rad * 1.15);
+        } else {
+            disc(r, cx, cy + 1, rad + 1.5, shadow);
+            disc(r, cx, cy, rad + 1.5, outline);
+            disc(r, cx, cy, rad + 0.5, ring);
+            disc(r, cx, cy, rad - 0.5, face);
+            is = Math.max(7, rad * 1.5);
+        }
+        r.itemModel(icon, (float) (cx - is / 2), (float) (cy - is / 2), (float) is);
     }
 
     /** The marker's item model ({@code mapMarkers.json} {@code icon}) if the resource pack has it, else null. */

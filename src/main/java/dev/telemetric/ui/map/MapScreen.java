@@ -49,7 +49,7 @@ import java.util.Map;
 public final class MapScreen extends Screen {
 
     private static final int PAD = 8, GAP = 4, TAB_H = 14, FOOT_H = 9, RADIUS = 4, TIP_PAD = 6;
-    private static final int LEG_PAD = 5, LEG_ROW = 12, LEG_SWATCH = 8;
+    private static final int LEG_PAD = 6, LEG_ROW = 16, LEG_SWATCH = 12, LEG_GAP = 4, LEG_COUNT_GAP = 8;
     private static final double MAX_SCALE = 8, ZOOM_STEP = 1.25, MARKER_BASE = 14;
     private static final int[] SCALE_STEPS = {5, 10, 25, 50, 100, 250, 500, 1000, 2500};
 
@@ -80,6 +80,7 @@ public final class MapScreen extends Screen {
     private Marker hovered;
     private final List<Button> tabs = new ArrayList<>(), legend = new ArrayList<>();
     private final List<Category> legendCats = new ArrayList<>();
+    private final List<String> legendIcons = new ArrayList<>(), legendCounts = new ArrayList<>();
     private int legX, legY, legW, legH;
     private int px, py, pw, ph;
 
@@ -133,17 +134,35 @@ public final class MapScreen extends Screen {
         }
     }
 
-    /** The legend card in the panel's top-left corner: one toggle row per category the region has. */
+    /**
+     * The legend card in the panel's top-left corner: one toggle row per category the region has — its marker badge,
+     * name and how many of it the region has.
+     */
     private void layoutLegend(List<Marker> all) {
         legend.clear();
         legendCats.clear();
+        legendIcons.clear();
+        legendCounts.clear();
         for (Category c : MapMarkers.categories()) if (MapMarkers.any(all, c)) legendCats.add(c);
         int w = textW("Legend");
-        for (Category c : legendCats) w = Math.max(w, LEG_SWATCH + 5 + textW(c.label()));
+        for (Category c : legendCats) {
+            int n = 0;
+            String icon = c.icon();
+            for (Marker m : all) {
+                if (m.category() != c) continue;
+                n++;
+                if (icon == null && m.icon() != null) icon = m.icon();
+            }
+            String count = c.source() == Source.PLAYERS || n == 0 ? "" : Integer.toString(n);
+            legendIcons.add(icon);
+            legendCounts.add(count);
+            int countW = count.isEmpty() ? 0 : LEG_COUNT_GAP + textW(count);
+            w = Math.max(w, LEG_SWATCH + LEG_GAP + textW(c.label()) + countW);
+        }
         legW = w + LEG_PAD * 2;
         legX = px + 6;
         legY = py + 6;
-        int y = legY + LEG_PAD + font.lineHeight + 3;
+        int y = legY + LEG_PAD + font.lineHeight + 2;
         for (Category c : legendCats) {
             legend.add(new Button(c.label(), c.id(), legX + 2, y, legW - 4, LEG_ROW));
             y += LEG_ROW;
@@ -401,11 +420,16 @@ public final class MapScreen extends Screen {
             Animation h = hover.computeIfAbsent("leg" + b.id, k -> new Animation(Durations.HOVER, Easing.OUT_CUBIC, 0));
             h.animateTo(b.contains(mouseX, mouseY) ? 1 : 0);
             if (h.get() > 0.01) r.roundedRect(b.x, b.y, b.w, b.h, 3, ColorUtil.fade(p.surfaceHover(), h.get()));
-            r.pushAlpha(on ? 1 : 0.35);
-            MapRenderer.swatch(r, c, b.x + LEG_PAD - 2 + LEG_SWATCH / 2.0, b.y + b.h / 2.0, LEG_SWATCH, skin, p);
+            int sx = b.x + LEG_PAD - 2;
+            r.pushAlpha(on ? 1 : 0.3);
+            MapRenderer.swatch(r, c, legendIcons.get(i), sx + LEG_SWATCH / 2.0, b.y + b.h / 2.0, LEG_SWATCH, skin, p);
             r.popAlpha();
-            r.text(b.label, b.x + LEG_PAD - 2 + LEG_SWATCH + 5, b.y + (b.h - r.fontHeight()) / 2 + 1,
-                    on ? p.text() : p.textDisabled());
+            int ty = b.y + (b.h - r.fontHeight()) / 2 + 1;
+            r.text(b.label, sx + LEG_SWATCH + LEG_GAP, ty, on ? p.text() : p.textDisabled());
+            String count = legendCounts.get(i);
+            if (!count.isEmpty()) {
+                r.text(count, b.x + b.w - (LEG_PAD - 2) - textW(count), ty, on ? p.textMuted() : p.textDisabled());
+            }
         }
     }
 
