@@ -30,6 +30,7 @@
 		"LightmapMixin",
 		"LivingEntityRendererMixin",
 		"LocalPlayerMixin",
+		"MouseHandlerMixin",
 		"MultiPlayerGameModeMixin",
 		"PlayerTabOverlayMixin",
 		"RenderPipelinesAccessor",

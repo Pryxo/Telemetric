@@ -29,6 +29,7 @@ import dev.telemetric.module.impl.misc.HudSettingsModule;
 import dev.telemetric.module.impl.misc.InterfaceModule;
 import dev.telemetric.module.impl.misc.ThemeModule;
 import dev.telemetric.module.impl.player.AutoSprintModule;
+import dev.telemetric.module.impl.player.KeepCursorModule;
 import dev.telemetric.module.impl.player.KeybindsModule;
 import dev.telemetric.module.impl.social.CalloutsModule;
 import dev.telemetric.module.impl.social.ChatModule;
@@ -78,6 +79,7 @@ public final class ModuleManager {
         // Movement & Controls
         register(new AutoSprintModule());
         register(new KeybindsModule());
+        register(new KeepCursorModule());
 
         // Combat (cooldowns come from the shared CooldownTracker; these HUD elements are listed in the Combat panel)
         register(HeldCooldownHud.weapon());

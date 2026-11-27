@@ -7,11 +7,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,7 +73,7 @@ public final class BossStageAdapter {
         // Badges sit on the floor under the player, since the boss's own column can be void or a tall prop.
         // Cached and only re-measured on the ground, so jumps and falls don't move the badges.
         if (player.onGround() || Double.isNaN(cachedFloorY)) {
-            cachedFloorY = groundY(level, player.getX(), player.getY() + 0.5, player.getZ());
+            cachedFloorY = groundY(level, player, player.getY() + 0.5);
         }
         double floorY = cachedFloorY;
         Map<String, String> keys = bossKeys();
@@ -202,14 +206,31 @@ public final class BossStageAdapter {
         return Math.abs(v - target) <= 10;
     }
 
-    /** Top of the first solid block at or below y (searching {@value #MAX_DROP} blocks), or y itself. */
-    private static double groundY(ClientLevel level, double x, double y, double z) {
+    /**
+     * Highest collision top under the player's footprint at or below y (searching {@value #MAX_DROP} blocks), or y.
+     * Uses collision shapes, so grass/flowers/fluids are skipped, glass/leaves/barriers count, and slabs, carpets and
+     * snow layers give their real height. Every column the hitbox touches is checked, so standing on an edge works.
+     */
+    private static double groundY(ClientLevel level, LocalPlayer player, double y) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int bx = Mth.floor(x), bz = Mth.floor(z);
+        AABB box = player.getBoundingBox();
+        int x0 = Mth.floor(box.minX + 1.0E-3), x1 = Mth.floor(box.maxX - 1.0E-3);
+        int z0 = Mth.floor(box.minZ + 1.0E-3), z1 = Mth.floor(box.maxZ - 1.0E-3);
         int top = Mth.floor(y), bottom = Math.max(level.getMinY(), top - MAX_DROP);
         for (int by = top; by >= bottom; by--) {
-            pos.set(bx, by, bz);
-            if (!level.getBlockState(pos).isAir()) return by + 1;
+            double best = Double.NEGATIVE_INFINITY;
+            for (int bx = x0; bx <= x1; bx++) {
+                for (int bz = z0; bz <= z1; bz++) {
+                    pos.set(bx, by, bz);
+                    BlockState state = level.getBlockState(pos);
+                    if (state.isAir()) continue;
+                    VoxelShape shape = state.getCollisionShape(level, pos);
+                    if (shape.isEmpty()) continue;
+                    double surface = by + shape.max(Direction.Axis.Y);
+                    if (surface <= y) best = Math.max(best, surface);
+                }
+            }
+            if (best != Double.NEGATIVE_INFINITY) return best;
         }
         return y;
     }
