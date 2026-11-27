@@ -2,6 +2,7 @@ package dev.telemetric.module.impl.visual;
 
 import com.google.gson.JsonObject;
 import dev.telemetric.Telemetric;
+import dev.telemetric.game.BossBarAdapter;
 import dev.telemetric.game.BossStageAdapter;
 import dev.telemetric.game.BossStageAdapter.Kind;
 import dev.telemetric.game.BossStageAdapter.Stage;
@@ -214,6 +215,12 @@ public final class BossStageTrackerModule extends Module {
 
     private final BooleanSetting showDamageable = add(new BooleanSetting("Show Vulnerable",
             "Also show the stage badge while the boss can be damaged", true));
+    private final BooleanSetting colorBossBar = add(new BooleanSetting("Color Boss Bar",
+            "Colour the boss's bar at the top of the screen in its current stage colour (Immune / Shielded / Vulnerable)",
+            false));
+    private final BooleanSetting cleanBossBar = add(new BooleanSetting("Clean Boss Bar",
+            "Draw the coloured boss bar as a flat, solid bar instead of Minecraft's textured one", false)
+            .visibleWhen(colorBossBar::get));
     private final BooleanSetting throughWalls = add(new BooleanSetting("Through Walls",
             "Label stays visible behind blocks", true));
     private final NumberSetting range = add(new NumberSetting("Range", "Track bosses up to this far away",
@@ -293,6 +300,8 @@ public final class BossStageTrackerModule extends Module {
     @Override
     public void onTick() {
         stages = BossStageAdapter.scan(range.get());
+        BossBarAdapter.setStageTints(colorBossBar.get() ? barTints(stages) : java.util.Map.of());
+        BossBarAdapter.setCleanBar(colorBossBar.get() && cleanBossBar.get());
         // flash state is keyed per boss entity, so forget it once no boss is tracked (it would grow all session)
         if (stages.isEmpty() && flashLast.size() > 32) {
             flashLast.clear();
@@ -305,6 +314,28 @@ public final class BossStageTrackerModule extends Module {
         flashLast.clear();
         flashAt.clear();
         stages = List.of();
+        BossBarAdapter.setStageTints(java.util.Map.of());
+        BossBarAdapter.setCleanBar(false);
+    }
+
+    /**
+     * Stage colour per boss bar: each stage colours only its own boss's bar (nearest stage wins for one boss). A stage
+     * whose nameplate names no Boss.json boss falls back to the only showing boss bar no named stage has claimed.
+     */
+    private java.util.Map<String, Integer> barTints(List<Stage> list) {
+        if (list.isEmpty()) return java.util.Map.of();
+        java.util.Map<String, Integer> out = new java.util.HashMap<>();
+        Stage unnamed = null;
+        for (Stage s : list) { // sorted nearest first
+            if (s.boss() != null) out.putIfAbsent(s.boss(), color(s.kind()).get() | 0xFF000000);
+            else if (unnamed == null) unnamed = s;
+        }
+        if (unnamed != null) {
+            List<String> free = new java.util.ArrayList<>(BossBarAdapter.knownBarBossKeys());
+            free.removeAll(out.keySet());
+            if (free.size() == 1) out.put(free.getFirst(), color(unnamed.kind()).get() | 0xFF000000);
+        }
+        return out;
     }
 
     private static BooleanSetting dpsStat(String stat, String what) {

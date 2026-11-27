@@ -261,6 +261,23 @@ public abstract class Module implements JsonSerializable {
         return null;
     }
 
+    private String requestedSection;
+
+    /**
+     * Asks an open Settings window of this module to switch to the section with this label (e.g. a tab that just
+     * appeared). Ignored if no window shows this module.
+     */
+    protected void requestSection(String label) {
+        requestedSection = label;
+    }
+
+    /** The section asked for by {@link #requestSection}, once (then null). */
+    public String takeRequestedSection() {
+        String s = requestedSection;
+        requestedSection = null;
+        return s;
+    }
+
 
     @Override
     public JsonObject toJson() {

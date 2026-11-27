@@ -152,6 +152,29 @@ public final class CombatAdapter {
         return out;
     }
 
+    /**
+     * Every item on the player that has a cooldown (weapons, ability items and anything with a {@code Cooldown »}
+     * lore line): hands, worn armor, then the inventory, the first of each name only.
+     */
+    public static List<ItemInfo> cooldownItems() {
+        LocalPlayer p = player();
+        if (p == null) return List.of();
+        List<ItemStack> stacks = new ArrayList<>();
+        stacks.add(p.getMainHandItem());
+        stacks.add(p.getOffhandItem());
+        for (ArmorSlot slot : ArmorSlot.values()) stacks.add(p.getItemBySlot(slot.vanilla));
+        stacks.addAll(p.getInventory().getNonEquipmentItems());
+        List<ItemInfo> out = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (ItemStack stack : stacks) {
+            ItemInfo info = info(p, stack);
+            if (info == null || info.name().isBlank()) continue;
+            boolean cools = info.hasAbility() || info.kind() == Kind.WEAPON || info.kind() == Kind.ABILITY;
+            if (cools && seen.add(info.nameKey())) out.add(info);
+        }
+        return out;
+    }
+
     /** The first item on the player (hands, armor, inventory) that uses cooldown {@code group}, or null. */
     public static ItemInfo findByGroup(String group) {
         LocalPlayer p = player();

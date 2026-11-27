@@ -462,6 +462,10 @@ public final class SettingsWindow extends UIComponent {
         }
         this.screenW = screenW;
         this.screenH = screenH;
+        String wanted = module.takeRequestedSection();
+        if (wanted != null) {
+            for (Section s : sections) if (s.visible() && s.name().equals(wanted)) select(s);
+        }
         if (selected == null || !selected.visible()) {
             for (Section s : sections) if (s.visible()) {
                 selected = s;

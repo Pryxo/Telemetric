@@ -14,10 +14,10 @@ import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,9 +32,10 @@ public final class BossStageAdapter {
 
     /**
      * hp and maxHp are NaN without an HP plate. percent is 0..100, or -1 when unknown.
+     * boss is the Boss.json name key ({@link DungeonAdapter#normalizeName} form) read from the nameplate, or null.
      */
     public record Stage(int entityId, Kind kind, int rgb, double groundY, double hp, double maxHp, double percent,
-                        double distanceSq) {
+                        double distanceSq, String boss) {
         public boolean hasHp() {
             return !Double.isNaN(hp) && !Double.isNaN(maxHp) && maxHp > 0;
         }
@@ -48,7 +49,8 @@ public final class BossStageAdapter {
 
     /** Boss table the cached name keys were built from, and those keys ({@link DungeonAdapter#plateLetters} form). */
     private static BossTable keysFrom;
-    private static Set<String> bossKeys = Set.of();
+    /** Nameplate key (boss name or plate) → boss name key. */
+    private static Map<String, String> bossKeys = Map.of();
     private static final int MAX_DROP = 48;
 
     /** Floor Y under the player, last measured while on the ground (NaN until it's been measured). */
@@ -70,19 +72,21 @@ public final class BossStageAdapter {
             cachedFloorY = groundY(level, player.getX(), player.getY() + 0.5, player.getZ());
         }
         double floorY = cachedFloorY;
-        Set<String> keys = bossKeys();
+        Map<String, String> keys = bossKeys();
         List<BossBarAdapter.KnownBar> bars = BossBarAdapter.knownBossBars();
         double barPercent = bars.size() == 1 ? bars.getFirst().percent() : -1;
         for (Entity e : level.entitiesForRendering()) {
             if (!(e instanceof Display.TextDisplay td) || e.isRemoved()) continue;
             if (e.distanceToSqr(player) > r2) continue;
             Component text = ((TextDisplayAccessor) td).telemetric$getText();
-            if (text == null || !text.getString().contains(STATUS_GLYPH) || !hasPair(td, keys)) continue;
+            if (text == null || !text.getString().contains(STATUS_GLYPH)) continue;
+            String[] boss = new String[1];
+            if (!hasPair(td, keys, boss)) continue;
             int rgb = statusColor(text);
             double[] hp = hpOf(td);
             double percent = hp != null ? Math.clamp(hp[0] / hp[1] * 100.0, 0, 100) : barPercent;
             out.add(new Stage(e.getId(), kindOf(rgb), rgb, floorY, hp != null ? hp[0] : Double.NaN,
-                    hp != null ? hp[1] : Double.NaN, percent, e.distanceToSqr(player)));
+                    hp != null ? hp[1] : Double.NaN, percent, e.distanceToSqr(player), boss[0]));
         }
         out.sort(java.util.Comparator.comparingDouble(Stage::distanceSq));
         return out;
@@ -100,19 +104,25 @@ public final class BossStageAdapter {
     /**
      * True if a sibling passenger shows the boss glyph U+1604C, or a nameplate that spells a Boss.json boss name or plate.
      * Unrest uses the normal-mob font, and its stack looks like any other mob's, so only the name separates them.
+     * Writes the boss name key into {@code bossOut[0]} when a sibling nameplate names a Boss.json boss.
      */
-    private static boolean hasPair(Display.TextDisplay status, Set<String> keys) {
+    private static boolean hasPair(Display.TextDisplay status, Map<String, String> keys, String[] bossOut) {
         Entity root = status.getRootVehicle();
         if (root == status) return false;
+        boolean paired = false;
         for (Entity p : root.getPassengers()) {
             if (p == status || !(p instanceof Display.TextDisplay td)) continue;
             Component t = ((TextDisplayAccessor) td).telemetric$getText();
             if (t == null) continue;
             String s = t.getString();
-            if (s.contains(PAIR_GLYPH)) return true;
-            if (!keys.isEmpty() && keys.contains(DungeonAdapter.plateLetters(s))) return true;
+            if (s.contains(PAIR_GLYPH)) paired = true;
+            String boss = keys.isEmpty() ? null : keys.get(DungeonAdapter.plateLetters(s));
+            if (boss != null) {
+                bossOut[0] = boss;
+                return true;
+            }
         }
-        return false;
+        return paired;
     }
 
     /** {current, max} from the HP plate riding with the status display, or null if the boss has none. */
@@ -151,14 +161,16 @@ public final class BossStageAdapter {
     }
 
     /** Boss names as nameplate letters. Rebuilt when the table is reloaded. */
-    private static Set<String> bossKeys() {
+    private static Map<String, String> bossKeys() {
         BossTable table = TelosData.BOSSES.get();
         if (table != keysFrom) {
-            Set<String> keys = new HashSet<>();
+            Map<String, String> keys = new HashMap<>();
             for (BossTable.Boss b : table.all()) {
+                String name = DungeonAdapter.normalizeName(b.name());
+                if (name.isEmpty()) continue;
                 for (String n : new String[]{b.name(), b.plate()}) {
                     String k = DungeonAdapter.normalizeName(n);
-                    if (!k.isEmpty()) keys.add(k);
+                    if (!k.isEmpty()) keys.putIfAbsent(k, name);
                 }
             }
             bossKeys = keys;

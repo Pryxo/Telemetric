@@ -83,7 +83,8 @@ public final class ModuleManager {
         register(HeldCooldownHud.weapon());
         register(HeldCooldownHud.ability());
         register(new ArmorCooldownsHud());
-        register(new ReadyAlertsHud());
+        ReadyAlertsHud readyAlerts = register(new ReadyAlertsHud());
+        for (var group : readyAlerts.groups()) register(group);
         ItemRangeModule abilityRange = ItemRangeModule.ability();
         register(ItemRangeModule.weapon(abilityRange));
         register(abilityRange);

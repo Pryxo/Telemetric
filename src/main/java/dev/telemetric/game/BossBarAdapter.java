@@ -201,6 +201,61 @@ public final class BossBarAdapter {
      * Scale for the bar with this name. A known boss gets its Boss Bar Scale size (tables/Boss.json, matched by name
      * hash or boss name); everything else (HUD widget bars, the dungeon name) gets 1.
      */
+    /** Boss name key ({@code Names.key}) → ARGB stage tint. */
+    private static volatile Map<String, Integer> stageTints = Map.of();
+    private static final Map<Component, String> tintBossCache = new java.util.IdentityHashMap<>();
+
+    /**
+     * Boss Stage Tracker → Color Boss Bar: ARGB tint per boss (keyed by {@code Names.key} of the Boss.json name), so
+     * only the bar of the boss in that stage is coloured. Empty = vanilla colours.
+     */
+    public static void setStageTints(Map<String, Integer> tints) {
+        stageTints = tints == null || tints.isEmpty() ? Map.of() : Map.copyOf(tints);
+    }
+
+    private static volatile boolean cleanBar;
+
+    /** Boss Stage Tracker → Clean Boss Bar: tinted bars are drawn as flat fills instead of the vanilla sprite. */
+    public static void setCleanBar(boolean clean) { cleanBar = clean; }
+
+    public static boolean cleanBar() { return cleanBar; }
+
+    /** Tint for the bar with this name: its own boss's stage colour while one is set, else 0. */
+    public static int tintFor(Component name) {
+        Map<String, Integer> tints = stageTints;
+        if (tints.isEmpty() || name == null || !ServerGate.onTelos()) return 0;
+        String boss = barBoss(name);
+        Integer t = boss == null ? null : tints.get(boss);
+        return t == null ? 0 : t;
+    }
+
+    /** Boss name key of a showing bar's name (by name hash, else by its plain letters), or null. Cached per name. */
+    public static String barBoss(Component name) {
+        if (name == null) return null;
+        String cached = tintBossCache.get(name);
+        if (cached != null) return cached.isEmpty() ? null : cached;
+        TelosData.BossBars bars = TelosData.BOSS_BARS.get();
+        String n = bars.nameFor(name.hashCode());
+        String key = n != null ? dev.telemetric.data.Names.key(n)
+                : bars.isBossBar(0, letters(name)) ? dev.telemetric.data.Names.key(letters(name)) : "";
+        if (tintBossCache.size() > 32) tintBossCache.clear();
+        tintBossCache.put(name, key);
+        return key.isEmpty() ? null : key;
+    }
+
+    /** Boss name keys of the showing known boss bars, in bar order (duplicates removed). */
+    public static List<String> knownBarBossKeys() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gui == null || !ServerGate.onTelos()) return List.of();
+        Map<UUID, LerpingBossEvent> events = ((BossHealthOverlayAccessor) mc.gui.getBossOverlay()).telemetric$getEvents();
+        List<String> out = new ArrayList<>(2);
+        for (LerpingBossEvent e : events.values()) {
+            String k = barBoss(e.getName());
+            if (k != null && !out.contains(k)) out.add(k);
+        }
+        return out;
+    }
+
     public static float scaleFor(Component name) {
         float s = barScale;
         if (s >= 1f || name == null || !ServerGate.onTelos()) return 1f;

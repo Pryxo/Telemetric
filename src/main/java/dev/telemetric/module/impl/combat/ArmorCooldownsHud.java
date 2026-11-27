@@ -10,12 +10,10 @@ import dev.telemetric.module.Category;
 import dev.telemetric.module.impl.combat.CooldownTracker.Cooldown;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.EnumSetting;
-import dev.telemetric.setting.impl.MultiChoiceSetting;
 import dev.telemetric.setting.impl.NumberSetting;
 import dev.telemetric.ui.render.Render2D;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -57,7 +55,6 @@ public final class ArmorCooldownsHud extends HudModule {
 
     private static final int ICON = 16, GAP = 1, BAR_H = 4, STRIP_GAP = 3;
     private static final float[] PREVIEW_PROGRESS = {0f, 0.35f, 0.7f, 1f};
-    private static final List<String> SLOT_LABELS = Arrays.stream(ArmorSlot.values()).map(ArmorSlot::label).toList();
 
     private final EnumSetting<Orientation> orientation = add(new EnumSetting<>("Orientation",
             "Pieces in a row or a column", Orientation.HORIZONTAL));
@@ -80,9 +77,6 @@ public final class ArmorCooldownsHud extends HudModule {
             "Pixels between pieces above each other (negative = overlap)", 1, -8, 16, 1).withSuffix("px"));
     private final BooleanSetting showBars = add(new BooleanSetting("Show Bars",
             "Cooldown bar under every piece that has an ability", true));
-    private final ReadyCue cue = addBundle(new ReadyCue("{slot} Ready!", "entity.player.levelup"));
-    private final MultiChoiceSetting silent = add(new MultiChoiceSetting("Silent Slots",
-            "No Ready Alert / Sound for these slots", () -> SLOT_LABELS));
     private final CooldownBar bar = addBundle(new CooldownBar());
 
     /** One drawn piece. A null {@code cooldown} means it's ready (or has no ability). */
@@ -97,16 +91,9 @@ public final class ArmorCooldownsHud extends HudModule {
     private volatile Layout current = Layout.EMPTY;
 
     public ArmorCooldownsHud() {
-        super("Armor Cooldowns", "Your armor with cooldown bars for armor abilities, a popup and sound when ready",
+        super("Armor Cooldowns", "Your armor with cooldown bars for armor abilities (ready popup and sound: Combat → Ready Alerts)",
                 Category.COMBAT, 0.0, 0.75, false);
         addFrameSettings(false);
-        CooldownTracker.get().addListener(this::onReady);
-    }
-
-    private void onReady(Cooldown done) {
-        if (!isEnabled() || !done.is(Kind.ARMOR) || done.info().slot() == null) return;
-        String slot = done.info().slot().label();
-        if (!silent.contains(slot)) cue.fire(done.info().name(), slot);
     }
 
     @Override

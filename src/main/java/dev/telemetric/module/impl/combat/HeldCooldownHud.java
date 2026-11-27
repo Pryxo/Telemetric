@@ -13,8 +13,8 @@ import dev.telemetric.ui.render.Render2D;
  * Weapon Cooldown / Ability Cooldown: a small bar and item icon beside the crosshair (movable in the HUD editor)
  * showing the cooldown of the held weapon or ability. When the held one is ready (or nothing of that kind is held), the
  * most recently used one that is still cooling down (e.g. a hotbar ability next to an off-hand one) shows instead
- * until its cooldown ends. When it's ready you get a full bar, a short "!" flash, the Ready Alert and
- * the Ready Sound.
+ * until its cooldown ends. When it's ready you get a full bar and a short "!" flash (popup and sound: the Main Hand /
+ * Off Hand tabs of {@link ReadyAlertsHud}).
  * <p>
  * One class with two instances ({@link #weapon()}, {@link #ability()}). The data comes from {@link CooldownTracker}.
  */
@@ -23,8 +23,6 @@ public final class HeldCooldownHud extends HudModule {
     private static final int BAR_W = 5, ICON = 16, GAP = 1;
 
     private final Kind kind;
-    private final String slotLabel;
-    private final ReadyCue cue;
     private final CooldownBar bar;
 
     /** What to draw, refreshed every tick. The bar itself is interpolated per frame from the cooldown's times. */
@@ -33,19 +31,17 @@ public final class HeldCooldownHud extends HudModule {
     private long readyAt;
 
     public static HeldCooldownHud weapon() {
-        return new HeldCooldownHud(Kind.WEAPON, "Weapon", 0.445, "Weapon Ready!", "block.note_block.banjo");
+        return new HeldCooldownHud(Kind.WEAPON, "Weapon", 0.445);
     }
 
     public static HeldCooldownHud ability() {
-        return new HeldCooldownHud(Kind.ABILITY, "Ability", 0.555, "Ability Ready!", "entity.player.levelup");
+        return new HeldCooldownHud(Kind.ABILITY, "Ability", 0.555);
     }
 
-    private HeldCooldownHud(Kind kind, String slotLabel, double defaultX, String readyText, String readySound) {
+    private HeldCooldownHud(Kind kind, String slotLabel, double defaultX) {
         super(slotLabel + " Cooldown", "Cooldown bar of your " + slotLabel.toLowerCase(java.util.Locale.ROOT)
-                + " beside the crosshair, with a popup and sound when it is ready", Category.COMBAT, defaultX, 0.5, false);
+                + " beside the crosshair (ready popup and sound: Combat → Ready Alerts)", Category.COMBAT, defaultX, 0.5, false);
         this.kind = kind;
-        this.slotLabel = slotLabel;
-        this.cue = addBundle(new ReadyCue(readyText, readySound));
         this.bar = addBundle(new CooldownBar());
         addFrameSettings(false);
         CooldownTracker.get().addListener(this::onReady);
@@ -54,7 +50,6 @@ public final class HeldCooldownHud extends HudModule {
     private void onReady(Cooldown done) {
         if (!isEnabled() || !done.is(kind)) return;
         readyAt = System.currentTimeMillis();
-        cue.fire(done.info().name(), slotLabel);
     }
 
     @Override
