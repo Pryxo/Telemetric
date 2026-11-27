@@ -7,6 +7,7 @@ import dev.telemetric.input.InputUtil;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
 import dev.telemetric.setting.impl.BooleanSetting;
+import dev.telemetric.setting.impl.ColorSetting;
 import dev.telemetric.setting.impl.MultiChoiceSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.KeybindSetting;
@@ -31,6 +32,14 @@ public final class MapModule extends Module {
             () -> TelosData.MAP_MARKERS.get().labels(), hiddenByDefault(MapMarkerTable.Category::map))));
     public final NumberSetting markerSize = add(markerGroup.child(new NumberSetting("Marker Size",
             "Size of the icons on the map", 1.0, 0.6, 2.0, 0.1).withSuffix("x")));
+
+    private final GroupSetting colorGroup = add(new GroupSetting("Boss Colors", "Boss marker colours on the map"));
+    private final ColorSetting aliveColor = add(colorGroup.child(new ColorSetting("Alive Color",
+            "Alive, nobody fighting", 0xFF55FF55, false)));
+    private final ColorSetting fightingColor = add(colorGroup.child(new ColorSetting("Fighting Color",
+            "Someone is fighting it", 0xFF5599FF, false)));
+    private final ColorSetting deadColor = add(colorGroup.child(new ColorSetting("Dead Color",
+            "Defeated / portal open / not spawned / unseen", 0xFFFF5555, false)));
 
     private final GroupSetting viewGroup = add(new GroupSetting("View", "How the map opens"));
     public final BooleanSetting rememberView = add(viewGroup.child(new BooleanSetting("Remember View",
@@ -66,6 +75,12 @@ public final class MapModule extends Module {
         java.util.Set<String> out = new java.util.LinkedHashSet<>();
         for (MapMarkerTable.Category c : TelosData.MAP_MARKERS.get().categories()) if (!flag.test(c)) out.add(c.label());
         return out;
+    }
+
+    /** Map colour of a boss: alive (green), fighting (blue), anything else = dead (red). */
+    public int bossColor(boolean alive, boolean fighting) {
+        if (!alive) return deadColor.get();
+        return fighting ? fightingColor.get() : aliveColor.get();
     }
 
     public int openKey() {

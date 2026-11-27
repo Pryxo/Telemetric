@@ -11,7 +11,7 @@ import dev.telemetric.data.Names;
 import dev.telemetric.data.TelosData;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.PlayerAdapter;
-import dev.telemetric.module.impl.visual.BossTrackerModule;
+import dev.telemetric.module.impl.visual.MapModule;
 import dev.telemetric.tracking.RealmBossTracker;
 import dev.telemetric.tracking.RealmBossTracker.State;
 import dev.telemetric.tracking.RealmBossTracker.Tracked;
@@ -53,7 +53,7 @@ public final class MapMarkers {
     /** The markers of {@code region} in the categories {@code shown} accepts, back to front (inactive first, players last). */
     public static List<Marker> collect(MapTable.Region region, Predicate<Category> shown) {
         MapMarkerTable table = TelosData.MAP_MARKERS.get();
-        BossTrackerModule colors = Telemetric.get().modules().get(BossTrackerModule.class);
+        MapModule colors = Telemetric.get().modules().get(MapModule.class);
         long now = System.currentTimeMillis();
         Map<String, Tracked> live = null;
 
@@ -74,7 +74,7 @@ public final class MapMarkers {
             Tracked t = live.get(Names.key(e.name()));
             if (t == null) {
                 MapMarkerTable.Spot s = e.spots().getFirst();
-                back.add(new Marker(c, e.name(), s.x(), s.y(), s.z(), colors.stateColor(State.DEFEATED, false),
+                back.add(new Marker(c, e.name(), s.x(), s.y(), s.z(), colors.bossColor(false, false),
                         table.state("unseen"), icon, null, null, 0, false));
                 continue;
             }
@@ -89,7 +89,7 @@ public final class MapMarkers {
             boolean active = t.state() == State.ALIVE || t.state() == State.PORTAL;
             MapMarkerTable.Spot s = nearest(e.spots(), t.spot());
             (active ? front : back).add(new Marker(c, e.name(), s.x(), s.y(), s.z(),
-                    colors.stateColor(t.state(), fighting), state, icon, fighting ? t.calledBy() : null, null, 0, active));
+                    colors.bossColor(t.state() == State.ALIVE, fighting), state, icon, fighting ? t.calledBy() : null, null, 0, active));
         }
 
         List<Marker> out = new ArrayList<>(back.size() + front.size() + 8);
@@ -116,18 +116,16 @@ public final class MapMarkers {
 
     /** The colour a category's legend swatch uses. */
     public static int legendColor(Category c) {
-        return color(c.color(), Telemetric.get().modules().get(BossTrackerModule.class));
+        return color(c.color(), Telemetric.get().modules().get(MapModule.class));
     }
 
-    /** ARGB of a table colour: its RGB, or the Boss Tracker colour of its state. */
-    private static int color(MapMarkerTable.Color c, BossTrackerModule colors) {
+    /** ARGB of a table colour: its RGB, or the map's boss colour of its state (alive / fighting / else dead). */
+    private static int color(MapMarkerTable.Color c, MapModule colors) {
         if (c.state() == null) return 0xFF000000 | c.rgb();
         return switch (c.state()) {
-            case "fighting" -> colors.stateColor(State.ALIVE, true);
-            case "alive" -> colors.stateColor(State.ALIVE, false);
-            case "portal" -> colors.stateColor(State.PORTAL, false);
-            case "defeated" -> colors.stateColor(State.DEFEATED, false);
-            default -> colors.stateColor(State.IDLE, false);
+            case "fighting" -> colors.bossColor(true, true);
+            case "alive" -> colors.bossColor(true, false);
+            default -> colors.bossColor(false, false);
         };
     }
 

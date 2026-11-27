@@ -183,7 +183,7 @@ public final class MapRenderer {
         double s = size * m.category().size();
         if (m.category().shape() == Shape.HEAD) return Math.max(4, s * 0.7) / 2 + 1;
         if (iconOf(m) != null) return badgeRadius(m.category().shape(), s) + 1;
-        return s * 0.3;
+        return Math.max(3, s * 0.4);
     }
 
     /**
@@ -206,12 +206,7 @@ public final class MapRenderer {
             return;
         }
         int fill = hovered ? p.text() : m.color();
-        if (shape == Shape.DIAMOND) {
-            diamond(r, sx, sy, s * 0.3 + 1, outline);
-            diamond(r, sx, sy, s * 0.3, fill);
-        } else {
-            dot(r, sx, sy, s, fill, outline);
-        }
+        glow(r, sx, sy, Math.max(3, s * 0.4), fill);
     }
 
     /**
@@ -230,50 +225,34 @@ public final class MapRenderer {
         }
         String model = usable(icon);
         if (model != null) {
-            badge(r, c.shape(), model, cx, cy, c.shape() == Shape.DIAMOND ? half * 0.95 : half - 1, color, p);
-        } else if (c.shape() == Shape.DIAMOND) {
-            diamond(r, cx, cy, half - 1, outline);
-            diamond(r, cx, cy, half - 2, color);
+            badge(r, c.shape(), model, cx, cy, half * 0.7, color, p);
         } else {
-            disc(r, cx, cy, half - 1.5, outline);
-            disc(r, cx, cy, half - 2.5, color);
+            glow(r, cx, cy, half - 1, color);
         }
     }
 
-    private static void dot(Render2D r, double sx, double sy, double s, int fill, int outline) {
-        double rad = Math.max(2, s * 0.25);
-        disc(r, sx, sy, rad + 1, outline);
-        disc(r, sx, sy, rad, fill);
-    }
-
-    /** Inner radius of an icon badge (disc radius, or the diamond's half diagonal) for size {@code s}. */
+    /** Radius of an icon marker (its glow is a bit larger) for size {@code s}. */
     private static double badgeRadius(Shape shape, double s) {
-        return shape == Shape.DIAMOND ? s * 0.72 : s * 0.55;
+        return s * 0.55;
     }
 
     /**
-     * An icon badge: soft drop shadow, dark outline, a 1-unit {@code ring} in the marker's colour, a panel-coloured
-     * face and the item model on top, sized to fill the face (a diamond's face only fits a square of its half
-     * diagonal, so its item is relatively smaller).
+     * An icon marker: a soft round glow in the marker's colour (stacked translucent discs, densest in the centre)
+     * with the item model on top. No outline or shape; {@code shape} is ignored.
      */
-    private static void badge(Render2D r, Shape shape, String icon, double cx, double cy, double rad, int ring, Theme p) {
-        int shadow = ColorUtil.withAlpha(p.shadow(), 90), outline = ColorUtil.withAlpha(p.shadow(), 230);
-        int face = ColorUtil.withAlpha(p.panel(), 240);
-        double is;
-        if (shape == Shape.DIAMOND) {
-            diamond(r, cx, cy + 1, rad + 2, shadow);
-            diamond(r, cx, cy, rad + 2, outline);
-            diamond(r, cx, cy, rad + 0.8, ring);
-            diamond(r, cx, cy, rad - 0.6, face);
-            is = Math.max(7, rad * 1.15);
-        } else {
-            disc(r, cx, cy + 1, rad + 1.5, shadow);
-            disc(r, cx, cy, rad + 1.5, outline);
-            disc(r, cx, cy, rad + 0.5, ring);
-            disc(r, cx, cy, rad - 0.5, face);
-            is = Math.max(7, rad * 1.5);
-        }
+    private static void badge(Render2D r, Shape shape, String icon, double cx, double cy, double rad, int glow, Theme p) {
+        glow(r, cx, cy, rad * 1.35, glow);
+        double is = Math.max(7, rad * 1.6);
         r.itemModel(icon, (float) (cx - is / 2), (float) (cy - is / 2), (float) is);
+    }
+
+    /** A soft round glow of {@code color} with radius {@code rad}, fading out towards the edge. */
+    private static void glow(Render2D r, double cx, double cy, double rad, int color) {
+        final int layers = 7;
+        for (int i = 0; i < layers; i++) {
+            double t = 1 - (double) i / layers;            // 1 = outermost
+            disc(r, cx, cy, rad * t, ColorUtil.withAlpha(color, 26 + i * 6));
+        }
     }
 
     /** The marker's item model ({@code mapMarkers.json} {@code icon}) if the resource pack has it, else null. */
