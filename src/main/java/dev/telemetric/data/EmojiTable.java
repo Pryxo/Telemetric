@@ -10,7 +10,7 @@ import java.util.List;
  * is what you type in chat (the server turns it into the emoji), {@code glyph} is the resource-pack character it
  * shows as. Used by the chat Emoji Picker.
  *
- * <p>{@code tables/modEmojis.json} uses the same format for client-side mod emojis (Melinoe): the server leaves their
+ * <p>{@code tables/modEmojis.json} uses the same format for client-side mod emojis: the server leaves their
  * codes as text and the client turns them into the glyph ({@code ChatHudAdapter#modEmojis}). A category may name an
  * {@code icon} texture (path in {@code assets/telemetric/}) for the picker rail.
  */

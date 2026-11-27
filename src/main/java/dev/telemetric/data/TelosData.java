@@ -49,6 +49,13 @@ public final class TelosData {
      */
     public static final SharedFile<BossTable> BOSSES = SharedData.file(DIR + "Boss.json", BossTable::parse, BossTable.EMPTY);
 
+    /** {@code map.json}: Telos Map regions and their image tiles (World → Telos Map, Minimap). */
+    public static final SharedFile<MapTable> MAP = SharedData.file(DIR + "map.json", MapTable::parse, MapTable.EMPTY);
+
+    /** {@code mapMarkers.json}: what the Telos Map and minimap mark (categories = legend rows, icons, fixed points). */
+    public static final SharedFile<MapMarkerTable> MAP_MARKERS =
+            SharedData.file(DIR + "mapMarkers.json", MapMarkerTable::parse, MapMarkerTable.EMPTY);
+
     /** Dungeon to boss to drops, from {@code Boss.json} (Pity Counter, drop messages). */
     public static final Supplier<LootTable> LOOT = () -> BOSSES.get().loot();
 

@@ -150,6 +150,15 @@ public final class BossTrackerModule extends LinesHudModule {
         };
     }
 
+    /** The state colour the list and waypoints use (Telos Map markers share it). */
+    public int stateColor(State state, boolean fighting) {
+        return switch (state) {
+            case PORTAL -> portalColor.get();
+            case ALIVE -> fighting ? fightingColor.get() : availableColor.get();
+            default -> idleColor.get();
+        };
+    }
+
     private static double distance(Tracked t) {
         Point me = DungeonAdapter.playerPos();
         Spot s = t.spot();

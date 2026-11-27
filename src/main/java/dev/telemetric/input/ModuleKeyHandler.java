@@ -21,6 +21,7 @@ public final class ModuleKeyHandler {
 
     private final ModuleManager modules;
     private final Set<Integer> heldLastTick = new HashSet<>();
+    private boolean screenWasOpen;
 
     public ModuleKeyHandler(ModuleManager modules) {
         this.modules = modules;
@@ -29,17 +30,21 @@ public final class ModuleKeyHandler {
     public void tick() {
         if (InputUtil.isScreenOpen()) {
             heldLastTick.clear();
+            screenWasOpen = true;
             return;
         }
+        // First tick after a screen closed: a key still held from closing it (e.g. M closing the map) is not a press.
+        boolean fire = !screenWasOpen;
+        screenWasOpen = false;
         Set<Integer> heldNow = new HashSet<>();
         for (Module module : modules.getModules()) {
             if (module.isToggleable() && module.getBind().isBound()) {
-                if (pressed(module.getBind().get(), heldNow)) module.toggleByUser();
+                if (pressed(module.getBind().get(), heldNow) && fire) module.toggleByUser();
             }
             if (!module.isEnabled()) continue;
             for (Setting<?> s : module.getSettings()) {
                 if (s instanceof KeybindSetting key && key.getPressAction() != null && key.isBound()
-                        && pressed(key.get(), heldNow)) {
+                        && pressed(key.get(), heldNow) && fire) {
                     key.getPressAction().run();
                 }
             }

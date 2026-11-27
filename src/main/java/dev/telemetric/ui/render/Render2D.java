@@ -820,6 +820,89 @@ public final class Render2D {
         }
     }
 
+    /**
+     * A filled convex polygon of {@code n} corners ({@code xy}: x0, y0, x1, y1, …) in float GUI units, so it can sit
+     * between pixels, be rotated and keep its exact shape (map arrows, minimap markers).
+     */
+    public void polygon(float[] xy, int n, int color) {
+        if (n < 3 || ColorUtil.alpha(c(color)) == 0) return;
+        addPolygon(net.minecraft.client.gui.render.TextureSetup.noTexture(), RenderPipelines.GUI, xy, null, n, c(color));
+    }
+
+    /**
+     * A convex polygon filled with a texture ({@code "namespace:path"} or a path in {@code assets/telemetric/}):
+     * {@code uv} holds a normalised (0..1) u, v per corner. Float GUI units like {@link #polygon}, so a map can be
+     * panned, zoomed and rotated smoothly and clipped to any convex shape (a round minimap).
+     */
+    public void texturedPolygon(String path, float[] xy, float[] uv, int n, int tint) {
+        if (n < 3 || ColorUtil.alpha(c(tint)) < 5) return;
+        var texture = Minecraft.getInstance().getTextureManager().getTexture(textureId(path));
+        addPolygon(net.minecraft.client.gui.render.TextureSetup.singleTexture(texture.getTextureView(), texture.getSampler()),
+                RenderPipelines.GUI_TEXTURED, xy, uv, n, c(tint));
+    }
+
+    private void addPolygon(net.minecraft.client.gui.render.TextureSetup setup, com.mojang.blaze3d.pipeline.RenderPipeline pipeline,
+                            float[] xy, float[] uv, int n, int color) {
+        org.joml.Matrix3x2f pose = new org.joml.Matrix3x2f(g.pose());
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        org.joml.Vector2f v = new org.joml.Vector2f();
+        for (int i = 0; i < n; i++) {
+            pose.transformPosition(xy[i * 2], xy[i * 2 + 1], v);
+            minX = Math.min(minX, v.x);
+            minY = Math.min(minY, v.y);
+            maxX = Math.max(maxX, v.x);
+            maxY = Math.max(maxY, v.y);
+        }
+        var bounds = new net.minecraft.client.gui.navigation.ScreenRectangle((int) Math.floor(minX), (int) Math.floor(minY),
+                Math.max(1, (int) Math.ceil(maxX - minX) + 1), Math.max(1, (int) Math.ceil(maxY - minY) + 1));
+        var scissor = g.scissorStack.peek();
+        if (scissor != null) {
+            bounds = scissor.intersection(bounds);
+            if (bounds == null) return;
+        }
+        // same winding as vanilla fills (counter-clockwise on screen), so back-face culling can never drop it
+        double area = 0;
+        for (int i = 0; i < n; i++) {
+            int j = (i + 1) % n;
+            area += xy[i * 2] * xy[j * 2 + 1] - xy[j * 2] * xy[i * 2 + 1];
+        }
+        float[] pxy = new float[n * 2], puv = uv == null ? null : new float[n * 2];
+        for (int i = 0; i < n; i++) {
+            int src = area > 0 ? n - 1 - i : i;
+            pxy[i * 2] = xy[src * 2];
+            pxy[i * 2 + 1] = xy[src * 2 + 1];
+            if (puv != null) {
+                puv[i * 2] = uv[src * 2];
+                puv[i * 2 + 1] = uv[src * 2 + 1];
+            }
+        }
+        g.guiRenderState.addGuiElement(new PolygonState(pipeline, setup, pose, pxy, puv, n, color, scissor, bounds));
+    }
+
+    /** The GUI element behind {@link #polygon} / {@link #texturedPolygon}: a triangle fan sent as quads. */
+    private record PolygonState(com.mojang.blaze3d.pipeline.RenderPipeline pipeline,
+                                net.minecraft.client.gui.render.TextureSetup textureSetup, org.joml.Matrix3x2f pose,
+                                float[] xy, float[] uv, int n, int color,
+                                net.minecraft.client.gui.navigation.ScreenRectangle scissorArea,
+                                net.minecraft.client.gui.navigation.ScreenRectangle bounds)
+            implements net.minecraft.client.renderer.state.gui.GuiElementRenderState {
+        @Override
+        public void buildVertices(com.mojang.blaze3d.vertex.VertexConsumer vc) {
+            for (int i = 1; i + 1 < n; i++) {
+                vertex(vc, 0);
+                vertex(vc, i);
+                vertex(vc, i + 1);
+                vertex(vc, i + 1);
+            }
+        }
+
+        private void vertex(com.mojang.blaze3d.vertex.VertexConsumer vc, int i) {
+            var out = vc.addVertexWith2DPose(pose, xy[i * 2], xy[i * 2 + 1]);
+            if (uv != null) out = out.setUv(uv[i * 2], uv[i * 2 + 1]);
+            out.setColor(color);
+        }
+    }
+
     public int glyphWidth(HudIcon.Glyph glyph) {
         return font.width(Component.literal(glyph.text()).withStyle(style(0, glyph.font())));
     }
@@ -891,6 +974,11 @@ public final class Render2D {
 
     /** Draws the item with this item model id ({@code telos:material/...}), scaled to {@code size} x {@code size}. */
     public void itemModel(String model, int x, int y, int size) {
+        itemModel(model, (float) x, (float) y, (float) size);
+    }
+
+    /** {@link #itemModel(String, int, int, int)} at a sub-pixel position (for markers on a smoothly moving map). */
+    public void itemModel(String model, float x, float y, float size) {
         GameItem item = ItemIcons.of(model);
         if (item == null || size <= 0) return;
         pushTransform(x, y, size / 16f);

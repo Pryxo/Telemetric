@@ -344,11 +344,22 @@ public final class DungeonAdapter {
      *
      * @param skin skin texture id ({@code "namespace:path"}, 64×64; face at 8,8 and hat layer at 40,8)
      * @param yaw  body yaw in degrees (0 is south / +Z)
+     * @param name username
+     * @param real a Mojang account (version-4 UUID), not a server NPC shown as a player
      */
-    public record PlayerMarker(String skin, double x, double y, double z, float yaw, boolean self) {}
+    public record PlayerMarker(String skin, double x, double y, double z, float yaw, boolean self, String name,
+                               boolean real) {}
 
     /** Every player in the current level (the local player included, flagged {@code self}). */
     public static List<PlayerMarker> players() {
+        return players(1f);
+    }
+
+    /**
+     * Like {@link #players()}, with positions and yaw interpolated to {@code partialTick} so markers drawn every
+     * frame move smoothly instead of stepping once per tick.
+     */
+    public static List<PlayerMarker> players(float partialTick) {
         ClientLevel level = level();
         LocalPlayer self = Minecraft.getInstance().player;
         List<PlayerMarker> out = new ArrayList<>();
@@ -356,7 +367,11 @@ public final class DungeonAdapter {
         for (net.minecraft.client.player.AbstractClientPlayer p : level.players()) {
             if (p.isRemoved() || p.isSpectator()) continue;
             String skin = p.getSkin().body().texturePath().toString();
-            out.add(new PlayerMarker(skin, p.getX(), p.getY(), p.getZ(), p.getYRot(), p == self));
+            out.add(new PlayerMarker(skin, net.minecraft.util.Mth.lerp(partialTick, p.xo, p.getX()),
+                    net.minecraft.util.Mth.lerp(partialTick, p.yo, p.getY()),
+                    net.minecraft.util.Mth.lerp(partialTick, p.zo, p.getZ()),
+                    net.minecraft.util.Mth.rotLerp(partialTick, p.yRotO, p.getYRot()), p == self,
+                    p.getScoreboardName(), p.getUUID().version() == 4));
         }
         return out;
     }

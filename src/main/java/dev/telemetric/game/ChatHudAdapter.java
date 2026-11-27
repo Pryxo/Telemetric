@@ -74,7 +74,7 @@ public final class ChatHudAdapter {
     private static volatile Map<String, String> emojiGlyphs = Map.of();
 
     /**
-     * Turns mod emoji codes ({@code :smile:}, from modEmojis.json) into glyphs, converted the way Melinoe does so its
+     * Turns mod emoji codes ({@code :smile:}, from modEmojis.json) into glyphs.
      * users' emojis show here too. The glyph is forced white (the bitmap has its own colours), keeps the run's click
      * and hover, and shows its code on hover. Codes split across styled runs stay text.
      */
