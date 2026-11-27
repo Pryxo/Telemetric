@@ -7,6 +7,7 @@ import dev.telemetric.game.BossStageAdapter.Kind;
 import dev.telemetric.game.BossStageAdapter.Stage;
 import dev.telemetric.game.EntityPreviewAdapter;
 import dev.telemetric.game.WorldLabelAdapter;
+import dev.telemetric.hud.Numbers;
 import dev.telemetric.input.InputUtil;
 import dev.telemetric.module.Category;
 import dev.telemetric.module.Module;
@@ -392,14 +393,7 @@ public final class BossStageTrackerModule extends Module {
 
     /** "950", "12.3k", "1.25M" (no thousands commas: the badge fonts don't have them). */
     static String compact(double v) {
-        if (v >= 1e9) return trim(String.format(Locale.ROOT, "%.2f", v / 1e9)) + "B";
-        if (v >= 1e6) return trim(String.format(Locale.ROOT, "%.2f", v / 1e6)) + "M";
-        if (v >= 1e4) return trim(String.format(Locale.ROOT, "%.1f", v / 1e3)) + "k";
-        return String.format(Locale.ROOT, "%.0f", v);
-    }
-
-    private static String trim(String s) {
-        return s.contains(".") ? s.replaceAll("0+$", "").replaceAll("\\.$", "") : s;
+        return v >= 1e4 ? Numbers.suffixed(v, true) : String.format(Locale.ROOT, "%.0f", v);
     }
 
     private static String name(Kind kind) {

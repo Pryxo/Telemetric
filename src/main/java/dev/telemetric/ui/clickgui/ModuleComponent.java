@@ -8,6 +8,7 @@ import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.framework.GuiContext;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
@@ -195,7 +196,7 @@ public class ModuleComponent extends UIComponent {
         quick.updateVisibility();
         Theme p = ctx.palette();
 
-        boolean rowHovered = mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + Layout.MODULE_HEIGHT;
+        boolean rowHovered = Hit.inside(mouseX, mouseY, x, y, width, Layout.MODULE_HEIGHT);
         hover.animateTo(rowHovered ? 1 : 0);
         enabled.animateTo(module.isEnabled() ? 1 : 0);
         expand.animateTo(expanded && hasQuick() ? 1 : 0);
@@ -363,7 +364,7 @@ public class ModuleComponent extends UIComponent {
 
     @Override
     public boolean isHovered(double mouseX, double mouseY) {
-        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + getHeight();
+        return Hit.inside(mouseX, mouseY, x, y, width, getHeight());
     }
 
     @Override

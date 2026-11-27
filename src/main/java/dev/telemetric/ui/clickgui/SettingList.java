@@ -8,6 +8,7 @@ import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.clickgui.setting.SettingComponent;
 import dev.telemetric.ui.clickgui.setting.SettingComponents;
 import dev.telemetric.ui.framework.GuiContext;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
@@ -209,7 +210,7 @@ public final class SettingList {
 
     private boolean overStar(SettingComponent<?> c, double mouseX, double mouseY) {
         int rh = Math.min(c.getHeight(), Layout.SETTING_HEIGHT);
-        return mouseX >= x && mouseX < x + PIN_GUTTER && mouseY >= c.getY() && mouseY < c.getY() + rh;
+        return Hit.inside(mouseX, mouseY, x, c.getY(), PIN_GUTTER, rh);
     }
 
     private void renderStar(Render2D r, Theme p, SettingComponent<?> c, int left, int mouseX, int mouseY) {
@@ -218,7 +219,7 @@ public final class SettingList {
         Setting<?> s = c.getSetting();
         if (!pinnable(s)) return;
         boolean pinned = pins.isPinned(s);
-        boolean rowHover = mouseY >= c.getY() && mouseY < c.getY() + rh && mouseX >= left && mouseX < left + width;
+        boolean rowHover = Hit.inside(mouseX, mouseY, left, c.getY(), width, rh);
         boolean hot = dragging == null && overStar(c, mouseX, mouseY);
         Animation a = starHover.computeIfAbsent(s, k -> new Animation(Durations.HOVER, Easing.OUT_CUBIC, 0));
         a.animateTo(pinned || rowHover ? 1 : 0);
@@ -290,7 +291,7 @@ public final class SettingList {
     private void renderGrip(Render2D r, Theme p, SettingComponent<?> c, int mouseX, int mouseY) {
         int rh = gripRowHeight(c);
         if (rh < 6) return;
-        boolean rowHover = mouseX >= c.getX() && mouseX < c.getX() + c.getWidth() && mouseY >= c.getY() && mouseY < c.getY() + rh;
+        boolean rowHover = Hit.inside(mouseX, mouseY, c.getX(), c.getY(), c.getWidth(), rh);
         boolean gripHover = dragging == null && overGrip(c, mouseX, mouseY);
         int color;
         if (c == dragging) color = p.accent();

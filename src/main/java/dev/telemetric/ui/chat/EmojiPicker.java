@@ -10,6 +10,7 @@ import dev.telemetric.module.impl.social.ChatModule;
 import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Icons;
 import dev.telemetric.ui.render.Render2D;
@@ -134,7 +135,7 @@ final class EmojiPicker {
     private static int gridX() { return bodyX() + PAD; }
 
     private static boolean in(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
+        return Hit.inside(mx, my, x, y, w, h);
     }
 
     private static boolean inButton(double mx, double my) { return in(mx, my, bx(), by(), BTN, BTN); }

@@ -6,6 +6,7 @@ import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.clickgui.Layout;
 import dev.telemetric.ui.framework.GuiContext;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Icons;
@@ -122,7 +123,7 @@ public abstract class DropdownComponent<S extends Setting<?>> extends SettingCom
         for (int k = first; k < shownEnd; k++) {
             int i = matches.get(k);
             int oy = rowsY + (k - first) * Layout.OPTION_HEIGHT;
-            boolean hovered = expanded && mouseX >= x && mouseX < x + width && mouseY >= oy && mouseY < oy + Layout.OPTION_HEIGHT
+            boolean hovered = expanded && Hit.inside(mouseX, mouseY, x, oy, width, Layout.OPTION_HEIGHT)
                     && mouseY < listY + listH;
             Animation h = optionHover.get(i);
             h.animateTo(hovered ? 1 : 0);

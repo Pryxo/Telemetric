@@ -6,6 +6,7 @@ import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.framework.GuiContext;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.render.ColorUtil;
@@ -90,7 +91,7 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
     public final void render(Render2D r, int mouseX, int mouseY, float delta) {
         if (getHeight() <= 0) return;
         Theme p = ctx.palette();
-        boolean rowHovered = isActive() && mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + rowHeight();
+        boolean rowHovered = isActive() && Hit.inside(mouseX, mouseY, x, y, width, rowHeight());
         hover.animateTo(rowHovered ? 1 : 0);
         double h = hover.get();
         if (h > 0.01) {
@@ -121,7 +122,7 @@ public abstract class SettingComponent<S extends Setting<?>> extends UIComponent
 
     @Override
     public boolean isHovered(double mouseX, double mouseY) {
-        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + getHeight();
+        return Hit.inside(mouseX, mouseY, x, y, width, getHeight());
     }
 
     /** A click inside this component's bounds while it's active. */

@@ -8,6 +8,7 @@ import dev.telemetric.module.impl.social.ChatModule;
 import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
@@ -76,7 +77,7 @@ public final class ChatScreenHooks {
             int x = LEFT - scroll;
             for (String tab : tabs) {
                 int w = tabWidth(chat, tab);
-                boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+                boolean hovered = Hit.inside(mouseX, mouseY, x, y, w, h);
                 Animation hover = HOVER.computeIfAbsent(tab, k -> new Animation(Durations.HOVER, Easing.OUT_CUBIC, 0));
                 hover.animateTo(hovered ? 1 : 0);
                 boolean isActive = tab.equals(active);

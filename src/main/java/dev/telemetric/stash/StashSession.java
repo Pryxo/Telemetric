@@ -510,34 +510,17 @@ public final class StashSession {
         if (count > 0) target = Math.min(target, count);
         if (target == page) return;
 
-        // Options: from here with ±1 clicks, from page 1, or from the last page (if the count is known).
-        int bestCost = Integer.MAX_VALUE;
-        int start = -1; // -1 means from here, otherwise SLOT_FIRST or SLOT_LAST
-        if (page > 0) {
-            bestCost = Math.abs(target - page);
-            start = -1;
-        }
-        int fromFirst = 1 + (target - 1);
-        if (fromFirst < bestCost) {
-            bestCost = fromFirst;
-            start = SLOT_FIRST;
-        }
-        if (count > 0) {
-            int fromLast = 1 + (count - target);
-            if (fromLast < bestCost) {
-                start = SLOT_LAST;
-            }
-        }
-
-        int from;
-        if (start == SLOT_FIRST) {
-            queue.add(SLOT_FIRST);
-            from = 1;
-        } else if (start == SLOT_LAST) {
+        // Clicks needed: from here with ±1 steps, or one jump to page 1 / the last page (if the count is known) and steps.
+        int fromHere = page > 0 ? Math.abs(target - page) : Integer.MAX_VALUE;
+        int fromFirst = target;
+        int fromLast = count > 0 ? count - target + 1 : Integer.MAX_VALUE;
+        int from = page;
+        if (fromLast < Math.min(fromHere, fromFirst)) {
             queue.add(SLOT_LAST);
             from = count;
-        } else {
-            from = page;
+        } else if (fromFirst < fromHere) {
+            queue.add(SLOT_FIRST);
+            from = 1;
         }
         for (int p = from; p < target; p++) queue.add(SLOT_NEXT);
         for (int p = from; p > target; p--) queue.add(SLOT_PREV);

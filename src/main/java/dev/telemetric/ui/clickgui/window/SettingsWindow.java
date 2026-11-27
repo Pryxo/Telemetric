@@ -17,6 +17,7 @@ import dev.telemetric.ui.clickgui.setting.SettingComponent;
 import dev.telemetric.ui.confirm.Confirm;
 import dev.telemetric.ui.confirm.ConfirmRequest;
 import dev.telemetric.ui.framework.GuiContext;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
@@ -36,6 +37,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 
 /**
@@ -83,9 +85,6 @@ public final class SettingsWindow extends UIComponent {
     private final Animation contentFade = new Animation(Durations.STANDARD, Easing.OUT_CUBIC, 1);
     private final Animation closeHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private final Animation backHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
-    private final Animation resetHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
-    private final Animation importHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
-    private final Animation copyHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private final Animation enabledAnim = new Animation(Durations.MICRO, Easing.OUT_CUBIC);
     private final Animation edgeHover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
     private boolean closing;
@@ -98,10 +97,33 @@ public final class SettingsWindow extends UIComponent {
     private double startScroll;
     private boolean previewHeld;
     private int screenW = 1, screenH = 1;
-    /** Width of the "Reset" label last frame (its click area matches what is drawn). */
-    private int resetW = 26;
-    /** Widths of the "Import" / "Copy" labels last frame. */
-    private int importW = 32, copyW = 22;
+
+    /** A text button in the title bar. {@link #renderTitle} lays it out every frame; clicks use that layout. */
+    private final class TitleButton {
+        final String label;
+        final Supplier<String> tooltip;
+        final Runnable action;
+        final Animation hover = new Animation(Durations.HOVER, Easing.OUT_CUBIC);
+        int right, width;
+
+        TitleButton(String label, Supplier<String> tooltip, Runnable action) {
+            this.label = label;
+            this.tooltip = tooltip;
+            this.action = action;
+        }
+
+        boolean contains(double mx) {
+            return mx >= right - width - 2 && mx < right + 2;
+        }
+    }
+
+    /** Reset / Import / Copy, right to left. */
+    private final List<TitleButton> titleButtons = List.of(
+            new TitleButton("Reset", () -> "Reset every setting of " + module.getName() + " to its default", this::confirmReset),
+            new TitleButton("Import", () -> "Import " + module.getName() + " settings from a share code in the clipboard",
+                    this::confirmImport),
+            new TitleButton("Copy", () -> "Copy " + module.getName() + " settings as a share code",
+                    () -> ShareSettingsModule.copyCode(List.of(module))));
 
     // layout of the last frame (input uses it)
     private int sideW, listX, listY, listW, listH;
@@ -501,7 +523,7 @@ public final class SettingsWindow extends UIComponent {
         renderSettings(r, p, contentX, bodyY, settingsW, bodyH, mouseX, mouseY, delta);
 
         if (preview != null) {
-            boolean in = previewHeld || (mouseX >= previewX && mouseX < previewX + previewW && mouseY >= previewY && mouseY < previewY + previewH);
+            boolean in = previewHeld || Hit.inside(mouseX, mouseY, previewX, previewY, previewW, previewH);
             r.pushClip(previewX, previewY, previewW, previewH);
             try {
                 preview.render(r, ctx, previewX, previewY, previewW, previewH,
@@ -542,7 +564,7 @@ public final class SettingsWindow extends UIComponent {
     }
 
     private void renderTitle(Render2D r, Theme p, int radius, int mouseX, int mouseY) {
-        boolean overTitle = mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + TITLE_H;
+        boolean overTitle = Hit.inside(mouseX, mouseY, x, y, width, TITLE_H);
         int header = ColorUtil.lerp(p.header(), ColorUtil.shade(p.header(), 0.06), overTitle || drag == Drag.MOVE ? 1 : 0);
         r.roundedRect(x, y, width, TITLE_H, radius, header, Render2D.CORNERS_TOP);
         if (ctx.themes().headerGradient() || ctx.themes().headerStyle() == HeaderStyle.FILLED) {
@@ -553,7 +575,7 @@ public final class SettingsWindow extends UIComponent {
 
         // close (top right)
         int bx = closeX(), by = y + (TITLE_H - BUTTON) / 2;
-        boolean closeHot = drag == Drag.NONE && mouseX >= bx && mouseX < bx + BUTTON && mouseY >= by && mouseY < by + BUTTON;
+        boolean closeHot = drag == Drag.NONE && Hit.inside(mouseX, mouseY, bx, by, BUTTON, BUTTON);
         closeHover.animateTo(closeHot ? 1 : 0);
         double ch = closeHover.get();
         Icons.close(r, bx + BUTTON / 2, by + BUTTON / 2, ColorUtil.lerp(p.textMuted(), p.text(), ch));
@@ -575,14 +597,17 @@ public final class SettingsWindow extends UIComponent {
             }
         }
 
-        // reset
-        String reset = "Reset";
-        int rr = resetRight(toggleable), rw = r.textWidth(reset);
-        resetW = rw;
-        boolean resetHot = drag == Drag.NONE && mouseX >= rr - rw - 2 && mouseX < rr + 2 && mouseY >= y && mouseY < y + TITLE_H;
-        resetHover.animateTo(resetHot ? 1 : 0);
-        r.textRight(reset, rr, ty, ColorUtil.lerp(p.textDisabled(), p.text(), resetHover.get()));
-        if (resetHot) ctx.requestTooltip(this, "Reset every setting of " + module.getName() + " to its default");
+        // reset / import / copy
+        int right = resetRight(toggleable);
+        for (TitleButton b : titleButtons) {
+            b.right = right;
+            b.width = r.textWidth(b.label);
+            boolean hot = drag == Drag.NONE && overTitle && b.contains(mouseX);
+            b.hover.animateTo(hot ? 1 : 0);
+            r.textRight(b.label, b.right, ty, ColorUtil.lerp(p.textDisabled(), p.text(), b.hover.get()));
+            if (hot) ctx.requestTooltip(this, b.tooltip.get());
+            right -= b.width + 8;
+        }
 
         // back arrow + title
         int tx = x + Layout.PAD;
@@ -593,21 +618,7 @@ public final class SettingsWindow extends UIComponent {
             if (backHot) ctx.requestTooltip(this, "Back to " + history.peek().getName());
             tx = x + 15;
         }
-        // copy / import (share code of this module, see ShareSettingsModule)
-        int ir = rr - rw - 8, iw = r.textWidth("Import");
-        boolean importHot = drag == Drag.NONE && mouseX >= ir - iw - 2 && mouseX < ir + 2 && overTitle;
-        importHover.animateTo(importHot ? 1 : 0);
-        r.textRight("Import", ir, ty, ColorUtil.lerp(p.textDisabled(), p.text(), importHover.get()));
-        if (importHot) ctx.requestTooltip(this, "Import " + module.getName() + " settings from a share code in the clipboard");
-        int cr = ir - iw - 8, cw = r.textWidth("Copy");
-        boolean copyHot = drag == Drag.NONE && mouseX >= cr - cw - 2 && mouseX < cr + 2 && overTitle;
-        copyHover.animateTo(copyHot ? 1 : 0);
-        r.textRight("Copy", cr, ty, ColorUtil.lerp(p.textDisabled(), p.text(), copyHover.get()));
-        if (copyHot) ctx.requestTooltip(this, "Copy " + module.getName() + " settings as a share code");
-        importW = iw;
-        copyW = cw;
-
-        int room = cr - cw - 8 - tx;
+        int room = right - tx;
         String title = module.getName();
         String category = module.getCategory().getName();
         r.text(r.trim(title, room), tx, ty, p.text());
@@ -628,7 +639,7 @@ public final class SettingsWindow extends UIComponent {
                 continue;
             }
             s.rowY = ry;
-            boolean hot = drag == Drag.NONE && mouseX >= x && mouseX < x + sideW - 1 && mouseY >= ry && mouseY < ry + SIDE_ROW;
+            boolean hot = drag == Drag.NONE && Hit.inside(mouseX, mouseY, x, ry, sideW - 1, SIDE_ROW);
             s.hover.animateTo(hot ? 1 : 0);
             s.active.animateTo(s == selected ? 1 : 0);
             double h = s.hover.get(), act = s.active.get();
@@ -681,7 +692,7 @@ public final class SettingsWindow extends UIComponent {
                 }
                 r.gradientH(innerX + Layout.PAD, hy + SECTION_HEAD - 2, innerW - Layout.PAD * 2, 1,
                         ColorUtil.fade(p.accent(), 0.5), ColorUtil.withAlpha(p.accent(), 0));
-                boolean headHot = mouseX >= innerX && mouseX < innerX + innerW && mouseY >= hy && mouseY < hy + SECTION_HEAD;
+                boolean headHot = Hit.inside(mouseX, mouseY, innerX, hy, innerW, SECTION_HEAD);
                 if (headHot && s.group != null && !s.group.getDescription().isBlank()) {
                     ctx.requestTooltip(s, s.name(), s.group.getDescription());
                 }
@@ -700,7 +711,7 @@ public final class SettingsWindow extends UIComponent {
             s.scrollTarget = Math.clamp(s.scrollTarget, 0, s.maxScroll);
             s.scroll.animateTo(s.scrollTarget);
 
-            boolean inList = ctx.hasCapture() || (mouseX >= listX && mouseX < listX + listW && mouseY >= listY && mouseY < listY + listH);
+            boolean inList = ctx.hasCapture() || Hit.inside(mouseX, mouseY, listX, listY, listW, listH);
             int lmx = inList ? mouseX : Integer.MIN_VALUE / 2, lmy = inList ? mouseY : Integer.MIN_VALUE / 2;
             r.pushClip(listX, listY, listW, listH);
             try {
@@ -732,7 +743,7 @@ public final class SettingsWindow extends UIComponent {
     }
 
     private boolean overList(double mx, double my) {
-        return mx >= listX && mx < listX + listW && my >= listY && my < listY + listH;
+        return Hit.inside(mx, my, listX, listY, listW, listH);
     }
 
     /** The scroll bar strip at the right of the settings list (only while the section can scroll). */
@@ -742,7 +753,7 @@ public final class SettingsWindow extends UIComponent {
     }
 
     private boolean overPreview(double mx, double my) {
-        return preview != null && mx >= previewX && mx < previewX + previewW && my >= previewY && my < previewY + previewH;
+        return preview != null && Hit.inside(mx, my, previewX, previewY, previewW, previewH);
     }
 
     @Override
@@ -801,6 +812,21 @@ public final class SettingsWindow extends UIComponent {
         return true;
     }
 
+    private void confirmReset() {
+        Module m = module;
+        Confirm.show(new ConfirmRequest("Reset " + m.getName(),
+                "Reset every setting of " + m.getName() + " to its default? This can't be undone.",
+                "Reset", "Cancel", m::resetToDefaults, null));
+    }
+
+    private void confirmImport() {
+        Module m = module;
+        String clip = InputUtil.getClipboard();
+        Confirm.show(new ConfirmRequest("Import " + m.getName(),
+                "Overwrite the settings of " + m.getName() + " with the share code in your clipboard?",
+                "Import", "Cancel", () -> ShareSettingsModule.applyCode(clip, m), null));
+    }
+
     private boolean clickTitle(double mx, double my, int button) {
         int bx = closeX();
         if (mx >= bx && mx < bx + BUTTON) {
@@ -812,31 +838,11 @@ public final class SettingsWindow extends UIComponent {
             if (button == MouseButton.LEFT) module.toggleByUser();
             return true;
         }
-        int rr = resetRight(toggleable);
-        if (mx >= rr - resetW - 2 && mx < rr + 2) {
-            if (button == MouseButton.LEFT) {
-                Module m = module;
-                Confirm.show(new ConfirmRequest("Reset " + m.getName(),
-                        "Reset every setting of " + m.getName() + " to its default? This can't be undone.",
-                        "Reset", "Cancel", m::resetToDefaults, null));
+        for (TitleButton b : titleButtons) {
+            if (b.contains(mx)) {
+                if (button == MouseButton.LEFT) b.action.run();
+                return true;
             }
-            return true;
-        }
-        int ir = rr - resetW - 8;
-        if (mx >= ir - importW - 2 && mx < ir + 2) {
-            if (button == MouseButton.LEFT) {
-                Module m = module;
-                String clip = InputUtil.getClipboard();
-                Confirm.show(new ConfirmRequest("Import " + m.getName(),
-                        "Overwrite the settings of " + m.getName() + " with the share code in your clipboard?",
-                        "Import", "Cancel", () -> ShareSettingsModule.applyCode(clip, m), null));
-            }
-            return true;
-        }
-        int cr = ir - importW - 8;
-        if (mx >= cr - copyW - 2 && mx < cr + 2) {
-            if (button == MouseButton.LEFT) ShareSettingsModule.copyCode(List.of(module));
-            return true;
         }
         if (!history.isEmpty() && mx >= x + 2 && mx < x + 14) {
             if (button == MouseButton.LEFT) back();

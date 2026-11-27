@@ -18,6 +18,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -722,6 +723,24 @@ public final class Render2D {
     private static final Map<String, FontDescription> FONTS = new java.util.concurrent.ConcurrentHashMap<>();
     /** Marks an unparsable font id in {@link #FONTS} (the map takes no nulls). */
     private static final FontDescription NO_FONT = FontDescription.DEFAULT;
+
+    /** Word-wraps {@code text} to lines no wider than {@code maxWidth}. A {@code \n} starts a new line; a blank line stays. */
+    public List<String> wrap(String text, int maxWidth) {
+        List<String> out = new ArrayList<>();
+        for (String para : text.split("\n", -1)) {
+            StringBuilder line = new StringBuilder();
+            for (String word : para.split(" ")) {
+                if (!line.isEmpty() && textWidth(line + " " + word) > maxWidth) {
+                    out.add(line.toString());
+                    line.setLength(0);
+                }
+                if (!line.isEmpty()) line.append(' ');
+                line.append(word);
+            }
+            out.add(para.isBlank() ? "" : line.toString());
+        }
+        return out;
+    }
 
     /** Cuts {@code s} off with an ellipsis so it fits {@code maxWidth}. */
     public String trim(String s, int maxWidth) {

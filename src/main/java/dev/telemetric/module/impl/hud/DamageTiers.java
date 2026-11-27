@@ -1,5 +1,6 @@
 package dev.telemetric.module.impl.hud;
 
+import dev.telemetric.hud.Numbers;
 import dev.telemetric.hud.ShinyColors;
 import dev.telemetric.hud.TextRun;
 
@@ -59,11 +60,7 @@ final class DamageTiers {
 
     /** "12,345", or "12.3k" with {@code compact}. Small hits keep one decimal. */
     static String format(double v, boolean compact) {
-        if (compact) {
-            if (v >= 1e9) return String.format(Locale.ROOT, "%.2fB", v / 1e9);
-            if (v >= 1e6) return String.format(Locale.ROOT, "%.2fM", v / 1e6);
-            if (v >= 1e4) return String.format(Locale.ROOT, "%.1fk", v / 1e3);
-        }
+        if (compact && v >= 1e4) return Numbers.suffixed(v, false);
         if (v >= 1000 || v == Math.rint(v)) return String.format(Locale.ROOT, "%,.0f", v);
         return String.format(Locale.ROOT, "%.1f", v);
     }

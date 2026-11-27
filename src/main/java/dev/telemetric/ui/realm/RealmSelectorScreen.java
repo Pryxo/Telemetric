@@ -11,6 +11,7 @@ import dev.telemetric.game.TelosServer;
 import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
@@ -46,7 +47,7 @@ public class RealmSelectorScreen extends Screen {
 
     private record Button(String label, String target, int x, int y, int w, int h, boolean current) {
         boolean contains(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
+            return Hit.inside(mx, my, x, y, w, h);
         }
     }
 

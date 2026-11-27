@@ -40,7 +40,7 @@ public abstract class UIComponent {
     public int getWidth() { return width; }
 
     public boolean isHovered(double mouseX, double mouseY) {
-        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+        return Hit.inside(mouseX, mouseY, x, y, width, height);
     }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button) { return false; }

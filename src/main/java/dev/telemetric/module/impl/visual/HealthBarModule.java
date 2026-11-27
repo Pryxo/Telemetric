@@ -255,12 +255,8 @@ public final class HealthBarModule extends HudModule {
         int h = hudHeight.getInt();
         r.rect(0, y, w, h, border.get());
         r.rect(1, y + 1, w - 2, h - 2, background.get());
-        int fill = (int) Math.round((w - 2) * f);
-        int c = barColor(f);
-        if (fill > 0) {
-            if (style.is("Gradient")) r.gradientV(1, y + 1, fill, h - 2, ColorUtil.shade(c, 0.2), ColorUtil.shade(c, -0.2));
-            else r.rect(1, y + 1, fill, h - 2, c);
-        }
+        int[] fc = fillColors(f);
+        r.gradientV(1, y + 1, (int) Math.round((w - 2) * f), h - 2, fc[0], fc[1]);
         if (text && !textAbove()) {
             r.nextLayer();
             int tw = textW(r, t);
@@ -343,15 +339,46 @@ public final class HealthBarModule extends HudModule {
         sink.billboard(p.x(), y, p.z(), -w - b, -b, w + b, h + b, border.get(), through);
         sink.billboard(p.x(), y, p.z(), -w, 0, w, h, background.get(), through);
         if (f > 0) {
-            int c = barColor(f);
+            int[] fc = fillColors(f);
             double right = -w + 2 * w * f;
-            if (style.is("Gradient")) {
-                sink.billboard(p.x(), y, p.z(), -w, h / 2, right, h, ColorUtil.shade(c, 0.2), through);
-                sink.billboard(p.x(), y, p.z(), -w, 0, right, h / 2, ColorUtil.shade(c, -0.2), through);
-            } else {
-                sink.billboard(p.x(), y, p.z(), -w, 0, right, h, c, through);
-            }
+            sink.billboard(p.x(), y, p.z(), -w, h / 2, right, h, fc[0], through);
+            sink.billboard(p.x(), y, p.z(), -w, 0, right, h / 2, fc[1], through);
         }
+    }
+
+    /** Top and bottom colour of the filled part: two shades for Gradient, the bar colour twice for Solid. */
+    private int[] fillColors(double f) {
+        int c = barColor(f);
+        return style.is("Gradient") ? new int[] {ColorUtil.shade(c, 0.2), ColorUtil.shade(c, -0.2)} : new int[] {c, c};
+    }
+
+    /** Height of the 3D text in blocks. */
+    private double worldTextHeight(double barH) {
+        return (textOnly() ? 0.25 : Math.max(0.08, barH * 0.8)) * textScale.get();
+    }
+
+    /** How far the bottom of the 3D text sits above the bottom of the bar, in blocks. */
+    private double worldTextLift(double barH, double textH) {
+        return textOnly() ? 0 : textAbove() ? barH + barH * 0.3 : (barH - textH) / 2;
+    }
+
+    /** Where the 3D text sits along the bar: 0 = left edge, 0.5 = centre, 1 = right edge. */
+    private float worldTextAlign() {
+        if (textOnly()) return 0.5f;
+        return textPos.is("Left") ? 0 : textPos.is("Right") ? 1 : 0.5f;
+    }
+
+    /**
+     * Offset (x, y, z) from the feet of a bar hung {@code -y} blocks below them ({@code y < 0}), swung on an arc toward
+     * a camera with this pitch / yaw, and centred ({@code barHeight} in blocks).
+     */
+    private static double[] arcOffset(double y, double pitch, double yawDegrees, double barHeight) {
+        double pitchRatio = Math.clamp((pitch + 90) / 180.0, 0, 1);
+        double arc = (1 - pitchRatio) * Math.PI;
+        double horizontal = -y * Math.cos(arc), vertical = -y * Math.sin(arc);
+        double yaw = Math.toRadians(yawDegrees);
+        // The camera looks along (-sin yaw, cos yaw), and the bar swings the other way, toward the camera.
+        return new double[] {Math.sin(yaw) * horizontal, -vertical - barHeight / 2, -Math.cos(yaw) * horizontal};
     }
 
     /**
@@ -366,13 +393,8 @@ public final class HealthBarModule extends HudModule {
         }
         Point p = PlayerAdapter.feet(partialTick);
         if (p == null) return null;
-        double pitchRatio = Math.clamp((WorldRenderAdapter.cameraPitch() + 90) / 180.0, 0, 1);
-        double arc = (1 - pitchRatio) * Math.PI;
-        double horizontal = -y * Math.cos(arc), vertical = -y * Math.sin(arc);
-        double yaw = Math.toRadians(WorldRenderAdapter.cameraYaw());
-        // The camera looks along (-sin yaw, cos yaw), and the bar swings the other way, toward the camera.
-        return new Point(p.x() + Math.sin(yaw) * horizontal + offsetX.get(), p.y() - vertical - barHeight / 2,
-                p.z() - Math.cos(yaw) * horizontal + offsetZ.get());
+        double[] o = arcOffset(y, WorldRenderAdapter.cameraPitch(), WorldRenderAdapter.cameraYaw(), barHeight);
+        return new Point(p.x() + o[0] + offsetX.get(), p.y() + o[1], p.z() + o[2] + offsetZ.get());
     }
 
 
@@ -402,12 +424,8 @@ public final class HealthBarModule extends HudModule {
         private double[] anchorAt(PlayerPreview.View v, double barHeight) {
             double y = worldOffset.get();
             if (y >= 0) return new double[] {offsetX.get(), v.playerHeight() + y, offsetZ.get()};
-            double pitchRatio = Math.clamp((v.cameraPitch() + 90) / 180.0, 0, 1);
-            double arc = (1 - pitchRatio) * Math.PI;
-            double horizontal = -y * Math.cos(arc), vertical = -y * Math.sin(arc);
-            double yaw = Math.toRadians(v.cameraYaw());
-            return new double[] {Math.sin(yaw) * horizontal + offsetX.get(), -vertical - barHeight / 2,
-                    -Math.cos(yaw) * horizontal + offsetZ.get()};
+            double[] o = arcOffset(y, v.cameraPitch(), v.cameraYaw(), barHeight);
+            return new double[] {o[0] + offsetX.get(), o[1], o[2] + offsetZ.get()};
         }
 
         @Override
@@ -432,25 +450,18 @@ public final class HealthBarModule extends HudModule {
                     r.rect(rx, ry, rw, rh, border.get());
                     r.rect(left, top, right - left, bottom - top, background.get());
                     int fill = (int) Math.round((right - left) * f);
-                    int c = barColor(f);
-                    if (fill > 0) {
-                        int mid = top + (bottom - top) / 2;
-                        if (style.is("Gradient")) {
-                            r.rect(left, top, fill, mid - top, ColorUtil.shade(c, 0.2));
-                            r.rect(left, mid, fill, bottom - mid, ColorUtil.shade(c, -0.2));
-                        } else {
-                            r.rect(left, top, fill, bottom - top, c);
-                        }
-                    }
+                    int mid = top + (bottom - top) / 2;
+                    int[] fc = fillColors(f);
+                    r.rect(left, top, fill, mid - top, fc[0]);
+                    r.rect(left, mid, fill, bottom - mid, fc[1]);
                 }
                 if (showText(t)) {
-                    double textH = (textOnly() ? 0.25 : Math.max(0.08, h * 0.8)) * textScale.get();
-                    double lift = textOnly() ? 0 : textAbove() ? h + h * 0.3 : (h - textH) / 2;
+                    double textH = worldTextHeight(h);
+                    double lift = worldTextLift(h, textH);
                     float ts = (float) (textH * k / r.fontHeight());
                     int tw = (int) Math.ceil(r.textWidth(t) * ts);
-                    double tx = s[0] - tw / 2.0;
-                    if (!textOnly() && textPos.is("Left")) tx = left + h * 0.25 * k;
-                    else if (!textOnly() && textPos.is("Right")) tx = right - h * 0.25 * k - tw;
+                    float align = worldTextAlign();
+                    double tx = s[0] + (2 * align - 1) * (hw - h * 0.25) * k - tw * align;
                     double tyBottom = s[1] - lift * k;
                     r.pushTransform(Math.round(tx), Math.round(tyBottom - textH * k), ts);
                     try {
@@ -542,18 +553,10 @@ public final class HealthBarModule extends HudModule {
         Point p = anchor(partialTick, h);
         if (f < 0 || p == null) return List.of();
         double y = p.y();
-        double textH = (textOnly() ? 0.25 : Math.max(0.08, h * 0.8)) * textScale.get();
-        double ty = textOnly() ? y : textAbove() ? y + h + h * 0.3 : y + (h - textH) / 2;
-        double pad = h * 0.25;
-        double side = 0;
-        float align = 0.5f;
-        if (!textOnly() && textPos.is("Left")) {
-            side = -w + pad;
-            align = 0;
-        } else if (!textOnly() && textPos.is("Right")) {
-            side = w - pad;
-            align = 1;
-        }
+        double textH = worldTextHeight(h);
+        double ty = y + worldTextLift(h, textH);
+        float align = worldTextAlign();
+        double side = (2 * align - 1) * (w - h * 0.25);
         Render2D.TextLook look = look();
         return List.of(new WorldLabelAdapter.Label(p.x(), ty, p.z(), t, BadgeText.Style.PLAIN, textH,
                 textArgb(f), throughBlocks.get()).aligned(side, align)

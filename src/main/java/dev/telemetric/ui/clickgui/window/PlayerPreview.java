@@ -11,6 +11,7 @@ import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.framework.GuiContext;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Icons;
@@ -320,7 +321,7 @@ public final class PlayerPreview implements SettingsPreview {
         r.nextLayer();
         renderMenu(r, ctx, p, opt, mouseX, mouseY);
 
-        boolean over = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+        boolean over = Hit.inside(mouseX, mouseY, x, y, w, h);
         if (over && !overMenu && grabbed == null && !orbiting && !panning) ctx.requestTooltip(this, "Right-click to reset the view");
     }
 
@@ -393,11 +394,11 @@ public final class PlayerPreview implements SettingsPreview {
     private int menuH() { return Item.values().length * ROW + 4; }
 
     private boolean overToolbar(double mx, double my) {
-        return mx >= btnX() && mx < btnX() + BTN * 2 + 2 && my >= btnY() && my < btnY() + BTN;
+        return Hit.inside(mx, my, btnX(), btnY(), BTN * 2 + 2, BTN);
     }
 
     private boolean overMenu(double mx, double my) {
-        return menuOpen && mx >= menuX() && mx < menuX() + MENU_W && my >= menuY() && my < menuY() + menuH();
+        return menuOpen && Hit.inside(mx, my, menuX(), menuY(), MENU_W, menuH());
     }
 
     private Item itemAt(double mx, double my) {
@@ -459,8 +460,8 @@ public final class PlayerPreview implements SettingsPreview {
     }
 
     private void renderMenu(Render2D r, GuiContext ctx, Theme p, GuiLayout.PreviewOptions opt, int mouseX, int mouseY) {
-        boolean hotBtn = mouseX >= btnX() && mouseX < btnX() + BTN && mouseY >= btnY() && mouseY < btnY() + BTN;
-        boolean hotReset = mouseX >= btnX() + BTN + 2 && mouseX < btnX() + BTN * 2 + 2 && mouseY >= btnY() && mouseY < btnY() + BTN;
+        boolean hotBtn = Hit.inside(mouseX, mouseY, btnX(), btnY(), BTN, BTN);
+        boolean hotReset = Hit.inside(mouseX, mouseY, btnX() + BTN + 2, btnY(), BTN, BTN);
         menuHover.animateTo(hotBtn || menuOpen ? 1 : 0);
         int bg = ColorUtil.fade(p.panel(), 0.85);
         r.roundedRect(btnX(), btnY(), BTN, BTN, 3, ColorUtil.lerp(bg, p.surfaceHover(), menuHover.get()));

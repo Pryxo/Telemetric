@@ -9,7 +9,6 @@ import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.render.WarningColors;
 import dev.telemetric.ui.theme.Theme;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -56,7 +55,7 @@ public final class TooltipRenderer {
         if (a <= 0.01 || text == null) return;
 
         // the content is laid out in unscaled text units, then drawn at TEXT_SCALE
-        List<String> lines = wrap(r, text, Math.round(MAX_WIDTH / TEXT_SCALE));
+        List<String> lines = r.wrap(text, Math.round(MAX_WIDTH / TEXT_SCALE));
         int cw = 0;
         for (String line : lines) cw = Math.max(cw, r.textWidth(line));
         boolean hasTitle = title != null && !title.isBlank();
@@ -94,19 +93,4 @@ public final class TooltipRenderer {
         r.popAlpha();
     }
 
-    private static List<String> wrap(Render2D r, String text, int maxWidth) {
-        List<String> lines = new ArrayList<>();
-        StringBuilder line = new StringBuilder();
-        for (String word : text.split(" ")) {
-            String candidate = line.isEmpty() ? word : line + " " + word;
-            if (r.textWidth(candidate) > maxWidth && !line.isEmpty()) {
-                lines.add(line.toString());
-                line = new StringBuilder(word);
-            } else {
-                line = new StringBuilder(candidate);
-            }
-        }
-        if (!line.isEmpty()) lines.add(line.toString());
-        return lines;
-    }
 }

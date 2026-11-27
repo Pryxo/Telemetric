@@ -8,6 +8,7 @@ import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
 import dev.telemetric.ui.animation.OpenStyle;
 import dev.telemetric.ui.framework.GuiContext;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.framework.UIComponent;
 import dev.telemetric.ui.render.ColorUtil;
@@ -246,7 +247,7 @@ public class Panel extends UIComponent {
 
         if (bodyH > 0) {
             r.pushClip(x, bodyY, width, bodyH);
-            boolean mouseInBody = ctx.hasCapture() || (mouseX >= x && mouseX < x + width && mouseY >= bodyY && mouseY < bodyY + bodyH);
+            boolean mouseInBody = ctx.hasCapture() || Hit.inside(mouseX, mouseY, x, bodyY, width, bodyH);
             int childMouseY = mouseInBody ? mouseY : Integer.MIN_VALUE / 2;
             int cy = bodyY - (int) Math.round(scroll.get());
             for (ModuleComponent m : shown) {
@@ -310,11 +311,11 @@ public class Panel extends UIComponent {
     }
 
     private boolean isOverHeader(double mouseX, double mouseY) {
-        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + Layout.HEADER_HEIGHT;
+        return Hit.inside(mouseX, mouseY, x, y, width, Layout.HEADER_HEIGHT);
     }
 
     private boolean isOverBody(double mouseX, double mouseY) {
-        return mouseX >= x && mouseX < x + width && mouseY >= bodyY && mouseY < bodyY + bodyH;
+        return Hit.inside(mouseX, mouseY, x, bodyY, width, bodyH);
     }
 
     @Override

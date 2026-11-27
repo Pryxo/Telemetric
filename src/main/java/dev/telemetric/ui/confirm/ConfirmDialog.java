@@ -4,13 +4,13 @@ import dev.telemetric.input.InputUtil;
 import dev.telemetric.ui.animation.Animation;
 import dev.telemetric.ui.animation.Durations;
 import dev.telemetric.ui.animation.Easing;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.framework.MouseButton;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Icons;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.render.WarningColors;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -62,7 +62,7 @@ public final class ConfirmDialog {
         r.rect(0, 0, sw, sh, BACKDROP);
 
         int textW = WIDTH - PAD * 2;
-        List<String> lines = wrap(r, request.message(), textW);
+        List<String> lines = r.wrap(request.message(), textW);
         int headerH = Math.max(ICON_H, r.fontHeight());
         bh = PAD + headerH + 8 + lines.size() * LINE + 10 + BTN_H + PAD;
         bx = (sw - WIDTH) / 2;
@@ -108,34 +108,13 @@ public final class ConfirmDialog {
         r.popAlpha();
     }
 
-    private static List<String> wrap(Render2D r, String text, int maxW) {
-        List<String> out = new ArrayList<>();
-        for (String para : text.split("\n", -1)) {
-            if (para.isBlank()) {
-                out.add("");
-                continue;
-            }
-            StringBuilder line = new StringBuilder();
-            for (String word : para.split(" ")) {
-                String next = line.isEmpty() ? word : line + " " + word;
-                if (r.textWidth(next) > maxW && !line.isEmpty()) {
-                    out.add(line.toString());
-                    line = new StringBuilder(word);
-                } else {
-                    line = new StringBuilder(next);
-                }
-            }
-            out.add(line.toString());
-        }
-        return out;
-    }
 
     private boolean interactive() {
         return !closing && open.get() > 0.9;
     }
 
     private static boolean inside(int[] b, double mx, double my) {
-        return mx >= b[0] && mx < b[0] + b[2] && my >= b[1] && my < b[1] + b[3];
+        return Hit.inside(mx, my, b[0], b[1], b[2], b[3]);
     }
 
     public boolean mouseClicked(double mx, double my, int button) {

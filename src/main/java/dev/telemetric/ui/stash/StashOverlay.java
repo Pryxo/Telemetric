@@ -9,6 +9,7 @@ import dev.telemetric.stash.StashBook;
 import dev.telemetric.stash.StashMode;
 import dev.telemetric.stash.StashPage;
 import dev.telemetric.stash.StashSession;
+import dev.telemetric.ui.framework.Hit;
 import dev.telemetric.ui.render.ColorUtil;
 import dev.telemetric.ui.render.Render2D;
 import dev.telemetric.ui.theme.Theme;
@@ -219,10 +220,10 @@ public final class StashOverlay {
         r.roundedRect(normalX, pillY, pillW * 2, pillH, Math.min(radius, pillH / 2), p.control());
         int activeX = mode == StashMode.NORMAL ? normalX : seasonalX;
         r.roundedRect(activeX, pillY, pillW, pillH, Math.min(radius, pillH / 2), p.accent());
-        pill(r, p, normalLabel, normalX, mode == StashMode.NORMAL, hit(nx, ny, normalX, pillY, pillW, pillH));
-        pill(r, p, seasonalLabel, seasonalX, mode == StashMode.SEASONAL, hit(nx, ny, seasonalX, pillY, pillW, pillH));
+        pill(r, p, normalLabel, normalX, mode == StashMode.NORMAL, Hit.inside(nx, ny, normalX, pillY, pillW, pillH));
+        pill(r, p, seasonalLabel, seasonalX, mode == StashMode.SEASONAL, Hit.inside(nx, ny, seasonalX, pillY, pillW, pillH));
 
-        boolean scanHover = hit(nx, ny, scanX, pillY, scanW, pillH);
+        boolean scanHover = Hit.inside(nx, ny, scanX, pillY, scanW, pillH);
         r.roundedRect(scanX, pillY, scanW, pillH, Math.min(radius, pillH / 2),
                 session.isScanning() ? p.accentAlt() : scanHover ? p.surfaceHover() : p.surface());
         r.textCentered("Scan", scanX + scanW / 2, pillY + (pillH - r.fontHeight()) / 2 + 1, p.text());
@@ -233,7 +234,7 @@ public final class StashOverlay {
         convertX = scanX - GAP - convertW;
         convertShown = session.canConvert();
         if (convertShown) {
-            boolean convertHover = hit(nx, ny, convertX, pillY, convertW, pillH);
+            boolean convertHover = Hit.inside(nx, ny, convertX, pillY, convertW, pillH);
             r.roundedRect(convertX, pillY, convertW, pillH, Math.min(radius, pillH / 2),
                     convertHover ? p.surfaceHover() : p.surface());
             r.textCentered(convertLabel, convertX + convertW / 2, pillY + (pillH - r.fontHeight()) / 2 + 1,
@@ -246,7 +247,7 @@ public final class StashOverlay {
         searchX = PAD;
         searchY = PAD + HEADER_H;
         searchW = width - PAD * 2;
-        boolean hover = hit(nx, ny, searchX, searchY, searchW, SEARCH_H);
+        boolean hover = Hit.inside(nx, ny, searchX, searchY, searchW, SEARCH_H);
         r.roundedRect(searchX, searchY, searchW, SEARCH_H, Math.min(radius, SEARCH_H / 2),
                 searchFocused || hover ? p.surfaceHover() : p.control());
         if (searchFocused) r.outline(searchX, searchY, searchW, SEARCH_H, p.accent());
@@ -458,7 +459,7 @@ public final class StashOverlay {
     private static Target target(int nx, int ny) {
         if (!laidOut) return null;
         for (int j = 0; j < 36; j++) {
-            if (hit(nx, ny, invSlotX(j), invSlotY(j), SLOT - 1, SLOT - 1)) return new Target(Kind.INV_SLOT, 0, j);
+            if (Hit.inside(nx, ny, invSlotX(j), invSlotY(j), SLOT - 1, SLOT - 1)) return new Target(Kind.INV_SLOT, 0, j);
         }
         int top = CARDS_TOP;
         for (int row = 0; row < visRows; row++) {
@@ -466,11 +467,11 @@ public final class StashOverlay {
                 int index = (scrollRow + row) * cols + col + 1;
                 if (index > pageCount) continue;
                 int x = cardX(col), y = top + row * (CARD_H + GAP);
-                if (!hit(nx, ny, x, y, CARD_W, CARD_H)) continue;
+                if (!Hit.inside(nx, ny, x, y, CARD_W, CARD_H)) continue;
                 if (ny < y + LABEL_H) return new Target(Kind.LABEL, index, -1);
                 int gx = x + 2, gy = y + LABEL_H;
                 for (int i = 0; i < StashPage.SLOTS; i++) {
-                    if (hit(nx, ny, gx + (i % 9) * SLOT, gy + (i / 9) * SLOT, SLOT - 1, SLOT - 1)) {
+                    if (Hit.inside(nx, ny, gx + (i % 9) * SLOT, gy + (i / 9) * SLOT, SLOT - 1, SLOT - 1)) {
                         return new Target(Kind.STASH_SLOT, index, i);
                     }
                 }
@@ -489,7 +490,7 @@ public final class StashOverlay {
         }
         int nx = (int) Math.floor((mouseX - ox) / scale);
         int ny = (int) Math.floor((mouseY - oy) / scale);
-        if (hit(nx, ny, searchX, searchY, searchW, SEARCH_H)) {
+        if (Hit.inside(nx, ny, searchX, searchY, searchW, SEARCH_H)) {
             // left-click types here, right-click or the × clears
             boolean onClear = !searchFocused && !searchText.isEmpty() && nx >= searchX + searchW - 12;
             if (button == 1 || onClear) searchText = "";
@@ -498,30 +499,30 @@ public final class StashOverlay {
         }
         searchFocused = false;
         StashSession session = StashSession.get();
-        boolean inMain = hit(nx, ny, 0, 0, width, height);
-        boolean inInv = hit(nx, ny, invX, invY, INV_W, INV_H);
+        boolean inMain = Hit.inside(nx, ny, 0, 0, width, height);
+        boolean inInv = Hit.inside(nx, ny, invX, invY, INV_W, INV_H);
 
-        if (hit(nx, ny, legendX, invY, legendW, INV_H)) return true; // clicks on the legend don't drop anything
+        if (Hit.inside(nx, ny, legendX, invY, legendW, INV_H)) return true; // clicks on the legend don't drop anything
         if (!inMain && !inInv) {
             // outside the window: drop the carried item, like vanilla
             if (StashAdapter.carried() != null && (button == 0 || button == 1)) StashAdapter.slotInput(-999, SlotAction.PICKUP, button);
             return true;
         }
         if (button == 0 && inMain) {
-            if (hit(nx, ny, normalX, pillY, pillW, pillH)) {
+            if (Hit.inside(nx, ny, normalX, pillY, pillW, pillH)) {
                 session.switchMode(StashMode.NORMAL);
                 return true;
             }
-            if (hit(nx, ny, seasonalX, pillY, pillW, pillH)) {
+            if (Hit.inside(nx, ny, seasonalX, pillY, pillW, pillH)) {
                 session.switchMode(StashMode.SEASONAL);
                 return true;
             }
-            if (hit(nx, ny, scanX, pillY, scanW, pillH)) {
+            if (Hit.inside(nx, ny, scanX, pillY, scanW, pillH)) {
                 if (shift) session.startBenchmark(); // times every page click and shows the result in the header and the log
                 else session.startScan();
                 return true;
             }
-            if (convertShown && hit(nx, ny, convertX, pillY, convertW, pillH)) {
+            if (convertShown && Hit.inside(nx, ny, convertX, pillY, convertW, pillH)) {
                 session.convertPage();
                 return true;
             }
@@ -693,10 +694,6 @@ public final class StashOverlay {
         searchFocused = false; // the search text stays for the next time the stash opens
         shiftDrag = false;
         dragVisited.clear();
-    }
-
-    private static boolean hit(int nx, int ny, int x, int y, int w, int h) {
-        return nx >= x && ny >= y && nx < x + w && ny < y + h;
     }
 
     private static int clamp(int v, int min, int max) {
