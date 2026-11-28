@@ -28,7 +28,8 @@ import java.util.Set;
 /**
  * Chat Emoji Picker (Social → Chat → Emoji Button), a Discord-style window over the chat box.
  * <ul>
- *   <li>The emoji icon sits at right of the chat box at its bottom; the window opens to the right; click it to open / close the window.</li>
+ *   <li>The emoji icon sits at right of the chat box at its bottom; the window opens to the right; click it to open / close the window.
+ *       Hold right-click on it to drag it anywhere (offset saved in the Chat module).</li>
  *   <li>Search bar on top (typing goes there while the window is open; Enter picks the first hit, Esc closes).</li>
  *   <li>Sections: Favorites first, then the wiki categories from {@code emojis.json}. Click a section header
  *       to collapse / expand it; the left rail jumps to a section.</li>
@@ -67,6 +68,9 @@ final class EmojiPicker {
     private static int screenW, screenH, contentH;
     private static List<String> favorites = new ArrayList<>();
     private static Set<String> collapsed = new LinkedHashSet<>();
+    /** Icon offset from its default spot (saved in the Chat module); right-drag state. */
+    private static int offX, offY, grabX, grabY;
+    private static boolean offLoaded, dragging;
 
     private EmojiPicker() {}
 
@@ -108,6 +112,8 @@ final class EmojiPicker {
 
     /** The chat screen went away: close without the fade. */
     static void onChatClosed(ChatModule chat) {
+        if (dragging) endDrag(chat);
+        offLoaded = false;
         if (open) close(chat);
         OPEN.snapTo(0);
         BTN_HOVER.snapTo(0);
@@ -121,14 +127,26 @@ final class EmojiPicker {
         return expand(key).getTarget() > 0.5;
     }
 
-    /** Right of the icon (beside the chat box, not over it); pushed left only if the screen is too narrow. */
-    private static int px() { return Math.max(2, Math.min(bx() + BTN + 4, screenW - 2 - W)); }
-    private static int ph() { return Math.max(80, Math.min(MAX_H, by() + BTN - 6)); }
-    /** Bottom edge level with the icon's. */
-    private static int py() { return by() + BTN - ph(); }
-    /** Just right of the chat box, level with its bottom (the last chat line, above the tab bar). */
-    private static int bx() { return Math.min(screenW - 2 - BTN, ChatHudAdapter.chatWidth() + 12); }
-    private static int by() { return screenH - TAB_BAR_OFFSET - BTN - 1 - LINE_H; }
+    /** Right of the icon (beside the chat box, not over it); flipped to its left if it doesn't fit, then clamped. */
+    private static int px() {
+        int right = bx() + BTN + 4;
+        if (right + W <= screenW - 2) return right;
+        int left = bx() - 4 - W;
+        return left >= 2 ? left : Math.max(2, screenW - 2 - W);
+    }
+    /** As tall as the room above the icon allows (or below it, if the icon was dragged near the top). */
+    private static int ph() { return Math.max(80, Math.min(MAX_H, Math.max(by() + BTN, screenH - by()) - 6)); }
+    /** Bottom edge level with the icon's; if that doesn't fit, top edge level with it. */
+    private static int py() {
+        int above = by() + BTN - ph();
+        return above >= 2 ? above : Math.max(2, Math.min(by(), screenH - 2 - ph()));
+    }
+    /** Default spot: just right of the chat box, level with its bottom (the last chat line, above the tab bar). */
+    private static int baseX() { return ChatHudAdapter.chatWidth() + 12; }
+    private static int baseY() { return screenH - TAB_BAR_OFFSET - BTN - 1 - LINE_H; }
+    /** Default spot + the right-drag offset, kept on screen. */
+    private static int bx() { return Math.clamp(baseX() + offX, 2, Math.max(2, screenW - 2 - BTN)); }
+    private static int by() { return Math.clamp(baseY() + offY, 2, Math.max(2, screenH - 2 - BTN)); }
     private static int bodyX() { return px() + RAIL; }
     private static int bodyY() { return py() + PAD + SEARCH_H + 4; }
     private static int bodyH() { return py() + ph() - FOOTER_H - bodyY(); }
@@ -262,8 +280,19 @@ final class EmojiPicker {
         screenW = width;
         screenH = height;
         if (!chat.showsEmojiButton()) {
+            if (dragging) endDrag(chat);
             if (open) close(chat);
             return;
+        }
+        if (!offLoaded) {
+            int[] o = chat.emojiButtonOffset();
+            offX = o[0];
+            offY = o[1];
+            offLoaded = true;
+        }
+        if (dragging) {
+            if (InputUtil.isKeyDown(InputUtil.mouseCode(1))) moveTo(mouseX - grabX, mouseY - grabY);
+            else endDrag(chat);
         }
         Theme p = Telemetric.get().theme().palette();
         R.begin(graphics, false);
@@ -280,7 +309,7 @@ final class EmojiPicker {
     }
 
     private static void drawButton(Theme p, int mx, int my) {
-        BTN_HOVER.animateTo(inButton(mx, my) || open ? 1 : 0);
+        BTN_HOVER.animateTo(inButton(mx, my) || open || dragging ? 1 : 0);
         double t = BTN_HOVER.get();
         int x = bx(), y = by();
         R.pushAlpha(0.55 + 0.45 * t); // one hover cue: it brightens, no growing
@@ -453,6 +482,7 @@ final class EmojiPicker {
         if (!chat.showsEmojiButton() || screenW == 0) return false;
         if (inButton(mx, my)) {
             if (button == 0) toggle(chat);
+            else if (button == 1) startDrag(mx, my);
             return true;
         }
         if (!open) return false;
@@ -487,6 +517,26 @@ final class EmojiPicker {
             pick(chat, e, InputUtil.isShiftDown());
         }
         return true;
+    }
+
+    /** Right-press on the icon: it follows the mouse while the button is held (polled in {@link #render}). */
+    private static void startDrag(double mx, double my) {
+        dragging = true;
+        grabX = (int) mx - bx();
+        grabY = (int) my - by();
+    }
+
+    private static void moveTo(int x, int y) {
+        offX = Math.clamp(x, 2, Math.max(2, screenW - 2 - BTN)) - baseX();
+        offY = Math.clamp(y, 2, Math.max(2, screenH - 2 - BTN)) - baseY();
+    }
+
+    private static void endDrag(ChatModule chat) {
+        dragging = false;
+        int[] saved = chat.emojiButtonOffset();
+        if (saved[0] == offX && saved[1] == offY) return;
+        chat.setEmojiButtonOffset(offX, offY);
+        Telemetric.get().config().onGuiClosed(); // saves the profile (auto save)
     }
 
     private static void pick(ChatModule chat, Emoji e, boolean keepOpen) {

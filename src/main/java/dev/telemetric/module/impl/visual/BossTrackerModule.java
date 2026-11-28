@@ -32,6 +32,8 @@ public final class BossTrackerModule extends LinesHudModule {
 
     private final BooleanSetting autoTrack = add(new BooleanSetting("Auto Track",
             "Run /bosses when you enter a realm and read the list (the menu closes by itself)", true));
+    private final BooleanSetting background = add(new BooleanSetting("Read in Background",
+            "Auto Track reads the /bosses menu without ever showing it", true));
     private final BooleanSetting showList = add(new BooleanSetting("Show List",
             "Show the boss list on the HUD (World → Waypoints works without it)", true));
     private final BooleanSetting compact = add(new BooleanSetting("Compact",
@@ -75,7 +77,7 @@ public final class BossTrackerModule extends LinesHudModule {
         long join = tracker.realmJoinedAt();
         if (join != seenRealmJoin) {
             seenRealmJoin = join;
-            if (join != 0 && autoTrack.get()) tracker.scanMenu();
+            if (join != 0 && autoTrack.get()) tracker.scanMenu(background.get());
         }
         realm = inRealm();
         here = realm ? bossesHere() : List.of();

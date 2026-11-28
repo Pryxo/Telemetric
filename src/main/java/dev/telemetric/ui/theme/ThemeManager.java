@@ -24,7 +24,7 @@ public final class ThemeManager {
     private final Animation transition = new Animation(Durations.DRAWER, Easing.IN_OUT_CUBIC, 1);
     private Theme from;
     private Theme target;
-    private Theme current = ThemePreset.MIDNIGHT.theme();
+    private Theme current = ThemePreset.ARCTIC.theme();
     /** 0 = every panel uses the theme accent, 1 = Category Colors fully applied (fades when toggled). */
     private final Animation categoryMix = new Animation(Durations.DRAWER, Easing.IN_OUT_CUBIC, 0);
 

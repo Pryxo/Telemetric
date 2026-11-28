@@ -109,6 +109,8 @@ public final class RealmBossTracker {
     /** The world before the pending realm world was a realm world too (realm switch without a stop in between). */
     private boolean pendingFromRealm;
     private boolean inRealmWorld;
+    /** Last /bosses list read in the current world: re-applied when the realm turns out to be a new one after it. */
+    private List<MenuItem> worldMenu;
 
     private RealmBossTracker() {}
 
@@ -151,7 +153,8 @@ public final class RealmBossTracker {
 
     /**
      * When a realm world was last entered (0 if not yet), also when coming back from a dungeon: the realm's chat lines
-     * don't reach you while you're away, so that's when to read /bosses again.
+     * don't reach you while you're away, so that's when to read /bosses again. Set right on entry, not after the Tab
+     * list named the realm: the list read in this world is kept and re-applied if the realm turns out to be new.
      */
     public long realmJoinedAt() { return realmJoinedAt; }
 
@@ -189,12 +192,14 @@ public final class RealmBossTracker {
             boolean wasRealm = inRealmWorld;
             inRealmWorld = dim.startsWith("telos:realm");
             pendingSince = 0;
+            worldMenu = null;
             if (dim.startsWith("telos:hub") || dim.startsWith("telos:daily")) {
                 clear();
                 realmServer = null;
             } else if (inRealmWorld) {
                 pendingSince = now;
                 pendingFromRealm = wasRealm;
+                realmJoinedAt = now; // read /bosses now; the realm check below may still clear and re-apply it
             }
         }
         String server = serverValue();
@@ -213,13 +218,20 @@ public final class RealmBossTracker {
         if (known && !server.equals(realmServer)) {
             clear();
             realmServer = server;
+            reapplyMenu();
         } else if (pendingSince == 0 || !known && now - pendingSince < REALM_WAIT_MS) {
             return;
         } else if (!known && (pendingFromRealm || realmServer == null)) {
             clear(); // no Tab list in time: realm to realm (or the first realm) counts as a new realm
+            reapplyMenu();
         }
         pendingSince = 0;
-        realmJoinedAt = now;
+    }
+
+    /** The list read in this world belongs to this realm, so it survives the clear for a new realm. */
+    private void reapplyMenu() {
+        List<MenuItem> m = worldMenu;
+        if (m != null) readMenu(m);
     }
 
     private static String serverValue() {
@@ -234,9 +246,9 @@ public final class RealmBossTracker {
         }
     }
 
-    /** Runs {@code /bosses}, reads the list and closes it (only that menu). */
-    public void scanMenu() {
-        BossMenuAdapter.runCommandAndRead("bosses", RealmBossTracker::isBossMenu, this::readMenu);
+    /** Runs {@code /bosses}, reads the list and closes it (only that menu); {@code inBackground} = never shown. */
+    public void scanMenu(boolean inBackground) {
+        BossMenuAdapter.runCommandAndRead("bosses", inBackground, RealmBossTracker::isBossMenu, this::readMenu);
     }
 
 
@@ -247,6 +259,7 @@ public final class RealmBossTracker {
 
     private synchronized void readMenu(List<MenuItem> items) {
         if (!isBossMenu(items)) return;
+        worldMenu = items;
         BossTable.MenuText text = TelosData.BOSSES.get().menu();
         for (MenuItem i : items) {
             Matcher name = MENU_NAME.matcher(i.name());

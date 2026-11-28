@@ -4,6 +4,7 @@ import dev.telemetric.ui.clickgui.ClickGuiScreen;
 import dev.telemetric.ui.confirm.Confirm;
 import dev.telemetric.ui.confirm.ConfirmScreen;
 import dev.telemetric.ui.hud.HudEditorScreen;
+import dev.telemetric.ui.profile.ProfileScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
@@ -25,6 +26,11 @@ public final class ScreenOpener {
 
     public static void hudEditor() {
         pending = () -> new HudEditorScreen(false);
+    }
+
+    /** {@code /profile <name>}: the Telos profile viewer. */
+    public static void profile(String name) {
+        pending = () -> new ProfileScreen(name);
     }
 
     /** Gives an open {@link Confirm} dialog a screen of its own, unless the ClickGUI is already showing it. */

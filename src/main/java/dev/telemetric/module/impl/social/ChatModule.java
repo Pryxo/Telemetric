@@ -78,6 +78,9 @@ public class ChatModule extends Module implements ChatView {
     /** Hidden: collapsed Emoji Picker sections, '|'-separated. */
     private final TextSetting emojiCollapsed = add(new TextSetting("Emoji Collapsed", "", "", 1000)
             .visibleWhen(() -> false));
+    /** Hidden: Emoji Button offset from its default spot (right-drag), "dx,dy" in GUI pixels. */
+    private final TextSetting emojiButtonOffset = add(new TextSetting("Emoji Button Offset", "", "", 32)
+            .visibleWhen(() -> false));
 
     private final ChatTabs tabs = new ChatTabs(Callouts::isCallout);
     private final ChatChannels channels = new ChatChannels(new ChatChannels.Server() {
@@ -152,6 +155,21 @@ public class ChatModule extends Module implements ChatView {
 
     public void setEmojiCollapsed(Set<String> sections) {
         emojiCollapsed.set(String.join("|", new ArrayList<>(sections)));
+    }
+
+    /** Emoji Button offset {dx, dy} from its default spot; {0, 0} if never moved. */
+    public int[] emojiButtonOffset() {
+        String[] p = emojiButtonOffset.get().split(",");
+        if (p.length != 2) return new int[] {0, 0};
+        try {
+            return new int[] {Integer.parseInt(p[0].trim()), Integer.parseInt(p[1].trim())};
+        } catch (NumberFormatException e) {
+            return new int[] {0, 0};
+        }
+    }
+
+    public void setEmojiButtonOffset(int dx, int dy) {
+        emojiButtonOffset.set(dx == 0 && dy == 0 ? "" : dx + "," + dy);
     }
 
 

@@ -30,6 +30,10 @@ public final class InputUtil {
     public static final int KEY_X = InputConstants.KEY_X;
     public static final int KEY_F6 = InputConstants.KEY_F6;
     public static final int KEY_TAB = InputConstants.KEY_TAB;
+    public static final int KEY_R = InputConstants.KEY_R;
+    /** {@code KEY_1}..{@code KEY_9} are consecutive (GLFW key codes). */
+    public static final int KEY_1 = InputConstants.KEY_1;
+    public static final int KEY_2 = InputConstants.KEY_2;
 
     /** System clipboard text ("" if it's empty or unavailable). */
     public static String getClipboard() {

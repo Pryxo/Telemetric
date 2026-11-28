@@ -50,18 +50,26 @@ public final class ItemRarityAdapter {
     }
 
     public static void drawSlot(GuiGraphicsExtractor g, ItemStack stack, int x, int y, boolean hotbar) {
-        Style s = style;
-        if (s == null || stack == null || stack.isEmpty() || (hotbar && !s.hotbar())) return;
-        Identifier tooltipStyle = stack.get(DataComponents.TOOLTIP_STYLE);
-        if (tooltipStyle == null || !ServerGate.onTelos()) return;
-        int rgb = colorOf(tooltipStyle, s.hidden());
-        if (rgb < 0) return;
-        g.blit(RenderPipelines.GUI_TEXTURED, s.shape().texture, x, y, 0f, 0f, 16, 16, TEX, TEX, TEX, TEX,
-                (s.alpha() << 24) | rgb);
+        drawSlot(g, stack, x, y, hotbar, -1);
     }
 
-    /** The rarity colour (0xRRGGBB) of an item with this tooltip style, or -1 if it has none or the rarity is hidden. */
-    private static int colorOf(Identifier tooltipStyle, Set<String> hidden) {
+    /**
+     * Like {@link #drawSlot(GuiGraphicsExtractor, ItemStack, int, int, boolean)}, but an item without a rarity tooltip
+     * style is drawn in {@code fallbackRgb} (0xRRGGBB, -1 = none) — e.g. the name colour of a profile skin token.
+     */
+    public static void drawSlot(GuiGraphicsExtractor g, ItemStack stack, int x, int y, boolean hotbar, int fallbackRgb) {
+        Style s = style;
+        if (s == null || stack == null || stack.isEmpty() || (hotbar && !s.hotbar()) || !ServerGate.onTelos()) return;
+        Identifier tooltipStyle = stack.get(DataComponents.TOOLTIP_STYLE);
+        TelosData.Rarity r = tooltipStyle == null ? null : rarityOf(tooltipStyle);
+        int rgb = r != null ? (s.hidden().contains(r.key()) ? -1 : r.rgb()) : fallbackRgb;
+        if (rgb < 0) return;
+        g.blit(RenderPipelines.GUI_TEXTURED, s.shape().texture, x, y, 0f, 0f, 16, 16, TEX, TEX, TEX, TEX,
+                (s.alpha() << 24) | (rgb & 0xFFFFFF));
+    }
+
+    /** The rarity of an item with this tooltip style, or null if it has none. */
+    private static TelosData.Rarity rarityOf(Identifier tooltipStyle) {
         TelosData.Rarities table = TelosData.RARITIES.get();
         if (table != rarityFor) {
             RARITY.clear();
@@ -70,6 +78,6 @@ public final class ItemRarityAdapter {
         TelosData.Rarity r;
         if (RARITY.containsKey(tooltipStyle)) r = RARITY.get(tooltipStyle);
         else RARITY.put(tooltipStyle, r = table.forStyle(tooltipStyle.getPath()));
-        return r == null || hidden.contains(r.key()) ? -1 : r.rgb();
+        return r;
     }
 }

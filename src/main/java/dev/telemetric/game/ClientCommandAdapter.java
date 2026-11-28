@@ -113,17 +113,19 @@ public final class ClientCommandAdapter {
         }
         for (Map.Entry<String, ArgCommand> s : OWN_ARG.getOrDefault(root, Map.of()).entrySet()) {
             ArgCommand c = s.getValue();
-            node.then(chain(s.getKey().split(" "), 0, last -> last.then(
-                    ClientCommands.argument(c.argName(), StringArgumentType.greedyString())
-                            .suggests((ctx, b) -> {
-                                String typed = b.getRemaining().toLowerCase(Locale.ROOT);
-                                for (String v : c.suggestions().get()) {
-                                    if (v.toLowerCase(Locale.ROOT).startsWith(typed)) b.suggest(v);
-                                }
-                                return b.buildFuture();
-                            })
-                            .executes(ctx -> runOwnArg(root, c.handler(),
-                                    StringArgumentType.getString(ctx, c.argName()), ctx.getSource())))));
+            var arg = ClientCommands.argument(c.argName(), StringArgumentType.greedyString())
+                    .suggests((ctx, b) -> {
+                        String typed = b.getRemaining().toLowerCase(Locale.ROOT);
+                        for (String v : c.suggestions().get()) {
+                            if (v.toLowerCase(Locale.ROOT).startsWith(typed)) b.suggest(v);
+                        }
+                        return b.buildFuture();
+                    })
+                    .executes(ctx -> runOwnArg(root, c.handler(),
+                            StringArgumentType.getString(ctx, c.argName()), ctx.getSource()));
+            // an empty sub puts the argument straight under the root (/profile <player>)
+            if (s.getKey().isEmpty()) node.then(arg);
+            else node.then(chain(s.getKey().split(" "), 0, last -> last.then(arg)));
         }
         return node;
     }

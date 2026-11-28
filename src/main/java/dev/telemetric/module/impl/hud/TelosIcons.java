@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  * The glyph code points come from the pack's {@code minecraft:default}, {@code telos:misc} and
  * {@code telos:material} font files. Fame Boost has no pack icon.
  */
-final class TelosIcons {
+public final class TelosIcons {
 
     private static final String DIR = "textures/hud/telos/";
     private static final String MISC = "telos:misc", MATERIAL = "telos:material";
@@ -63,7 +63,7 @@ final class TelosIcons {
     private static final int[] MASTERY_GLYPHS = {0x15F10, 0x15F12, 0x15F15, 0x15F18, 0x15F19, 0x15F1B, 0x15F1C};
     /** Stats whose (white) tooltip symbol is tinted with the stat's colour. */
     private static final Set<String> TINTED = Set.of("attack", "speed", "defense", "health", "vitality",
-            "evasion", "critical chance"); // critical damage's symbol already has its colour
+            "evasion", "critical chance"); // critical damage's symbol is drawn untinted (no colour)
     /** Class ruleset ("mode") glyphs in {@code telos:misc}: normal, hardcore ironman, seasonal. */
     private static final int RULESET_NORMAL = 0x370, RULESET_HARDCORE = 0x371, RULESET_SEASONAL = 0x372;
     private static final Pattern DIGIT = Pattern.compile("\\d+");
@@ -121,7 +121,7 @@ final class TelosIcons {
     }
 
     /** True if this stat's icon is a white symbol that should be tinted with the stat colour. */
-    static boolean tinted(String label) {
+    public static boolean tinted(String label) {
         return TINTED.contains(label.toLowerCase(Locale.ROOT));
     }
 

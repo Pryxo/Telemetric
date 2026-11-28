@@ -967,6 +967,16 @@ public final class Render2D {
         g.itemDecorations(font, item.stack(), x, y);
     }
 
+    /** The Item Rarity module's shape behind an item, exactly as in inventory slots (nothing when that module is off). */
+    public void itemRarity(GameItem item, int x, int y) {
+        if (item != null) dev.telemetric.game.ItemRarityAdapter.drawSlot(g, item.stack(), x, y, false);
+    }
+
+    /** {@link #itemRarity(GameItem, int, int)}, an item with no rarity drawn in {@code fallbackRgb} (0xRRGGBB, -1 = none). */
+    public void itemRarity(GameItem item, int x, int y, int fallbackRgb) {
+        if (item != null) dev.telemetric.game.ItemRarityAdapter.drawSlot(g, item.stack(), x, y, false, fallbackRgb);
+    }
+
     /** Draws only the item model (no count, durability or vanilla cooldown overlay) at 16x16 GUI units. */
     public void itemIcon(GameItem item, int x, int y) {
         if (item != null) g.item(item.stack(), x, y);

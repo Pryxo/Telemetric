@@ -220,6 +220,62 @@ public final class TelosData {
     }
 
 
+    /**
+     * {@code translations.json}: Telos lore translate keys ({@code telos:item.modifier.damage.icon}) to their text. In
+     * game the server resolves them; the {@code /profile} API sends them raw, so the profile tooltips look them up here.
+     * JSON: {@code {"keys": {"<key>": "<text>"}}}.
+     */
+    public static final SharedFile<Translations> TRANSLATIONS =
+            SharedData.file(DIR + "translations.json", Translations::parse, Translations.EMPTY);
+
+    public record Translations(Map<String, String> byKey) {
+        static final Translations EMPTY = new Translations(Map.of());
+
+        static Translations parse(JsonObject root) {
+            JsonObject keys = JsonFields.obj(root, "keys");
+            if (keys == null) return EMPTY;
+            Map<String, String> out = new HashMap<>();
+            for (Map.Entry<String, JsonElement> e : keys.entrySet()) {
+                if (e.getValue().isJsonPrimitive()) out.put(e.getKey(), e.getValue().getAsString());
+            }
+            return new Translations(Collections.unmodifiableMap(out));
+        }
+    }
+
+    /**
+     * {@code companions.json}: companion tiers for {@code /profile}, lowest first, keyed by the definition's name colour.
+     * JSON: {@code {"tiers": [{"label": "Usual", "color": "#AAA7AA"}, …]}}.
+     */
+    public static final SharedFile<CompanionTiers> COMPANION_TIERS =
+            SharedData.file(DIR + "companions.json", CompanionTiers::parse, CompanionTiers.EMPTY);
+
+    /** @param rgb 0xRRGGBB */
+    public record CompanionTier(int index, String label, int rgb) {}
+
+    public record CompanionTiers(List<CompanionTier> tiers) {
+        static final CompanionTiers EMPTY = new CompanionTiers(List.of());
+
+        static CompanionTiers parse(JsonObject root) {
+            List<CompanionTier> out = new ArrayList<>();
+            for (JsonObject t : JsonFields.objects(root, "tiers")) {
+                String c = JsonFields.str(t, "color");
+                if (c == null || !c.startsWith("#") || c.length() != 7) continue;
+                try {
+                    out.add(new CompanionTier(out.size(), JsonFields.str(t, "label"), Integer.parseInt(c.substring(1), 16)));
+                } catch (NumberFormatException ignored) {
+                    // bad colour: skip the tier
+                }
+            }
+            return new CompanionTiers(List.copyOf(out));
+        }
+
+        /** The tier with this name colour (0xRRGGBB), or null. */
+        public CompanionTier byColor(int rgb) {
+            for (CompanionTier t : tiers) if (t.rgb() == rgb) return t;
+            return null;
+        }
+    }
+
     /** {@code traits.json}: unique trait descriptions per tier (Trait Details). */
     public static final SharedFile<TraitTable> TRAITS = SharedData.file(DIR + "traits.json", TraitTable::parse, TraitTable.EMPTY);
 

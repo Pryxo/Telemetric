@@ -1,14 +1,17 @@
 package dev.telemetric.mixin;
 
+import dev.telemetric.game.BossMenuAdapter;
 import dev.telemetric.game.CombatAdapter;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.ServerInfoAdapter;
 import dev.telemetric.game.StashAdapter;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.protocol.game.ClientboundContainerClosePacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
 import net.minecraft.network.protocol.game.ClientboundCooldownPacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
+import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,6 +26,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <p>
  * Container content and slot packets go to {@link StashAdapter#onContainerPacket} at {@code RETURN}, after the menu
  * was updated (the network-thread pass throws before it gets there).
+ * <p>
+ * Open-screen and container-close packets go to {@link BossMenuAdapter} first (background {@code /bosses} read), which
+ * can cancel them.
  */
 @Mixin(ClientPacketListener.class)
 public abstract class ClientPacketListenerMixin {
@@ -47,6 +53,20 @@ public abstract class ClientPacketListenerMixin {
             shift = At.Shift.AFTER))
     private void telemetric$onSetTime(ClientboundSetTimePacket packet, CallbackInfo ci) {
         ServerInfoAdapter.onTimePacket();
+    }
+
+    @Inject(method = "handleOpenScreen", cancellable = true, at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
+            shift = At.Shift.AFTER))
+    private void telemetric$onOpenScreen(ClientboundOpenScreenPacket packet, CallbackInfo ci) {
+        if (BossMenuAdapter.onOpenScreen(packet.getContainerId(), packet.getType(), packet.getTitle())) ci.cancel();
+    }
+
+    @Inject(method = "handleContainerClose", cancellable = true, at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
+            shift = At.Shift.AFTER))
+    private void telemetric$onContainerClose(ClientboundContainerClosePacket packet, CallbackInfo ci) {
+        if (BossMenuAdapter.onServerClose()) ci.cancel();
     }
 
     @Inject(method = "handleContainerContent", at = @At("RETURN"))

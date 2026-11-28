@@ -22,13 +22,13 @@ import java.util.Map;
 /** UI-only: the colours and look of the ClickGUI. {@link dev.telemetric.ui.theme.ThemeManager} reads it. */
 public final class ThemeModule extends Module {
 
-    private static final Theme DEFAULTS = ThemePreset.MIDNIGHT.theme();
+    private static final Theme DEFAULTS = ThemePreset.ARCTIC.theme();
 
     /** Category name → its colour under Category Colors (built-in categories only). */
     private final Map<String, ColorSetting> categoryColorsByName = new LinkedHashMap<>();
 
     public final EnumSetting<ThemePreset> preset = add(new EnumSetting<>(
-            "Preset", "Base colour palette of the interface", ThemePreset.MIDNIGHT).searchable());
+            "Preset", "Base colour palette of the interface", ThemePreset.ARCTIC).searchable());
 
     public final GroupToggleSetting customAccent = add(new GroupToggleSetting(
             "Custom Accent", "Override the preset's accent colours (right-click to edit)", false));
@@ -83,7 +83,7 @@ public final class ThemeModule extends Module {
 
     public final GroupToggleSetting categoryColors = add(new GroupToggleSetting(
             "Category Colors", "Give every panel (and the Settings windows of its modules) its own accent colour "
-            + "(right-click to edit)", false));
+            + "(right-click to edit)", true));
 
     public final ColorSetting combatColor = categoryColor(Category.COMBAT, 0xFFEF4444);
     public final ColorSetting playerColor = categoryColor(Category.PLAYER, 0xFF22C55E);
@@ -132,7 +132,7 @@ public final class ThemeModule extends Module {
 
     public ThemeModule() {
         super("Theme", "Colours, preset and look of the interface", Category.MISC, false);
-        // The first switch-on starts from the current preset instead of Midnight's colours. (On a profile load the toggle
+        // The first switch-on starts from the current preset instead of Arctic's colours. (On a profile load the toggle
         // loads before its colours, which then overwrite this copy.)
         customAccent.onChange(on -> {
             if (on && accent.get().equals(accent.getDefault()) && accentAlt.get().equals(accentAlt.getDefault())) {
