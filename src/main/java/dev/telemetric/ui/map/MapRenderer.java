@@ -170,6 +170,27 @@ public final class MapRenderer {
         r.texturedPolygon(skin, xy, HAT_UV, 4, 0xFFFFFFFF);
     }
 
+    /**
+     * A small arrow just outside a head of radius {@code inner} centred on (cx, cy), pointing at screen angle
+     * {@code angle} (radians, 0 = up, clockwise; see {@link MapView#screenAngle}). {@code len} is the arrow length.
+     */
+    public static void facingArrow(Render2D r, double cx, double cy, double angle, double inner, double len,
+                                   int color, int outline) {
+        double dx = Math.sin(angle), dy = -Math.cos(angle);
+        double w = len * 0.75;
+        arrowTri(r, cx, cy, dx, dy, inner - 0.6, inner + len + 1.0, w + 1.0, outline);
+        arrowTri(r, cx, cy, dx, dy, inner, inner + len, w, color);
+    }
+
+    private static void arrowTri(Render2D r, double cx, double cy, double dx, double dy, double base, double tip,
+                                 double halfW, int color) {
+        double bx = cx + dx * base, by = cy + dy * base;
+        r.polygon(new float[]{
+                (float) (cx + dx * tip), (float) (cy + dy * tip),
+                (float) (bx - dy * halfW), (float) (by + dx * halfW),
+                (float) (bx + dy * halfW), (float) (by - dx * halfW)}, 3, color);
+    }
+
     /** A small rotated square. */
     public static void diamond(Render2D r, double cx, double cy, double half, int color) {
         r.polygon(new float[]{(float) cx, (float) (cy - half), (float) (cx + half), (float) cy, (float) cx,

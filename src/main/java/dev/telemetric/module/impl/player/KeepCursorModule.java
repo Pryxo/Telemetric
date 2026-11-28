@@ -11,7 +11,7 @@ import dev.telemetric.module.Module;
 public final class KeepCursorModule extends Module {
 
     public KeepCursorModule() {
-        super("Keep Cursor", "Never snap the mouse to the middle when a menu opens or closes", Category.PLAYER);
+        super("Keep Cursor", "Never snap the mouse to the middle when a menu opens or closes", Category.MISC);
         syncOn(() -> CursorAdapter.setEnabled(isEnabled()));
     }
 

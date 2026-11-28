@@ -120,6 +120,22 @@ public final class TrackingStore {
         return old == null ? 0 : old;
     }
 
+    /** The scope the pity calls use now. */
+    public synchronized String pityScope() {
+        return scope;
+    }
+
+    /** Sets a counter by hand (Pity Counter → Editor, Melinoe import). 0 or less removes it. */
+    public synchronized void setPity(String dropKey, int count) {
+        if (count <= 0) {
+            Map<String, Integer> p = pity.get(scope);
+            if (p == null || p.remove(dropKey) == null) return;
+        } else if (Integer.valueOf(count).equals(pool().put(dropKey, count))) {
+            return;
+        }
+        changed();
+    }
+
     /** Clears a whole scope (a new season, where every seasonal character starts at 0). Returns how many counters it had. */
     public synchronized int clearPityScope(String scope) {
         Map<String, Integer> old = pity.remove(scope);

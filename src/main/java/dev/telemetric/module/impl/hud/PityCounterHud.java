@@ -22,11 +22,17 @@ import dev.telemetric.setting.impl.ActionSetting;
 import dev.telemetric.setting.impl.BooleanSetting;
 import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.setting.impl.PityEditorSetting;
+import dev.telemetric.setting.impl.TextSetting;
 import dev.telemetric.tracking.LootTracker;
+import dev.telemetric.tracking.MelinoeImport;
 import dev.telemetric.tracking.PityScopes;
 import dev.telemetric.tracking.TrackingStore;
+import dev.telemetric.ui.confirm.Confirm;
+import dev.telemetric.ui.confirm.ConfirmRequest;
 import dev.telemetric.ui.notification.Toasts;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -74,6 +80,16 @@ public final class PityCounterHud extends LinesHudModule {
             .visibleWhen(dropMessage::get)));
     private final ActionSetting resetSeasonal = add(new ActionSetting("Reset Seasonal Pity",
             "New season: set every seasonal pity back to 0 (click twice to confirm)", this::resetSeasonal));
+    private final ActionSetting melinoeConvert = add(new ActionSetting("Melinoe Pity Import",
+            "Add the pity counters of Melinoe (config/melinoe/data/pity_counters.json) to the character you're on",
+            this::convertMelinoe));
+    private final GroupSetting editor = add(new GroupSetting("Editor",
+            "Search an item and set its pity by hand (for the character you're on)"));
+    private final TextSetting editorSearch = add(editor.child(new TextSetting("Search",
+            "Item name; \"shiny\" finds shiny variants. Empty = every item with pity", "", 40)
+            .notPersistent()));
+    private final PityEditorSetting editorList = add(editor.child(new PityEditorSetting("Pity",
+            "Click a count to type a new one (Enter = apply, Esc = cancel)", editorSearch::get)));
 
 
     private record Context(String title, List<Drop> drops) {}
@@ -112,6 +128,35 @@ public final class PityCounterHud extends LinesHudModule {
         resetArmedAt = 0;
         int n = LootTracker.get().store().clearPityScope(PityScopes.SEASONAL);
         Toasts.success(n == 0 ? "Seasonal pity was already empty" : "Seasonal pity reset (" + n + " counters)");
+    }
+
+    /** Reads Melinoe's file, then asks before adding it to the active pity scope. */
+    private void convertMelinoe() {
+        if (!MelinoeImport.fileExists()) {
+            Toasts.error("No Melinoe pity file found");
+            return;
+        }
+        MelinoeImport.Plan plan;
+        try {
+            plan = MelinoeImport.read();
+        } catch (IOException | RuntimeException e) {
+            Toasts.error("Melinoe pity file unreadable");
+            return;
+        }
+        if (plan.counts().isEmpty()) {
+            Toasts.info("Nothing to import (no matching counters)");
+            return;
+        }
+        TrackingStore store = LootTracker.get().store();
+        String who = PityScopes.label(store.pityScope(), store);
+        String unknown = plan.unknown().isEmpty() ? "" : " " + plan.unknown().size() + " unknown items are skipped.";
+        Confirm.show(new ConfirmRequest("Melinoe Pity Import",
+                "Add " + plan.counts().size() + " Melinoe pity counters to your " + who + " pity?" + unknown
+                        + " Counts are added on top, so import only once.",
+                "Import", "Cancel", () -> {
+                    int n = MelinoeImport.apply(plan, LootTracker.get().store());
+                    Toasts.success("Imported " + n + " counters to " + who + " pity");
+                }, null));
     }
 
     @Override

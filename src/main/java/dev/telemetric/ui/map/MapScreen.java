@@ -11,6 +11,7 @@ import dev.telemetric.game.ChatAdapter;
 import dev.telemetric.game.DungeonAdapter;
 import dev.telemetric.game.MapTextureAdapter;
 import dev.telemetric.game.PlayerAdapter;
+import dev.telemetric.game.WorldRenderAdapter;
 import dev.telemetric.input.InputUtil;
 import dev.telemetric.map.MapLocator;
 import dev.telemetric.map.MapMarkers;
@@ -399,7 +400,10 @@ public final class MapScreen extends Screen {
         Point me = me();
         if (me == null) return;
         double size = Math.max(5, markerSize() * 0.8);
-        MapRenderer.head(r, selfSkin(), view.sx(me.x(), me.z()), view.sy(me.x(), me.z()), size, 1.5, p.accent(), p.textMuted());
+        double hx = view.sx(me.x(), me.z()), hy = view.sy(me.x(), me.z());
+        MapRenderer.facingArrow(r, hx, hy, view.screenAngle(WorldRenderAdapter.cameraYaw()), size / 2 + 1.5 + 1,
+                Math.max(3.5, size * 0.5), p.accent(), ColorUtil.withAlpha(p.panel(), 230));
+        MapRenderer.head(r, selfSkin(), hx, hy, size, 1.5, p.accent(), p.textMuted());
     }
 
     private static String selfSkin() {

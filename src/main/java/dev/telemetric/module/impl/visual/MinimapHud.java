@@ -101,7 +101,7 @@ public final class MinimapHud extends HudModule {
         Point me = PlayerAdapter.feet(PlayerAdapter.partialTick());
         float yaw = WorldRenderAdapter.cameraYaw();
         if (region == null || me == null) {
-            drawSelf(r, half, p);
+            drawSelf(r, half, rotate.get() ? 0 : Math.toRadians(yaw) + Math.PI, p);
             if (preview) r.textCentered("Realm only", (int) half, (int) half + 10, p.textMuted());
             drawCoords(r, null, p);
             return;
@@ -115,7 +115,7 @@ public final class MinimapHud extends HudModule {
         try {
             List<Marker> markers = MapMarkers.collect(region, c -> !hidden.contains(c.label()));
             for (Marker m : markers) drawMarker(r, m, round, half, p);
-            drawSelf(r, half, p);
+            drawSelf(r, half, view.screenAngle(yaw), p);
         } finally {
             r.popClip();
         }
@@ -134,10 +134,12 @@ public final class MinimapHud extends HudModule {
         r.popAlpha();
     }
 
-    /** You: your head in the middle, framed in the accent colour. */
-    private static void drawSelf(Render2D r, float half, Theme p) {
+    /** You: your head in the middle, framed in the accent colour, with an arrow where you look. */
+    private static void drawSelf(Render2D r, float half, double facing, Theme p) {
         String skin = null;
         for (DungeonAdapter.PlayerMarker pm : DungeonAdapter.players()) if (pm.self()) skin = pm.skin();
+        MapRenderer.facingArrow(r, half, half, facing, 7 / 2.0 + 1.2 + 0.8, 3.5, p.accent(),
+                ColorUtil.withAlpha(p.panel(), 230));
         MapRenderer.head(r, skin, half, half, 7, 1.2, p.accent(), p.textMuted());
     }
 

@@ -58,9 +58,11 @@ public record MapMarkerTable(Map<String, String> states, List<Category> categori
      * @param fade      opacity of inactive markers (not spawned, defeated)
      * @param map       shown on the Telos Map by default
      * @param minimap   shown on the minimap by default
+     * @param waypointColor default colour of its world waypoints (Waypoints module), or null for {@code color}
      */
     public record Category(String id, String label, Source source, boolean live, Shape shape, String icon, Color color,
-                           double size, double labelZoom, double fade, boolean map, boolean minimap) {
+                           double size, double labelZoom, double fade, boolean map, boolean minimap,
+                           Color waypointColor) {
         public boolean labelsAt(double scale) {
             return !Double.isNaN(labelZoom) && scale >= labelZoom;
         }
@@ -115,7 +117,8 @@ public record MapMarkerTable(Map<String, String> states, List<Category> categori
                     enumOf(Shape.class, JsonFields.str(o, "shape"), Shape.DOT), icon(o),
                     Color.parse(JsonFields.str(o, "color"), Color.WHITE), Math.clamp(num(o, "size", 1), 0.2, 5),
                     num(o, "labelZoom", Double.NaN), Math.clamp(num(o, "fade", 1), 0, 1),
-                    JsonFields.bool(o, "map", true), JsonFields.bool(o, "minimap", true)));
+                    JsonFields.bool(o, "map", true), JsonFields.bool(o, "minimap", true),
+                    Color.parse(JsonFields.str(o, "waypointColor"), null)));
         }
         List<Entry> markers = new ArrayList<>();
         java.util.Set<String> unknown = new java.util.TreeSet<>();

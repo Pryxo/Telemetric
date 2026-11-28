@@ -43,6 +43,9 @@ public final class ModPaths {
     public static final Path DATA_OVERRIDES = DATA.resolve("overrides");
     public static final Path DATA_CACHE = DATA.resolve("cache");
 
+    /** Melinoe's pity counters ({@code config/melinoe/data/pity_counters.json}), read once by the Pity Counter import. */
+    public static final Path MELINOE_PITY = ROOT.getParent().resolve("melinoe").resolve("data").resolve("pity_counters.json");
+
     private static final String README = """
             Telemetric config folder
             ========================

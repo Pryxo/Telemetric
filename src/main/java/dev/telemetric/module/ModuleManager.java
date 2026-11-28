@@ -2,6 +2,7 @@ package dev.telemetric.module;
 
 import dev.telemetric.module.impl.visual.BossTrackerModule;
 import dev.telemetric.module.impl.visual.MapModule;
+import dev.telemetric.module.impl.visual.WaypointsModule;
 import dev.telemetric.module.impl.visual.MinimapHud;
 import dev.telemetric.module.impl.hud.PityCounterHud;
 import dev.telemetric.module.impl.hud.LifetimeStatsHud;
@@ -98,8 +99,9 @@ public final class ModuleManager {
         register(new StashOverlayModule());
         register(new VoxyModifierModule());
         register(new BossStageTrackerModule());
-        register(new BossTrackerModule()); // realm bosses: HUD list and waypoints
-        register(new MapModule()); // Telos Map screen + pins (shares Boss Tracker colours)
+        register(new BossTrackerModule()); // realm bosses: HUD list
+        register(new MapModule()); // Telos Map screen + pins
+        register(new WaypointsModule()); // world waypoints: live bosses + every Telos Map point
         register(new MinimapHud());
         register(new FullbrightModule());
         register(new CameraModule());

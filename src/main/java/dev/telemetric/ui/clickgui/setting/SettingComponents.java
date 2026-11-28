@@ -10,7 +10,9 @@ import dev.telemetric.setting.impl.GroupSetting;
 import dev.telemetric.setting.impl.KeybindSetting;
 import dev.telemetric.setting.impl.MultiChoiceSetting;
 import dev.telemetric.setting.impl.NumberSetting;
+import dev.telemetric.setting.impl.PityEditorSetting;
 import dev.telemetric.setting.impl.TextSetting;
+import dev.telemetric.setting.impl.ToggleListSetting;
 import dev.telemetric.ui.framework.GuiContext;
 
 import java.util.HashMap;
@@ -34,6 +36,8 @@ public final class SettingComponents {
         register(KeybindSetting.class, KeybindComponent::new);
         register(TextSetting.class, TextComponent::new);
         register(ActionSetting.class, ActionComponent::new);
+        register(PityEditorSetting.class, PityEditorComponent::new);
+        register(ToggleListSetting.class, ToggleListComponent::new);
         register(ChoiceSetting.class, SettingComponents::choice);
         register(MultiChoiceSetting.class, MultiChoiceComponent::new);
         register(GroupToggleSetting.class, GroupToggleComponent::new);

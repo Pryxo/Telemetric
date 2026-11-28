@@ -60,7 +60,7 @@ public class KeybindsModule extends Module {
     private String currentRealm, previousRealm;
 
     public KeybindsModule() {
-        super("Keybinds", "Keys for Telos commands, menus and the realm selector", Category.PLAYER);
+        super("Keybinds", "Keys for Telos commands, menus and the realm selector", Category.MISC);
     }
 
     /** One key that runs {@code /command} (no leading slash), shown in {@code group}. */
