@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -81,9 +82,11 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
      * @param plate     the boss's in-world nameplate (Boss.json {@code plate}, else {@code boss})
      * @param plateKill Boss.json {@code plateKill}: the kill is also counted like a named mob's (its plate vanishes near
      *                  you after your damage number hit it), for bosses that send no kill leaderboard
+     * @param killMessages Boss.json {@code killMessage} (one text or a list), lower case: with {@link #plateKill}, a
+     *                     plate kill only counts if a chat line containing one of them comes close to it. Empty = no check
      */
     public record BossLoot(String dungeon, String boss, List<Drop> drops, Set<String> pityOnly, String plate,
-                           boolean plateKill) {
+                           boolean plateKill, List<String> killMessages) {
 
         /** The drops a kill of this boss adds pity to (normal and shiny). */
         public List<Drop> pityDrops() {
@@ -147,8 +150,14 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
             String plate = JsonFields.str(o, "plate");
             boolean plateKill = o.has("plateKill") && o.get("plateKill").isJsonPrimitive()
                     && o.get("plateKill").getAsBoolean();
+            String oneMsg = JsonFields.str(o, "killMessage");
+            List<String> killMessages = new ArrayList<>();
+            for (String msg : oneMsg.isEmpty() ? JsonFields.strings(o, "killMessage") : List.of(oneMsg)) {
+                String t = msg.strip().toLowerCase(Locale.ROOT);
+                if (!t.isEmpty() && !killMessages.contains(t)) killMessages.add(t);
+            }
             BossLoot loot = new BossLoot(place, boss, List.copyOf(drops), Set.copyOf(pityOnly),
-                    plate.isEmpty() ? boss : plate, plateKill && !UNKNOWN.equals(boss));
+                    plate.isEmpty() ? boss : plate, plateKill && !UNKNOWN.equals(boss), List.copyOf(killMessages));
             if (dungeon) dungeons.computeIfAbsent(Names.partKey(place), k -> new ArrayList<>()).add(loot);
             else realm.add(loot);
             if (!UNKNOWN.equals(boss)) byBoss.computeIfAbsent(Names.key(boss), k -> new ArrayList<>()).add(loot);
@@ -242,6 +251,15 @@ public record LootTable(Map<String, List<BossLoot>> dungeons, Map<String, List<B
         Map<String, BossLoot> out = new LinkedHashMap<>();
         List<BossLoot> list = placeName == null ? dungeons.getOrDefault(Names.key(REALM), List.of()) : dungeon(placeName);
         for (BossLoot b : list) if (b.plateKill()) out.putIfAbsent(Names.key(b.plate()), b);
+        return out;
+    }
+
+    /** Every {@link BossLoot#plateKill} boss with {@link BossLoot#killMessages}, in every dungeon and the realm. */
+    public List<BossLoot> killMessageBosses() {
+        List<BossLoot> out = new ArrayList<>();
+        for (List<BossLoot> list : dungeons.values()) {
+            for (BossLoot b : list) if (b.plateKill() && !b.killMessages().isEmpty() && !out.contains(b)) out.add(b);
+        }
         return out;
     }
 

@@ -49,7 +49,9 @@ import java.util.regex.Pattern;
  *   <li>Plate boss kill: a boss with Boss.json {@code "plateKill": true} (no leaderboard on its kill) is followed the
  *       same way (its {@code plate} name, within {@value #BOSS_KILL_RANGE} blocks; realm bosses outside dungeons too)
  *       and its kill counts like a leaderboard kill (contribution boost 0). A leaderboard of it within
- *       {@link #SAME_KILL_MS} isn't counted again, and the other way round.</li>
+ *       {@link #SAME_KILL_MS} isn't counted again, and the other way round. With a {@code killMessage} (text or list) the
+ *       plate kill only counts once a server chat line containing it comes within {@value #KILL_MESSAGE_MS} ms before
+ *       or after.</li>
  *   <li>Bag: a loot bag's totem pop gives {@code bag:<group>} +1 ({@code tables/rarities.json} bags).</li>
  * </ul>
  * The counters live in {@link TrackingStore} (per account). The chat layouts haven't been read live yet ({@code anyRuns}).
@@ -107,6 +109,14 @@ public final class LootTracker {
     static final int BOSS_KILL_RANGE = 32;
     /** A plate kill and a leaderboard of the same boss this close together are one kill. */
     private static final long SAME_KILL_MS = 60_000;
+    /**
+     * A {@link BossLoot#killMessages} line this long before or after the plate kill confirms it (ping, and the server
+     * may send the line before or after the plate goes).
+     */
+    static final long KILL_MESSAGE_MS = 10_000;
+
+    /** Any server chat line, checked against the {@link BossLoot#killMessages} of the plate-kill bosses. */
+    static final ChatPattern KILL_MESSAGE = ChatPattern.builder("Boss kill message", "[^\\n]{2,300}").anyRuns().build();
     /** A plate that shows up within {@link #MOB_SAME_SQ} of a kill this soon after it is the same mob (the plate was re-sent). */
     static final long MOB_RESENT_MS = 5_000;
     private static final double MOB_SAME_SQ = 3 * 3, MOB_TELEPORT_SQ = 32 * 32;
@@ -140,6 +150,12 @@ public final class LootTracker {
      */
     private record MobKill(Point pos, long at, List<Drop> drops, BossLoot boss, boolean run) {}
 
+    /** A plate kill of a boss with {@link BossLoot#killMessages}, waiting up to {@link #KILL_MESSAGE_MS} for the line. */
+    private record PendingKill(BossLoot boss, Point pos, long at) {}
+
+    private final List<PendingKill> pendingKills = new ArrayList<>();
+    /** When each boss's kill message was last seen (for a line that comes before the plate goes). */
+    private final Map<BossLoot, Long> killMessageAt = new HashMap<>();
     private final Map<Integer, MobPlate> mobPlates = new HashMap<>();
     private final List<MobKill> mobKills = new ArrayList<>();
     private String mobPlace;
@@ -159,6 +175,7 @@ public final class LootTracker {
         ChatBus.on(LEADERBOARD, m -> onLeaderboard(m.group()));
         ChatBus.on(BONUS_CHEST, m -> onBonusChest());
         ChatBus.on(DROP_LINE, this::onDropLine);
+        ChatBus.on(KILL_MESSAGE, m -> onKillMessage(m.group()));
         DropAdapter.addListener(new DropAdapter.Listener() {
             @Override
             public void bagPopped(String totem) {
@@ -194,6 +211,7 @@ public final class LootTracker {
         markHits();
         if (++mobTicks % MOB_SCAN_TICKS != 0) return;
         PityScopes.get().tick(TrackingStore.of(PlayerAdapter.accountId()));
+        expireKillMessages();
         String place = DungeonAdapter.isInDungeon() ? DungeonAdapter.dungeonName() : null;
         Map<String, List<Drop>> drops = place == null ? Map.of() : TelosData.LOOT.get().mobDrops(place);
         Map<String, BossLoot> bosses = TelosData.LOOT.get().plateKillBosses(place);
@@ -255,8 +273,61 @@ public final class LootTracker {
      * leaderboard for it already counted it just now ({@link #SAME_KILL_MS}).
      */
     private void plateBossKill(BossLoot boss, Point p, long now) {
+        if (boss.killMessages().isEmpty()) {
+            confirmBossKill(boss, p, now, true);
+            return;
+        }
+        Long msg = killMessageAt.remove(boss);
+        if (msg != null && now - msg <= KILL_MESSAGE_MS) {
+            confirmBossKill(boss, p, now, false);
+            return;
+        }
+        pendingKills.removeIf(k -> k.boss() == boss);
+        pendingKills.add(new PendingKill(boss, p, now));
+        Telemetric.debug("Pity: boss '{}' plate gone after your hit, waiting for its kill message", boss.boss());
+    }
+
+    /** A server chat line: confirms a waiting plate kill whose boss's kill message it contains, or is kept for one to come. */
+    private void onKillMessage(String text) {
+        String line = text.toLowerCase(java.util.Locale.ROOT);
+        String decoded = DamageNumberAdapter.textFontText(text).toLowerCase(java.util.Locale.ROOT);
+        long now = System.currentTimeMillis();
+        for (BossLoot boss : TelosData.LOOT.get().killMessageBosses()) {
+            boolean said = false;
+            for (String m : boss.killMessages()) if (line.contains(m) || decoded.contains(m)) said = true;
+            if (!said) continue;
+            PendingKill pending = null;
+            for (PendingKill k : pendingKills) if (k.boss() == boss) pending = k;
+            if (pending != null) {
+                pendingKills.remove(pending);
+                confirmBossKill(boss, pending.pos(), now, false);
+            } else {
+                killMessageAt.put(boss, now);
+                Telemetric.debug("Pity: kill message of boss '{}' seen, waiting for its plate", boss.boss());
+            }
+        }
+    }
+
+    /** Drops plate kills that got no kill message in time, and kill messages that got no plate kill. */
+    private void expireKillMessages() {
+        if (pendingKills.isEmpty() && killMessageAt.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        for (Iterator<PendingKill> it = pendingKills.iterator(); it.hasNext(); ) {
+            PendingKill k = it.next();
+            if (now - k.at() <= KILL_MESSAGE_MS) continue;
+            it.remove();
+            Telemetric.debug("Pity: boss '{}' plate gone but no kill message came (not counted)", k.boss().boss());
+        }
+        killMessageAt.values().removeIf(at -> now - at > KILL_MESSAGE_MS);
+    }
+
+    /**
+     * Counts a plate kill like a leaderboard kill. {@code undoable}: kept as a {@link MobKill} so a re-sent plate takes
+     * it back (not after a kill message, which proves the boss is dead).
+     */
+    private void confirmBossKill(BossLoot boss, Point p, long now, boolean undoable) {
         if (lastKill == boss && now - lastKillAt < SAME_KILL_MS) {
-            Telemetric.debug("Pity: boss '{}' plate gone, already counted by its leaderboard", boss.boss());
+            Telemetric.debug("Pity: boss '{}' plate gone, already counted just now", boss.boss());
             return;
         }
         boolean run = countKill(boss);
@@ -265,8 +336,9 @@ public final class LootTracker {
         lastKillByPlate = true;
         List<Drop> counted = new ArrayList<>();
         for (Drop d : boss.pityDrops()) if (counts(d)) counted.add(d);
-        mobKills.add(new MobKill(p, now, counted, boss, run));
-        Telemetric.debug("Pity: boss '{}' killed at {} (plate gone after your hit)", boss.boss(), p);
+        if (undoable) mobKills.add(new MobKill(p, now, counted, boss, run));
+        Telemetric.debug("Pity: boss '{}' killed at {} (plate gone after your hit{})", boss.boss(), p,
+                undoable ? "" : ", kill message seen");
         for (Listener l : listeners) l.onKill(boss, 0);
     }
 
@@ -299,6 +371,13 @@ public final class LootTracker {
      * @return true if a kill was taken back (that mob was hit, so the new plate counts as hit too)
      */
     private boolean undoResent(Point pos) {
+        for (Iterator<PendingKill> it = pendingKills.iterator(); it.hasNext(); ) {
+            PendingKill k = it.next();
+            if (k.pos().distanceSq(pos.x(), pos.y(), pos.z()) > MOB_SAME_SQ) continue;
+            it.remove();
+            Telemetric.debug("Pity: boss '{}' is still alive (plate back, waiting kill dropped)", k.boss().boss());
+            return true;
+        }
         for (Iterator<MobKill> it = mobKills.iterator(); it.hasNext(); ) {
             MobKill k = it.next();
             if (k.pos().distanceSq(pos.x(), pos.y(), pos.z()) > MOB_SAME_SQ) continue;
